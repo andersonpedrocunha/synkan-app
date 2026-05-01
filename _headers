@@ -1,0 +1,24 @@
+# Cloudflare Pages · Headers do app Synkan
+
+/*
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self)
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+# Cache de assets pesados
+/*.png
+  Cache-Control: public, max-age=31536000, immutable
+/*.svg
+  Cache-Control: public, max-age=31536000, immutable
+/*.webmanifest
+  Cache-Control: public, max-age=86400
+
+# HTML revalidação rápida
+/*.html
+  Cache-Control: public, max-age=300, must-revalidate
+
+# CSP — permite Supabase, Anthropic via api.synkan, Stripe
+/index.html
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.synkan.com.br https://billing.synkan.com.br https://api.stripe.com https://brasilapi.com.br; frame-src https://js.stripe.com https://hooks.stripe.com; form-action 'self' https://checkout.stripe.com; worker-src 'self' blob:;

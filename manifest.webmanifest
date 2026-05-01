@@ -1,0 +1,30 @@
+{
+  "name": "Synkan",
+  "short_name": "Synkan",
+  "description": "Todos os seus kanbans num só lugar.",
+  "start_url": "/kanban_v8.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fafafa",
+  "theme_color": "#111111",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect x='0' y='0' width='192' height='192' rx='40' fill='%23111'/><rect x='51' y='75' width='24' height='84' rx='7' fill='rgba(255,255,255,.20)'/><rect x='99' y='45' width='24' height='120' rx='7' fill='rgba(255,255,255,.28)'/><rect x='147' y='93' width='24' height='66' rx='7' fill='rgba(255,255,255,.20)'/><rect x='36' y='66' width='24' height='84' rx='7' fill='rgba(255,255,255,.55)'/><rect x='84' y='36' width='24' height='120' rx='7' fill='%23fff'/><rect x='132' y='84' width='24' height='66' rx='7' fill='rgba(255,255,255,.55)'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect x='0' y='0' width='512' height='512' rx='112' fill='%23111'/><rect x='136' y='200' width='64' height='224' rx='18' fill='rgba(255,255,255,.20)'/><rect x='264' y='120' width='64' height='320' rx='18' fill='rgba(255,255,255,.28)'/><rect x='392' y='248' width='64' height='176' rx='18' fill='rgba(255,255,255,.20)'/><rect x='96' y='176' width='64' height='224' rx='18' fill='rgba(255,255,255,.55)'/><rect x='224' y='96' width='64' height='320' rx='18' fill='%23fff'/><rect x='352' y='224' width='64' height='176' rx='18' fill='rgba(255,255,255,.55)'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Home", "short_name": "Home", "url": "/kanban_v8.html#home" },
+    { "name": "My boards", "short_name": "Boards", "url": "/kanban_v8.html#boards" }
+  ]
+}

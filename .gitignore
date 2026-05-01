@@ -1,0 +1,8 @@
+# Backups e arquivos temporários
+*.bak
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
+*.log

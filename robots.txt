@@ -1,0 +1,5 @@
+# O app é privado por natureza — não indexar
+User-agent: *
+Disallow: /
+
+Sitemap: https://synkan.com.br/sitemap.xml
