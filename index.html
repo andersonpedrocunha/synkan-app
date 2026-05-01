@@ -327,7 +327,17 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .profile-field input:focus{border-color:var(--color-text-primary);box-shadow:0 0 0 3px rgba(60,52,137,.12);}
 .profile-email-readonly{font-size:13.5px;color:var(--color-text-secondary);padding:8px 11px;background:var(--color-background-secondary);border-radius:8px;border:0.5px solid transparent;}
 .settings-plan-tier{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;background:var(--color-invert-bg);color:var(--color-invert-text);padding:3px 11px;border-radius:999px;}
-.settings-plan-tier.free{background:var(--color-background-secondary);color:var(--color-text-secondary);}
+.settings-plan-tier.free,.settings-plan-tier.branca{background:var(--color-background-secondary);color:var(--color-text-secondary);}
+.settings-plan-tier.trial{background:#fef3c7;color:#92400e;}
+.settings-plan-tier.azul{background:#dbeafe;color:#1e40af;}
+.settings-plan-tier.roxa{background:#ede9fe;color:#5b21b6;}
+.settings-plan-tier.preta{background:#1f2937;color:#f9fafb;}
+
+/* Contador de IA visível na UI */
+.ai-quota-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:var(--color-text-secondary);background:var(--color-background-secondary);padding:3px 9px;border-radius:999px;border:0.5px solid var(--color-border-secondary);font-family:var(--font-sans);white-space:nowrap;}
+.ai-quota-badge.warn{background:#fef3c7;color:#92400e;border-color:#fcd34d;}
+.ai-quota-badge.danger{background:#fee2e2;color:#991b1b;border-color:#fca5a5;}
+.ai-quota-badge .ai-quota-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8;}
 
 /* ── Item destaque "Board Unificado" na sidebar ── */
 .sb-unified{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--color-invert-text);background:var(--color-invert-bg);border:none;text-align:left;font-family:var(--font-sans);width:100%;margin-bottom:4px;box-shadow:0 2px 8px rgba(0,0,0,.18);transition:transform .15s,box-shadow .15s,filter .15s;position:relative;overflow:hidden;}
@@ -3232,6 +3242,137 @@ function setSupabaseConfig(cfg) {
     localStorage.setItem(SUPABASE_CFG_KEY, JSON.stringify({ url: cfg.url, anonKey: cfg.anonKey }));
   }
 }
+
+// ── Sistema de plano e limites ────────────────────────────────────────
+// Espelha a view public.user_plan_limits do Supabase. Quando o app está
+// em modo local (sem auth), usa "trial" (acesso completo, lembretes ocasionais).
+// Em modo Supabase, lê o plan_code da tabela subscriptions.
+const PLAN_LIMITS = {
+  trial:        { ai: 30,   boards: -1, canvas: -1, okrs: -1, unified: -1, name: 'Trial 5 dias',                price: 0     },
+  faixa_branca: { ai: 0,    boards: 1,  canvas: 0,  okrs: 0,  unified: 1,  name: 'Faixa Branca',                price: 0     },
+  faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: 3,  name: 'Faixa Azul · Pessoal',        price: 14.90 },
+  faixa_roxa:   { ai: 300,  boards: 10, canvas: 10, okrs: -1, unified: -1, name: 'Faixa Roxa · Profissional',   price: 29.90 },
+  faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1, name: 'Faixa Preta · Empresarial',   price: 79.90 },
+};
+
+let _currentPlan = null;          // plan_code carregado do Supabase
+let _aiUsageThisMonth = 0;        // contador local de chamadas IA neste mês
+
+async function loadPlanFromSupabase() {
+  // Modo local: trial por padrão
+  if (getStorageMode() !== 'supabase' || typeof supaClient === 'undefined' || !supaClient || !supaUser) {
+    _currentPlan = 'trial';
+    return _currentPlan;
+  }
+  try {
+    const { data, error } = await supaClient
+      .from('subscriptions')
+      .select('plan_code, status')
+      .eq('user_id', supaUser.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data || data.status === 'canceled' || data.status === 'incomplete_expired') {
+      _currentPlan = 'trial';
+    } else {
+      _currentPlan = data.plan_code || 'trial';
+    }
+  } catch(e) {
+    console.warn('[plan] falha ao carregar:', e);
+    _currentPlan = 'trial';
+  }
+  return _currentPlan;
+}
+
+async function loadAIUsageThisMonth() {
+  if (getStorageMode() !== 'supabase' || typeof supaClient === 'undefined' || !supaClient || !supaUser) {
+    // Em modo local, usa o contador antigo (kanban_v8_ai_quota)
+    try { _aiUsageThisMonth = JSON.parse(localStorage.getItem('kanban_v8_ai_quota') || '{}').count || 0; } catch(e){ _aiUsageThisMonth = 0; }
+    return _aiUsageThisMonth;
+  }
+  try {
+    const m = new Date().toISOString().slice(0,7); // YYYY-MM
+    const { data, error } = await supaClient
+      .from('ai_usage')
+      .select('count')
+      .eq('user_id', supaUser.id)
+      .eq('month', m)
+      .maybeSingle();
+    if (error) throw error;
+    _aiUsageThisMonth = (data && data.count) || 0;
+  } catch(e) {
+    console.warn('[plan] falha ao carregar uso IA:', e);
+    _aiUsageThisMonth = 0;
+  }
+  return _aiUsageThisMonth;
+}
+
+function getCurrentPlanCode() { return _currentPlan || 'trial'; }
+function getCurrentPlanLimits() { return PLAN_LIMITS[getCurrentPlanCode()] || PLAN_LIMITS.trial; }
+
+function _countActiveBoards() {
+  try {
+    return Object.keys(allBoards || {}).filter(id => id !== UNIFIED_BOARD_ID && !(allBoards[id] && allBoards[id].archived)).length;
+  } catch(e) { return 0; }
+}
+function _countCanvases() {
+  try { return (Array.isArray(canvases) ? canvases.length : 0); } catch(e) { return 0; }
+}
+function _countOKRs() {
+  try { return (Array.isArray(_okrs) ? _okrs.length : 0); } catch(e) { return 0; }
+}
+
+function getResourceUsage(resource) {
+  if (resource === 'board')    return _countActiveBoards();
+  if (resource === 'canvas')   return _countCanvases();
+  if (resource === 'okr')      return _countOKRs();
+  if (resource === 'ai')       return _aiUsageThisMonth;
+  if (resource === 'unified')  return _countActiveBoards(); // unificado considera quantos boards o user tem
+  return 0;
+}
+
+function canCreate(resource) {
+  const limits = getCurrentPlanLimits();
+  const max = limits[resource === 'okr' ? 'okrs' : resource];
+  if (max === -1 || max === undefined) return { ok: true, used: 0, max: -1 };
+  const used = getResourceUsage(resource);
+  return { ok: used < max, used, max };
+}
+
+const _RESOURCE_LABELS = {
+  board:   { what: 'boards',                            upgrade: 'Faixa Roxa (até 10 boards)' },
+  canvas:  { what: 'Lab/Canvas',                        upgrade: 'Faixa Roxa (até 10)' },
+  okr:     { what: 'OKRs',                              upgrade: 'Faixa Roxa (ilimitado)' },
+  unified: { what: 'boards no Board Unificado',         upgrade: 'Faixa Roxa (ilimitado)' },
+  ai:      { what: 'chamadas Mestre Kan IA este mês',   upgrade: 'Faixa Roxa (300/mês)' },
+};
+
+function showPlanLimitModal(resource, used, max) {
+  const l = _RESOURCE_LABELS[resource] || { what: 'recursos', upgrade: 'um plano superior' };
+  const planName = getCurrentPlanLimits().name;
+  if (typeof appAlert === 'function') {
+    appAlert(
+      `Limite atingido — ${planName}`,
+      `Você atingiu ${used}/${max} ${l.what}. Pra continuar, faça upgrade pra ${l.upgrade}.`,
+      {
+        icon: '🔒',
+        okLabel: 'Fazer upgrade',
+        cancelLabel: 'Agora não',
+        onOk: () => window.open('https://synkan.com.br/upgrade', '_blank'),
+      }
+    );
+  } else {
+    if (confirm(`Você atingiu ${used}/${max} ${l.what} no plano ${planName}. Fazer upgrade pra ${l.upgrade}?`)) {
+      window.open('https://synkan.com.br/upgrade', '_blank');
+    }
+  }
+}
+
+function checkAndBlockOrAllow(resource) {
+  const c = canCreate(resource);
+  if (!c.ok) { showPlanLimitModal(resource, c.used, c.max); return false; }
+  return true;
+}
+
 const DEFAULT_COLS = [
   {id:'backlog',title:'Backlog'},
   {id:'todo',title:'A fazer'},
@@ -5073,6 +5214,8 @@ function switchBoard(id, opts) {
 }
 
 function createBoard(opts) {
+  // Gating: verifica limite do plano antes de criar
+  if (!checkAndBlockOrAllow('board')) return null;
   const id = _genBoardId();
   const name = (opts && opts.name) || 'Novo board';
   allBoards[id] = (opts && opts.seed) ? _seedBoardData(name) : _defaultBoardData(name);
@@ -5788,6 +5931,8 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Carrega plano e uso IA imediatamente (modo local: vira trial; modo Supabase espera o auth dispatch)
+  setTimeout(() => { try { loadPlanFromSupabase(); loadAIUsageThisMonth(); } catch(e){} }, 100);
   const ovs = document.getElementById('ov-search');
   if (ovs) ovs.addEventListener('click', e => { if (e.target === ovs) closeSearch(); });
   const ovk = document.getElementById('ov-shortcuts');
@@ -6731,61 +6876,110 @@ function clearWebhookFromUI() {
 }
 
 function _settingsPlanoSection() {
+  const code = getCurrentPlanCode();
+  const limits = getCurrentPlanLimits();
+  const planName = limits.name || 'Faixa Branca';
+  const priceLabel = (limits.price && limits.price > 0)
+    ? `R$ ${limits.price.toFixed(2).replace('.',',')}/mês`
+    : (code === 'trial' ? 'Trial · 5 dias' : 'Grátis');
+
+  const tierClass = (code || 'free').replace('faixa_','');
+  const isTopTier = code === 'faixa_preta';
+
+  // Helpers de barra de progresso
+  function _row(label, hint, used, max) {
+    const limited = (max !== -1);
+    const pct = limited ? Math.min(100, Math.round((used / Math.max(1,max)) * 100)) : 0;
+    const value = limited ? `${used} / ${max}` : `${used} · ilimitado`;
+    const barColor = !limited ? 'var(--accent)' :
+                     pct >= 100 ? 'var(--danger,#dc2626)' :
+                     pct >= 80  ? 'var(--warning,#d97706)' :
+                                  'var(--accent)';
+    const barHTML = limited ? `
+      <div style="margin-top:6px;height:6px;border-radius:3px;background:rgba(0,0,0,.08);overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${barColor};transition:width .3s ease;"></div>
+      </div>` : '';
+    return `
+      <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:4px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div>
+            <div class="settings-row-label">${label}</div>
+            <div class="settings-row-hint">${hint}</div>
+          </div>
+          <span class="settings-row-value" style="white-space:nowrap;">${value}</span>
+        </div>
+        ${barHTML}
+      </div>`;
+  }
+
+  const _usage = (res, limitKey) => ({
+    used: getResourceUsage(res),
+    max:  (limits[limitKey] === undefined ? -1 : limits[limitKey]),
+  });
+  const usageBoards   = _usage('board',   'boards');
+  const usageCanvas   = _usage('canvas',  'canvas');
+  const usageOKRs     = _usage('okr',     'okrs');
+  const usageAI       = _usage('ai',      'ai');
+  const usageUnified  = _usage('unified', 'unified');
+
+  const upgradeBtn = isTopTier ? '' : `
+    <a class="btn-a" href="https://synkan.com.br/upgrade" target="_blank" style="align-self:flex-start;margin-top:8px;">
+      Fazer upgrade →
+    </a>`;
+
   return `
     <div class="settings-card">
       <div class="settings-card-h">
         <span class="settings-card-title">Plano atual</span>
-        <span class="settings-plan-tier free">FREE</span>
+        <span class="settings-plan-tier ${tierClass}">${planName}</span>
       </div>
-      <div class="settings-card-sub">Você está usando todos os recursos liberados durante o beta. Quando o checkout abrir, esta seção mostrará seu uso, próxima fatura e botão pra fazer upgrade.</div>
-      <div class="settings-row">
-        <div>
-          <div class="settings-row-label">Boards</div>
-          <div class="settings-row-hint">Quantidade de boards na sua conta</div>
-        </div>
-        <span class="settings-row-value">${Object.keys(allBoards).filter(k=>k!==UNIFIED_BOARD_ID).length}</span>
+      <div class="settings-card-sub" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+        <span>Acompanhe seu uso de recursos do mês. Os limites são reiniciados todo dia 1º.</span>
+        <strong style="font-size:13px;color:var(--accent);white-space:nowrap;">${priceLabel}</strong>
       </div>
-      <div class="settings-row">
-        <div>
-          <div class="settings-row-label">Cards totais</div>
-          <div class="settings-row-hint">Soma de todos os cards de todos os boards</div>
-        </div>
-        <span class="settings-row-value">${Object.values(allBoards).filter(b=>!b._isUnified).reduce((s,b)=>s+(b.cards||[]).length,0)}</span>
-      </div>
-      <div class="settings-row">
-        <div>
-          <div class="settings-row-label">Membros</div>
-          <div class="settings-row-hint">Pessoas com acesso aos seus boards</div>
-        </div>
-        <span class="settings-row-value">${(team||[]).length}</span>
-      </div>
+
+      ${_row('Mestre Kan (IA)', 'Chamadas de IA neste mês', usageAI.used, usageAI.max)}
+      ${_row('Boards', 'Boards ativos na sua conta', usageBoards.used, usageBoards.max)}
+      ${_row('Canvas', 'Canvas (mindmap, OKR, fluxo) criados', usageCanvas.used, usageCanvas.max)}
+      ${_row('OKRs', 'Objetivos e resultados-chave ativos', usageOKRs.used, usageOKRs.max)}
+      ${_row('Board Unificado', 'Boards conectados ao Unificado', usageUnified.used, usageUnified.max)}
+
+      ${upgradeBtn}
     </div>
 
     <div class="settings-card">
       <div class="settings-card-title">Comparar planos</div>
-      <div class="settings-card-sub">Quando o checkout abrir, você poderá fazer upgrade aqui. Por enquanto, todos os recursos estão liberados.</div>
-      <div class="settings-row">
+      <div class="settings-card-sub">Os preços abaixo refletem os planos disponíveis. Faça upgrade na landing page.</div>
+
+      <div class="settings-row" style="${code==='faixa_branca'?'background:rgba(0,0,0,.04);border-radius:6px;padding:8px;':''}">
         <div>
-          <div class="settings-row-label">Free</div>
-          <div class="settings-row-hint">1 board, até 3 pessoas, sem IA</div>
+          <div class="settings-row-label">Faixa Branca${code==='faixa_branca'?' · seu plano':''}</div>
+          <div class="settings-row-hint">1 board, sem Canvas, sem OKR, sem IA</div>
         </div>
-        <span class="settings-row-value">R$ 0</span>
+        <span class="settings-row-value">Grátis</span>
       </div>
-      <div class="settings-row">
+      <div class="settings-row" style="${code==='faixa_azul'?'background:rgba(0,0,0,.04);border-radius:6px;padding:8px;':''}">
         <div>
-          <div class="settings-row-label">Pro</div>
-          <div class="settings-row-hint">Boards ilimitados, Board Unificado, Mestre Kan (IA), real-time</div>
+          <div class="settings-row-label">Faixa Azul · Pessoal${code==='faixa_azul'?' · seu plano':''}</div>
+          <div class="settings-row-hint">5 boards, 5 Canvas, 3 OKRs, 100 chamadas de IA/mês</div>
         </div>
-        <span class="settings-row-value">R$ 29 / usuário / mês</span>
+        <span class="settings-row-value">R$ 14,90/mês</span>
       </div>
-      <div class="settings-row">
+      <div class="settings-row" style="${code==='faixa_roxa'?'background:rgba(0,0,0,.04);border-radius:6px;padding:8px;':''}">
         <div>
-          <div class="settings-row-label">Business</div>
-          <div class="settings-row-hint">Tudo do Pro + régua de cobrança por e-mail + audit log + SSO</div>
+          <div class="settings-row-label">Faixa Roxa · Profissional${code==='faixa_roxa'?' · seu plano':''}</div>
+          <div class="settings-row-hint">10 boards, 10 Canvas, OKRs ilimitados, 300 chamadas de IA/mês</div>
         </div>
-        <span class="settings-row-value">R$ 79 / usuário / mês</span>
+        <span class="settings-row-value">R$ 29,90/mês</span>
       </div>
-      <a class="btn-c" href="synkan_landing.html" target="_blank" style="align-self:flex-start;">Ver landing page →</a>
+      <div class="settings-row" style="${code==='faixa_preta'?'background:rgba(0,0,0,.04);border-radius:6px;padding:8px;':''}">
+        <div>
+          <div class="settings-row-label">Faixa Preta · Empresarial${code==='faixa_preta'?' · seu plano':''}</div>
+          <div class="settings-row-hint">Boards ilimitados, Canvas ilimitado, OKRs ilimitados, 1000 chamadas de IA/mês</div>
+        </div>
+        <span class="settings-row-value">R$ 79,90/mês</span>
+      </div>
+      <a class="btn-c" href="https://synkan.com.br/upgrade" target="_blank" style="align-self:flex-start;">Ver planos no site →</a>
     </div>
   `;
 }
@@ -9446,6 +9640,12 @@ async function _onSignedIn(session) {
     full_name: supaUser.user_metadata?.full_name || supaUser.email,
   });
 
+  // Carrega plano e uso de IA do usuário (do Supabase)
+  try {
+    await loadPlanFromSupabase();
+    await loadAIUsageThisMonth();
+  } catch(e) { console.warn('plan/usage load failed', e); }
+
   // Carrega boards do usuário
   const remote = await supaLoadAllBoards();
   if (Object.keys(remote).length === 0) {
@@ -11942,7 +12142,11 @@ function bumpAIQuota() {
   // Reset dos avisos quando o mês muda
   const warned = (cfg.month===month) ? (cfg.warned || []) : [];
   setAIQuotaCfg({ limit: cfg.limit, month, count, warned });
+  // Atualiza contador em memória usado pelo gating de plano
+  _aiUsageThisMonth = (_aiUsageThisMonth || 0) + 1;
   _maybeWarnAIQuota();
+  // Atualiza badges visíveis em qualquer painel de IA
+  try { refreshAIQuotaPill(); } catch(e){}
 }
 
 // Avisa o usuário (no estilo Mestre Kan) quando se aproxima do limite mensal
@@ -12012,22 +12216,59 @@ function resetAIQuotaToday() {
   const cfg = getAIQuotaCfg();
   setAIQuotaCfg({ limit: cfg.limit, month: _monthKey(), count: 0, warned: [] });
 }
-function refreshAIQuotaPill() {
+// Pega o uso/limite efetivo de IA, preferindo o plano contratado (Supabase) sobre o limite local
+function getEffectiveAIUsage() {
+  try {
+    const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+    if (limits && typeof limits.ai === 'number' && limits.ai > 0) {
+      return { used: _aiUsageThisMonth || 0, limit: limits.ai, source: 'plan' };
+    }
+  } catch(e){}
   const q = getAIQuota();
-  const txt = `${q.used}/${q.limit} chamadas este mês`;
+  return { used: q.used, limit: q.limit, source: 'local' };
+}
+
+// HTML do badge "23 / 100 este mês" pra inserir em painéis de IA
+function aiQuotaBadgeHTML(extraStyle) {
+  const u = getEffectiveAIUsage();
+  const remaining = Math.max(0, u.limit - u.used);
+  const pct = u.used / Math.max(1, u.limit);
+  let cls = 'ai-quota-badge';
+  if (remaining <= 5 || pct >= 0.95) cls += ' danger';
+  else if (pct >= 0.8) cls += ' warn';
+  return `<span class="${cls}" title="Plano: ${u.source==='plan'?'limite do seu plano':'limite local configurado'}" style="${extraStyle||''}">
+    <span class="ai-quota-dot"></span>${u.used}/${u.limit} este mês
+  </span>`;
+}
+
+function refreshAIQuotaPill() {
+  const u = getEffectiveAIUsage();
+  const txt = `${u.used}/${u.limit} chamadas este mês`;
   const els = [document.getElementById('ai-quota-pill'), document.getElementById('ai-quota-pill-inline')].filter(Boolean);
+  const remaining = Math.max(0, u.limit - u.used);
   els.forEach(el => {
     el.textContent = txt;
-    if (q.remaining <= 25) {
+    // Reset estilos antes de aplicar
+    el.style.color = '';
+    el.style.background = '';
+    el.style.borderColor = '';
+    el.style.fontWeight = '';
+    if (remaining <= 5) {
       el.style.color = '#A32D2D';
       el.style.background = '#FCEBEB';
       el.style.borderColor = '#F5C9C9';
       el.style.fontWeight = '600';
-    } else if (q.remaining <= q.limit*0.3) {
+    } else if (remaining <= u.limit*0.2) {
       el.style.color = '#854F0B';
       el.style.background = '#FAEEDA';
       el.style.borderColor = '#E8D5A8';
     }
+  });
+  // Atualiza também badges no dashboard (.dash-ai-panel) que estejam visíveis
+  document.querySelectorAll('.dash-ai-panel .ai-quota-badge').forEach(badge => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = aiQuotaBadgeHTML();
+    if (tmp.firstElementChild) badge.replaceWith(tmp.firstElementChild);
   });
 }
 function saveAIQuotaFromUI() {
@@ -12040,7 +12281,13 @@ function saveAIQuotaFromUI() {
 
 // ── IA helpers globais (chamada padronizada para o /ai do sync server) ──
 async function callClaudeAPI({ system, instruction, context, max_tokens }) {
-  // Aplica limite local antes de bater no servidor
+  // Gating do plano: bloqueia se atingiu limite do plano contratado
+  const planCheck = canCreate('ai');
+  if (!planCheck.ok) {
+    showPlanLimitModal('ai', planCheck.used, planCheck.max);
+    return { error: `Você atingiu o limite mensal de ${planCheck.max} chamadas de IA do plano ${getCurrentPlanLimits().name}. Faça upgrade pra continuar.`, rate_limited: true, plan_limit: true };
+  }
+  // Aplica limite local (configurável pelo usuário em Settings) — fica como fallback
   const q = getAIQuota();
   if (q.remaining <= 0) {
     return { error: `Você atingiu o limite mensal de ${q.limit} chamadas de IA. O contador zera no dia 1º do próximo mês. Pra mudar o limite, vá em Configurações → Integrações → IA.`, rate_limited: true };
@@ -12117,7 +12364,11 @@ let _dashAILastOutput = '';
 function renderDashAIPanel() {
   // Acrescenta painel de IA no fim do dashboard
   const dashEl = document.getElementById('dashboard'); if (!dashEl) return;
-  if (dashEl.querySelector('.dash-ai-panel')) return; // já existe
+  if (dashEl.querySelector('.dash-ai-panel')) {
+    // Já existe — só atualiza o badge de uso (caso o usuário tenha trocado de plano ou consumido IA)
+    try { refreshAIQuotaPill(); } catch(e){}
+    return;
+  }
   const panel = document.createElement('div');
   panel.className = 'dash-panel dash-ai-panel';
   panel.innerHTML = `
@@ -12125,6 +12376,7 @@ function renderDashAIPanel() {
       <span class="dash-panel-title" style="display:inline-flex;align-items:center;gap:9px;"><img class="kan-avatar md" src="mestre_kan_avatar.png?v=6" alt=""/>Análise do Mestre Kan</span>
       <span class="dash-panel-sub" style="display:flex;align-items:center;gap:8px;">
         O mestre observa seu board
+        ${aiQuotaBadgeHTML()}
       </span>
     </div>
     <div class="ai-presets" id="dash-ai-presets">
@@ -13000,6 +13252,8 @@ const PLAN_TEMPLATE = `<h1>Plano de Ação</h1>
 </ul>`;
 
 function createCanvas(name, format) {
+  // Gating: verifica limite do plano antes de criar
+  if (!checkAndBlockOrAllow('canvas')) return null;
   format = format || 'mindmap';
   const id = _genCanvasId();
   const base = {
@@ -16610,6 +16864,8 @@ function saveOKR() {
   o.period = (document.getElementById('okr-period')?.value||'').trim();
   o.notes = (document.getElementById('okr-notes')?.value||'').trim();
   if (!o.title) { alert('Dê um título ao objetivo.'); return; }
+  // Gating: verifica limite do plano antes de criar (apenas em criação nova)
+  if (_okrEditing.isNew && !checkAndBlockOrAllow('okr')) return;
   // Filtra KRs sem título
   o.krs = (o.krs||[]).filter(k => (k.title||'').trim());
   o.updatedAt = new Date().toISOString();
