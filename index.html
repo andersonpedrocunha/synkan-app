@@ -3322,8 +3322,10 @@ let _currentPlan = null;          // plan_code carregado do Supabase
 let _aiUsageThisMonth = 0;        // contador local de chamadas IA neste mês
 
 async function loadPlanFromSupabase() {
-  // Modo local: trial por padrão
-  if (getStorageMode() !== 'supabase' || typeof supaClient === 'undefined' || !supaClient || !supaUser) {
+  // Se há sessão Supabase ativa, usa ela como fonte de verdade — independente
+  // do getStorageMode (que pode estar 'local' se a config URL+anonKey não foi
+  // persistida ainda no localStorage).
+  if (typeof supaClient === 'undefined' || !supaClient || !supaUser) {
     _currentPlan = 'trial';
     return _currentPlan;
   }
@@ -3347,8 +3349,8 @@ async function loadPlanFromSupabase() {
 }
 
 async function loadAIUsageThisMonth() {
-  if (getStorageMode() !== 'supabase' || typeof supaClient === 'undefined' || !supaClient || !supaUser) {
-    // Em modo local, usa o contador antigo (kanban_v8_ai_quota)
+  if (typeof supaClient === 'undefined' || !supaClient || !supaUser) {
+    // Sem sessão Supabase: usa contador local (kanban_v8_ai_quota)
     try { _aiUsageThisMonth = JSON.parse(localStorage.getItem('kanban_v8_ai_quota') || '{}').count || 0; } catch(e){ _aiUsageThisMonth = 0; }
     return _aiUsageThisMonth;
   }
@@ -6433,15 +6435,24 @@ function setLocalProfile(p) {
   try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p||{})); } catch(e){}
 }
 function getProfileName() {
-  const inSupa = getStorageMode()==='supabase' && supaUser;
+  // Se há sessão Supabase ativa (supaUser populado), usa ela como fonte de
+  // verdade — independente do getStorageMode (que depende de cfg URL+anonKey
+  // estar persistida no localStorage). Isso garante que login via Supabase
+  // sempre mostre o nome correto, mesmo quando o storageMode reporta 'local'.
   const local = getLocalProfile();
-  if (inSupa) return supaUser.user_metadata?.full_name || local.name || (supaUser.email||'').split('@')[0] || 'Sem nome';
+  if (typeof supaUser !== 'undefined' && supaUser) {
+    return supaUser.user_metadata?.full_name
+        || local.name
+        || (supaUser.email||'').split('@')[0]
+        || 'Sem nome';
+  }
   return local.name || 'Você';
 }
 function getProfileAvatar() {
-  const inSupa = getStorageMode()==='supabase' && supaUser;
   const local = getLocalProfile();
-  if (inSupa) return supaUser.user_metadata?.avatar_url || local.avatar || null;
+  if (typeof supaUser !== 'undefined' && supaUser) {
+    return supaUser.user_metadata?.avatar_url || local.avatar || null;
+  }
   return local.avatar || null;
 }
 
