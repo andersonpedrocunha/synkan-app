@@ -339,6 +339,69 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .ai-quota-badge.danger{background:#fee2e2;color:#991b1b;border-color:#fca5a5;}
 .ai-quota-badge .ai-quota-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8;}
 
+/* ── Botão "Subir de faixa" (upgrade) — estilo dojo ── */
+.btn-dojo-upgrade{
+  position:relative;display:inline-flex;align-items:center;gap:11px;
+  padding:11px 22px 11px 16px;
+  background:linear-gradient(180deg, #2A241D 0%, #1A1612 100%);
+  color:#F8F2E4;
+  font-family:var(--dojo-mincho,'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif);
+  font-size:14px;font-weight:500;letter-spacing:.05em;
+  text-decoration:none;border-radius:5px;
+  border:1px solid #3A3225;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.06) inset,
+    0 0 0 1px rgba(248,242,228,.04),
+    0 4px 14px rgba(26,22,18,.22);
+  transition:transform .18s ease, box-shadow .18s ease, filter .18s ease;
+  cursor:pointer;overflow:hidden;
+  align-self:flex-start;
+}
+.btn-dojo-upgrade::before{
+  content:'進';
+  position:absolute;right:6px;top:50%;
+  transform:translateY(-50%);
+  font-size:42px;line-height:1;
+  color:#BC002D;opacity:.16;
+  font-family:var(--dojo-mincho,'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif);
+  pointer-events:none;
+  font-weight:400;
+}
+.btn-dojo-upgrade:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.08);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.10) inset,
+    0 0 0 1px rgba(188,0,45,.20),
+    0 8px 22px rgba(26,22,18,.32);
+}
+.btn-dojo-upgrade:active{transform:translateY(0);}
+.btn-dojo-upgrade .dojo-seal{
+  width:18px;height:18px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #D11A45 0%, #BC002D 70%);
+  display:inline-block;flex-shrink:0;
+  box-shadow:0 0 0 1.5px rgba(248,242,228,.10), 0 1px 3px rgba(0,0,0,.4);
+  position:relative;z-index:1;
+}
+.btn-dojo-upgrade .dojo-arrow{opacity:.55;font-family:var(--font-sans);position:relative;z-index:1;}
+.btn-dojo-upgrade .dojo-label{position:relative;z-index:1;}
+
+/* Variante secundária — link em tinta sumi sem fundo */
+.btn-dojo-upgrade-link{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--dojo-mincho,'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif);
+  font-size:13.5px;color:#1A1612;
+  text-decoration:none;
+  border-bottom:0.5px solid rgba(26,22,18,.4);
+  padding-bottom:1px;letter-spacing:.03em;
+  transition:color .15s, border-color .15s;
+  align-self:flex-start;
+}
+.btn-dojo-upgrade-link::before{
+  content:'·';margin-right:4px;color:#BC002D;font-weight:700;
+}
+.btn-dojo-upgrade-link:hover{color:#BC002D;border-color:#BC002D;}
+
 /* ── Item destaque "Board Unificado" na sidebar ── */
 .sb-unified{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--color-invert-text);background:var(--color-invert-bg);border:none;text-align:left;font-family:var(--font-sans);width:100%;margin-bottom:4px;box-shadow:0 2px 8px rgba(0,0,0,.18);transition:transform .15s,box-shadow .15s,filter .15s;position:relative;overflow:hidden;}
 .sb-unified::before{content:'';position:absolute;right:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;background:linear-gradient(to right,rgba(255,255,255,.55) 2px,transparent 2px 5px,#fff 5px 8px,transparent 8px 11px,rgba(255,255,255,.55) 11px 14px);background-size:14px 14px;mask:linear-gradient(to bottom,transparent 12%,#000 12%);-webkit-mask:linear-gradient(to bottom,transparent 12%,#000 12%);opacity:.5;}
@@ -6940,8 +7003,10 @@ function _settingsPlanoSection() {
   const usageUnified  = _usage('unified', 'unified');
 
   const upgradeBtn = isTopTier ? '' : `
-    <a class="btn-a" href="${getUpgradeURL()}" target="_blank" style="align-self:flex-start;margin-top:8px;">
-      Fazer upgrade →
+    <a class="btn-dojo-upgrade" href="${getUpgradeURL()}" target="_blank" style="margin-top:10px;">
+      <span class="dojo-seal" aria-hidden="true"></span>
+      <span class="dojo-label">Subir de faixa</span>
+      <span class="dojo-arrow">→</span>
     </a>`;
 
   return `
@@ -6996,7 +7061,7 @@ function _settingsPlanoSection() {
         </div>
         <span class="settings-row-value">R$ 79,90/mês</span>
       </div>
-      <a class="btn-c" href="${getUpgradeURL()}" target="_blank" style="align-self:flex-start;">Ver planos no site →</a>
+      <a class="btn-dojo-upgrade-link" href="${getUpgradeURL()}" target="_blank">Ver planos no site →</a>
     </div>
   `;
 }
