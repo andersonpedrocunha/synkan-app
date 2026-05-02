@@ -2729,17 +2729,7 @@ body.density-compact .col{padding:7px;}
 <div class="app-shell">
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <svg class="sidebar-brand-mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <rect x="0" y="0" width="32" height="32" rx="8" fill="#111"/>
-        <!-- Eco fantasma das barras (deslocado +2.5,+1.5) -->
-        <rect x="8.5"  y="12.5" width="4" height="14" rx="1.2" fill="rgba(255,255,255,.20)"/>
-        <rect x="16.5" y="7.5"  width="4" height="20" rx="1.2" fill="rgba(255,255,255,.28)"/>
-        <rect x="24.5" y="15.5" width="4" height="11" rx="1.2" fill="rgba(255,255,255,.20)"/>
-        <!-- 3 colunas kanban (foreground) -->
-        <rect x="6"  y="11" width="4" height="14" rx="1.2" fill="rgba(255,255,255,.55)"/>
-        <rect x="14" y="6"  width="4" height="20" rx="1.2" fill="#fff"/>
-        <rect x="22" y="14" width="4" height="11" rx="1.2" fill="rgba(255,255,255,.55)"/>
-      </svg>
+      <img class="sidebar-brand-mark" src="synkan-icon-512.png" alt="Synkan" />
       <span>Synkan</span>
     </div>
     <button class="sb-item" id="sb-home" onclick="switchTab('home')">
@@ -3070,7 +3060,7 @@ body.density-compact .col{padding:7px;}
 <div class="auth-overlay" id="auth-overlay">
   <div class="auth-card">
     <div class="auth-brand">
-      <span class="auth-brand-mark"><svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="width:22px;height:22px;display:block;" aria-hidden="true"><rect x="6" y="11" width="4" height="14" rx="1.2" fill="rgba(255,255,255,.55)"/><rect x="14" y="6" width="4" height="20" rx="1.2" fill="#fff"/><rect x="22" y="14" width="4" height="11" rx="1.2" fill="rgba(255,255,255,.55)"/></svg></span>
+      <span class="auth-brand-mark"><img src="synkan-icon-512.png" alt="Synkan" style="width:32px;height:32px;display:block;border-radius:7px;" /></span>
       <span class="auth-brand-text">Synkan <span style="font-weight:500;font-size:13px;color:var(--color-text-tertiary);margin-left:4px;">Management Lab</span></span>
     </div>
     <div class="auth-tabs">
@@ -4418,12 +4408,7 @@ function renderDashboard() {
   const _printFooter = `
     <div class="dash-print-footer">
       <span>Gerado por</span>
-      <svg class="syn-mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <rect x="0" y="0" width="32" height="32" rx="6" fill="#111"/>
-        <rect x="6" y="11" width="4" height="14" rx="1.2" fill="rgba(255,255,255,.55)"/>
-        <rect x="14" y="6" width="4" height="20" rx="1.2" fill="#fff"/>
-        <rect x="22" y="14" width="4" height="11" rx="1.2" fill="rgba(255,255,255,.55)"/>
-      </svg>
+      <img class="syn-mark" alt="Synkan" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAD9ElEQVR42sWXvY8cRRDFf9U9s7v3JbAsy6BDhyM740/ghAgQEgE6gf8AsEwGISkpIeQOHGI7sASZI0BCIkN8iOQAC9vBiROcze3OR3dVEczscjbGu8fdiZJmtavt6X796tXraqGLCOhoNNooiuI94DXgHFACwtHCgQTcBj7LOX9U1/Wv0zVl+mVlZeWiiHwsImfdnZMIEcHdd9z93fF4fA2IArC6uvqGiFzvF1YgHMPOH8eEAbEH8ub+/v4NWVpaei6E8K2IPD0dwMmGAsHd98zshTgajT4IIbz0XxYXkdlziAiAhRCWRURkZWXlZxE5N51zYT7dOaiVEMJh04G735bV1dUEFE9aaLrbaZgZIQSGwyEAKSVSSsR46Ozl4kmL/63cA79DIDUNV65cYXNzk7quuX//PltbW+zu7lKWJYeooqKYy5UZqhkJoWNBMwDnL1xgY2ODpmlo25bl5WVUdQagV/pcfcwFICHw8uvvsHbqDDkrv/92jy8/vUpdVeScaZqGuq5naREJhMDCLBTzhBaLkmeeP8/y2mlSyoRy1LFxoApCz07OCdw6MDFSloOjAehRUI3HSBiScqaejGfUppRomqYXpvLUqTOcfXYdd5iM/2R3597c6pgPQMDdMHfMHTdHEByIMVIUBapG2zS8evESm69sgRs7937hw/ffmquDhYo3q6KqWFbMDaQzjCmAmSmFSNM0NHW9sDcUi1iGqZFTmgHBeyd51GNVUVNclZQVX9AW55u3KmaGqaFmOB2tTdNQVRVThs0M7ceYGYsgKBYB0E2sqCbMFOkdO8aCGCMOiICqk1IGV7LqQsa+GAO9GeWs5KyzEi2KyGAw6HbqkHOmTd0402NkQHOeUavapeAfQpGeqawY1gP1owNwQNVIuaPVTWeqb9uWqqoIIU4tA9WM+1QrHI8RdZMqZormBAdOyIOl1jQNWQ2wzqDc58pg7klopnz3xQ1iOcDdyamd/V+WJcPhkLquKcshX9/6hO1vPsfdaeoJ7oZIOLoG9vd2Z/kMMfbA7KGHEBg/+IO2eoCZE0IgFuXxiDAW5cz9us/MaDSiKApGw2GXCpHuABos4W59lo5BhJ2P+8z9pFf79vY26+vr1HXN3t4ek8mEEIJ3bpgt3CfObcn+7ZgOITAYDPpjONO2bQ/AH7OBJ7Rk7n7nsE3pVAOTyeShnmCBBR9tSu8EEbkp3Vt22Ja8KDorPmRHDGDSxc3//WISqqq6KyKXexZiP+AkLofezx373V+uqupuBGLbtj+UZfmjiLwoImsncC/ssyYB2HH3t8fj8XUgxh5ZTCl9H0K4FkJw4DSwdkyX1On1/Cfgas75UlVVX03Z/gu83Gd+R97+uQAAAABJRU5ErkJggg=="/>
       <strong>Synkan Management Lab</strong>
     </div>`;
 
@@ -7071,7 +7056,11 @@ function _settingsPlanoSection() {
         </div>
         <span class="settings-row-value">R$ 79,90/mês</span>
       </div>
-      <a class="btn-dojo-upgrade-link" href="${getUpgradeURL()}" target="_blank">Ver planos no site →</a>
+      <a class="btn-dojo-upgrade" href="${getUpgradeURL()}" target="_blank" style="margin-top:14px;">
+        <span class="dojo-seal" aria-hidden="true"></span>
+        <span class="dojo-label">Ver planos no site</span>
+        <span class="dojo-arrow">→</span>
+      </a>
     </div>
   `;
 }
