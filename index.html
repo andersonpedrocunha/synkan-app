@@ -327,7 +327,7 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .profile-field input:focus{border-color:var(--color-text-primary);box-shadow:0 0 0 3px rgba(60,52,137,.12);}
 .profile-email-readonly{font-size:13.5px;color:var(--color-text-secondary);padding:8px 11px;background:var(--color-background-secondary);border-radius:8px;border:0.5px solid transparent;}
 .settings-plan-tier{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;background:var(--color-invert-bg);color:var(--color-invert-text);padding:3px 11px;border-radius:999px;}
-.settings-plan-tier.free,.settings-plan-tier.branca{background:var(--color-background-secondary);color:var(--color-text-secondary);}
+.settings-plan-tier.free{background:var(--color-background-secondary);color:var(--color-text-secondary);}
 .settings-plan-tier.trial{background:#fef3c7;color:#92400e;}
 .settings-plan-tier.azul{background:#dbeafe;color:#1e40af;}
 .settings-plan-tier.roxa{background:#ede9fe;color:#5b21b6;}
@@ -3312,7 +3312,6 @@ function setSupabaseConfig(cfg) {
 // Em modo Supabase, lê o plan_code da tabela subscriptions.
 const PLAN_LIMITS = {
   trial:        { ai: 30,   boards: -1, canvas: -1, okrs: -1, unified: -1, name: 'Trial 5 dias',                price: 0     },
-  faixa_branca: { ai: 0,    boards: 1,  canvas: 0,  okrs: 0,  unified: 1,  name: 'Faixa Branca',                price: 0     },
   faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: 3,  name: 'Faixa Azul · Pessoal',        price: 14.90 },
   faixa_roxa:   { ai: 300,  boards: 10, canvas: 10, okrs: -1, unified: -1, name: 'Faixa Roxa · Profissional',   price: 29.90 },
   faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1, name: 'Faixa Preta · Empresarial',   price: 79.90 },
@@ -6969,7 +6968,7 @@ function clearWebhookFromUI() {
 function _settingsPlanoSection() {
   const code = getCurrentPlanCode();
   const limits = getCurrentPlanLimits();
-  const planName = limits.name || 'Faixa Branca';
+  const planName = limits.name || 'Trial 5 dias';
   const priceLabel = (limits.price && limits.price > 0)
     ? `R$ ${limits.price.toFixed(2).replace('.',',')}/mês`
     : (code === 'trial' ? 'Trial · 5 dias' : 'Grátis');
@@ -7044,12 +7043,12 @@ function _settingsPlanoSection() {
       <div class="settings-card-title">Comparar planos</div>
       <div class="settings-card-sub">Os preços abaixo refletem os planos disponíveis. Faça upgrade na landing page.</div>
 
-      <div class="settings-row" style="${code==='faixa_branca'?'background:rgba(0,0,0,.04);border-radius:6px;padding:8px;':''}">
+      <div class="settings-row" style="${code==='trial'?'background:rgba(0,0,0,.04);border-radius:6px;padding:8px;':''}">
         <div>
-          <div class="settings-row-label">Faixa Branca${code==='faixa_branca'?' · seu plano':''}</div>
-          <div class="settings-row-hint">1 board, sem Canvas, sem OKR, sem IA</div>
+          <div class="settings-row-label">Conheça o Dojo${code==='trial'?' · seu plano':''}</div>
+          <div class="settings-row-hint">5 dias grátis com tudo liberado · sem cartão</div>
         </div>
-        <span class="settings-row-value">Grátis</span>
+        <span class="settings-row-value">Trial · 5 dias</span>
       </div>
       <div class="settings-row" style="${code==='faixa_azul'?'background:rgba(0,0,0,.04);border-radius:6px;padding:8px;':''}">
         <div>
