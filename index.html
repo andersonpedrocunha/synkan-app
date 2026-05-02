@@ -3357,12 +3357,12 @@ function showPlanLimitModal(resource, used, max) {
         icon: '🔒',
         okLabel: 'Fazer upgrade',
         cancelLabel: 'Agora não',
-        onOk: () => window.open('https://synkan.com.br/upgrade', '_blank'),
+        onOk: () => window.open(getUpgradeURL(), '_blank'),
       }
     );
   } else {
     if (confirm(`Você atingiu ${used}/${max} ${l.what} no plano ${planName}. Fazer upgrade pra ${l.upgrade}?`)) {
-      window.open('https://synkan.com.br/upgrade', '_blank');
+      window.open(getUpgradeURL(), '_blank');
     }
   }
 }
@@ -3371,6 +3371,23 @@ function checkAndBlockOrAllow(resource) {
   const c = canCreate(resource);
   if (!c.ok) { showPlanLimitModal(resource, c.used, c.max); return false; }
   return true;
+}
+
+// Constrói a URL de upgrade com user_id e email do usuário logado, pra
+// que a página synkan.com.br/upgrade saiba quem é o usuário (cross-domain).
+function getUpgradeURL() {
+  const base = 'https://synkan.com.br/upgrade';
+  try {
+    const uid = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || localStorage.getItem('synkan_user_id') || '';
+    const email = (typeof supaUser !== 'undefined' && supaUser && supaUser.email) || localStorage.getItem('synkan_user_email') || '';
+    if (!uid) return base;
+    const qs = new URLSearchParams();
+    qs.set('user_id', uid);
+    if (email) qs.set('email', email);
+    return base + '?' + qs.toString();
+  } catch(e) {
+    return base;
+  }
 }
 
 const DEFAULT_COLS = [
@@ -6923,7 +6940,7 @@ function _settingsPlanoSection() {
   const usageUnified  = _usage('unified', 'unified');
 
   const upgradeBtn = isTopTier ? '' : `
-    <a class="btn-a" href="https://synkan.com.br/upgrade" target="_blank" style="align-self:flex-start;margin-top:8px;">
+    <a class="btn-a" href="${getUpgradeURL()}" target="_blank" style="align-self:flex-start;margin-top:8px;">
       Fazer upgrade →
     </a>`;
 
@@ -6979,7 +6996,7 @@ function _settingsPlanoSection() {
         </div>
         <span class="settings-row-value">R$ 79,90/mês</span>
       </div>
-      <a class="btn-c" href="https://synkan.com.br/upgrade" target="_blank" style="align-self:flex-start;">Ver planos no site →</a>
+      <a class="btn-c" href="${getUpgradeURL()}" target="_blank" style="align-self:flex-start;">Ver planos no site →</a>
     </div>
   `;
 }
