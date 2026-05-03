@@ -25653,21 +25653,21 @@ async function saveForm() {
       );
       const exists = Array.isArray(found) && found.length > 0;
       if (!exists && allBoards[f.target_board_id]) {
-        // Board existe localmente mas não no Supabase — sobe um stub mínimo
-        // (só id + owner + name + columns vazias) só pra satisfazer a FK.
+        // Board existe localmente mas não no Supabase — sobe usando o
+        // schema correto (_boardToRow garante os nomes de coluna certos).
         const _b = allBoards[f.target_board_id];
-        const stub = {
-          id: f.target_board_id,
-          owner_id: supaUser.id,
-          name: _b.name || 'Board',
-          columns: _b.columns || [],
-        };
+        const stub = (typeof _boardToRow === 'function')
+          ? { ..._boardToRow({ ..._b, id: f.target_board_id }), owner_id: supaUser.id }
+          : { id: f.target_board_id, owner_id: supaUser.id, name: _b.name || 'Board' };
         await _capRESTCall('boards', {
           method: 'POST',
           body: stub,
           headers: { 'Prefer': 'return=minimal,resolution=ignore-duplicates' },
           timeoutMs: 4000,
         });
+        console.log('[saveForm] board destino criado no Supabase');
+      } else if (exists) {
+        console.log('[saveForm] board destino já existe no Supabase');
       }
     } catch(e) {
       // Falhou? Não bloqueia o save — segue e deixa o catch principal lidar
