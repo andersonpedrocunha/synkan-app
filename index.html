@@ -10613,19 +10613,24 @@ function _settingsSyncSection() {
   `;
 }
 
+// Detecta se está rodando em ambiente de desenvolvimento (localhost ou
+// 127.0.0.1). Em produção (app.synkan.com.br), instruções de servidor
+// local, comandos curl e configurações de admin ficam ocultas.
+function _isDevHost() {
+  const h = location.hostname || '';
+  return h === 'localhost' || h === '127.0.0.1' || h === '' || h.endsWith('.local');
+}
+
 function _settingsIASection() {
   const q = getAIQuota();
   const pct = Math.min(100, Math.round((q.used/q.limit)*100));
   const tone = q.remaining<=5 ? '#A32D2D' : q.remaining<=q.limit*0.3 ? '#854F0B' : '#1FAD5C';
-  return `
-    <div class="settings-card">
-      <div class="settings-card-h">
-        <span class="settings-card-title" style="display:inline-flex;align-items:center;gap:11px;"><img class="kan-avatar lg" src="mestre_kan_avatar.png?v=6" alt=""/>Mestre Kan (IA nos cards)</span>
-        <span class="settings-status-pill warn">⚙ Configuração no servidor</span>
-      </div>
-      <div class="settings-card-sub">O Mestre Kan é a IA embutida no Synkan — sábio, conciso, com a calma de um mestre de dojo. Ele responde dentro dos cards (quebrar em subtarefas, redigir e-mail de cobrança, resumir thread) e roda no <strong>Claude Haiku 4.5</strong> via servidor local. A chave da API fica no servidor, não no navegador — privado e seguro (~R$ 0,03 por chamada).</div>
+  const isDev = _isDevHost();
+
+  // Card do Mestre Kan: bloco "Como ativar Terminal" só aparece em dev.
+  const devActivationBlock = isDev ? `
       <div style="background:var(--color-background-secondary);border-radius:8px;padding:14px;font-family:monospace;font-size:12px;color:var(--color-text-secondary);line-height:1.6;">
-        <div style="font-weight:600;margin-bottom:6px;color:var(--color-text-primary);font-family:var(--font-sans);">Como ativar:</div>
+        <div style="font-weight:600;margin-bottom:6px;color:var(--color-text-primary);font-family:var(--font-sans);">Como ativar (dev):</div>
         1. Pare o sync server (feche a janela do Terminal)<br/>
         2. Abra o Terminal e rode:<br/>
         &nbsp;&nbsp;&nbsp;<code>export ANTHROPIC_API_KEY=sk-ant-...</code><br/>
@@ -10633,7 +10638,17 @@ function _settingsIASection() {
         &nbsp;&nbsp;&nbsp;<code>python3 kanban_sync_server.py</code><br/>
         3. Pegue a chave em <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--color-text-primary);">console.anthropic.com</a>
       </div>
-      <div class="settings-card-sub" style="font-size:12px;margin-top:6px;">Pra trocar de modelo: pare o servidor e rode com <code>ANTHROPIC_MODEL=claude-sonnet-4-6</code> antes de iniciar (mais qualidade, ~5x mais caro). Pra mudar o limite no servidor: <code>AI_DAILY_LIMIT=200</code>.</div>
+      <div class="settings-card-sub" style="font-size:12px;margin-top:6px;">Pra trocar de modelo: pare o servidor e rode com <code>ANTHROPIC_MODEL=claude-sonnet-4-6</code> antes de iniciar.</div>
+  ` : '';
+
+  return `
+    <div class="settings-card">
+      <div class="settings-card-h">
+        <span class="settings-card-title" style="display:inline-flex;align-items:center;gap:11px;"><img class="kan-avatar lg" src="mestre_kan_avatar.png?v=6" alt=""/>Mestre Kan (IA nos cards)</span>
+        <span class="settings-status-pill on">✓ ativo</span>
+      </div>
+      <div class="settings-card-sub">O Mestre Kan é a IA embutida no Synkan — sábio, conciso, com a calma de um mestre de dojo. Disponível dentro de cada card (quebrar em subtarefas, redigir e-mail de cobrança, resumir thread) e no Dashboard (resumo dos últimos 7 dias). Roda em <strong>Claude Haiku 4.5</strong>, com a chave da API privada no servidor.</div>
+      ${devActivationBlock}
     </div>
 
     <div class="settings-card">
@@ -10641,7 +10656,7 @@ function _settingsIASection() {
         <span class="settings-card-title">Limite de chamadas de IA por mês</span>
         <span class="settings-status-pill ${q.remaining===0?'off':'on'}">${q.used}/${q.limit} este mês</span>
       </div>
-      <div class="settings-card-sub">Pra evitar consumo acidental de tokens (loops, cliques duplos, scripts), você define um teto mensal. O contador zera no dia 1º do mês seguinte. Esse limite roda no navegador — o servidor também tem um próprio limite por IP (configurável via <code>AI_DAILY_LIMIT</code> no env).</div>
+      <div class="settings-card-sub">Pra evitar consumo acidental de tokens (loops, cliques duplos, scripts), você define um teto mensal de chamadas. O contador zera no dia 1º do mês seguinte.</div>
       <div style="background:var(--color-background-secondary);border-radius:8px;height:8px;overflow:hidden;margin:4px 0 8px;">
         <div style="background:${tone};height:100%;width:${pct}%;transition:width .3s;"></div>
       </div>
@@ -10652,7 +10667,6 @@ function _settingsIASection() {
           <button class="btn-c" onclick="saveAIQuotaFromUI()">Salvar</button>
           <button class="btn-g" onclick="resetAIQuotaToday();renderSettings();">Zerar contador deste mês</button>
         </div>
-        <div style="font-size:11.5px;color:var(--color-text-tertiary);">Sugestões com Haiku 4.5: <strong>200</strong> ≈ R$ 6/mês · <strong>600</strong> ≈ R$ 18/mês (padrão) · <strong>1500</strong> ≈ R$ 45/mês.</div>
         <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-top:4px;">O Mestre Kan avisa quando você atinge 50%, 80% e 95% do limite mensal.</div>
       </div>
     </div>
@@ -10661,8 +10675,8 @@ function _settingsIASection() {
     ${_settingsPomoSection()}
     ${_settingsWebhooksSection()}
     ${_settingsCalendarSection()}
-    ${_settingsEmailToCardSection()}
-    ${_settingsApiSsoSection()}
+    ${isDev ? _settingsEmailToCardSection() : ''}
+    ${isDev ? _settingsApiSsoSection() : ''}
   `;
 }
 
@@ -16565,7 +16579,7 @@ const TOUR_STEPS = [
   {
     icon: '🥋',
     title: 'Mestre Kan integrado',
-    body: 'Em qualquer card você tem o Mestre Kan, sábio assistente do Synkan: quebra em subtarefas, redige e-mail de cobrança, sugere próxima ação. No Dashboard, ele resume os últimos 7 dias e identifica o que está travado. <span style="font-size:11px;color:var(--color-text-tertiary);">(Requer servidor local com ANTHROPIC_API_KEY exportada)</span>',
+    body: 'Em qualquer card você tem o Mestre Kan, sábio assistente do Synkan: quebra em subtarefas, redige e-mail de cobrança, sugere próxima ação. No Dashboard, ele resume os últimos 7 dias e identifica o que está travado.',
   },
   {
     icon: '🎉',
@@ -17006,7 +17020,9 @@ async function callClaudeAPI({ system, instruction, context, max_tokens, images 
     if (typeof _gamifAwardAICall === 'function') _gamifAwardAICall();
     return { text: data.text || '' };
   } catch (e) {
-    return { error: 'Não consegui falar com o servidor (' + KANBAN_SYNC_BASE + '). Em desenvolvimento: confirme que o kanban_sync_server.py está rodando com ANTHROPIC_API_KEY. Em produção: api.synkan.com.br pode estar fora — veja status.synkan.com.br.' };
+    return { error: _isDevHost()
+      ? 'Não consegui falar com o servidor local (' + KANBAN_SYNC_BASE + '). Confirme que o kanban_sync_server.py está rodando com ANTHROPIC_API_KEY exportada.'
+      : 'Não consegui falar com o Mestre Kan agora. Tente novamente em alguns instantes — se persistir, veja status.synkan.com.br.' };
   }
 }
 
@@ -17189,7 +17205,9 @@ function renderModalAI(cardId) {
     <div id="ai-output" class="ai-output empty">O Mestre Kan responde aqui. Pergunte ou escolha um preset acima.</div>
     <div id="ai-actions" class="ai-actions" style="display:none;"></div>
     <div class="ai-status-line">
-      <span id="ai-status">⚙ Servidor local <code>kanban_sync_server.py</code> precisa estar rodando com ANTHROPIC_API_KEY exportada.</span>
+      <span id="ai-status">${_isDevHost()
+        ? '⚙ Servidor local <code>kanban_sync_server.py</code> precisa estar rodando com ANTHROPIC_API_KEY exportada.'
+        : 'Mestre Kan rodando em Claude Haiku 4.5'}</span>
     </div>
   `;
   refreshAIQuotaPill();
@@ -17255,7 +17273,9 @@ async function _callAI(instruction) {
     }
   } catch (e) {
     out.classList.add('error');
-    out.textContent = 'Não consegui falar com o servidor (' + KANBAN_SYNC_BASE + '). Em dev: kanban_sync_server.py precisa estar rodando. Em prod: tente de novo em alguns instantes.';
+    out.textContent = _isDevHost()
+      ? 'Não consegui falar com o servidor local (' + KANBAN_SYNC_BASE + '). Em dev: kanban_sync_server.py precisa estar rodando.'
+      : 'Não consegui falar com o Mestre Kan agora. Tente novamente em alguns instantes.';
   }
   _aiBusy = false; if (sendBtn) sendBtn.disabled = false;
 }
@@ -21260,7 +21280,9 @@ function _renderCustomer360Body(cards, docs) {
         <div id="c360-ai-output" class="ai-output empty" style="min-height:140px;">
           O Mestre Kan analisa cards, documentos e histórico deste cadastro pra te dar uma leitura clara. Escolha um preset acima.
         </div>
-        <div class="ai-status-line"><span id="c360-ai-status">⚙ Servidor local <code>kanban_sync_server.py</code> precisa estar rodando com ANTHROPIC_API_KEY exportada.</span></div>
+        <div class="ai-status-line"><span id="c360-ai-status">${_isDevHost()
+          ? '⚙ Servidor local <code>kanban_sync_server.py</code> precisa estar rodando com ANTHROPIC_API_KEY exportada.'
+          : 'Mestre Kan rodando em Claude Haiku 4.5'}</span></div>
       </div>
     `;
     return;
