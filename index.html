@@ -1635,6 +1635,26 @@ body.density-compact .card-cf-row{font-size:10px;}
   font-family:var(--font-sans);position:relative;z-index:1;
 }
 
+/* Botão sutil pra reabrir o brief depois de dispensado */
+.daily-brief-reopen{
+  display:inline-flex;align-items:center;gap:7px;
+  background:transparent;border:1px dashed #C9B380;
+  color:#6B5B43;font-family:var(--font-sans);
+  font-size:12.5px;font-weight:500;letter-spacing:.02em;
+  padding:7px 13px;border-radius:999px;cursor:pointer;
+  margin:0 0 14px;transition:border-color .15s, color .15s, background .15s;
+}
+.daily-brief-reopen:hover{
+  border-color:#1A1612;color:#1A1612;
+  background:rgba(248,242,228,.5);
+}
+:root.dark .daily-brief-reopen{
+  border-color:#5A4F3A;color:#A99876;
+}
+:root.dark .daily-brief-reopen:hover{
+  border-color:#F8F2E4;color:#F8F2E4;background:rgba(248,242,228,.05);
+}
+
 /* ── Aging WIP no card: borda lateral muda de cor com a idade do card na coluna ── */
 .card{position:relative;}
 .card.aging-warn{box-shadow:inset 3px 0 0 #D9A227;}
@@ -4955,7 +4975,16 @@ function _briefDismissedToday() {
 }
 function _briefDismissToday() {
   try { localStorage.setItem(DAILY_BRIEF_KEY, new Date().toISOString().slice(0,10)); } catch(e){}
-  const el = document.getElementById('daily-brief'); if (el) el.style.display = 'none';
+  // Re-renderiza Home pra trocar o brief pelo botão de "reabrir"
+  if (typeof renderHome === 'function' && currentTab === 'home') renderHome();
+  else {
+    const el = document.getElementById('daily-brief'); if (el) el.style.display = 'none';
+  }
+}
+// Reabre o brief mesmo após ter sido dispensado hoje
+function _briefReopenToday() {
+  try { localStorage.removeItem(DAILY_BRIEF_KEY); } catch(e){}
+  if (typeof renderHome === 'function') renderHome();
 }
 
 // Coleta dados pra brief — é independente de board atual, usa todos os boards
@@ -5034,7 +5063,14 @@ function _kanQuoteOfTheDay() {
 }
 
 function _renderDailyBrief() {
-  if (_briefDismissedToday()) return '';
+  if (_briefDismissedToday()) {
+    // Brief foi dispensado hoje — mostra botão sutil pra reabrir
+    return `
+      <button class="daily-brief-reopen" onclick="_briefReopenToday()" title="Mostrar carta do dia novamente">
+        🥋 <span>Reabrir carta do dia</span>
+      </button>
+    `;
+  }
   const d = _buildDailyBriefData();
   const hour = new Date().getHours();
   const greet = hour<5?'Boa madrugada':hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite';
