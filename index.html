@@ -1142,6 +1142,37 @@ body.density-compact .card-cf-row{font-size:10px;}
 .cfg-col-sig-lock.is-disabled{opacity:.4;cursor:not-allowed;}
 .cfg-col-sig-lock input{margin:0;cursor:pointer;}
 .cfg-col-sig-lock.is-disabled input{cursor:not-allowed;}
+
+/* Linha 3: transições permitidas (allowedNext) */
+.cfg-col-flow{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:7px 12px 8px 22px;margin-top:-1px;
+  border-left:0.5px solid var(--color-border-tertiary);
+  border-right:0.5px solid var(--color-border-tertiary);
+  border-bottom:0.5px solid var(--color-border-tertiary);
+  border-radius:0 0 var(--border-radius-md) var(--border-radius-md);
+  background:rgba(60,52,137,.04);
+  font-size:11.5px;color:var(--color-text-secondary);
+}
+.cfg-col-flow-chips{display:inline-flex;flex-wrap:wrap;gap:5px;align-items:center;}
+.cfg-flow-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  background:var(--color-background-primary);border:1px solid var(--color-border-secondary);
+  border-radius:999px;padding:3px 9px;cursor:pointer;font-size:11.5px;
+  color:var(--color-text-tertiary);transition:background .12s, border-color .12s, color .12s;
+}
+.cfg-flow-chip input{margin:0;cursor:pointer;}
+.cfg-flow-chip.is-on{
+  background:rgba(60,52,137,.08);border-color:#3C3489;color:var(--color-text-primary);
+  font-weight:500;
+}
+.cfg-flow-chip:hover{border-color:#3C3489;}
+.cfg-flow-clear{
+  background:transparent;border:1px solid rgba(0,0,0,.12);color:var(--color-text-tertiary);
+  font-size:10.5px;padding:3px 9px;border-radius:999px;cursor:pointer;font-family:var(--font-sans);
+  margin-left:auto;
+}
+.cfg-flow-clear:hover{background:rgba(0,0,0,.04);}
 .cfg-col-row.dragging{opacity:.5;}
 .cfg-col-row.drop-before{box-shadow:inset 0 2px 0 #111;}
 .cfg-col-row.drop-after{box-shadow:inset 0 -2px 0 #111;}
@@ -7336,8 +7367,8 @@ const KANBAN_TEMPLATES = [
     aiOCR: true,
     description: 'Acompanhe relatórios de despesa de viagens (estilo VExpenses). Botão "📸 Ler recibo/NF" extrai valor, data, categoria e fornecedor automaticamente da foto da nota. Aprovação requer assinatura imutável com hash. Workflow: lançada → aguardando → aprovada (com assinatura) → reembolsada.',
     columns: [
-      {id:'lancada',    title:'Lançada'},
-      {id:'aguardando', title:'Aguardando aprovação', wipLimit:8},
+      {id:'lancada',    title:'Lançada',                                                        allowedNext:['aguardando','aprovada','recusada']},
+      {id:'aguardando', title:'Aguardando aprovação', wipLimit:8,                               allowedNext:['aprovada','recusada']},
       {id:'aprovada',   title:'Aprovada',  requiresSignature:'cf_assinatura', lockOnceSigned:true},
       {id:'reembolsada',title:'Reembolsada'},
       {id:'recusada',   title:'Recusada',  requiresSignature:'cf_assinatura', lockOnceSigned:true},
@@ -7378,9 +7409,9 @@ const KANBAN_TEMPLATES = [
     category: 'Financeiro',
     description: 'Pipeline de propostas e orçamentos: rascunho → enviado → em negociação → aprovado (com assinatura do cliente/gestor) → contratado. Aprovação requer assinatura imutável com hash. Ideal pra vendas B2B, consultorias, agências.',
     columns: [
-      {id:'rascunho',    title:'Rascunho'},
-      {id:'enviado',     title:'Enviado ao cliente', wipLimit:10},
-      {id:'negociacao',  title:'Em negociação',      wipLimit:6},
+      {id:'rascunho',    title:'Rascunho',                                                      allowedNext:['enviado']},
+      {id:'enviado',     title:'Enviado ao cliente', wipLimit:10,                               allowedNext:['negociacao','aprovado','done']},
+      {id:'negociacao',  title:'Em negociação',      wipLimit:6,                                allowedNext:['aprovado','done']},
       {id:'aprovado',    title:'Aprovado', requiresSignature:'cf_assinatura_gst', lockOnceSigned:true},
       {id:'contratado',  title:'Contratado'},
       {id:'done',        title:'Encerrado'},
@@ -11820,6 +11851,24 @@ function _processCardDrop(newCol) {
     // Avanço permitido — segue normalmente
   }
 
+  // ── Bloqueio: transições restritas por coluna (allowedNext) ─────
+  const fromCol = (COLS || []).find(x => x.id === card.col);
+  if (fromCol && Array.isArray(fromCol.allowedNext) && fromCol.allowedNext.length > 0) {
+    if (!fromCol.allowedNext.includes(newCol)) {
+      const allowedTitles = fromCol.allowedNext
+        .map(id => (COLS.find(c => c.id === id) || {}).title)
+        .filter(Boolean);
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning(
+          'Movimento não permitido',
+          `De <strong>"${_esc(fromCol.title)}"</strong> só é possível mover para: <strong>${allowedTitles.map(_esc).join(', ')}</strong>. O fluxo de aprovação tem regras estritas pra preservar a auditoria.`,
+          'warn'
+        );
+      }
+      return;
+    }
+  }
+
   // ── Bloqueio: coluna alvo exige assinatura? ─────────────────────
   const targetColForSig = (COLS || []).find(x => x.id === newCol);
   if (targetColForSig && targetColForSig.requiresSignature) {
@@ -13170,6 +13219,7 @@ function renderConfigCols() {
     const wip = c.wipLimit ? c.wipLimit : '';
     const reqSig = c.requiresSignature || '';
     const locked = !!c.lockOnceSigned;
+    const allowedNext = Array.isArray(c.allowedNext) ? c.allowedNext : null;
     // Linha 2: opções de assinatura (só aparece se o board tem ao menos 1 campo signature)
     const sigRow = hasSig ? `
       <div class="cfg-col-sig">
@@ -13184,6 +13234,22 @@ function renderConfigCols() {
           <span>Trava card após assinar</span>
         </label>
       </div>` : '';
+    // Linha 3: transições permitidas (allowedNext)
+    const otherCols = COLS.filter(x => x.id !== c.id);
+    const flowRow = `
+      <div class="cfg-col-flow">
+        <label class="cfg-col-sig-lbl">De aqui pode mover pra:</label>
+        <span class="cfg-col-flow-chips">
+          ${otherCols.map(o => {
+            const isAllowed = !allowedNext || allowedNext.includes(o.id);
+            return `<label class="cfg-flow-chip${isAllowed?' is-on':''}" title="Permitir mover pra '${esc(o.title)}'">
+              <input type="checkbox" ${isAllowed?'checked':''} onchange="toggleConfigColAllowedNext('${esc(c.id)}', '${esc(o.id)}', this.checked)" />
+              <span>${esc(o.title)}</span>
+            </label>`;
+          }).join('')}
+        </span>
+        <button class="cfg-flow-clear" onclick="clearConfigColAllowedNext('${esc(c.id)}')" title="Permitir todos (sem restrição)">↺ todos</button>
+      </div>`;
     return `
       <div class="cfg-col-block">
         <div class="cfg-col-row${isTerminal?' is-terminal':''}" draggable="true" data-idx="${i}" data-id="${esc(c.id)}">
@@ -13198,9 +13264,38 @@ function renderConfigCols() {
                   onclick="${isTerminal?'':"removeConfigCol('"+esc(c.id)+"')"}">✕</button>
         </div>
         ${sigRow}
+        ${flowRow}
       </div>`;
   }).join('');
   bindConfigColDrag();
+}
+
+// Toggle de uma coluna permitida em allowedNext
+function toggleConfigColAllowedNext(colId, targetColId, checked) {
+  const col = COLS.find(c => c.id === colId);
+  if (!col) return;
+  // Inicializa allowedNext com TODAS exceto a própria, se ainda não existir
+  if (!Array.isArray(col.allowedNext)) {
+    col.allowedNext = COLS.filter(x => x.id !== colId).map(x => x.id);
+  }
+  if (checked) {
+    if (!col.allowedNext.includes(targetColId)) col.allowedNext.push(targetColId);
+  } else {
+    col.allowedNext = col.allowedNext.filter(id => id !== targetColId);
+  }
+  // Se a lista contém todas as outras colunas, remove a prop pra simplificar
+  const allOthers = COLS.filter(x => x.id !== colId).map(x => x.id);
+  const allIncluded = allOthers.every(id => col.allowedNext.includes(id));
+  if (allIncluded) delete col.allowedNext;
+  saveData(); renderConfigCols(); render();
+}
+
+// Limpa a restrição (volta a permitir todos)
+function clearConfigColAllowedNext(colId) {
+  const col = COLS.find(c => c.id === colId);
+  if (!col) return;
+  delete col.allowedNext;
+  saveData(); renderConfigCols(); render();
 }
 
 function setConfigColRequiresSignature(colId, fieldId) {
