@@ -23649,137 +23649,224 @@ function _dojoBuildSnowGroundSVG(W, H) {
   const mt2 = mountainPath(mtBaseY - 18,   [[0.22, 75], [0.45, 110], [0.65, 85], [0.85, 100]],          -5);
   const mt3 = mountainPath(mtBaseY - 35,   [[0.28, 95], [0.50, 130], [0.78, 105]],                       8);
 
-  // ── Bambu (estilo japonês com nós, segmentos e folhas) ──
-  // Cada bambu = caule curvo + 4-6 nós + cluster de folhas no topo.
-  function bambuSVG(x, snowY, height, sway, flipFolhas) {
-    const segs = 5;
+  // ── Bambu (estilo japonês detalhado) ──
+  // Caule SEGMENTADO: cada segmento é uma "barra" com nó, leve ahuso (taper),
+  // gradiente próprio. Folhas com formato lanceolado real e nervura central.
+  function bambuSVG(x, snowY, height, sway, flipFolhas, scale) {
+    scale = scale || 1;
+    const segs = Math.max(4, Math.round(height / 22));  // ~22px por segmento
     const segLen = height / segs;
-    // Caule: curva suave (Bezier C com pontos de controle)
-    const topX = x + sway * 0.4;
+    const topX = x + sway * 0.5;
     const topY = snowY - height;
-    // Pontos de controle pra curvatura natural
-    const cp1x = x + sway * 0.2;
-    const cp1y = snowY - height * 0.4;
-    const cp2x = x + sway * 0.6;
-    const cp2y = snowY - height * 0.7;
-
-    // Nós (linhas horizontais nos segmentos)
-    let knots = '';
-    for (let i = 1; i < segs; i++) {
+    // Calcula posição de cada segmento (interpolação cúbica simples)
+    const segPositions = [];
+    for (let i = 0; i <= segs; i++) {
       const t = i / segs;
-      // Posição interpolada na curva (aproximação)
-      const segX = x + sway * t * 0.6;
+      // Curva sigmoide pra dar leve "S" no caule (curvatura natural)
+      const tEased = t * t * (3 - 2 * t);
+      const segX = x + (topX - x) * tEased + sway * 0.3 * Math.sin(t * Math.PI);
       const segY = snowY - height * t;
-      const nodeWidth = 4 - i * 0.4; // afilamento conforme sobe
-      knots += `<line x1="${(segX - nodeWidth).toFixed(1)}" y1="${segY.toFixed(1)}"
-                       x2="${(segX + nodeWidth).toFixed(1)}" y2="${segY.toFixed(1)}"
-                       stroke="rgba(75,90,55,0.7)" stroke-width="0.8" stroke-linecap="round"/>`;
+      const baseWidth = 6 * scale;
+      const w = baseWidth * (1 - t * 0.55); // taper do largo embaixo pro fino em cima
+      segPositions.push({ x: segX, y: segY, w });
     }
 
-    // Folhas no topo (3-5 lanças finas em diferentes ângulos)
-    const leafColor1 = 'rgba(95,125,75,0.78)';
-    const leafColor2 = 'rgba(80,105,65,0.85)';
+    // Desenha cada segmento como um "tronco" trapezoide com gradiente interno
+    let segments = '';
+    for (let i = 0; i < segs; i++) {
+      const a = segPositions[i];
+      const b = segPositions[i + 1];
+      // Quadrilátero: 4 cantos (a esq/dir, b esq/dir)
+      const path = `M ${(a.x - a.w).toFixed(1)} ${a.y.toFixed(1)}
+                    L ${(b.x - b.w).toFixed(1)} ${b.y.toFixed(1)}
+                    L ${(b.x + b.w).toFixed(1)} ${b.y.toFixed(1)}
+                    L ${(a.x + a.w).toFixed(1)} ${a.y.toFixed(1)} Z`;
+      segments += `<path d="${path}" fill="url(#bambu-stalk-grad)"/>`;
+      // Highlight do lado iluminado (linha fina à esquerda)
+      segments += `<line x1="${(a.x - a.w * 0.6).toFixed(1)}" y1="${a.y.toFixed(1)}"
+                          x2="${(b.x - b.w * 0.6).toFixed(1)}" y2="${b.y.toFixed(1)}"
+                          stroke="rgba(180,200,140,0.4)" stroke-width="1" stroke-linecap="round"/>`;
+    }
+
+    // Nós (linhas horizontais entre segmentos — mais grossas e visíveis)
+    let knots = '';
+    for (let i = 1; i < segs; i++) {
+      const seg = segPositions[i];
+      const w = seg.w * 1.15;
+      knots += `<rect x="${(seg.x - w).toFixed(1)}" y="${(seg.y - 1.2).toFixed(1)}"
+                      width="${(w * 2).toFixed(1)}" height="2.4"
+                      fill="rgba(45,60,30,0.85)"/>`;
+      // Sombrinha embaixo do nó pra dar volume
+      knots += `<line x1="${(seg.x - w).toFixed(1)}" y1="${(seg.y + 1.4).toFixed(1)}"
+                      x2="${(seg.x + w).toFixed(1)}" y2="${(seg.y + 1.4).toFixed(1)}"
+                      stroke="rgba(30,42,20,0.5)" stroke-width="0.6"/>`;
+    }
+
+    // Folhas no topo — formato lanceolado com nervura
+    const leafColor1 = 'rgba(115,145,85,0.92)';
+    const leafColor2 = 'rgba(95,125,72,0.92)';
+    const veinColor = 'rgba(55,75,40,0.55)';
     const leafAngles = flipFolhas
-      ? [-65, -40, -15, 10, 35]
-      : [-35, -10, 15, 40, 65];
+      ? [-70, -45, -22, 0, 22, 48]
+      : [-48, -22, 0, 22, 45, 70];
     let leaves = '';
     leafAngles.forEach((angle, i) => {
-      const len = 22 + (i % 2) * 6;
+      const len = (28 + (i % 3) * 8) * scale;
       const a = (angle * Math.PI) / 180;
       const ex = topX + Math.sin(a) * len;
       const ey = topY - Math.cos(a) * len;
-      // Folha: path lanceolado (ponto de controle no meio criando curvatura)
-      const cp = {
-        x: topX + Math.sin(a) * len * 0.5 + Math.cos(a) * 4,
-        y: topY - Math.cos(a) * len * 0.5 + Math.sin(a) * 4,
-      };
-      const isOdd = i % 2 === 0;
-      leaves += `<path d="M ${topX.toFixed(1)} ${topY.toFixed(1)}
-                          Q ${cp.x.toFixed(1)} ${cp.y.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}"
-                  stroke="${isOdd ? leafColor1 : leafColor2}"
-                  stroke-width="2.5" stroke-linecap="round" fill="none"/>`;
+      // Pontos de controle pro shape lanceolado
+      const midX = topX + Math.sin(a) * len * 0.5;
+      const midY = topY - Math.cos(a) * len * 0.5;
+      const perpX = Math.cos(a) * (3.5 + (i % 2) * 1.5);
+      const perpY = Math.sin(a) * (3.5 + (i % 2) * 1.5);
+      const isLight = i % 2 === 0;
+      const fillColor = isLight ? leafColor1 : leafColor2;
+      // Folha = path fechado em formato de lança
+      const leafPath = `M ${topX.toFixed(1)} ${topY.toFixed(1)}
+                        Q ${(midX + perpX).toFixed(1)} ${(midY + perpY).toFixed(1)}
+                          ${ex.toFixed(1)} ${ey.toFixed(1)}
+                        Q ${(midX - perpX).toFixed(1)} ${(midY - perpY).toFixed(1)}
+                          ${topX.toFixed(1)} ${topY.toFixed(1)} Z`;
+      leaves += `<path d="${leafPath}" fill="${fillColor}"/>`;
+      // Nervura central
+      leaves += `<line x1="${topX.toFixed(1)}" y1="${topY.toFixed(1)}"
+                       x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"
+                       stroke="${veinColor}" stroke-width="0.8"/>`;
     });
 
-    // Caule (gradient verde-bege)
-    const stalk = `<path d="M ${x.toFixed(1)} ${snowY.toFixed(1)}
-                            C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}
-                              ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}
-                              ${topX.toFixed(1)} ${topY.toFixed(1)}"
-                    stroke="url(#bambu-grad)" stroke-width="3.5"
-                    stroke-linecap="round" fill="none"/>`;
-
-    return `<g class="bambu">${stalk}${knots}${leaves}</g>`;
+    return `<g class="bambu">${segments}${knots}${leaves}</g>`;
   }
 
+  // Bambus em 2 clusters (esq + dir), cada cluster com 3 plantas em
+  // profundidades diferentes (atrás/meio/frente — escalas diferentes)
   const bambuClusters = [
-    { xRel: 0.08, height: 130, sway: 12,  flip: false },
-    { xRel: 0.12, height: 95,  sway: -8,  flip: false },
-    { xRel: 0.155,height: 75,  sway: 5,   flip: true  },
-    { xRel: 0.83, height: 145, sway: -14, flip: true  },
-    { xRel: 0.87, height: 105, sway: 9,   flip: false },
-    { xRel: 0.905,height: 82,  sway: -6,  flip: true  },
+    { xRel: 0.06,  height: 105, sway: 10,  flip: false, scale: 0.85 }, // atrás
+    { xRel: 0.10,  height: 145, sway: -6,  flip: false, scale: 1.0  }, // meio
+    { xRel: 0.135, height: 78,  sway: 4,   flip: true,  scale: 0.75 }, // frente
+
+    { xRel: 0.86,  height: 92,  sway: -8,  flip: true,  scale: 0.85 },
+    { xRel: 0.905, height: 160, sway: 12,  flip: true,  scale: 1.0  },
+    { xRel: 0.93,  height: 70,  sway: -4,  flip: false, scale: 0.7  },
   ];
-  const bambusHTML = bambuClusters.map(b => {
-    const x = b.xRel * W;
-    const snowY = gy(x) - 2;
-    return bambuSVG(x, snowY, b.height, b.sway, b.flip);
-  }).join('');
+  // Renderiza por profundidade: scale menor (atrás) primeiro
+  const bambusBack = bambuClusters
+    .filter(b => b.scale < 0.9)
+    .map(b => bambuSVG(b.xRel * W, gy(b.xRel * W) - 2, b.height, b.sway, b.flip, b.scale))
+    .join('');
+  const bambusFront = bambuClusters
+    .filter(b => b.scale >= 0.9)
+    .map(b => bambuSVG(b.xRel * W, gy(b.xRel * W) - 2, b.height, b.sway, b.flip, b.scale))
+    .join('');
 
-  // ── Pedras zen (paths orgânicos com gradiente + sombra) ──
-  // Cada pedra é uma forma irregular, com gradiente top-light/bottom-dark,
-  // pequena sombra projetada na neve, e leve highlight no topo.
-  function zenStone(cx, snowY, w, h, seed) {
-    // Path irregular usando Bezier — varia ligeiramente cada lado pra parecer natural
-    const top = -h * 0.85;
-    const bot = h * 0.15;
-    const left = -w;
-    const right = w;
-    // Variações baseadas em seed pra cada pedra ser única
-    const v1 = Math.sin(seed * 1.3) * 0.15;
-    const v2 = Math.cos(seed * 0.7) * 0.18;
-    const v3 = Math.sin(seed * 2.1) * 0.12;
+  // ── Pedras zen detalhadas (estilo karesansui) ──
+  // Cada pedra: forma orgânica única (8 pontos com variação Perlin-like),
+  // gradient top-light, sombra Gaussian no chão, neve acumulada por cima
+  // (curva branca cobrindo parte do topo), pequenas marcas/cracks.
+  function zenStone(cx, snowY, w, h, seed, style) {
+    style = style || 'rounded'; // 'rounded' | 'flat' | 'tall'
+    // Construir uma forma com 8-10 pontos ao redor do perímetro com noise
+    const N = 10;
+    const points = [];
+    for (let i = 0; i < N; i++) {
+      const angle = (i / N) * Math.PI * 2 - Math.PI / 2;
+      // Noise baseado em seed
+      const noise = 1 + Math.sin(seed + i * 1.7) * 0.18 + Math.cos(seed * 0.5 + i * 2.3) * 0.10;
+      let rx = w * noise;
+      let ry = h * noise;
+      // Achata forma 'flat': mais larga, baixa
+      if (style === 'flat') ry *= 0.6;
+      // Alonga forma 'tall': mais alta, estreita
+      if (style === 'tall') { rx *= 0.7; ry *= 1.3; }
+      // Pedra fica acima/embaixo do solo (lift do topo, base no chão)
+      const px = Math.cos(angle) * rx;
+      const py = Math.sin(angle) * ry * 0.9 - h * 0.35; // shift up: 35% afundada
+      points.push({ x: px, y: py });
+    }
+    // Path: forma fechada com curvas suaves entre pontos
+    let path = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} `;
+    for (let i = 0; i < N; i++) {
+      const a = points[i];
+      const b = points[(i + 1) % N];
+      const c = points[(i + 2) % N];
+      // Quadratic curve com ponto de controle no meio do segmento
+      const ctrlX = (a.x + b.x) / 2 + (b.y - a.y) * 0.1;
+      const ctrlY = (a.y + b.y) / 2 + (a.x - b.x) * 0.1;
+      path += `Q ${ctrlX.toFixed(1)} ${ctrlY.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)} `;
+    }
+    path += 'Z';
 
-    const path = `M ${left.toFixed(1)} ${(bot * 0.3).toFixed(1)}
-                  C ${(left * 0.95).toFixed(1)} ${(top * (0.5 + v1)).toFixed(1)},
-                    ${(left * 0.4).toFixed(1)} ${top.toFixed(1)},
-                    ${(0).toFixed(1)} ${(top * (0.95 + v2)).toFixed(1)}
-                  C ${(right * 0.5).toFixed(1)} ${(top * (1 + v3)).toFixed(1)},
-                    ${(right * 0.95).toFixed(1)} ${(top * 0.4).toFixed(1)},
-                    ${right.toFixed(1)} ${(bot * 0.5).toFixed(1)}
-                  L ${(right * 0.7).toFixed(1)} ${bot.toFixed(1)}
-                  L ${(left * 0.7).toFixed(1)} ${bot.toFixed(1)} Z`;
+    // Sombra: elipse fofa no chão
+    const shadowW = w * 1.15;
+    const shadowH = Math.max(3, h * 0.25);
+    const shadow = `<ellipse cx="3" cy="${(h * 0.05).toFixed(1)}"
+                      rx="${shadowW.toFixed(1)}" ry="${shadowH.toFixed(1)}"
+                      fill="rgba(15,25,40,0.42)" filter="url(#stone-shadow-blur)"/>`;
+
+    // Neve acumulada no topo da pedra (curva branca cobrindo terço superior)
+    const snowCapPath = `M ${(-w * 0.85).toFixed(1)} ${(-h * 0.5).toFixed(1)}
+                         Q ${(-w * 0.3).toFixed(1)} ${(-h * 0.95).toFixed(1)}
+                           ${(w * 0.1).toFixed(1)} ${(-h * 0.85).toFixed(1)}
+                         Q ${(w * 0.6).toFixed(1)} ${(-h * 0.75).toFixed(1)}
+                           ${(w * 0.85).toFixed(1)} ${(-h * 0.4).toFixed(1)}
+                         Q ${(w * 0.5).toFixed(1)} ${(-h * 0.6).toFixed(1)}
+                           ${(0).toFixed(1)} ${(-h * 0.55).toFixed(1)}
+                         Q ${(-w * 0.5).toFixed(1)} ${(-h * 0.5).toFixed(1)}
+                           ${(-w * 0.85).toFixed(1)} ${(-h * 0.5).toFixed(1)} Z`;
+
+    // Marcas/textura (2-3 pequenas linhas curvas que sugerem rachaduras)
+    const cracks = `
+      <path d="M ${(-w * 0.4).toFixed(1)} ${(-h * 0.3).toFixed(1)}
+               Q ${(-w * 0.1).toFixed(1)} ${(-h * 0.15).toFixed(1)}
+                 ${(w * 0.1).toFixed(1)} ${(-h * 0.25).toFixed(1)}"
+            stroke="rgba(20,15,12,0.45)" stroke-width="0.5" fill="none"/>
+      <path d="M ${(w * 0.2).toFixed(1)} ${(-h * 0.05).toFixed(1)}
+               Q ${(w * 0.4).toFixed(1)} ${(h * 0.05).toFixed(1)}
+                 ${(w * 0.55).toFixed(1)} ${(-h * 0.0).toFixed(1)}"
+            stroke="rgba(20,15,12,0.35)" stroke-width="0.4" fill="none"/>
+    `;
 
     return `
       <g transform="translate(${cx.toFixed(1)} ${snowY.toFixed(1)})">
-        <!-- Sombra projetada -->
-        <ellipse cx="2" cy="${(bot + 4).toFixed(1)}"
-          rx="${(w * 1.05).toFixed(1)}" ry="${(h * 0.25).toFixed(1)}"
-          fill="rgba(20,30,45,0.35)" filter="url(#stone-shadow-blur)"/>
-        <!-- Forma principal -->
+        ${shadow}
         <path d="${path}" fill="url(#stone-grad)"/>
-        <!-- Highlight superior (suave, segue o topo) -->
-        <path d="M ${(left * 0.5).toFixed(1)} ${(top * 0.55).toFixed(1)}
-                 C ${(left * 0.2).toFixed(1)} ${(top * 0.95).toFixed(1)},
-                   ${(right * 0.4).toFixed(1)} ${(top * 0.85).toFixed(1)},
-                   ${(right * 0.5).toFixed(1)} ${(top * 0.6).toFixed(1)}"
-              stroke="rgba(255,255,255,0.22)" stroke-width="1.5" fill="none"/>
+        ${cracks}
+        <path d="${snowCapPath}" fill="rgba(255,255,255,0.78)"/>
+        <!-- Highlight curvo no topo da pedra (luz raspando) -->
+        <path d="M ${(-w * 0.6).toFixed(1)} ${(-h * 0.55).toFixed(1)}
+                 Q ${(0).toFixed(1)} ${(-h * 0.85).toFixed(1)}
+                   ${(w * 0.55).toFixed(1)} ${(-h * 0.5).toFixed(1)}"
+              stroke="rgba(255,255,255,0.18)" stroke-width="1" fill="none"/>
       </g>
     `;
   }
 
+  // Grupos de pedras: 3 arranjos zen (frente, esq, dir) com tamanhos
+  // e formatos variados (rounded/flat/tall) — composição natural.
   const stonesData = [
-    { xRel: 0.28, w: 32, h: 18, seed: 1.2 },
-    { xRel: 0.33, w: 22, h: 13, seed: 2.7 },
-    { xRel: 0.46, w: 16, h: 9,  seed: 4.1 },
-    { xRel: 0.58, w: 38, h: 22, seed: 5.5 },
-    { xRel: 0.63, w: 20, h: 11, seed: 6.8 },
-    { xRel: 0.65, w: 14, h: 8,  seed: 8.2 },
+    // Grupo 1: frente-centro-esquerda (3 pedras)
+    { xRel: 0.26, w: 38, h: 22, seed: 1.2, style:'rounded', layer:'back' },
+    { xRel: 0.31, w: 24, h: 11, seed: 2.7, style:'flat',    layer:'front' },
+    { xRel: 0.345,w: 16, h: 18, seed: 3.4, style:'tall',    layer:'front' },
+    // Grupo 2: meio-esquerda solitária
+    { xRel: 0.44, w: 14, h: 8,  seed: 4.8, style:'flat',    layer:'front' },
+    // Grupo 3: centro-direita (3 pedras)
+    { xRel: 0.55, w: 44, h: 26, seed: 5.5, style:'rounded', layer:'back' },
+    { xRel: 0.595,w: 22, h: 13, seed: 6.1, style:'flat',    layer:'front' },
+    { xRel: 0.62, w: 18, h: 20, seed: 7.3, style:'tall',    layer:'front' },
+    // Grupo 4: direita
+    { xRel: 0.71, w: 28, h: 16, seed: 8.0, style:'rounded', layer:'back' },
+    { xRel: 0.745,w: 14, h: 7,  seed: 8.9, style:'flat',    layer:'front' },
   ];
-  const stonesHTML = stonesData.map(s => {
-    const x = s.xRel * W;
-    const snowY = gy(x);
-    return zenStone(x, snowY, s.w, s.h, s.seed);
-  }).join('');
+  // Pedras em 2 layers de profundidade — atrás dos bambus / frente dos bambus
+  const stonesBack = stonesData
+    .filter(s => s.layer === 'back')
+    .map(s => zenStone(s.xRel * W, gy(s.xRel * W), s.w, s.h, s.seed, s.style))
+    .join('');
+  const stonesFront = stonesData
+    .filter(s => s.layer === 'front')
+    .map(s => zenStone(s.xRel * W, gy(s.xRel * W), s.w, s.h, s.seed, s.style))
+    .join('');
 
   // ── Pagoda silhueta no horizonte (canto direito) — maior e mais visível ──
   const pagodaXRel = 0.80;
@@ -23837,12 +23924,13 @@ function _dojoBuildSnowGroundSVG(W, H) {
         <filter id="snow-blur" x="-5%" y="-20%" width="110%" height="140%">
           <feGaussianBlur stdDeviation="0.8"/>
         </filter>
-        <!-- Gradiente do caule de bambu (verde-musgo) -->
-        <linearGradient id="bambu-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%"   stop-color="rgba(60,80,50,0.35)"/>
-          <stop offset="40%"  stop-color="rgba(115,140,90,0.85)"/>
-          <stop offset="60%"  stop-color="rgba(95,118,75,0.85)"/>
-          <stop offset="100%" stop-color="rgba(50,68,42,0.35)"/>
+        <!-- Gradiente do caule de bambu (escuro nas bordas, claro no centro) -->
+        <linearGradient id="bambu-stalk-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stop-color="#3a4a28"/>
+          <stop offset="20%"  stop-color="#6a8048"/>
+          <stop offset="50%"  stop-color="#8aa05a"/>
+          <stop offset="80%"  stop-color="#5a7038"/>
+          <stop offset="100%" stop-color="#324020"/>
         </linearGradient>
         <!-- Gradiente das pedras (escuro embaixo, claro em cima) -->
         <linearGradient id="stone-grad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -23867,10 +23955,14 @@ function _dojoBuildSnowGroundSVG(W, H) {
       <path d="${topPath}" stroke="url(#snow-edge)" stroke-width="2.5" fill="none" opacity="0.85"/>
       <!-- Camada 5: Sombra interna sutil -->
       <path d="${topPath}" stroke="rgba(180,200,230,0.25)" stroke-width="6" fill="none" transform="translate(0, 4)" opacity="0.5"/>
-      <!-- Camada 6: Pedras EM CIMA da neve (visíveis) -->
-      ${stonesHTML}
-      <!-- Camada 7: Bambus (mais à frente, saindo da neve) -->
-      ${bambusHTML}
+      <!-- Camada 6: Pedras grandes (atrás, sobre a neve mas atrás dos bambus) -->
+      ${stonesBack}
+      <!-- Camada 7: Bambus pequenos (atrás) -->
+      ${bambusBack}
+      <!-- Camada 8: Bambus grandes (na frente dos pequenos) -->
+      ${bambusFront}
+      <!-- Camada 9: Pedras pequenas (em primeiro plano, podem ficar em frente dos bambus) -->
+      ${stonesFront}
     </svg>
   `;
 }
