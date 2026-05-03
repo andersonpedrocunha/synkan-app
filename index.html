@@ -22572,23 +22572,24 @@ function _settingsDojoSection() {
     <div class="settings-card">
       <div class="settings-card-title">XP por ação</div>
       <div class="settings-card-sub">Defina quantos pontos você ganha por cada tipo de ação. Os bônus de prazo somam ao XP base do card.</div>
-      ${xpRow('cardDoneAlta',  'Card concluído — prioridade alta',   'Padrão: 20')}
-      ${xpRow('cardDoneMedia', 'Card concluído — prioridade média',  'Padrão: 10')}
-      ${xpRow('cardDoneBaixa', 'Card concluído — prioridade baixa',  'Padrão: 5')}
-      ${xpRow('onTimeBonus',   'Bônus: card concluído no prazo',     'Padrão: +10')}
-      ${xpRow('earlyBonus',    'Bônus: card concluído antes do prazo','Padrão: +5')}
-      ${xpRow('leadConverted', 'Lead convertido em cliente',         'Padrão: 50')}
-      ${xpRow('contactCreated','Cadastro novo criado',               'Padrão: 5')}
-      ${xpRow('docGenerated',  'Documento gerado (proposta/contrato)','Padrão: 15')}
-      ${xpRow('aiCall',        'Chamada ao Mestre Kan (IA)',         'Padrão: 5')}
+      ${xpRow('cardDoneAlta',  'Card concluído — prioridade alta',   'Padrão: 8')}
+      ${xpRow('cardDoneMedia', 'Card concluído — prioridade média',  'Padrão: 4')}
+      ${xpRow('cardDoneBaixa', 'Card concluído — prioridade baixa',  'Padrão: 2')}
+      ${xpRow('onTimeBonus',   'Bônus: card concluído no prazo',     'Padrão: +4')}
+      ${xpRow('earlyBonus',    'Bônus: card concluído antes do prazo','Padrão: +2')}
+      ${xpRow('leadConverted', 'Lead convertido em cliente',         'Padrão: 20')}
+      ${xpRow('contactCreated','Cadastro novo criado',               'Padrão: 2')}
+      ${xpRow('docGenerated',  'Documento gerado (proposta/contrato)','Padrão: 6')}
+      ${xpRow('aiCall',        'Chamada ao Mestre Kan (IA)',         'Padrão: 1')}
     </div>
 
     <div class="settings-card">
       <div class="settings-card-title">Cap diário (anti-farm)</div>
       <div class="settings-card-sub">Limite de XP que pode ser ganho por categoria em um dia. Evita inflação artificial. Coloque 0 pra remover o limite.</div>
-      ${capRow('aiCall',         'Cap diário · IA',                  'Padrão: 50 XP/dia')}
-      ${capRow('contactCreated', 'Cap diário · Cadastros novos',     'Padrão: 50 XP/dia')}
-      ${capRow('docGenerated',   'Cap diário · Documentos gerados',  'Padrão: 100 XP/dia')}
+      ${capRow('cardDone',       'Cap diário · Cards concluídos',    'Padrão: 60 XP/dia')}
+      ${capRow('aiCall',         'Cap diário · IA',                  'Padrão: 15 XP/dia')}
+      ${capRow('contactCreated', 'Cap diário · Cadastros novos',     'Padrão: 20 XP/dia')}
+      ${capRow('docGenerated',   'Cap diário · Documentos gerados',  'Padrão: 40 XP/dia')}
     </div>
 
     <div class="settings-card">
@@ -23468,8 +23469,12 @@ function renderDojo() {
     const ua = unlocked.includes(a.id) ? 0 : 1;
     const ub = unlocked.includes(b.id) ? 0 : 1;
     if (ua !== ub) return ua - ub;
+    // BUG fix: usar ?? em vez de || porque legendary tem peso 0 (falsy).
+    // Antes: (0 || 9) = 9 → lendário virava o último em vez do primeiro.
     const order = {legendary:0, epic:1, rare:2, common:3};
-    return (order[a.rarity]||9) - (order[b.rarity]||9);
+    const rA = order[a.rarity] ?? 9;
+    const rB = order[b.rarity] ?? 9;
+    return rA - rB;
   };
   const relevantAch = ACHIEVEMENTS.filter(a => _achIsRelevant(a, _gamif)).sort(sortFn);
   const otherAch    = ACHIEVEMENTS.filter(a => !_achIsRelevant(a, _gamif)).sort(sortFn);
