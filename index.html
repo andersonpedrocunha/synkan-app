@@ -25505,6 +25505,14 @@ async function saveForm() {
   f.fields = (f.fields||[]).filter(x => (x.key||'').trim());
   if (!supaUser) { alert('Você precisa estar logado.'); return; }
   const isEdit = _capEditingFormId !== '__new__' && _capEditingFormId;
+  // ── Branding: copia logo + nome da empresa do dono pro form (renderizado
+  //    no topo do formulário público, estilo PDF exportado).
+  const _coInfo = (typeof getCompanyInfo === 'function') ? (getCompanyInfo() || {}) : {};
+  const branding = {
+    companyName:     _coInfo.name     || '',
+    companyLogo:     _coInfo.logo     || '',
+    companySubtitle: _coInfo.subtitle || '',
+  };
   try {
     if (isEdit) {
       await _capRESTCall(`forms?id=eq.${encodeURIComponent(_capEditingFormId)}`, {
@@ -25513,6 +25521,7 @@ async function saveForm() {
           name:f.name, description:f.description, fields:f.fields,
           target_board_id:f.target_board_id||null, target_col:f.target_col||null,
           success_message:f.success_message, is_active:f.is_active,
+          branding,
         },
       });
     } else {
@@ -25523,6 +25532,7 @@ async function saveForm() {
           name:f.name, description:f.description, fields:f.fields,
           target_board_id:f.target_board_id||null, target_col:f.target_col||null,
           success_message:f.success_message, is_active:f.is_active,
+          branding,
         },
       });
     }
@@ -25541,9 +25551,23 @@ async function deleteForm(formId) {
   const ok = await appConfirm(`Excluir formulário "${f.name}"?`, 'Os leads recebidos por ele também serão removidos.', { danger:true, okLabel:'Excluir' });
   if (!ok) return;
   try {
-    await _capRESTCall(`forms?id=eq.${encodeURIComponent(formId)}`, { method: 'DELETE' });
+    // Prefer: return=representation faz Supabase retornar a row deletada.
+    // Se vier array vazio, RLS silenciosamente bloqueou (não tem permissão).
+    const result = await _capRESTCall(`forms?id=eq.${encodeURIComponent(formId)}`, {
+      method: 'DELETE',
+      headers: { 'Prefer': 'return=representation' },
+    });
+    console.log('[deleteForm] resultado:', result);
+    if (Array.isArray(result) && result.length === 0) {
+      await appAlert('Não consegui excluir', 'O Supabase aceitou o DELETE mas não deletou nada — provavelmente por permissão (RLS) ou owner_id diferente. Verifique no SQL Editor: SELECT id, owner_id FROM public.forms;', { icon:'⚠️' });
+      return;
+    }
   } catch(e) {
-    alert('Erro: ' + (e.message || e)); return;
+    console.error('[deleteForm] erro:', e);
+    await appAlert('Erro ao excluir',
+      `${e.message || e}\n\nStatus: ${e.status || '—'}\nDetalhes: ${JSON.stringify(e.body || {}).slice(0,200)}`,
+      { icon:'⚠️' });
+    return;
   }
   await _capLoadAll();
   _renderCaptureBody();

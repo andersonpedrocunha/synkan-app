@@ -26,9 +26,25 @@
     }
   }
   body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.5;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;}
-  .wrap{width:100%;max-width:520px;}
-  .brand{display:flex;align-items:center;gap:9px;margin-bottom:18px;color:var(--text-2);font-size:13px;font-weight:600;letter-spacing:-.005em;}
-  .brand svg{width:24px;height:24px;flex-shrink:0;}
+  .wrap{width:100%;max-width:560px;}
+
+  /* Header de marca da empresa cliente (estilo PDF) */
+  .company-brand{
+    text-align:center;margin-bottom:24px;padding:24px 20px;
+    border-bottom:1px solid var(--border);
+  }
+  .company-brand-logo{
+    max-width:180px;max-height:80px;object-fit:contain;
+    margin:0 auto 12px;display:block;
+  }
+  .company-brand-name{
+    font-size:22px;font-weight:700;color:var(--text);
+    letter-spacing:-0.01em;margin:0 0 4px;
+  }
+  .company-brand-subtitle{
+    font-size:12.5px;color:var(--text-3);letter-spacing:0.02em;
+  }
+
   .card{background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:32px 28px;box-shadow:0 6px 24px rgba(0,0,0,.04);}
   h1{margin:0 0 6px;font-size:22px;font-weight:600;letter-spacing:-0.01em;}
   .desc{color:var(--text-2);font-size:13.5px;margin:0 0 24px;line-height:1.6;}
@@ -45,9 +61,18 @@
   .status{margin-top:14px;padding:11px 13px;border-radius:8px;font-size:13px;line-height:1.5;display:none;}
   .status.error{background:#FCEBEB;color:var(--error);border:0.5px solid #F2C8C8;display:block;}
   .status.success{background:#E0F4E0;color:var(--success);border:0.5px solid #BCE0BC;display:block;}
-  .foot{margin-top:18px;text-align:center;font-size:11px;color:var(--text-3);}
-  .foot a{color:var(--text-2);text-decoration:none;}
-  .foot a:hover{text-decoration:underline;}
+
+  /* Footer "Gerado por Synkan" — estilo PDF */
+  .synkan-foot{
+    margin-top:28px;padding-top:18px;border-top:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    font-size:11.5px;color:var(--text-3);letter-spacing:0.03em;
+  }
+  .synkan-foot svg{width:18px;height:18px;flex-shrink:0;}
+  .synkan-foot .foot-text{font-weight:500;}
+  .synkan-foot .foot-link{color:var(--text-2);font-weight:600;text-decoration:none;}
+  .synkan-foot .foot-link:hover{text-decoration:underline;}
+
   .loading{text-align:center;padding:40px 20px;color:var(--text-3);font-size:13.5px;}
   .err-block{padding:18px 20px;border:0.5px solid #F2C8C8;background:#FCEBEB;color:var(--error);border-radius:10px;font-size:13px;line-height:1.6;}
   .err-block strong{display:block;margin-bottom:6px;font-weight:600;}
@@ -56,22 +81,15 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="brand">
-    <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect x="0" y="0" width="32" height="32" rx="7" fill="#111"/>
-      <rect x="8.5"  y="12.5" width="4" height="14" rx="1.2" fill="rgba(255,255,255,.20)"/>
-      <rect x="16.5" y="7.5"  width="4" height="20" rx="1.2" fill="rgba(255,255,255,.28)"/>
-      <rect x="24.5" y="15.5" width="4" height="11" rx="1.2" fill="rgba(255,255,255,.20)"/>
-      <rect x="6"  y="11" width="4" height="14" rx="1.2" fill="rgba(255,255,255,.55)"/>
-      <rect x="14" y="6"  width="4" height="20" rx="1.2" fill="#fff"/>
-      <rect x="22" y="14" width="4" height="11" rx="1.2" fill="rgba(255,255,255,.55)"/>
-    </svg>
-    Synkan
-  </div>
+  <!-- Header da empresa cliente (renderizado dinamicamente) -->
+  <div id="company-brand"></div>
+
   <div class="card" id="card">
     <div class="loading" id="loading">Carregando formulário…</div>
   </div>
-  <div class="foot" id="foot"></div>
+
+  <!-- Footer "Gerado por Synkan" (renderizado dinamicamente após bootstrap) -->
+  <div id="synkan-foot-mount"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -85,7 +103,65 @@
   const $ = (id) => document.getElementById(id);
   const escapeHTML = (s) => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+  // SVG do Synkan (logo) — usado no footer
+  const synkanLogoSVG = `
+    <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="0" y="0" width="32" height="32" rx="7" fill="#111"/>
+      <rect x="8.5"  y="12.5" width="4" height="14" rx="1.2" fill="rgba(255,255,255,.20)"/>
+      <rect x="16.5" y="7.5"  width="4" height="20" rx="1.2" fill="rgba(255,255,255,.28)"/>
+      <rect x="24.5" y="15.5" width="4" height="11" rx="1.2" fill="rgba(255,255,255,.20)"/>
+      <rect x="6"  y="11" width="4" height="14" rx="1.2" fill="rgba(255,255,255,.55)"/>
+      <rect x="14" y="6"  width="4" height="20" rx="1.2" fill="#fff"/>
+      <rect x="22" y="14" width="4" height="11" rx="1.2" fill="rgba(255,255,255,.55)"/>
+    </svg>
+  `;
+
+  function renderCompanyBrand(branding) {
+    const wrap = $('company-brand');
+    if (!wrap) return;
+    if (!branding || (!branding.companyName && !branding.companyLogo)) {
+      // Sem branding: mostra um header mínimo só com Synkan
+      wrap.innerHTML = `
+        <div class="company-brand">
+          <div class="company-brand-logo" style="display:flex;justify-content:center;">
+            ${synkanLogoSVG.replace('width="18" height="18"','').replace('viewBox="0 0 32 32"','viewBox="0 0 32 32" width="48" height="48"')}
+          </div>
+          <h2 class="company-brand-name">Synkan</h2>
+        </div>
+      `;
+      return;
+    }
+    const logoHTML = branding.companyLogo
+      ? `<img class="company-brand-logo" src="${escapeHTML(branding.companyLogo)}" alt="${escapeHTML(branding.companyName||'')}" onerror="this.style.display='none'"/>`
+      : '';
+    const nameHTML = branding.companyName
+      ? `<h2 class="company-brand-name">${escapeHTML(branding.companyName)}</h2>`
+      : '';
+    const subHTML = branding.companySubtitle
+      ? `<div class="company-brand-subtitle">${escapeHTML(branding.companySubtitle)}</div>`
+      : '';
+    wrap.innerHTML = `
+      <div class="company-brand">
+        ${logoHTML}
+        ${nameHTML}
+        ${subHTML}
+      </div>
+    `;
+  }
+
+  function renderSynkanFoot() {
+    const mount = $('synkan-foot-mount');
+    if (!mount) return;
+    mount.innerHTML = `
+      <div class="synkan-foot">
+        ${synkanLogoSVG}
+        <span class="foot-text">Gerado por <a class="foot-link" href="https://synkan.com.br" target="_blank" rel="noopener">Synkan Management Lab</a></span>
+      </div>
+    `;
+  }
+
   if (!formId || !supaUrl || !supaKey) {
+    renderCompanyBrand(null);
     $('card').innerHTML = `
       <div class="err-block">
         <strong>Configuração inválida</strong>
@@ -93,11 +169,14 @@
         <code>synkan_form.html?form=ID&amp;s=URL_SUPABASE&amp;k=ANON_KEY</code><br><br>
         Gere o link correto pelo app, em <strong>🌐 Captação → Formulários → Compartilhar</strong>.
       </div>`;
+    renderSynkanFoot();
     return;
   }
 
   if (!window.supabase || !window.supabase.createClient) {
+    renderCompanyBrand(null);
     $('card').innerHTML = `<div class="err-block"><strong>Não consegui carregar o SDK do Supabase</strong>Verifique sua conexão e atualize a página.</div>`;
+    renderSynkanFoot();
     return;
   }
 
@@ -105,6 +184,7 @@
 
   function renderForm(form) {
     document.title = (form.name || 'Formulário') + ' · Synkan';
+    renderCompanyBrand(form.branding || null);
     const fields = Array.isArray(form.fields) ? form.fields : [];
     const inputs = fields.map((f, idx) => {
       const id = 'fld_' + idx;
@@ -169,20 +249,25 @@
   (async function bootstrap(){
     const { data, error } = await sb
       .from('forms')
-      .select('id,name,description,fields,success_message,is_active')
+      .select('id,name,description,fields,success_message,is_active,branding')
       .eq('id', formId)
       .eq('is_active', true)
       .maybeSingle();
 
     if (error) {
+      renderCompanyBrand(null);
       $('card').innerHTML = `<div class="err-block"><strong>Erro ao carregar o formulário</strong>${escapeHTML(error.message)}</div>`;
+      renderSynkanFoot();
       return;
     }
     if (!data) {
+      renderCompanyBrand(null);
       $('card').innerHTML = `<div class="err-block"><strong>Formulário indisponível</strong>Pode estar inativo ou o link está incorreto.</div>`;
+      renderSynkanFoot();
       return;
     }
     renderForm(data);
+    renderSynkanFoot();
   })();
 })();
 </script>
