@@ -23612,19 +23612,33 @@ function _dojoBuildSnowGroundSVG(W, H) {
   const fillPath = `${topPath} L ${(W+step).toFixed(0)} ${(H+10).toFixed(0)} L 0 ${(H+10).toFixed(0)} Z`;
 
   // ── Montanhas distantes (3 camadas, cada uma mais clara/atrás) ──
-  // Silhueta minimalista — triângulos suaves com ondulação natural
+  // Silhueta minimalista — picos com vales suaves entre eles.
   function mountainPath(yBase, peaks, blurOffsetX) {
-    let p = `M -10 ${yBase + 50} `;
-    p += `L -10 ${yBase} `;
-    peaks.forEach((peak, i) => {
+    let p = `M -10 ${(yBase + 60).toFixed(1)} L -10 ${yBase.toFixed(1)} `;
+    for (let i = 0; i < peaks.length; i++) {
+      const peak = peaks[i];
       const px = peak[0] * W + blurOffsetX;
       const py = yBase - peak[1];
-      // Suavização nas pontas com quadratic
-      p += `Q ${(px - 30).toFixed(0)} ${(py + 12).toFixed(0)} ${px.toFixed(0)} ${py.toFixed(0)} `;
-      p += `Q ${(px + 30).toFixed(0)} ${(py + 12).toFixed(0)} `;
-    });
-    p += `${(W + 10).toFixed(0)} ${yBase} `;
-    p += `L ${(W + 10).toFixed(0)} ${yBase + 50} Z`;
+      if (i === 0) {
+        // Sobe da base esquerda até a primeira montanha
+        p += `L ${(px - 50).toFixed(1)} ${yBase.toFixed(1)} `;
+      }
+      // Pico
+      p += `L ${px.toFixed(1)} ${py.toFixed(1)} `;
+      // Vale entre montanhas (não vai até a base, fica acima)
+      if (i < peaks.length - 1) {
+        const nextPeak = peaks[i + 1];
+        const nextPx = nextPeak[0] * W + blurOffsetX;
+        const valleyX = (px + nextPx) / 2;
+        const valleyY = yBase - 10; // 10px acima da base — vales suaves
+        p += `L ${valleyX.toFixed(1)} ${valleyY.toFixed(1)} `;
+      } else {
+        // Desce após o último pico
+        p += `L ${(px + 50).toFixed(1)} ${yBase.toFixed(1)} `;
+      }
+    }
+    p += `L ${(W + 10).toFixed(1)} ${yBase.toFixed(1)} `;
+    p += `L ${(W + 10).toFixed(1)} ${(yBase + 60).toFixed(1)} Z`;
     return p;
   }
   const mtBaseY = baseY - 30;
