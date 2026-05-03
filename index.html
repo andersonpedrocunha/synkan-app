@@ -8064,10 +8064,33 @@ function _settingsIASection() {
       </div>
     </div>
 
+    ${_settingsVoiceCardsSection()}
     ${_settingsWebhooksSection()}
     ${_settingsCalendarSection()}
     ${_settingsEmailToCardSection()}
     ${_settingsApiSsoSection()}
+  `;
+}
+
+function _settingsVoiceCardsSection() {
+  const enabled   = (typeof isVoiceCardsEnabled === 'function')   ? isVoiceCardsEnabled()   : true;
+  const supported = (typeof isVoiceCardsSupported === 'function') ? isVoiceCardsSupported() : false;
+  const statusPill = !supported
+    ? '<span class="settings-status-pill warn">Navegador não suporta</span>'
+    : (enabled ? '<span class="settings-status-pill on">ativo</span>' : '<span class="settings-status-pill off">desligado</span>');
+  return `
+    <div class="settings-card">
+      <div class="settings-card-h">
+        <span class="settings-card-title" style="display:inline-flex;align-items:center;gap:8px;">🎤 Comando por voz</span>
+        ${statusPill}
+      </div>
+      <div class="settings-card-sub">Botão flutuante de microfone (canto inferior direito) que captura sua fala e cria um card automaticamente. O Mestre Kan estrutura nome, prioridade, deadline e responsável a partir do que você disse. Atalho: <kbd>${/Mac/.test(navigator.platform)?'⌘':'Ctrl'}+Shift+M</kbd>. Funciona só em HTTPS — mesmo no app de produção.</div>
+      <label class="cfg-field" style="margin-top:8px;${!supported?'opacity:.5;pointer-events:none;':''}">
+        <input type="checkbox" ${enabled?'checked':''} ${!supported?'disabled':''} onchange="setVoiceCardsEnabled(this.checked)" />
+        <span class="cfg-field-icon">🎤</span>
+        <span class="cfg-field-label">Mostrar botão flutuante de microfone${supported?'':' (não suportado neste navegador)'}</span>
+      </label>
+    </div>
   `;
 }
 
@@ -20100,7 +20123,37 @@ let _voiceRecognition = null;
 let _voiceTranscript = '';
 let _voiceIsRecording = false;
 
+// Config: usuário pode ativar/desativar em Configurações
+const VOICE_CARDS_ENABLED_KEY = 'kanban_v8_voice_cards_enabled';
+function isVoiceCardsEnabled() {
+  try {
+    const v = localStorage.getItem(VOICE_CARDS_ENABLED_KEY);
+    if (v === null) return true;     // default ON
+    return v === 'true';
+  } catch(e) { return true; }
+}
+function setVoiceCardsEnabled(enabled) {
+  try { localStorage.setItem(VOICE_CARDS_ENABLED_KEY, enabled ? 'true' : 'false'); } catch(e){}
+  // Mostra/esconde o FAB sem precisar reload
+  if (enabled) {
+    if (typeof _initVoiceCards === 'function') _initVoiceCards();
+  } else {
+    const fab = document.getElementById('voice-fab');
+    if (fab) fab.remove();
+    if (_voiceRecognition && _voiceIsRecording) { try { _voiceRecognition.stop(); } catch(e){} }
+    cancelVoiceCapture();
+  }
+  // Re-render Settings se estiver lá
+  if (currentTab === 'settings' && typeof renderSettings === 'function') renderSettings();
+  if (typeof audit === 'function') audit('voice_cards.toggle', { enabled });
+}
+function isVoiceCardsSupported() {
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
 function _initVoiceCards() {
+  // Respeita preferência do usuário
+  if (!isVoiceCardsEnabled()) return;
   // Verifica suporte
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
