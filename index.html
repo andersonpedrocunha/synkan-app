@@ -1479,7 +1479,7 @@ body.density-compact .card-cf-row{font-size:10px;}
 .zai-hub-board-tile:hover .zai-hub-tile-edit{opacity:.8;}
 .zai-hub-tile-edit:hover{background:var(--color-background-tertiary,rgba(0,0,0,.05));opacity:1!important;}
 
-/* The Synk · UI */
+/* Synk · UI */
 .synk-section{
   background:var(--color-background-primary);
   border:0.5px solid var(--color-border-tertiary);
@@ -1669,15 +1669,35 @@ body.density-compact .card-cf-row{font-size:10px;}
 .opcost-verdict-cost{font-size:13px;color:var(--color-text-secondary);}
 .opcost-verdict-cost strong{color:#A88224;font-weight:700;}
 .opcost-narrative{
-  padding:14px;border-radius:8px;
+  padding:14px 14px 14px 18px;border-radius:8px;
   background:rgba(60,40,25,0.04);border-left:3px solid #d4af37;
   font-family:var(--font-sans);
 }
 .opcost-narrative-h{
+  display:flex;align-items:center;gap:9px;
   font-size:11px;letter-spacing:0.18em;text-transform:uppercase;
-  color:#A88224;margin-bottom:6px;font-weight:600;
+  color:#A88224;margin-bottom:8px;font-weight:600;
 }
 .opcost-narrative p{margin:0;font-size:13px;line-height:1.55;color:var(--color-text-primary);font-style:italic;}
+
+/* Ícone inline do Mestre Kan (avatar circular pequeno com kanji 看) */
+.kan-icon-inline{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #4A3A28 0%, #1F1610 70%);
+  color:#F8F2E4;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Times New Roman',serif;
+  font-size:13px;font-weight:300;letter-spacing:0;
+  flex-shrink:0;
+  box-shadow:0 2px 5px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,200,120,0.15) inset;
+  position:relative;
+  text-transform:none;
+}
+.kan-icon-inline::after{
+  content:'';position:absolute;inset:-2px;border-radius:50%;
+  border:1px solid rgba(212,175,55,0.35);
+  pointer-events:none;
+}
 .zai-hub-board-tile-runway{
   display:flex;align-items:center;gap:8px;font-family:var(--font-sans);font-size:11.5px;
   color:var(--color-text-secondary);font-variant-numeric:tabular-nums;
@@ -24310,7 +24330,7 @@ function _genCardIdForBoard(boardId) {
   return max + 1;
 }
 
-// ── UI: render da seção The Synk no Zai Hub ───────────────
+// ── UI: render da seção Synk no Zai Hub ───────────────────
 function _renderSynkSectionHTML() {
   const rules = getSynkRules();
   const log = getSynkLog().slice(0, 5);
@@ -24356,7 +24376,7 @@ function _renderSynkSectionHTML() {
 
   return `
     <div class="zai-hub-section-h" style="margin-top:18px;">
-      <span>The Synk · distribuição automática</span>
+      <span>Synk · distribuição automática</span>
       <button class="zai-hub-action" onclick="openSynkRuleModal()">+ Nova regra</button>
     </div>
     <div class="synk-section">
@@ -24720,7 +24740,7 @@ function _opcostUpdatePreview() {
       <div class="opcost-verdict-cost">Custo de oportunidade: <strong>${fmt(result.opCost)}</strong></div>
     </div>
     <div class="opcost-narrative">
-      <div class="opcost-narrative-h">看 — Mestre Kan diz:</div>
+      <div class="opcost-narrative-h"><span class="kan-icon-inline">看</span> Mestre Kan diz</div>
       <p>${_esc(narrative)}</p>
     </div>
   `;
@@ -24951,7 +24971,7 @@ function _goal1pctUpdatePreview() {
       </div>
     </div>
     <div class="opcost-narrative">
-      <div class="opcost-narrative-h">看 — Mestre Kan diz:</div>
+      <div class="opcost-narrative-h"><span class="kan-icon-inline">看</span> Mestre Kan diz</div>
       <p>Pra atingir <strong>${fmt(f.target)}</strong> em <strong>${fmtMo(f.years*12)}</strong>, com retorno de ${f.returnPct}% a.a., você precisa investir <strong>${fmt(monthly)}/mês</strong> — ou cerca de <strong>${fmt(daily)}/dia</strong>. Se aumentar só 1% no aporte (= ${fmt(monthly1pct - monthly)} a mais), conquista a meta ${monthsDiff > 0 ? monthsDiff + ' ' + (monthsDiff>1?'meses':'mês') + ' antes' : 'no mesmo prazo'}. E se cortar um cafezinho diário (R$10/dia → R$300/mês a mais), antecipa em <strong>${fmtMo(Math.max(0,monthsCoffeeDiff))}</strong>. O Kaizen é assim: pequenos incrementos compostos viram montanhas.</p>
     </div>
   `;
