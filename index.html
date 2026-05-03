@@ -10726,8 +10726,10 @@ function _settingsIASection() {
       const personalAbovePlan = !planUnlimited && personalLimit > planMax;
       const addons = (typeof getAIAddons === 'function') ? getAIAddons() : { credits: 0 };
       const hasAddons = addons.credits > 0;
-      // Top-up só aparece pra plano pago não-ilimitado (tem make sense)
-      const canBuyTopup = planCode !== 'trial' && !planUnlimited;
+      const isTrial = planCode === 'trial';
+      // Top-up aparece pra qualquer plano não-ilimitado. Em Trial, o texto
+      // sugere upgrade como alternativa primária.
+      const canBuyTopup = !planUnlimited;
       return `
     <div class="settings-card">
       <div class="settings-card-h">
@@ -10766,9 +10768,13 @@ function _settingsIASection() {
         <div class="ai-topup-banner">
           <div class="ai-topup-banner-info">
             <div class="ai-topup-banner-title">⚡ Créditos extras</div>
-            <div class="ai-topup-banner-sub">${hasAddons
-              ? `Você tem <strong>${addons.credits}</strong> chamadas extras disponíveis. Não expiram — sobram pro próximo mês.`
-              : 'Compre pacotes adicionais quando precisar de mais capacidade. Não expiram, sobram pro próximo mês.'}</div>
+            <div class="ai-topup-banner-sub">${
+              isTrial
+                ? 'Em Trial, o melhor caminho pra mais IA é <strong>fazer upgrade</strong> pra um plano pago. Mas se preferir, pacotes avulsos também funcionam.'
+                : (hasAddons
+                  ? `Você tem <strong>${addons.credits}</strong> chamadas extras disponíveis. Não expiram — sobram pro próximo mês.`
+                  : 'Compre pacotes adicionais quando precisar de mais capacidade. Não expiram, sobram pro próximo mês.')
+            }</div>
           </div>
           <button class="btn-c" onclick="openAITopupModal()">Comprar créditos</button>
         </div>
