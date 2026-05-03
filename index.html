@@ -25832,8 +25832,37 @@ async function convertLead(leadId) {
   }
 
   // 2) Criar o card no board destino
-  const targetBoard = allBoards[form.target_board_id];
-  if (!targetBoard) { alert('Board destino não encontrado.'); return; }
+  let targetBoard = allBoards[form.target_board_id];
+  // Se o board não está local mas pode estar no Supabase (foi criado por
+  // outro device ou sessão), tenta buscar antes de desistir.
+  if (!targetBoard && form.target_board_id) {
+    try {
+      const found = await _capRESTCall(
+        `boards?id=eq.${encodeURIComponent(form.target_board_id)}&select=*`,
+        { timeoutMs: 4000 }
+      );
+      if (Array.isArray(found) && found.length > 0 && typeof _rowToBoard === 'function') {
+        // Carrega cards desse board também
+        const cardsRows = await _capRESTCall(
+          `cards?board_id=eq.${encodeURIComponent(form.target_board_id)}&select=*`,
+          { timeoutMs: 4000 }
+        );
+        const cardsArr = (Array.isArray(cardsRows) ? cardsRows : []).map(_rowToCard || (x=>x));
+        targetBoard = _rowToBoard(found[0], cardsArr);
+        allBoards[form.target_board_id] = targetBoard;
+        try { saveData && saveData(); } catch(e){}
+        console.log('[convertLead] board destino recuperado do Supabase');
+      }
+    } catch(e) {
+      console.warn('[convertLead] falha buscando board no Supabase:', e?.message || e);
+    }
+  }
+  if (!targetBoard) {
+    await appAlert('Board destino indisponível',
+      'O formulário aponta pra um board que não existe mais. Vá em Synconnect → Formulários, edite o formulário e escolha outro board destino.',
+      { icon:'⚠️' });
+    return;
+  }
   const targetColId = form.target_col || (targetBoard.COLS && targetBoard.COLS[0] ? targetBoard.COLS[0].id : 'backlog');
   const now = new Date().toISOString();
   const newCard = {
