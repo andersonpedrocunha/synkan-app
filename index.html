@@ -714,12 +714,16 @@ kbd{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;font-size:
 
 /* ── Kanban ── */
 .cols{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:start;}
-.col{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:10px;}
+.col{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:10px;display:flex;flex-direction:column;transition:background .18s, box-shadow .18s;}
+.col.col-drop-target{background:rgba(60,52,137,.08);box-shadow:inset 0 0 0 2px rgba(60,52,137,.35);}
 .col-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .col-name{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;}
 .col-n{font-size:11px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:999px;padding:1px 7px;color:var(--color-text-secondary);}
-.dz{min-height:32px;border-radius:8px;}
-.dz.over{background:var(--color-background-info);outline:1.5px dashed var(--color-border-info);}
+.dz{min-height:80px;flex:1;border-radius:8px;padding:4px;transition:background .15s, outline-color .15s;}
+.dz.over{background:rgba(60,52,137,.08);outline:2px dashed #3C3489;outline-offset:-3px;}
+/* Cursor agarrável nos cards */
+.card{cursor:grab;}
+.card:active,.card.dragging{cursor:grabbing;}
 .card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;margin-bottom:7px;padding:9px 11px;cursor:grab;animation:card-in .25s ease-out both;transition:transform .15s,box-shadow .15s,opacity .2s;}
 @keyframes card-in{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 .card:active{cursor:grabbing;}
@@ -11223,17 +11227,17 @@ function _renderEnergyToolbar() {
       <div class="energy-popover-h">Quanta energia hoje?</div>
       <div class="energy-options">
         <div class="energy-option${energy===3?' is-active':''}" onclick="setFocusEnergy(3)">
-          <span class="energy-option-emoji">🔥</span>
+          <span class="energy-option-emoji">重</span>
           <div><div>Energia cheia</div>
           <div style="font-size:11px;color:var(--color-text-tertiary);">Tudo na mesa, inclusive o pesado.</div></div>
         </div>
         <div class="energy-option${energy===2?' is-active':''}" onclick="setFocusEnergy(2)">
-          <span class="energy-option-emoji">🌤</span>
+          <span class="energy-option-emoji">中</span>
           <div><div>Energia média</div>
           <div style="font-size:11px;color:var(--color-text-tertiary);">Leves e médias. Pesadas esmaecidas.</div></div>
         </div>
         <div class="energy-option${energy===1?' is-active':''}" onclick="setFocusEnergy(1)">
-          <span class="energy-option-emoji">🌙</span>
+          <span class="energy-option-emoji">軽</span>
           <div><div>Energia baixa</div>
           <div style="font-size:11px;color:var(--color-text-tertiary);">Só leves. Hoje é dia de fluir.</div></div>
         </div>
@@ -11479,49 +11483,85 @@ function render() {
   }
 }
 
+// Lógica do drop extraída pra reusar em .dz E em .col (drop tolerante)
+function _processCardDrop(newCol) {
+  if (!dragId || !newCol) return;
+  const card = cards.find(c => c.id === dragId);
+  if (!card || card.col === newCol) return;
+  const movedToDone   = newCol === TERMINAL_COL && card.col !== TERMINAL_COL;
+  const movedFromDone = card.col === TERMINAL_COL && newCol !== TERMINAL_COL;
+  // Aviso de WIP excedido (não bloqueia)
+  try {
+    const targetCol = COLS.find(x => x.id === newCol);
+    if (targetCol && targetCol.wipLimit && newCol !== TERMINAL_COL) {
+      const inColAfter = cards.filter(c => c.col === newCol && c.id !== card.id).length + 1;
+      if (inColAfter > targetCol.wipLimit) {
+        _showKanWIPWarning(targetCol.title, inColAfter, targetCol.wipLimit);
+      }
+    }
+  } catch(e){}
+  autoThread(card, `Movido para "${COLS.find(x=>x.id===newCol)?.title}"`);
+  card.col = newCol;
+  card.colChangedAt = new Date().toISOString();
+  if (movedToDone) {
+    card.doneAt = new Date().toISOString();
+    if (typeof _gamifAwardCardDone === 'function') _gamifAwardCardDone(card);
+    if (card.recurrence) _spawnRecurrence(card);
+    if (typeof _checkReleasedDependents === 'function') _checkReleasedDependents(card.id);
+    audit('card.completed', { cardId: card.id, name: card.name });
+    fireWebhook('card.completed', { cardId: card.id, name: card.name });
+  } else if (movedFromDone) {
+    card.doneAt = null;
+  }
+  render(); saveData();
+}
+
 function bindDrag() {
   document.querySelectorAll('.card').forEach(el=>{
-    el.addEventListener('dragstart',e=>{dragId=parseInt(el.dataset.id);setTimeout(()=>el.classList.add('dragging'),0);e.stopPropagation();});
-    el.addEventListener('dragend',()=>{el.classList.remove('dragging');document.querySelectorAll('.dz').forEach(z=>z.classList.remove('over'));});
+    el.addEventListener('dragstart',e=>{
+      const raw = el.dataset.id || '';
+      dragId = /[^0-9]/.test(raw) ? raw : parseInt(raw);
+      setTimeout(()=>el.classList.add('dragging'),0);
+      e.stopPropagation();
+    });
+    el.addEventListener('dragend',()=>{
+      el.classList.remove('dragging');
+      document.querySelectorAll('.dz').forEach(z=>z.classList.remove('over'));
+      document.querySelectorAll('.col').forEach(c=>c.classList.remove('col-drop-target'));
+    });
   });
-  document.querySelectorAll('.dz').forEach(zone=>{
-    zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('over');});
-    zone.addEventListener('dragleave',()=>zone.classList.remove('over'));
-    zone.addEventListener('drop',e=>{
-      e.preventDefault();zone.classList.remove('over');
-      const card=cards.find(c=>c.id===dragId);
-      if(card){
-        const newCol=zone.dataset.col;
-        if(card.col!==newCol){
-          const movedToDone = newCol === TERMINAL_COL && card.col !== TERMINAL_COL;
-          const movedFromDone = card.col === TERMINAL_COL && newCol !== TERMINAL_COL;
-          // ── Aviso de WIP excedido (não bloqueia, só avisa) ──────────
-          try {
-            const targetCol = COLS.find(x => x.id === newCol);
-            if (targetCol && targetCol.wipLimit && newCol !== TERMINAL_COL) {
-              const inColAfter = cards.filter(c => c.col === newCol && c.id !== card.id).length + 1;
-              if (inColAfter > targetCol.wipLimit) {
-                _showKanWIPWarning(targetCol.title, inColAfter, targetCol.wipLimit);
-              }
-            }
-          } catch(e){}
-          autoThread(card,`Movido para "${COLS.find(x=>x.id===newCol)?.title}"`);
-          card.col=newCol;
-          card.colChangedAt = new Date().toISOString();   // aging WIP tracking
-          // Atualiza doneAt + concede XP quando vai pra coluna terminal
-          if (movedToDone) {
-            card.doneAt = new Date().toISOString();
-            if (typeof _gamifAwardCardDone === 'function') _gamifAwardCardDone(card);
-            if (card.recurrence) _spawnRecurrence(card);
-            if (typeof _checkReleasedDependents === 'function') _checkReleasedDependents(card.id);
-            audit('card.completed', { cardId: card.id, name: card.name });
-            fireWebhook('card.completed', { cardId: card.id, name: card.name });
-          } else if (movedFromDone) {
-            card.doneAt = null;
-          }
-        }
-        render();saveData();
+  // Drop tolerante: a COLUNA inteira aceita drop, não só a .dz
+  document.querySelectorAll('.col').forEach(col=>{
+    const dz = col.querySelector('.dz');
+    if (!dz) return;
+    col.addEventListener('dragover', e => {
+      e.preventDefault();
+      col.classList.add('col-drop-target');
+      dz.classList.add('over');
+    });
+    col.addEventListener('dragleave', e => {
+      if (!col.contains(e.relatedTarget)) {
+        col.classList.remove('col-drop-target');
+        dz.classList.remove('over');
       }
+    });
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      col.classList.remove('col-drop-target');
+      dz.classList.remove('over');
+      _processCardDrop(dz.dataset.col);
+    });
+  });
+  // .dz mantém só feedback visual + delega drop pro helper (mesma lógica que .col)
+  document.querySelectorAll('.dz').forEach(zone=>{
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      e.stopPropagation();   // evita disparar de novo no .col
+      zone.classList.remove('over');
+      const col = zone.closest('.col'); if (col) col.classList.remove('col-drop-target');
+      _processCardDrop(zone.dataset.col);
     });
   });
 }
