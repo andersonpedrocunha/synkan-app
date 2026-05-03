@@ -1273,7 +1273,7 @@ body.density-compact .card-cf-row{font-size:10px;}
   background:linear-gradient(135deg, rgba(60,52,137,.10) 0%, rgba(188,0,45,.06) 100%);
   border-color:#3C3489;color:var(--color-text-primary);
 }
-.energy-icon{font-size:14px;line-height:1;}
+.energy-icon{font-size:15px;line-height:1;font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-weight:400;color:#3C3489;}
 .energy-label{font-weight:500;font-variant-numeric:tabular-nums;}
 .energy-popover{
   position:absolute;top:calc(100% + 6px);left:0;
@@ -1292,7 +1292,7 @@ body.density-compact .card-cf-row{font-size:10px;}
 }
 .energy-option:hover{background:var(--color-background-secondary);}
 .energy-option.is-active{background:rgba(60,52,137,.08);border-color:#3C3489;color:var(--color-text-primary);font-weight:500;}
-.energy-option-emoji{font-size:18px;}
+.energy-option-emoji{font-size:22px;font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-weight:400;color:#3C3489;line-height:1;width:28px;text-align:center;}
 .energy-option-meta{font-size:11px;color:var(--color-text-tertiary);margin-left:auto;}
 
 /* Cards "above-budget" ficam esmaecidos no Focus Mode */
@@ -1323,7 +1323,14 @@ body.density-compact .card-cf-row{font-size:10px;}
 }
 .modal-effort-btn:hover{background:var(--color-background-tertiary,rgba(0,0,0,.04));}
 .modal-effort-btn.is-active{background:rgba(60,52,137,.08);border-color:#3C3489;color:var(--color-text-primary);font-weight:500;}
-.modal-effort-emoji{font-size:18px;line-height:1;}
+.modal-effort-emoji{
+  font-size:24px;line-height:1;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  font-weight:400;letter-spacing:-.02em;color:#1A1612;
+  margin-bottom:2px;
+}
+:root.dark .modal-effort-emoji{color:#F8F2E4;}
+.modal-effort-btn.is-active .modal-effort-emoji{color:#3C3489;}
 
 /* ── Smart Dependencies: banner de atraso em cascata ──────────── */
 .cascade-banner{
@@ -5200,9 +5207,9 @@ function resetToDefault() {
 const FOCUS_ENERGY_KEY = 'kanban_v8_focus_energy';
 
 const ENERGY_LEVELS = {
-  3: { label:'Energia cheia',  emoji:'🔥', desc:'Tudo na mesa, inclusive o pesado.' },
-  2: { label:'Energia média',  emoji:'🌤', desc:'Tarefas leves e médias. Pesadas escondidas.' },
-  1: { label:'Energia baixa',  emoji:'🌙', desc:'Só leves. Hoje é dia de fluir.' },
+  3: { label:'Energia cheia',  emoji:'重', desc:'Tudo na mesa, inclusive o pesado.' },
+  2: { label:'Energia média',  emoji:'中', desc:'Tarefas leves e médias. Pesadas escondidas.' },
+  1: { label:'Energia baixa',  emoji:'軽', desc:'Só leves. Hoje é dia de fluir.' },
 };
 
 function getFocusEnergy() {
@@ -5303,9 +5310,9 @@ function renderModalEffort(cardId) {
   const cur = (typeof getCardEffort === 'function') ? getCardEffort(c) : 2;
   const isManual = Number.isFinite(c.effort);
   const opts = [
-    { val: 1, emoji: '🌙', label: 'Leve',   desc: 'rápido, sem cérebro' },
-    { val: 2, emoji: '🌤', label: 'Médio',  desc: 'foco moderado' },
-    { val: 3, emoji: '🔥', label: 'Pesado', desc: 'demanda concentração' },
+    { val: 1, emoji: '軽', label: 'Leve',   desc: 'kei · rápido' },
+    { val: 2, emoji: '中', label: 'Médio',  desc: 'chū · foco moderado' },
+    { val: 3, emoji: '重', label: 'Pesado', desc: 'jū · concentração total' },
   ];
   el.innerHTML = `
     <div class="modal-effort">
