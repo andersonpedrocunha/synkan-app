@@ -23314,6 +23314,327 @@ const _MESTRE_KAN_SVG = `
   <path d="M 32,46 L 28,58 L 36,58 Z" fill="rgba(212,175,55,0.18)" stroke="rgba(212,175,55,0.5)" stroke-width="0.4"/>
 </svg>`;
 
+// ──────────────────────────────────────────────────────────────────
+// FÍSICA DO VENTO — engine JS-driven (requestAnimationFrame).
+// Cada folha tem velocidade, rotação, e camada (parallax).
+// Rajadas de vento são EVENTOS que aplicam aceleração lateral em todas
+// as folhas dentro de uma faixa Y — folhas próximas à rajada são
+// empurradas, distantes não sentem. Isso dá sincronia entre o visual
+// das rajadas (mist + dust) e o movimento real das folhas.
+// ──────────────────────────────────────────────────────────────────
+let _dojoWindEngine = null;
+
+function _dojoStartWindEngine(overlay) {
+  if (_dojoWindEngine) _dojoWindEngine.stop();
+
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+
+  // Estado de cada folha
+  const N_LEAVES = 60;
+  const LAYERS_DEF = [
+    { tag:'back',  sizeMin:14, sizeMax:22, gravMin:18, gravMax:32, opacity:0.55, blur:1.0, shadow:'0 1px 2px rgba(60,30,10,0.3)', mass:0.55 },
+    { tag:'mid',   sizeMin:22, sizeMax:32, gravMin:30, gravMax:50, opacity:0.85, blur:0,   shadow:'0 2px 4px rgba(60,30,10,0.4)', mass:1.0  },
+    { tag:'front', sizeMin:30, sizeMax:48, gravMin:42, gravMax:65, opacity:1.0,  blur:0,   shadow:'0 3px 6px rgba(40,18,5,0.55)', mass:1.5  },
+  ];
+
+  function rand(a,b) { return a + Math.random() * (b-a); }
+  function pick(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+
+  function makeLeafEl(i) {
+    const el = document.createElement('div');
+    el.className = 'dojo-leaf';
+    const svg = pick(_LEAF_VARIANTS)
+      .replace(/id="lg-([a-z]+)"/g, `id="lg-$1-${i}"`)
+      .replace(/url\(#lg-([a-z]+)\)/g, `url(#lg-$1-${i})`);
+    el.innerHTML = svg;
+    return el;
+  }
+
+  // Linha do chão (px do topo). Folhas pousam ligeiramente acima do bottom.
+  const GROUND_Y = H - 30;
+  const MAX_LEAVES = 180;  // Limite total (caindo + pousadas)
+  let _leafIdSeed = 0;
+
+  function makeLeaf(opts) {
+    const layer = opts?.layer || pick(LAYERS_DEF);
+    const size = rand(layer.sizeMin, layer.sizeMax);
+    const fromRight = Math.random() < 0.5;
+    const x = opts?.x ?? rand(-W*0.05, W*1.05);
+    const y = opts?.y ?? rand(-H*0.4, -50);
+    const grav = rand(layer.gravMin, layer.gravMax);
+    const vx0 = rand(-30, 30) + (fromRight ? -10 : 10);
+    const vy0 = rand(20, 50);
+    const rot = rand(0, 360);
+    const vRot = rand(-180, 180);
+    const hue = rand(-20, 25);
+    const sat = rand(95, 125);
+    const bright = rand(90, 115);
+
+    const i = _leafIdSeed++;
+    const el = makeLeafEl(i);
+    el.style.cssText = `
+      position:absolute;left:0;top:0;
+      width:${size.toFixed(0)}px;height:${size.toFixed(0)}px;
+      will-change:transform,opacity;
+      opacity:${layer.opacity};
+      filter:${layer.blur?`blur(${layer.blur}px) `:''}hue-rotate(${hue.toFixed(0)}deg) saturate(${sat.toFixed(0)}%) brightness(${bright.toFixed(0)}%) drop-shadow(${layer.shadow});
+    `;
+    overlay.appendChild(el);
+
+    return {
+      el, x, y, vx: vx0, vy: vy0,
+      grav, mass: layer.mass,
+      rot, vRot, size,
+      layer: layer.tag,
+      landed: false,        // já pousou no chão?
+      landedTime: 0,         // quando pousou (pra ordenação)
+      // Rotação final ao pousar (pra folha ficar deitada de jeito natural)
+      restRot: rand(-30, 30),
+    };
+  }
+
+  // Inicializa folhas — espalhadas pela altura pra animação começar com tela cheia
+  const leaves = [];
+  for (let i = 0; i < N_LEAVES; i++) {
+    leaves.push(makeLeaf({
+      y: rand(-H*0.6, H*0.85),
+      x: rand(-W*0.05, W*1.05),
+    }));
+  }
+
+  // ── Sistema de rajadas (gusts) ─────────────────────────
+  // Uma rajada tem: direção (-1 ou +1), força (px/s²), centro Y, espessura
+  // (faixa que afeta), duração e tempo decorrido.
+  const gusts = [];
+
+  function spawnGust(opts) {
+    const dir = opts?.dir || (Math.random() < 0.5 ? -1 : 1);
+    const cy = opts?.cy ?? rand(H*0.15, H*0.85);
+    const radius = opts?.radius ?? rand(140, 280);
+    const force = opts?.force ?? rand(220, 380); // px/s² extras
+    const dur = opts?.dur ?? rand(1.2, 2.4);
+    const gust = { dir, cy, radius, force, dur, elapsed: 0 };
+    gusts.push(gust);
+    // Visual associado: mist gust + burst de poeira
+    spawnMistGust(dir, cy, dur, radius);
+    spawnDustBurst(dir, cy, radius);
+    return gust;
+  }
+
+  function spawnMistGust(dir, cy, dur, radius) {
+    const m = document.createElement('div');
+    m.className = 'dojo-wind-mist-js';
+    const startX = dir > 0 ? -W*0.4 : W*1.4;
+    const endX   = dir > 0 ? W*1.4  : -W*0.4;
+    const height = radius * 1.6;
+    m.style.cssText = `
+      position:absolute;
+      width:${(W*0.7).toFixed(0)}px;height:${height.toFixed(0)}px;
+      left:0;top:${(cy - height/2).toFixed(0)}px;
+      background:radial-gradient(ellipse 50% 60% at 50% 50%,
+        rgba(255,225,170,0.22) 0%,
+        rgba(255,200,130,0.12) 35%,
+        transparent 75%);
+      filter:blur(24px);mix-blend-mode:screen;
+      pointer-events:none;will-change:transform,opacity;
+      transform:translate3d(${startX.toFixed(0)}px,0,0);
+      opacity:0;
+    `;
+    overlay.appendChild(m);
+    // Anima via requestAnimationFrame manual (síncrono com física)
+    const t0 = performance.now();
+    function animateMist(now) {
+      const t = (now - t0) / 1000;
+      if (t > dur + 0.4) { try { m.remove(); } catch(e){} return; }
+      const p = Math.min(1, t / dur);
+      // Easing: rampa de saída suave
+      const x = startX + (endX - startX) * p;
+      const op = (p < 0.15) ? (p / 0.15) : (p > 0.85 ? (1 - p) / 0.15 : 1);
+      m.style.transform = `translate3d(${x.toFixed(0)}px,0,0)`;
+      m.style.opacity = String(op.toFixed(2));
+      requestAnimationFrame(animateMist);
+    }
+    requestAnimationFrame(animateMist);
+  }
+
+  function spawnDustBurst(dir, cy, radius) {
+    const N = 12;
+    for (let i = 0; i < N; i++) {
+      const d = document.createElement('div');
+      d.className = 'dojo-wind-dust-js';
+      const startX = dir > 0 ? rand(-W*0.05, W*0.1) : rand(W*0.9, W*1.05);
+      const startY = cy + rand(-radius*0.8, radius*0.8);
+      const sizePx = rand(1.5, 4);
+      const opacityFinal = rand(0.5, 0.95);
+      d.style.cssText = `
+        position:absolute;left:${startX}px;top:${startY}px;
+        width:${sizePx}px;height:${sizePx}px;border-radius:50%;
+        background:radial-gradient(circle, rgba(255,235,190,${opacityFinal}) 0%, rgba(255,200,140,0) 70%);
+        pointer-events:none;will-change:transform,opacity;
+        transform:translate3d(0,0,0);
+        opacity:0;
+      `;
+      overlay.appendChild(d);
+      // Anima cada partícula
+      const t0 = performance.now();
+      const dur = rand(1.4, 2.6);
+      const dx = dir * rand(W*0.6, W*0.9);
+      const dy = rand(-30, 30);
+      function animateDust(now) {
+        const t = (now - t0) / 1000;
+        if (t > dur + 0.2) { try { d.remove(); } catch(e){} return; }
+        const p = Math.min(1, t / dur);
+        const x = dx * p;
+        const y = dy * p;
+        const op = p < 0.15 ? (p / 0.15) * opacityFinal : (p > 0.85 ? ((1-p)/0.15) * opacityFinal : opacityFinal);
+        d.style.transform = `translate3d(${x.toFixed(0)}px,${y.toFixed(0)}px,0)`;
+        d.style.opacity = String(op.toFixed(2));
+        requestAnimationFrame(animateDust);
+      }
+      requestAnimationFrame(animateDust);
+    }
+  }
+
+  // Spawn rajadas em intervalos
+  let nextGustAt = 0.4; // primeiro gust vem cedo pra criar movimento imediato
+  function maybeSpawnGust(elapsed) {
+    if (elapsed < nextGustAt) return;
+    spawnGust();
+    // Próxima rajada em 1.2-2.6s
+    nextGustAt = elapsed + rand(1.2, 2.6);
+  }
+
+  // Spawn de folhas novas no topo (enquanto não excede o limite)
+  let nextLeafSpawnAt = 0.3;
+  function maybeSpawnLeaf(elapsed) {
+    if (elapsed < nextLeafSpawnAt) return;
+    if (leaves.length < MAX_LEAVES) {
+      leaves.push(makeLeaf({
+        y: rand(-120, -40),
+        x: rand(-W*0.05, W*1.05),
+      }));
+    }
+    // Spawn rate baseado no quão cheio está
+    const fill = leaves.length / MAX_LEAVES;
+    const interval = 0.15 + fill * 0.5; // 0.15s vazio → 0.65s cheio
+    nextLeafSpawnAt = elapsed + interval;
+  }
+
+  // Aceleração ambiente leve (ar suave)
+  const AMBIENT_DRIFT = -8; // px/s² — leve viés esquerdo
+
+  // Loop principal
+  let last = performance.now();
+  let elapsed = 0;
+  let running = true;
+
+  function step(now) {
+    if (!running) return;
+    const dt = Math.min(0.05, (now - last) / 1000); // cap em 50ms
+    last = now;
+    elapsed += dt;
+
+    // Talvez disparar nova rajada
+    maybeSpawnGust(elapsed);
+    // Talvez spawnar nova folha
+    maybeSpawnLeaf(elapsed);
+
+    // Atualiza rajadas ativas
+    for (let i = gusts.length - 1; i >= 0; i--) {
+      gusts[i].elapsed += dt;
+      if (gusts[i].elapsed > gusts[i].dur) gusts.splice(i, 1);
+    }
+
+    // Atualiza folhas
+    for (const lf of leaves) {
+      if (lf.landed) {
+        // Folha pousada: sem gravidade. Apenas leve "tremor" residual e
+        // empurrão suave de rajadas próximas (folha rola/tomba um pouco).
+        let ax = 0;
+        for (const g of gusts) {
+          const dy = Math.abs(lf.y - g.cy);
+          if (dy > g.radius) continue;
+          const falloff = 1 - (dy / g.radius);
+          const tProfile = Math.sin(Math.PI * (g.elapsed / g.dur));
+          // Rajadas movem folhas pousadas com força bem reduzida (atrito do chão)
+          ax += g.dir * g.force * 0.15 * falloff * tProfile / lf.mass;
+        }
+        lf.vx += ax * dt;
+        // Atrito pesado (chão)
+        lf.vx *= 0.88;
+        // Rolling rotation muito leve baseada no movimento horizontal
+        lf.rot += lf.vx * 0.3 * dt;
+        // Tendência a voltar pra rotação de descanso
+        const rotDelta = lf.restRot - lf.rot;
+        // Normaliza pra menor caminho (entre -180 e 180)
+        const wrapped = ((rotDelta + 180) % 360 + 360) % 360 - 180;
+        lf.rot += wrapped * 0.5 * dt;
+        lf.x += lf.vx * dt;
+        // Mantém no chão
+        lf.y = GROUND_Y - lf.size * 0.2;
+        // Wrap horizontal nas bordas (folhas do canto reaparecem do lado oposto)
+        if (lf.x < -lf.size) lf.x = W + lf.size;
+        else if (lf.x > W + lf.size) lf.x = -lf.size;
+      } else {
+        // Folha caindo: física normal
+        let ax = AMBIENT_DRIFT / lf.mass;
+        const ay = lf.grav;
+        for (const g of gusts) {
+          const dy = Math.abs(lf.y - g.cy);
+          if (dy > g.radius) continue;
+          const falloff = 1 - (dy / g.radius);
+          const tProfile = Math.sin(Math.PI * (g.elapsed / g.dur));
+          ax += g.dir * g.force * falloff * tProfile / lf.mass;
+        }
+        lf.vx += ax * dt;
+        lf.vy += ay * dt;
+        lf.vx *= 0.985;
+        lf.vy *= 0.992;
+        lf.vRot += (lf.vx * 0.5) * dt;
+        lf.rot += lf.vRot * dt;
+        lf.x += lf.vx * dt;
+        lf.y += lf.vy * dt;
+
+        // Wrap horizontal: folha que sai por uma lateral entra pela outra
+        if (lf.x < -W*0.15) lf.x = W * 1.05;
+        else if (lf.x > W*1.15) lf.x = -W * 0.05;
+
+        // Detecta pouso: chegou ao chão
+        if (lf.y >= GROUND_Y - lf.size * 0.2) {
+          lf.landed = true;
+          lf.landedTime = elapsed;
+          lf.y = GROUND_Y - lf.size * 0.2;
+          lf.vy = 0;
+          // Velocidade horizontal residual, mas reduzida (impacto)
+          lf.vx *= 0.3;
+          // Rotação final: aleatória (folha tomba pra um lado)
+          lf.restRot = rand(-25, 25) + (lf.vx > 0 ? 8 : -8);
+          // Empurrão visual leve nas folhas vizinhas pousadas (efeito acumulação)
+          for (const other of leaves) {
+            if (other === lf || !other.landed) continue;
+            const dist = Math.abs(other.x - lf.x);
+            if (dist < lf.size * 1.2) {
+              other.vx += (other.x - lf.x) * 0.4;
+            }
+          }
+        }
+      }
+
+      lf.el.style.transform = `translate3d(${lf.x.toFixed(1)}px, ${lf.y.toFixed(1)}px, 0) rotate(${lf.rot.toFixed(1)}deg)`;
+    }
+
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+
+  _dojoWindEngine = {
+    stop() { running = false; },
+    spawnGust,
+  };
+  return _dojoWindEngine;
+}
+
 function _dojoPlayWelcomeAnimation() {
   // Evita disparar duas vezes
   if (document.querySelector('.dojo-sakura-overlay')) return;
@@ -23321,84 +23642,8 @@ function _dojoPlayWelcomeAnimation() {
   const overlay = document.createElement('div');
   overlay.className = 'dojo-sakura-overlay';
 
-  // Spawn ~70 folhas distribuídas em 3 camadas de profundidade.
-  // Camada de fundo: pequenas, lentas, blur, mais opacas (longe).
-  // Camada média: tamanho normal, velocidade média.
-  // Camada da frente: maiores, mais rápidas, sombra mais escura (perto).
-  // Cada folha pega aleatoriamente 1 dos 3 SVGs e 1 dos 8 paths.
-  // Paths a-d: vento da esquerda. e-h: vento da direita (rajadas potentes).
-  const N = 70;
-  const PATHS_LEFT  = ['path-a','path-b','path-c','path-d'];
-  const PATHS_RIGHT = ['path-e','path-f','path-g','path-h'];
-  const LAYERS = [
-    { cls:'layer-back',  sizeMin:14, sizeMax:22, durMin:9,  durMax:13 },
-    { cls:'layer-mid',   sizeMin:22, sizeMax:32, durMin:6,  durMax:9  },
-    { cls:'layer-front', sizeMin:30, sizeMax:48, durMin:4.5, durMax:7 },
-  ];
-  let petalsHTML = '';
-  for (let i = 0; i < N; i++) {
-    // Distribui camadas: 35% back, 40% mid, 25% front (mais peso à frente pra impacto)
-    const rL = Math.random();
-    const layer = rL < 0.35 ? LAYERS[0] : (rL < 0.75 ? LAYERS[1] : LAYERS[2]);
-    // 50% vem da esquerda (varre pra direita), 50% vem da direita (varre pra esquerda)
-    const fromRight = Math.random() < 0.5;
-    // Posição inicial: se vem da esquerda, começa em 0..50%. Se da direita, em 50..100%.
-    const left  = fromRight ? (50 + Math.random() * 55) : (-5 + Math.random() * 55);
-    const size  = (layer.sizeMin + Math.random() * (layer.sizeMax - layer.sizeMin)).toFixed(0);
-    const dur   = (layer.durMin + Math.random() * (layer.durMax - layer.durMin)).toFixed(2);
-    const delay = (Math.random() * 5).toFixed(2);
-    const pool  = fromRight ? PATHS_RIGHT : PATHS_LEFT;
-    const path  = pool[Math.floor(Math.random() * pool.length)];
-    const hue   = (-20 + Math.random() * 45).toFixed(0);
-    const sat   = (95 + Math.random() * 30).toFixed(0);
-    const bright= (90 + Math.random() * 25).toFixed(0);
-    const svg   = _LEAF_VARIANTS[Math.floor(Math.random() * _LEAF_VARIANTS.length)];
-    const uniqueSvg = svg.replace(/id="lg-([a-z]+)"/g, `id="lg-$1-${i}"`)
-                          .replace(/url\(#lg-([a-z]+)\)/g, `url(#lg-$1-${i})`);
-    petalsHTML += `<div class="dojo-sakura-petal ${layer.cls} ${path}"
-      style="left:${left}%;width:${size}px;height:${size}px;
-             animation-duration:${dur}s;animation-delay:${delay}s;
-             filter:hue-rotate(${hue}deg) saturate(${sat}%) brightness(${bright}%) drop-shadow(0 2px 4px rgba(60,30,10,0.4));">${uniqueSvg}</div>`;
-  }
-
-  // Wind effects — mist gusts (volumétrica) + dust particles (poeira flutuando)
-  // Mist: 5 faixas amplas com blur passando lentamente.
-  // Dust: ~40 partículas minúsculas seguindo o vento dominante.
-  let streaksHTML = '';
-  // Mist gusts (rajadas de névoa)
-  for (let i = 0; i < 5; i++) {
-    const fromRight = Math.random() < 0.5;
-    const top = (10 + Math.random() * 70).toFixed(0);  // 10–80% vh
-    const dur = (4.5 + Math.random() * 3.5).toFixed(2); // 4.5–8s (lento)
-    const delay = (Math.random() * 6).toFixed(2);
-    const heightVar = (90 + Math.random() * 120).toFixed(0); // altura variável
-    const opacityMod = (0.6 + Math.random() * 0.5).toFixed(2);
-    streaksHTML += `<div class="dojo-wind-mist ${fromRight?'from-right':'from-left'}"
-      style="top:${top}%;height:${heightVar}px;
-             animation-duration:${dur}s;animation-delay:${delay}s;
-             ${fromRight?'left:auto;right:-40vw;':''}
-             --mist-opacity:${opacityMod};"></div>`;
-  }
-  // Dust particles (poeira fina flutuando no ar)
-  for (let i = 0; i < 40; i++) {
-    const fromRight = Math.random() < 0.5;
-    const top = (Math.random() * 95).toFixed(0);
-    const left = fromRight ? (60 + Math.random() * 40) : (-5 + Math.random() * 65);
-    const dur = (3 + Math.random() * 4).toFixed(2);
-    const delay = (Math.random() * 8).toFixed(2);
-    const size = (1.5 + Math.random() * 3).toFixed(1);
-    const opacity = (0.4 + Math.random() * 0.5).toFixed(2);
-    streaksHTML += `<div class="dojo-wind-dust ${fromRight?'dust-rl':'dust-lr'}"
-      style="top:${top}%;left:${left}%;
-             width:${size}px;height:${size}px;
-             animation-duration:${dur}s;animation-delay:${delay}s;
-             --dust-opacity:${opacity};"></div>`;
-  }
-
   const q = _dojoGetTodayQuote();
   overlay.innerHTML = `
-    ${streaksHTML}
-    ${petalsHTML}
     <div class="dojo-sakura-haiku">
       <span class="dojo-sakura-haiku-kanji">${q.kanji}</span>
       <span class="dojo-sakura-haiku-line">${q.line}</span>
@@ -23408,13 +23653,15 @@ function _dojoPlayWelcomeAnimation() {
   `;
   document.body.appendChild(overlay);
 
+  // Inicia engine de física (folhas + rajadas sincronizadas)
+  _dojoStartWindEngine(overlay);
+
   // Marca como visto pra não disparar novamente hoje
   _dojoMarkWelcomeShown();
 
   // Click fora do botão fecha (skip)
   overlay.style.pointerEvents = 'auto';
   overlay.addEventListener('click', (e) => {
-    // Ignora clique no botão (ele tem seu próprio handler)
     if (e.target.closest('.dojo-sakura-enter-btn')) return;
     _dojoCloseSakuraOverlay(overlay);
   });
@@ -23432,6 +23679,7 @@ function _dojoPlayWelcomeAnimation() {
 function _dojoCloseSakuraOverlay(overlay) {
   if (!overlay) return;
   overlay.classList.add('fading');
+  if (_dojoWindEngine) { _dojoWindEngine.stop(); _dojoWindEngine = null; }
   setTimeout(() => { try { overlay.remove(); } catch(e){} }, 1300);
 }
 
