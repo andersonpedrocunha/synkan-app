@@ -14520,8 +14520,27 @@ function toggleAccountMenu(ev) {
   const menu = document.getElementById('sb-account-menu');
   if (!btn || !menu) return;
   const isOpen = menu.classList.contains('is-open');
-  if (isOpen) closeAccountMenu();
-  else { menu.classList.add('is-open'); btn.classList.add('is-open'); }
+  if (isOpen) {
+    closeAccountMenu();
+  } else {
+    // Atualiza o texto do botão Sair/Entrar baseado no estado ATUAL do supaUser
+    // (evita cache de HTML renderizado antes do login completar)
+    _refreshAccountMenuLogoutLabel();
+    menu.classList.add('is-open');
+    btn.classList.add('is-open');
+  }
+}
+
+// Atualiza dinamicamente o label do último item do menu de acordo com o
+// estado de login atual. Chamado toda vez que o menu abre.
+function _refreshAccountMenuLogoutLabel() {
+  const menu = document.getElementById('sb-account-menu'); if (!menu) return;
+  const item = menu.querySelector('.sb-account-menu-item.danger');
+  if (!item) return;
+  const label = item.querySelector('span:last-child');
+  if (!label) return;
+  const logged = !!(typeof supaUser !== 'undefined' && supaUser);
+  label.textContent = logged ? 'Sair' : 'Entrar / Trocar conta';
 }
 function closeAccountMenu() {
   document.getElementById('sb-account-menu')?.classList.remove('is-open');
