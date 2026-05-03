@@ -1120,7 +1120,28 @@ body.density-compact .card-cf-row{font-size:10px;}
 .cfg-section:last-of-type{border-bottom:none;margin-bottom:8px;}
 .cfg-section-title{font-size:12px;font-weight:600;color:var(--color-text-primary);margin-bottom:6px;}
 .cfg-section-hint{font-size:11px;color:var(--color-text-tertiary);margin-bottom:10px;line-height:1.4;}
-.cfg-col-row{display:flex;align-items:center;gap:6px;padding:7px 8px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:var(--color-background-primary);margin-bottom:5px;transition:background .15s,box-shadow .15s;}
+.cfg-col-block{margin-bottom:5px;}
+.cfg-col-row{display:flex;align-items:center;gap:6px;padding:7px 8px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:var(--color-background-primary);transition:background .15s,box-shadow .15s;}
+.cfg-col-sig{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:7px 12px 7px 22px;margin-top:-4px;
+  border-left:0.5px solid var(--color-border-tertiary);
+  border-right:0.5px solid var(--color-border-tertiary);
+  border-bottom:0.5px solid var(--color-border-tertiary);
+  border-radius:0 0 var(--border-radius-md) var(--border-radius-md);
+  background:var(--color-background-secondary);
+  font-size:11.5px;color:var(--color-text-secondary);
+}
+.cfg-col-sig-lbl{font-weight:500;}
+.cfg-col-sig-sel{
+  border:0.5px solid var(--color-border-secondary);border-radius:6px;
+  padding:3px 7px;font-size:11.5px;font-family:var(--font-sans);
+  background:var(--color-background-primary);color:var(--color-text-primary);
+}
+.cfg-col-sig-lock{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none;}
+.cfg-col-sig-lock.is-disabled{opacity:.4;cursor:not-allowed;}
+.cfg-col-sig-lock input{margin:0;cursor:pointer;}
+.cfg-col-sig-lock.is-disabled input{cursor:not-allowed;}
 .cfg-col-row.dragging{opacity:.5;}
 .cfg-col-row.drop-before{box-shadow:inset 0 2px 0 #111;}
 .cfg-col-row.drop-after{box-shadow:inset 0 -2px 0 #111;}
@@ -7262,9 +7283,9 @@ const KANBAN_TEMPLATES = [
     columns: [
       {id:'lancada',    title:'Lançada'},
       {id:'aguardando', title:'Aguardando aprovação', wipLimit:8},
-      {id:'aprovada',   title:'Aprovada', requiresSignature:'cf_assinatura', lockOnceSigned:true},
+      {id:'aprovada',   title:'Aprovada',  requiresSignature:'cf_assinatura', lockOnceSigned:true},
       {id:'reembolsada',title:'Reembolsada'},
-      {id:'recusada',   title:'Recusada'},
+      {id:'recusada',   title:'Recusada',  requiresSignature:'cf_assinatura', lockOnceSigned:true},
       {id:'done',       title:'Encerrada'},
     ],
     tags: [
@@ -13083,23 +13104,61 @@ function closeConfigModal() {
 function renderConfigCols() {
   const el = document.getElementById('cfg-cols'); if (!el) return;
   const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  // Lista campos signature deste board (pra dropdown)
+  const sigFields = (Array.isArray(customFields) ? customFields : []).filter(f => f.type === 'signature');
+  const hasSig = sigFields.length > 0;
   el.innerHTML = COLS.map((c,i)=>{
     const isTerminal = c.id === TERMINAL_COL;
     const wip = c.wipLimit ? c.wipLimit : '';
+    const reqSig = c.requiresSignature || '';
+    const locked = !!c.lockOnceSigned;
+    // Linha 2: opções de assinatura (só aparece se o board tem ao menos 1 campo signature)
+    const sigRow = hasSig ? `
+      <div class="cfg-col-sig">
+        <label class="cfg-col-sig-lbl">Exige assinatura ao mover pra esta coluna:</label>
+        <select class="cfg-col-sig-sel" onchange="setConfigColRequiresSignature('${esc(c.id)}', this.value)">
+          <option value=""${reqSig===''?' selected':''}>— nenhuma —</option>
+          ${sigFields.map(f => `<option value="${esc(f.id)}"${reqSig===f.id?' selected':''}>${esc(f.label)}</option>`).join('')}
+        </select>
+        <label class="cfg-col-sig-lock${reqSig?'':' is-disabled'}" title="${reqSig?'Após assinar, card só pode avançar no fluxo. Pra editar/voltar é necessário revogar assinatura.':'Selecione um campo de assinatura primeiro'}">
+          <input type="checkbox" ${locked?'checked':''} ${reqSig?'':'disabled'}
+                 onchange="setConfigColLockOnceSigned('${esc(c.id)}', this.checked)" />
+          <span>Trava card após assinar</span>
+        </label>
+      </div>` : '';
     return `
-      <div class="cfg-col-row${isTerminal?' is-terminal':''}" draggable="true" data-idx="${i}" data-id="${esc(c.id)}">
-        <span class="cfg-col-handle" title="Arrastar">⋮⋮</span>
-        <input class="cfg-col-input" type="text" value="${esc(c.title)}" maxlength="40"
-               oninput="renameConfigCol('${esc(c.id)}', this.value)" />
-        <span class="cfg-col-wip-label">WIP</span>
-        <input class="cfg-col-wip" type="number" min="0" max="99" value="${wip}"
-               placeholder="—"
-               onchange="setConfigColWip('${esc(c.id)}', this.value)" />
-        <button class="cfg-col-del${isTerminal?' disabled':''}" title="${isTerminal?'A coluna terminal não pode ser removida':'Remover coluna'}"
-                onclick="${isTerminal?'':"removeConfigCol('"+esc(c.id)+"')"}">✕</button>
+      <div class="cfg-col-block">
+        <div class="cfg-col-row${isTerminal?' is-terminal':''}" draggable="true" data-idx="${i}" data-id="${esc(c.id)}">
+          <span class="cfg-col-handle" title="Arrastar">⋮⋮</span>
+          <input class="cfg-col-input" type="text" value="${esc(c.title)}" maxlength="40"
+                 oninput="renameConfigCol('${esc(c.id)}', this.value)" />
+          <span class="cfg-col-wip-label">WIP</span>
+          <input class="cfg-col-wip" type="number" min="0" max="99" value="${wip}"
+                 placeholder="—"
+                 onchange="setConfigColWip('${esc(c.id)}', this.value)" />
+          <button class="cfg-col-del${isTerminal?' disabled':''}" title="${isTerminal?'A coluna terminal não pode ser removida':'Remover coluna'}"
+                  onclick="${isTerminal?'':"removeConfigCol('"+esc(c.id)+"')"}">✕</button>
+        </div>
+        ${sigRow}
       </div>`;
   }).join('');
   bindConfigColDrag();
+}
+
+function setConfigColRequiresSignature(colId, fieldId) {
+  const col = COLS.find(c => c.id === colId);
+  if (!col) return;
+  if (fieldId) col.requiresSignature = fieldId;
+  else { delete col.requiresSignature; delete col.lockOnceSigned; }
+  saveData(); renderConfigCols(); render();
+}
+
+function setConfigColLockOnceSigned(colId, val) {
+  const col = COLS.find(c => c.id === colId);
+  if (!col) return;
+  if (val) col.lockOnceSigned = true;
+  else delete col.lockOnceSigned;
+  saveData(); renderConfigCols(); render();
 }
 
 function bindConfigColDrag() {
