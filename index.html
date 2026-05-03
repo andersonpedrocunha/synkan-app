@@ -18704,7 +18704,11 @@ function renderBlankEditor() {
 
 function renderCanvasList() {
   const root = document.getElementById('canvas-root');
-  const list = Object.values(_canvases).sort((a,b)=> (b.updatedAt||'').localeCompare(a.updatedAt||''));
+  // Exclui canvases que pertencem ao Zai Hub (não devem aparecer no Lab)
+  const ZAI_ONLY_FORMATS = new Set(['opcost', 'goal-1pct', 'invest']);
+  const list = Object.values(_canvases)
+    .filter(cv => !ZAI_ONLY_FORMATS.has(cv.format))
+    .sort((a,b)=> (b.updatedAt||'').localeCompare(a.updatedAt||''));
 
   // Formatos disponíveis
   const formats = [
@@ -18846,6 +18850,17 @@ async function deleteCanvasPrompt(id) {
 }
 function openCanvas(id) {
   if (!_canvases[id]) return;
+  // Canvases pertencentes ao Zai Hub (opcost, goal-1pct) usam modais próprios.
+  // Se alguém tentar abrir pelo Lab, redireciona pro modal correto.
+  const cv = _canvases[id];
+  if (cv.format === 'goal-1pct') {
+    if (typeof openGoal1pctDetailsModal === 'function') openGoal1pctDetailsModal(id);
+    return;
+  }
+  if (cv.format === 'opcost') {
+    if (typeof openOpCostModal === 'function') openOpCostModal(id);
+    return;
+  }
   _currentCanvasId = id;
   _canvasView = 'editor';
   _canvasViewport = _canvases[id].viewport || { x: 0, y: 0, zoom: 1 };
