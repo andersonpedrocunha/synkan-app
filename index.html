@@ -1183,6 +1183,127 @@ body.density-compact .card-cf-row{font-size:10px;}
 .col-n.wip-warn{background:#FCEBEB;color:#A32D2D;border-color:#F09595;font-weight:600;}
 .col-archived{font-size:11px;color:var(--color-text-tertiary);text-align:center;padding:6px 4px;background:transparent;border:0.5px dashed var(--color-border-tertiary);border-radius:6px;margin-top:6px;cursor:default;}
 
+/* ── Focus Mode (Gestão de Energia) ─────────────────────────── */
+.energy-bar{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);
+  border-radius:999px;padding:5px 13px 5px 11px;
+  font-family:var(--font-sans);font-size:12px;color:var(--color-text-secondary);
+  cursor:pointer;transition:border-color .15s, background .15s;
+  position:relative;
+}
+.energy-bar:hover{border-color:var(--color-text-primary);}
+.energy-bar.is-active{
+  background:linear-gradient(135deg, rgba(60,52,137,.10) 0%, rgba(188,0,45,.06) 100%);
+  border-color:#3C3489;color:var(--color-text-primary);
+}
+.energy-icon{font-size:14px;line-height:1;}
+.energy-label{font-weight:500;font-variant-numeric:tabular-nums;}
+.energy-popover{
+  position:absolute;top:calc(100% + 6px);left:0;
+  background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);
+  border-radius:10px;padding:14px 16px;min-width:240px;z-index:60;
+  box-shadow:0 6px 20px rgba(0,0,0,.10);
+  display:none;font-family:var(--font-sans);
+}
+.energy-popover.is-open{display:block;}
+.energy-popover-h{font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+.energy-options{display:flex;flex-direction:column;gap:5px;}
+.energy-option{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;cursor:pointer;
+  background:transparent;border:1px solid transparent;transition:background .12s, border-color .12s;
+  font-size:13px;color:var(--color-text-primary);
+}
+.energy-option:hover{background:var(--color-background-secondary);}
+.energy-option.is-active{background:rgba(60,52,137,.08);border-color:#3C3489;color:var(--color-text-primary);font-weight:500;}
+.energy-option-emoji{font-size:18px;}
+.energy-option-meta{font-size:11px;color:var(--color-text-tertiary);margin-left:auto;}
+
+/* Cards "above-budget" ficam esmaecidos no Focus Mode */
+.card.energy-over-budget{opacity:.30;filter:grayscale(.4);transition:opacity .25s, filter .25s;}
+.card.energy-over-budget:hover{opacity:.55;filter:grayscale(.2);}
+
+/* Badge de effort no card (sutil) */
+.card-effort{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:9px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--color-text-tertiary);font-family:var(--font-sans);
+}
+.card-effort .ef-dots{display:inline-flex;gap:2px;}
+.card-effort .ef-dot{width:5px;height:5px;border-radius:50%;background:var(--color-text-tertiary);opacity:.35;}
+.card-effort .ef-dot.on{opacity:1;}
+.card-effort.ef-1 .ef-dot.on{background:#3B6D11;}
+.card-effort.ef-2 .ef-dot.on{background:#854F0B;}
+.card-effort.ef-3 .ef-dot.on{background:#A32D2D;}
+
+/* No modal de edição: seletor de effort */
+.modal-effort{display:flex;gap:6px;}
+.modal-effort-btn{
+  flex:1;padding:7px 9px;border-radius:7px;cursor:pointer;
+  background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-family:var(--font-sans);font-size:11px;color:var(--color-text-secondary);
+  transition:background .12s, border-color .12s, color .12s;
+}
+.modal-effort-btn:hover{background:var(--color-background-tertiary,rgba(0,0,0,.04));}
+.modal-effort-btn.is-active{background:rgba(60,52,137,.08);border-color:#3C3489;color:var(--color-text-primary);font-weight:500;}
+.modal-effort-emoji{font-size:18px;line-height:1;}
+
+/* ── Smart Dependencies: banner de atraso em cascata ──────────── */
+.cascade-banner{
+  background:linear-gradient(90deg, #FCEBEB 0%, #FBE5DA 100%);
+  border:1px solid #F09595;border-left:4px solid #DC2626;
+  border-radius:10px;padding:13px 16px;margin-bottom:14px;
+  display:flex;gap:13px;align-items:flex-start;
+  font-family:var(--font-sans);position:relative;
+  animation:cascadeBannerIn .35s ease-out;
+}
+@keyframes cascadeBannerIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+:root.dark .cascade-banner{
+  background:linear-gradient(90deg, rgba(220,38,38,.08) 0%, rgba(194,65,12,.10) 100%);
+  border-color:#7F1D1D;border-left-color:#DC2626;
+}
+.cascade-banner-icon{
+  font-size:22px;line-height:1;color:#DC2626;flex-shrink:0;margin-top:1px;
+}
+.cascade-banner-body{flex:1;min-width:0;}
+.cascade-banner-title{
+  font-size:13.5px;font-weight:600;color:#7F1D1D;letter-spacing:.005em;
+  margin-bottom:3px;
+}
+:root.dark .cascade-banner-title{color:#FCA5A5;}
+.cascade-banner-detail{
+  font-size:12.5px;color:#5A1A1A;line-height:1.5;
+}
+:root.dark .cascade-banner-detail{color:#FECACA;}
+.cascade-banner-detail strong{font-weight:600;}
+.cascade-banner-list{
+  margin-top:6px;font-size:12px;color:#7F1D1D;
+}
+:root.dark .cascade-banner-list{color:#FCA5A5;}
+.cascade-banner-card-link{
+  text-decoration:underline;cursor:pointer;color:inherit;
+}
+.cascade-banner-card-link:hover{opacity:.7;}
+.cascade-banner-close{
+  background:transparent;border:none;color:#7F1D1D;cursor:pointer;
+  font-size:16px;line-height:1;padding:4px 8px;border-radius:6px;opacity:.5;
+  font-family:inherit;transition:opacity .15s, background .15s;
+}
+.cascade-banner-close:hover{opacity:1;background:rgba(127,29,29,.1);}
+:root.dark .cascade-banner-close{color:#FCA5A5;}
+
+/* Badge de propagação no card bloqueador atrasado */
+.card-dep-badge.cascade{
+  background:linear-gradient(135deg, #FCEBEB 0%, #FBE5DA 100%);
+  color:#7F1D1D;border:0.5px solid #F09595;
+  animation:cascadePulse 2.4s ease-in-out infinite;
+}
+@keyframes cascadePulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4);}
+  50%    {box-shadow:0 0 0 4px rgba(220,38,38,0);}
+}
+
 /* ── Card Dependencies (bloqueado por / bloqueia) ─────────────── */
 .card-dep-badge{
   display:inline-flex;align-items:center;gap:4px;
@@ -4761,6 +4882,169 @@ function removeCardBlocker(targetCardId, blockerCardId) {
   saveData();
   if (typeof render === 'function') render();
   if (typeof renderModalDeps === 'function') renderModalDeps(targetCardId);
+}
+
+// ── Focus Mode (Gestão de Energia) ─────────────────────────────
+// Cada card tem campo `effort` (1=leve, 2=médio, 3=pesado).
+// Usuário escolhe nível de energia (1=baixo / 2=médio / 3=cheio).
+// Cards com effort > nível ficam esmaecidos (não escondidos — pra não sumir
+// trabalho "bloqueado" pela percepção do dia).
+
+const FOCUS_ENERGY_KEY = 'kanban_v8_focus_energy';
+
+const ENERGY_LEVELS = {
+  3: { label:'Energia cheia',  emoji:'🔥', desc:'Tudo na mesa, inclusive o pesado.' },
+  2: { label:'Energia média',  emoji:'🌤', desc:'Tarefas leves e médias. Pesadas escondidas.' },
+  1: { label:'Energia baixa',  emoji:'🌙', desc:'Só leves. Hoje é dia de fluir.' },
+};
+
+function getFocusEnergy() {
+  try {
+    const v = localStorage.getItem(FOCUS_ENERGY_KEY);
+    return v ? parseInt(v) : 0;   // 0 = focus mode desligado
+  } catch(e) { return 0; }
+}
+function setFocusEnergy(level) {
+  try {
+    if (!level) localStorage.removeItem(FOCUS_ENERGY_KEY);
+    else localStorage.setItem(FOCUS_ENERGY_KEY, String(level));
+  } catch(e){}
+  if (typeof render === 'function') render();
+  // Fecha popover
+  const pop = document.getElementById('energy-popover'); if (pop) pop.classList.remove('is-open');
+  if (typeof audit === 'function') audit('focus.energy', { level });
+}
+function toggleEnergyPopover() {
+  const pop = document.getElementById('energy-popover'); if (!pop) return;
+  pop.classList.toggle('is-open');
+  if (pop.classList.contains('is-open')) {
+    setTimeout(() => {
+      const close = (e) => {
+        if (!pop.contains(e.target) && !e.target.closest('.energy-bar')) {
+          pop.classList.remove('is-open');
+          document.removeEventListener('mousedown', close);
+        }
+      };
+      document.addEventListener('mousedown', close);
+    }, 50);
+  }
+}
+
+// Heurística pra inferir effort baseado em sinais do card
+function _inferCardEffort(card) {
+  if (!card) return 2;
+  const subs = (card.subtasks || []).length;
+  const desc = (card.threads || []).filter(t => t.type === 'manual').length;
+  const hasContact = !!card.contactId;
+  const hasDeadline = !!card.deadline;
+  let score = 1;
+  if (subs >= 3) score++;
+  if (subs >= 6) score++;
+  if (desc >= 2) score++;
+  if (hasContact && hasDeadline) score++;
+  // Cap entre 1 e 3
+  return Math.max(1, Math.min(3, score));
+}
+
+// Retorna o effort do card. Usa o explícito se houver, senão infere.
+function getCardEffort(card) {
+  if (!card) return 2;
+  if (Number.isFinite(card.effort) && card.effort >= 1 && card.effort <= 3) return card.effort;
+  return _inferCardEffort(card);
+}
+
+function setCardEffort(cardId, effort) {
+  const c = cards.find(x => x.id === cardId);
+  if (!c) return;
+  c.effort = Math.max(1, Math.min(3, parseInt(effort) || 2));
+  if (typeof autoThread === 'function') {
+    const lbl = ['leve','médio','pesado'][c.effort - 1];
+    autoThread(c, `Esforço definido: ${lbl}`);
+  }
+  saveData();
+  // Re-render modal effort UI
+  if (typeof renderModalEffort === 'function') renderModalEffort(cardId);
+  if (typeof render === 'function') render();
+}
+
+// ── Smart Dependencies: análise de cascata de atraso ──────────────
+// Quando um card bloqueador atrasa (deadline passou ou aging stale+),
+// calcula o impacto em cascata nos cards dependentes.
+
+// Retorna ms de atraso de um card (positivo se atrasado, 0 se ok)
+function getCardDelayMs(card) {
+  if (!card || !card.deadline || card.col === TERMINAL_COL) return 0;
+  const dl = new Date(card.deadline + 'T23:59:59').getTime();
+  const today = Date.now();
+  return Math.max(0, today - dl);
+}
+
+// Retorna ms equivalente ao "atraso projetado" em função de aging crítico
+// Quando um card está há muito tempo na coluna, projetamos como atraso suposto
+function getCardProjectedDelayMs(card) {
+  if (!card || card.col === TERMINAL_COL) return 0;
+  const direct = getCardDelayMs(card);
+  if (direct > 0) return direct;
+  // Aging só conta a partir de "stale" (~7d)
+  const lvl = (typeof getCardAgingLevel === 'function') ? getCardAgingLevel(card) : null;
+  if (lvl === 'stale' || lvl === 'critical') {
+    const ageMs = (typeof getCardAgeInColumnMs === 'function') ? getCardAgeInColumnMs(card) : 0;
+    // Considera "atraso virtual" = idade além de 7 dias
+    return Math.max(0, ageMs - 7 * 86400000);
+  }
+  return 0;
+}
+
+// Calcula impacto em cascata: lista de cards afetados + total de atraso projetado
+// Faz BFS no grafo de dependências (blockedBy). Retorna {affectedCards, totalDelayDays}
+function getCascadeImpact(blockerCardId, visited) {
+  visited = visited || new Set();
+  if (visited.has(blockerCardId)) return [];
+  visited.add(blockerCardId);
+
+  const blocker = cards.find(c => c.id === blockerCardId);
+  if (!blocker) return [];
+  const blockerDelay = getCardProjectedDelayMs(blocker);
+  if (blockerDelay <= 0) return [];
+
+  // Cards que têm este como bloqueador
+  const direct = cards.filter(c => Array.isArray(c.blockedBy) && c.blockedBy.includes(blockerCardId) && c.col !== TERMINAL_COL);
+  const out = [];
+  direct.forEach(c => {
+    const delayDays = Math.ceil(blockerDelay / 86400000);
+    out.push({ cardId: c.id, name: c.name, deadline: c.deadline, delayDays, source: blockerCardId });
+    // Recursão: cards que dependem deste também são afetados
+    const deeper = getCascadeImpact(c.id, visited);
+    deeper.forEach(d => out.push(d));
+  });
+  return out;
+}
+
+// Analisa o board inteiro: retorna lista de bloqueadores atrasados que propagam
+function getBoardCascadeAlerts() {
+  const alerts = [];
+  const seenSources = new Set();
+  cards.forEach(c => {
+    if (c.col === TERMINAL_COL) return;
+    if (seenSources.has(c.id)) return;
+    const delay = getCardProjectedDelayMs(c);
+    if (delay <= 0) return;
+    // Tem dependentes?
+    const dependents = getCascadeImpact(c.id);
+    if (dependents.length === 0) return;
+    seenSources.add(c.id);
+    alerts.push({
+      sourceId: c.id,
+      sourceName: c.name,
+      sourceDelayDays: Math.ceil(delay / 86400000),
+      sourceIsDeadline: !!(c.deadline && new Date(c.deadline + 'T23:59:59') < new Date()),
+      dependents,
+      atRiskCount: dependents.length,
+    });
+  });
+  // Ordena por gravidade: maior delay primeiro
+  alerts.sort((a, b) => (b.sourceDelayDays * b.dependents.length) - (a.sourceDelayDays * a.dependents.length));
+  return alerts;
 }
 
 // Disparado quando um card vai pra Done — checa se algum dependente foi liberado
@@ -10538,6 +10822,121 @@ function deadlineBadge(deadline, isDone) {
   return `<div class="deadline-badge deadline-ok">📅 ${lbl}</div>`;
 }
 
+// Toolbar de Focus Mode (energia) — chip clicável no topo do kanban
+function _renderEnergyToolbar() {
+  const view = document.getElementById('view-kanban');
+  if (!view) return;
+  // Remove toolbar anterior
+  view.querySelectorAll('.energy-toolbar-wrap').forEach(el => el.remove());
+  // Não mostra em board Kaizen (focus mode não faz sentido em retro)
+  if (allBoards[currentBoardId] && allBoards[currentBoardId].isKaizen) return;
+  const energy = getFocusEnergy();
+  const isActive = energy > 0;
+  const cur = ENERGY_LEVELS[energy] || null;
+
+  // Conta cards visíveis vs above-budget
+  let inBudget = 0, overBudget = 0;
+  if (isActive) {
+    cards.filter(c => c.col !== TERMINAL_COL).forEach(c => {
+      const ef = getCardEffort(c);
+      if (ef <= energy) inBudget++; else overBudget++;
+    });
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'energy-toolbar-wrap';
+  wrap.style.cssText = 'display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px;position:relative;';
+  wrap.innerHTML = `
+    <span class="energy-bar${isActive?' is-active':''}" onclick="toggleEnergyPopover()" id="energy-bar"
+          title="Modo Foco · ${isActive ? 'mostre só tarefas que cabem na sua energia hoje' : 'desligado — mostrando tudo'}">
+      <span class="energy-icon">${cur ? cur.emoji : '⚡'}</span>
+      <span class="energy-label">${isActive ? `${cur.label} · ${inBudget}/${inBudget+overBudget}` : 'Modo Foco'}</span>
+    </span>
+    <div class="energy-popover" id="energy-popover">
+      <div class="energy-popover-h">Quanta energia hoje?</div>
+      <div class="energy-options">
+        <div class="energy-option${energy===3?' is-active':''}" onclick="setFocusEnergy(3)">
+          <span class="energy-option-emoji">🔥</span>
+          <div><div>Energia cheia</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary);">Tudo na mesa, inclusive o pesado.</div></div>
+        </div>
+        <div class="energy-option${energy===2?' is-active':''}" onclick="setFocusEnergy(2)">
+          <span class="energy-option-emoji">🌤</span>
+          <div><div>Energia média</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary);">Leves e médias. Pesadas esmaecidas.</div></div>
+        </div>
+        <div class="energy-option${energy===1?' is-active':''}" onclick="setFocusEnergy(1)">
+          <span class="energy-option-emoji">🌙</span>
+          <div><div>Energia baixa</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary);">Só leves. Hoje é dia de fluir.</div></div>
+        </div>
+        <div class="energy-option${energy===0?' is-active':''}" onclick="setFocusEnergy(0)" style="border-top:1px dashed var(--color-border-tertiary);margin-top:4px;padding-top:10px;">
+          <span class="energy-option-emoji">∞</span>
+          <div><div>Desligar Foco</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary);">Ver todos os cards normalmente.</div></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Insere depois do banner de cascata se houver, senão no topo
+  const cascadeBanner = view.querySelector('.cascade-banner');
+  const kaizenBanner  = view.querySelector('.kaizen-banner');
+  const insertAfter = cascadeBanner || kaizenBanner;
+  if (insertAfter) insertAfter.after(wrap);
+  else view.insertBefore(wrap, view.firstChild);
+}
+
+// Render do banner de cascata no topo do kanban
+function _renderCascadeBanner() {
+  if (typeof getBoardCascadeAlerts !== 'function') return;
+  const view = document.getElementById('view-kanban');
+  if (!view) return;
+  // Remove banners anteriores
+  view.querySelectorAll('.cascade-banner').forEach(el => el.remove());
+  const alerts = getBoardCascadeAlerts();
+  if (!alerts.length) return;
+  const dismissed = (function(){
+    try { return new Set(JSON.parse(localStorage.getItem('kanban_v8_cascade_dismissed_'+currentBoardId) || '[]')); } catch(e){ return new Set(); }
+  })();
+  const visible = alerts.filter(a => !dismissed.has(a.sourceId));
+  if (!visible.length) return;
+  // Pega o mais grave (primeiro)
+  const a = visible[0];
+  const banner = document.createElement('div');
+  banner.className = 'cascade-banner';
+  banner.dataset.sourceId = String(a.sourceId);
+  const sourceLabel = a.sourceIsDeadline
+    ? `<strong>"${_esc(a.sourceName)}"</strong> está atrasado em <strong>${a.sourceDelayDays}d</strong>`
+    : `<strong>"${_esc(a.sourceName)}"</strong> está parado há <strong>${a.sourceDelayDays}d</strong>`;
+  const dependentList = a.dependents.slice(0, 4).map(d =>
+    `<span class="cascade-banner-card-link" onclick="editCard(${d.cardId})">${_esc(d.name)}</span> (+${d.delayDays}d)`
+  ).join(' · ');
+  const moreHint = a.dependents.length > 4 ? ` <em style="opacity:.7;">+${a.dependents.length - 4} outros</em>` : '';
+  banner.innerHTML = `
+    <div class="cascade-banner-icon">⚠</div>
+    <div class="cascade-banner-body">
+      <div class="cascade-banner-title">Atraso detectado na origem</div>
+      <div class="cascade-banner-detail">${sourceLabel}. Isso projeta atraso em <strong>${a.atRiskCount} card${a.atRiskCount>1?'s':''}</strong> dependente${a.atRiskCount>1?'s':''}.</div>
+      <div class="cascade-banner-list">→ ${dependentList}${moreHint}</div>
+    </div>
+    <button class="cascade-banner-close" onclick="_dismissCascadeBanner(${a.sourceId})" title="Dispensar este alerta">×</button>
+  `;
+  // Insere depois do banner Kaizen (se houver) ou no topo
+  const kaizenBanner = view.querySelector('.kaizen-banner');
+  if (kaizenBanner) kaizenBanner.after(banner);
+  else view.insertBefore(banner, view.firstChild);
+}
+
+function _dismissCascadeBanner(sourceId) {
+  const key = 'kanban_v8_cascade_dismissed_'+currentBoardId;
+  let arr = [];
+  try { arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e){}
+  if (!arr.includes(sourceId)) arr.push(sourceId);
+  try { localStorage.setItem(key, JSON.stringify(arr)); } catch(e){}
+  if (typeof render === 'function') render();
+}
+
 // ── Kanban render ──
 function render() {
   const ct=document.getElementById('cols'); ct.innerHTML='';
@@ -10563,6 +10962,10 @@ function render() {
     const oldBanner = _kanbanView.querySelector('.kaizen-banner');
     if (oldBanner) oldBanner.remove();
   }
+  // Banner de atraso em cascata (Smart Dependencies)
+  if (typeof _renderCascadeBanner === 'function') _renderCascadeBanner();
+  // Toolbar de Focus Mode (energia)
+  if (typeof _renderEnergyToolbar === 'function') _renderEnergyToolbar();
   const visible = filteredCards();
   // pré-calcula auto-archive somente sobre cards "done" que sobreviveram aos filtros
   const archive = computeArchive(visible.filter(c=>c.col===TERMINAL_COL));
@@ -10637,21 +11040,30 @@ function render() {
           const _aging = isDone ? null : getCardAgingLevel(c);
           const agingCls = _aging && _aging !== 'fresh' ? ` aging-${_aging}` : '';
           const agingTitle = _aging && _aging !== 'fresh' ? ` title="${_esc(getCardAgingTooltip(c))}"` : '';
+          // Focus Mode: esmaece cards above-budget
+          const _focusEnergy = (typeof getFocusEnergy === 'function') ? getFocusEnergy() : 0;
+          const _cardEffort = (typeof getCardEffort === 'function') ? getCardEffort(c) : 2;
+          const energyCls = (!isDone && _focusEnergy > 0 && _cardEffort > _focusEnergy) ? ' energy-over-budget' : '';
           // Dependências
           const _isBlocked = !isDone && typeof isCardBlocked === 'function' && isCardBlocked(c);
           const _blocksList = (typeof getCardBlocks === 'function') ? getCardBlocks(c) : [];
           const _blocksOpen = _blocksList.filter(x => x.col !== TERMINAL_COL);
           const blockedCls  = _isBlocked ? ' is-blocked-dep' : '';
           let depBadge = '';
+          // Detecta se este card é FONTE de atraso em cascata (atrasado + tem dependentes)
+          const _cascadeDelay = (typeof getCardProjectedDelayMs === 'function' && _blocksOpen.length > 0 && !isDone)
+            ? getCardProjectedDelayMs(c) : 0;
           if (_isBlocked) {
             const openBlockers = (typeof getOpenBlockers === 'function') ? getOpenBlockers(c) : [];
-            const blockerNames = openBlockers.slice(0,2).map(b=>b.name).join(', ');
             depBadge = `<span class="card-dep-badge blocked" title="Bloqueado por: ${_esc(openBlockers.map(b=>b.name).join(', '))}">🔒 bloqueado por ${openBlockers.length}</span>`;
+          } else if (_cascadeDelay > 0) {
+            const days = Math.ceil(_cascadeDelay / 86400000);
+            depBadge = `<span class="card-dep-badge cascade" title="Este card está atrasado e propaga atraso em ${_blocksOpen.length} dependente(s)">⚠ atrasa ${_blocksOpen.length} (+${days}d)</span>`;
           } else if (_blocksOpen.length > 0 && !isDone) {
             depBadge = `<span class="card-dep-badge blocker" title="Este card bloqueia: ${_esc(_blocksOpen.map(b=>b.name).join(', '))}">⛓ bloqueia ${_blocksOpen.length}</span>`;
           }
           return `<div class="card-wrap">
-            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
+            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
               ${sourceLine}
               ${F.tags && tags.length?`<div class="card-tags">${tags.map(t=>`<span class="ctag" style="background:${t.color.bg};color:${t.color.text};">${t.text}</span>`).join('')}</div>`:''}
               <div class="card-desc">${c.name}</div>
@@ -15229,6 +15641,7 @@ function renderDocumentEditor() {
         <button onclick="docExec('italic')" title="Itálico"><i>I</i></button>
         <button onclick="openAIGenerateCanvas()" title="Mestre Kan gera o documento" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:5px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:14px;height:14px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA</button>
         <div class="promote-section">
+          <button onclick="extractActionsFromDoc()" title="Mestre Kan analisa o texto e identifica tarefas acionáveis (mesmo sem bullets)" style="background:linear-gradient(135deg,#BC002D,#8E0022);color:#fff;border-color:#BC002D;display:inline-flex;align-items:center;gap:5px;">🥋 Extrair ações</button>
           <button onclick="promoteAllBullets()" title="Cria um card pra cada bullet (li) do documento">→ Promover bullets a cards</button>
           <button onclick="openConvertModal()" title="Cria um board novo onde cada H2 vira coluna" style="background:#1FAD5C;color:#fff;border-color:#1FAD5C;">↗ Criar board</button>
         </div>
@@ -20307,6 +20720,222 @@ function deleteDocument(id) {
   _saveDocuments();
   audit('document.deleted', { id, number: d.number });
   renderRegistry();
+}
+
+// ── Lab Notes: Extração de ações via IA ──────────────────────
+// Pega o texto do documento atual, manda pro Mestre Kan extrair action items
+// e abre modal pra usuário selecionar quais virar cards.
+
+let _extractedActions = [];
+
+async function extractActionsFromDoc() {
+  const cv = (typeof _curCanvas === 'function') ? _curCanvas() : null;
+  if (!cv) return;
+  if (cv.format !== 'document' && cv.format !== 'plan' && cv.format !== 'blank') {
+    if (typeof appAlert === 'function') {
+      appAlert('Não suportado', 'Extração de ações funciona em formatos de texto (Documento, Plano, Em branco). Pra mindmap/tabela use o "Promover" tradicional.', { icon:'📝', okLabel:'OK' });
+    }
+    return;
+  }
+  // Pega texto puro (sem HTML)
+  const html = cv.docContent || cv.blankContent || '';
+  const text = html.replace(/<[^>]+>/g, '\n').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+\n/g, '\n').replace(/\n\s+/g, '\n').trim();
+  if (text.length < 30) {
+    if (typeof appAlert === 'function') {
+      appAlert('Texto curto', 'Escreva mais antes de extrair ações. O Mestre Kan precisa de contexto pra identificar tarefas.', { icon:'📝', okLabel:'OK' });
+    }
+    return;
+  }
+
+  // Mostra modal "carregando"
+  _showExtractActionsModal(null);
+
+  if (typeof callClaudeAPI !== 'function') {
+    _renderExtractedActions([], 'IA não disponível neste plano. Use "Promover bullets" pra criar cards a partir de listas.');
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0,10);
+  const teamList = (Array.isArray(team) && team.length) ? team.join(', ') : '';
+  const system = `Você analisa textos brutos (notas, brainstorms, documentos) em português brasileiro e extrai TAREFAS ACIONÁVEIS pra virar cards num board kanban.
+Retorne APENAS JSON válido sem markdown. Esquema:
+
+{
+  "actions": [
+    {
+      "name": string (nome conciso do card, primeira letra maiúscula, máx 80 chars),
+      "priority": "alta" | "media" | "baixa",
+      "deadline": string ISO YYYY-MM-DD ou null,
+      "responsavel": string ou null,
+      "rationale": string (por que isto é uma ação? máx 100 chars)
+    }
+  ]
+}
+
+Diretrizes:
+- Pegue ações IMPLÍCITAS também (ex: "preciso falar com o cliente sobre X" → "Falar com cliente sobre X").
+- IGNORE notas que NÃO sejam ações ("ideia: XYZ" ≠ ação. "fazer XYZ" = ação).
+- Máximo 12 ações.
+- Se a fala mencionar prazo, calcule a data baseada em hoje (${today}).
+- Se mencionar uma pessoa que está na equipe, retorne o nome.
+
+Hoje é ${today}. ${teamList ? 'Equipe: ' + teamList + '.' : ''}`;
+
+  try {
+    const r = await callClaudeAPI({
+      system,
+      instruction: `Texto:\n${text.slice(0, 4000)}\n\nExtraia ações.`,
+      max_tokens: 1500,
+    });
+    if (r.error) {
+      _renderExtractedActions([], 'Erro: ' + r.error);
+      return;
+    }
+    const parsed = (typeof parseAIJson === 'function') ? parseAIJson(r.text) : null;
+    const actions = (parsed && Array.isArray(parsed.actions)) ? parsed.actions : [];
+    if (!actions.length) {
+      _renderExtractedActions([], 'O Mestre Kan não identificou ações claras. Talvez o texto seja mais reflexivo que executivo.');
+      return;
+    }
+    _extractedActions = actions;
+    _renderExtractedActions(actions);
+  } catch(e) {
+    _renderExtractedActions([], 'Falha ao processar: ' + e.message);
+  }
+}
+
+function _showExtractActionsModal(actionsOrNull) {
+  let ov = document.getElementById('extract-actions-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'extract-actions-overlay';
+    ov.className = 'voice-overlay';     // reusa o overlay base
+    ov.innerHTML = `
+      <div class="voice-card" id="extract-actions-card" style="max-width:640px;">
+        <div class="voice-card-icon" id="extract-actions-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h12"/></svg>
+        </div>
+        <div class="voice-card-title">Mestre Kan extrai ações…</div>
+        <div class="voice-card-sub" id="extract-actions-sub">Analisando seu texto pra identificar tarefas acionáveis.</div>
+        <div id="extract-actions-list" style="text-align:left;max-height:50vh;overflow:auto;margin-bottom:14px;"></div>
+        <div class="voice-card-actions" id="extract-actions-bottom" style="display:none;">
+          <button class="voice-btn voice-btn-ghost" onclick="_closeExtractActionsModal()">Cancelar</button>
+          <button class="voice-btn voice-btn-primary" onclick="_confirmExtractedActions()" id="extract-actions-confirm">Criar cards selecionados</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(ov);
+  }
+  ov.classList.add('is-open');
+  // Estado loading
+  const card = document.getElementById('extract-actions-card');
+  if (card) card.classList.add('is-processing');
+}
+
+function _renderExtractedActions(actions, errorMsg) {
+  const list = document.getElementById('extract-actions-list');
+  const bottom = document.getElementById('extract-actions-bottom');
+  const sub  = document.getElementById('extract-actions-sub');
+  const card = document.getElementById('extract-actions-card');
+  if (card) card.classList.remove('is-processing');
+  if (errorMsg) {
+    if (sub) sub.textContent = errorMsg;
+    if (list) list.innerHTML = '';
+    if (bottom) {
+      bottom.style.display = 'flex';
+      bottom.innerHTML = `<button class="voice-btn voice-btn-ghost" onclick="_closeExtractActionsModal()">Fechar</button>`;
+    }
+    return;
+  }
+  if (sub) sub.textContent = `O Mestre Kan identificou ${actions.length} ação${actions.length>1?'(es)':''} potenciais. Marque as que quer criar.`;
+  if (list) {
+    list.innerHTML = `
+      <div style="font-family:var(--font-sans);font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:10px;">Board destino:</div>
+      <select id="extract-target-board" style="width:100%;padding:8px 11px;border:1px solid var(--color-border-secondary);border-radius:8px;font-size:13px;font-family:var(--font-sans);background:var(--color-background-primary);color:var(--color-text-primary);margin-bottom:14px;">
+        ${Object.entries(allBoards).filter(([bid,b])=>bid!==UNIFIED_BOARD_ID && !b.isKaizen).map(([bid,b])=>`<option value="${bid}"${bid===currentBoardId?' selected':''}>${b.icon||'📋'} ${_esc(b.name)}</option>`).join('')}
+      </select>
+      <div style="font-family:var(--font-sans);font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:8px;">Ações identificadas:</div>
+      ${actions.map((a, i) => `
+        <label style="display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border:1px solid var(--color-border-tertiary);border-radius:8px;margin-bottom:6px;cursor:pointer;background:var(--color-background-secondary);">
+          <input type="checkbox" data-idx="${i}" checked style="margin-top:3px;flex-shrink:0;" />
+          <div style="flex:1;font-family:var(--font-sans);">
+            <div style="font-size:13.5px;font-weight:500;color:var(--color-text-primary);">${_esc(a.name||'Sem nome')}</div>
+            <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;">
+              ${a.priority?`<span>prioridade ${_esc(a.priority)}</span>`:''}
+              ${a.deadline?`<span>📅 ${_esc(a.deadline)}</span>`:''}
+              ${a.responsavel?`<span>👤 ${_esc(a.responsavel)}</span>`:''}
+            </div>
+            ${a.rationale?`<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:3px;font-style:italic;">${_esc(a.rationale)}</div>`:''}
+          </div>
+        </label>
+      `).join('')}
+    `;
+  }
+  if (bottom) {
+    bottom.style.display = 'flex';
+    bottom.innerHTML = `
+      <button class="voice-btn voice-btn-ghost" onclick="_closeExtractActionsModal()">Cancelar</button>
+      <button class="voice-btn voice-btn-primary" onclick="_confirmExtractedActions()">Criar ${actions.length} card${actions.length>1?'s':''}</button>
+    `;
+  }
+}
+
+function _closeExtractActionsModal() {
+  const ov = document.getElementById('extract-actions-overlay');
+  if (ov) ov.classList.remove('is-open');
+  _extractedActions = [];
+}
+
+function _confirmExtractedActions() {
+  const sel = document.getElementById('extract-target-board');
+  const targetBoardId = sel ? sel.value : currentBoardId;
+  const target = allBoards[targetBoardId];
+  if (!target) return;
+  // Pega checkboxes marcadas
+  const checked = [...document.querySelectorAll('#extract-actions-list input[type="checkbox"]:checked')]
+    .map(cb => parseInt(cb.dataset.idx))
+    .filter(i => Number.isFinite(i) && _extractedActions[i]);
+  if (!checked.length) {
+    _closeExtractActionsModal();
+    return;
+  }
+  const firstCol = (target.COLS || []).find(col => col.id !== TERMINAL_COL) || { id: 'todo' };
+  const cv = (typeof _curCanvas === 'function') ? _curCanvas() : null;
+  const sourceLabel = cv ? `Lab "${cv.name}"` : 'Lab';
+  const created = [];
+  checked.forEach(i => {
+    const a = _extractedActions[i];
+    const newCard = {
+      id: Date.now() + Math.random(),
+      name: a.name || 'Sem nome',
+      priority: ['alta','media','baixa'].includes(a.priority) ? a.priority : 'media',
+      col: firstCol.id,
+      tagIds: [],
+      threads: [
+        { id: Date.now()+Math.random(), text: `🥋 Extraído por IA do ${sourceLabel}`, date: new Date().toISOString(), type:'auto' }
+      ],
+      attachments: [],
+      subtasks: [],
+      deadline: a.deadline || null,
+      createdAt: new Date().toISOString(),
+      colChangedAt: new Date().toISOString(),
+      doneAt: null,
+      responsavel: a.responsavel && Array.isArray(target.team) && target.team.includes(a.responsavel) ? a.responsavel : null,
+      customFieldValues: {},
+    };
+    target.cards = target.cards || [];
+    target.cards.push(newCard);
+    created.push(newCard);
+  });
+  saveData();
+  _closeExtractActionsModal();
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning(
+      'Ações materializadas',
+      `<strong>${created.length} card${created.length>1?'s':''}</strong> criado${created.length>1?'s':''} em <strong>"${_esc(target.name)}"</strong>. As ideias agora viraram caminho.`,
+      'info'
+    );
+  }
 }
 
 // ── Pomodoro Dojo (集中 = concentração) ─────────────────────────
