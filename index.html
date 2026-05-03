@@ -15803,6 +15803,7 @@ function renderBlankEditor() {
         <button class="ct-back" onclick="closeCanvas()">← Lab</button>
         <span style="font-size:18px;line-height:1;">✨</span>
         <input class="ct-name" id="canvas-name-input" value="${_esc(cv.name)}" oninput="onCanvasNameInput(this.value)" />
+        <button class="ct-btn" onclick="_lab_pickImageAndInsert()" title="Inserir imagem (Cmd+V e drag também funcionam)">📷 Imagem</button>
         <button class="ct-btn" onclick="openAIGenerateCanvas()" title="Mestre Kan gera o conteúdo a partir de um tema" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA</button>
         <span class="ct-spacer"></span>
         <button class="ct-btn" onclick="openConvertModal()" title="Cria um board novo onde cada parágrafo vira um card" style="background:#1FAD5C;color:#fff;border-color:#1FAD5C;">↗ Criar board</button>
@@ -15821,6 +15822,7 @@ function renderBlankEditor() {
     _scheduleSaveCanvases();
   });
   body.addEventListener('blur', () => { _saveCanvases(); });
+  if (typeof _lab_attachImageHandlers === 'function') _lab_attachImageHandlers(body);
   body.focus();
 }
 
@@ -16062,6 +16064,7 @@ function renderDocumentEditor() {
         <button onclick="docExec('insertOrderedList')"  title="Lista numerada">1.</button>
         <button onclick="docExec('bold')"   title="Negrito"><b>B</b></button>
         <button onclick="docExec('italic')" title="Itálico"><i>I</i></button>
+        <button onclick="_lab_pickImageAndInsert()" title="Inserir imagem (também aceita Cmd+V de screenshots e arrastar arquivos)">📷 Imagem</button>
         <button onclick="openAIGenerateCanvas()" title="Mestre Kan gera o documento" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:5px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:14px;height:14px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA</button>
         <div class="promote-section">
           <button onclick="extractActionsFromDoc()" title="Mestre Kan analisa o texto e identifica tarefas acionáveis (mesmo sem bullets)" style="background:linear-gradient(135deg,#BC002D,#8E0022);color:#fff;border-color:#BC002D;display:inline-flex;align-items:center;gap:5px;">🥋 Extrair ações</button>
@@ -16084,6 +16087,8 @@ function renderDocumentEditor() {
     _scheduleSaveCanvases();
   });
   body.addEventListener('blur', () => { _saveCanvases(); });
+  // Suporte a imagens (paste de screenshot, drag&drop, botão da toolbar)
+  if (typeof _lab_attachImageHandlers === 'function') _lab_attachImageHandlers(body);
   body.focus();
 }
 
@@ -21143,6 +21148,134 @@ function deleteDocument(id) {
   _saveDocuments();
   audit('document.deleted', { id, number: d.number });
   renderRegistry();
+}
+
+// ── Lab: imagens nos editores (Blank, Documento, Plano, Nota) ──
+// Funciona via:
+//   1) Botão na toolbar (file picker)
+//   2) Paste de imagens (Cmd+V de screenshot, copiar do navegador)
+//   3) Drag & drop de arquivo na área do editor
+
+// Comprime e converte File -> data URL pra embed inline (max 1200px de largura)
+function _lab_imageFileToDataUrl(file, maxW) {
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\//.test(file.type)) { reject(new Error('Arquivo não é imagem')); return; }
+    const fr = new FileReader();
+    fr.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const max = maxW || 1200;
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (w > max) { h = Math.round(h * (max / w)); w = max; }
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, w, h);
+        // PNG pra screenshots, JPG pra fotos (heurística: tipo do file)
+        const isPng = /png|svg/i.test(file.type);
+        try { resolve(c.toDataURL(isPng ? 'image/png' : 'image/jpeg', 0.85)); }
+        catch(e) { reject(e); }
+      };
+      img.onerror = () => reject(new Error('Imagem corrompida'));
+      img.src = e.target.result;
+    };
+    fr.onerror = () => reject(new Error('Falha ao ler arquivo'));
+    fr.readAsDataURL(file);
+  });
+}
+
+// Insere imagem no contenteditable que está em foco
+async function _lab_insertImageInBody(bodyEl, file) {
+  if (!bodyEl || !file) return;
+  try {
+    const dataUrl = await _lab_imageFileToDataUrl(file);
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.style.cssText = 'max-width:100%;height:auto;border-radius:8px;display:block;margin:8px 0;';
+    img.alt = file.name || 'imagem';
+    // Insere onde está o cursor (ou no fim se não houver seleção dentro do body)
+    bodyEl.focus();
+    const sel = window.getSelection();
+    let inserted = false;
+    if (sel && sel.rangeCount && bodyEl.contains(sel.anchorNode)) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(img);
+      // Move cursor pra depois da imagem
+      range.setStartAfter(img);
+      range.setEndAfter(img);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      inserted = true;
+    }
+    if (!inserted) bodyEl.appendChild(img);
+    // Dispara input pra acionar persistência
+    bodyEl.dispatchEvent(new Event('input', { bubbles: true }));
+  } catch(e) {
+    if (typeof appAlert === 'function') {
+      appAlert('Falha ao inserir imagem', e.message || String(e), { icon:'⚠', okLabel:'OK' });
+    } else {
+      alert('Falha ao inserir imagem: ' + e.message);
+    }
+  }
+}
+
+// Abre file picker e insere no editor que está visível agora
+function _lab_pickImageAndInsert() {
+  const cv = (typeof _curCanvas === 'function') ? _curCanvas() : null;
+  if (!cv) return;
+  let bodyEl = null;
+  if (cv.format === 'blank') bodyEl = document.getElementById('canvas-blank-body');
+  else bodyEl = document.getElementById('canvas-doc-body');
+  if (!bodyEl) return;
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*';
+  input.multiple = true;
+  input.onchange = async (e) => {
+    const files = [...(e.target.files || [])].filter(f => /^image\//.test(f.type));
+    for (const f of files) await _lab_insertImageInBody(bodyEl, f);
+  };
+  input.click();
+}
+
+// Bind paste + drop em um contenteditable (Blank, Documento, Plano, Nota)
+function _lab_attachImageHandlers(bodyEl) {
+  if (!bodyEl || bodyEl._labImageHandlersAttached) return;
+  bodyEl._labImageHandlersAttached = true;
+
+  // Paste (Cmd+V de screenshot ou imagem copiada)
+  bodyEl.addEventListener('paste', async (e) => {
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    const files = [];
+    for (const it of items) {
+      if (it.kind === 'file' && /^image\//.test(it.type)) {
+        const file = it.getAsFile();
+        if (file) files.push(file);
+      }
+    }
+    if (files.length > 0) {
+      e.preventDefault();
+      for (const f of files) await _lab_insertImageInBody(bodyEl, f);
+    }
+    // Senão, deixa o paste padrão acontecer (texto)
+  });
+
+  // Drag & drop de arquivos
+  bodyEl.addEventListener('dragover', e => {
+    if (e.dataTransfer && e.dataTransfer.types && e.dataTransfer.types.indexOf('Files') >= 0) {
+      e.preventDefault();
+      bodyEl.style.outline = '2px dashed #3C3489';
+    }
+  });
+  bodyEl.addEventListener('dragleave', () => { bodyEl.style.outline = ''; });
+  bodyEl.addEventListener('drop', async e => {
+    bodyEl.style.outline = '';
+    const files = [...(e.dataTransfer.files || [])].filter(f => /^image\//.test(f.type));
+    if (files.length === 0) return;
+    e.preventDefault();
+    for (const f of files) await _lab_insertImageInBody(bodyEl, f);
+  });
 }
 
 // ── Lab Notes: Extração de ações via IA ──────────────────────
