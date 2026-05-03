@@ -21345,7 +21345,7 @@ function _persistAllBoardsLocal() {
 // ── Cadastros: Pessoas (clientes/fornecedores) e Documentos (NF/boleto/etc) ──────
 const CONTACTS_KEY = 'kanban_v8_contacts';
 const DOCS_KEY     = 'kanban_v8_documents';
-let _contacts = [];
+var _contacts = [];
 let _documents = [];
 let _registryTab = 'contacts'; // 'contacts' | 'documents'
 let _registrySearch = '';
@@ -22936,7 +22936,7 @@ async function deleteOKR(okrId) {
 // ── Sistema de Dialog Synkan ──────────────────────────────────
 // Substitui alert/confirm/prompt nativos por modais estilizados.
 // Promise-based pra usar com async/await: const ok = await appConfirm(...).
-let _appDialogResolver = null;
+var _appDialogResolver = null;
 
 // Override do window.alert global pra usar nosso dialog (não-bloqueante).
 // Confirm e prompt continuam nativos onde ainda não foram refatorados — esses
