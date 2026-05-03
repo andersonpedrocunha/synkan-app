@@ -1183,6 +1183,127 @@ body.density-compact .card-cf-row{font-size:10px;}
 .col-n.wip-warn{background:#FCEBEB;color:#A32D2D;border-color:#F09595;font-weight:600;}
 .col-archived{font-size:11px;color:var(--color-text-tertiary);text-align:center;padding:6px 4px;background:transparent;border:0.5px dashed var(--color-border-tertiary);border-radius:6px;margin-top:6px;cursor:default;}
 
+/* ── Daily Brief do Mestre Kan (Home, topo) ────────────────────── */
+.daily-brief{
+  position:relative;
+  background:linear-gradient(135deg, #FBF7EE 0%, #F8F2E4 100%);
+  border:1px solid #E0D5C2;
+  border-radius:14px;
+  padding:22px 26px 20px;
+  margin:0 0 18px;
+  box-shadow:0 2px 10px rgba(26,22,18,.06), inset 0 0 0 1px rgba(255,255,255,.4);
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  color:#1A1612;
+  overflow:hidden;
+  animation:briefIn .4s ease-out;
+}
+:root.dark .daily-brief{
+  background:linear-gradient(135deg, #1F1A14 0%, #1A1612 100%);
+  border-color:#3A3225;
+  color:#F8F2E4;
+}
+@keyframes briefIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+/* Selo hinomaru no canto superior direito */
+.daily-brief::before{
+  content:'';
+  position:absolute;right:-30px;top:-30px;
+  width:90px;height:90px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #BC002D 0%, #8E0022 70%);
+  opacity:.10;
+  pointer-events:none;
+}
+/* Kanji decorativo enorme ao fundo */
+.daily-brief::after{
+  content:attr(data-kanji);
+  position:absolute;right:18px;bottom:-22px;
+  font-size:130px;line-height:1;font-weight:400;
+  color:#1A1612;opacity:.04;
+  pointer-events:none;letter-spacing:-.05em;
+}
+:root.dark .daily-brief::after{color:#F8F2E4;opacity:.05;}
+.daily-brief-head{
+  display:flex;align-items:center;gap:11px;margin-bottom:6px;position:relative;z-index:1;
+}
+.daily-brief-avatar{
+  width:38px;height:38px;border-radius:50%;
+  background:#1A1612;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,.18), inset 0 0 0 2px rgba(248,242,228,.1);
+}
+.daily-brief-avatar img{width:100%;height:100%;object-fit:cover;}
+.daily-brief-title{
+  font-size:17px;font-weight:600;letter-spacing:.005em;line-height:1.2;
+  color:#1A1612;
+}
+:root.dark .daily-brief-title{color:#F8F2E4;}
+.daily-brief-sub{
+  font-size:12px;color:#6B5B43;letter-spacing:.04em;text-transform:uppercase;font-weight:500;
+  margin-top:1px;font-family:var(--font-sans);
+}
+:root.dark .daily-brief-sub{color:#A99876;}
+.daily-brief-close{
+  margin-left:auto;background:transparent;border:none;cursor:pointer;
+  font-size:18px;color:#6B5B43;opacity:.5;transition:opacity .15s;
+  padding:4px 8px;border-radius:6px;font-family:var(--font-sans);line-height:1;
+}
+.daily-brief-close:hover{opacity:1;background:rgba(0,0,0,.05);}
+.daily-brief-greet{
+  font-size:18px;line-height:1.45;margin:6px 0 12px;
+  position:relative;z-index:1;color:#1A1612;
+}
+:root.dark .daily-brief-greet{color:#F8F2E4;}
+.daily-brief-greet strong{font-weight:700;}
+.daily-brief-bullets{
+  list-style:none;margin:0;padding:0;
+  display:flex;flex-direction:column;gap:8px;
+  position:relative;z-index:1;
+}
+.daily-brief-bullets li{
+  display:flex;align-items:flex-start;gap:11px;
+  font-size:14px;line-height:1.45;color:#2A241D;
+  font-family:var(--font-sans);font-weight:400;
+}
+:root.dark .daily-brief-bullets li{color:#E8DEC9;}
+.daily-brief-bullets li::before{
+  content:'';width:5px;height:5px;border-radius:50%;
+  background:#BC002D;flex-shrink:0;margin-top:8px;
+}
+.daily-brief-bullets li strong{font-weight:600;color:#1A1612;}
+:root.dark .daily-brief-bullets li strong{color:#F8F2E4;}
+.daily-brief-bullets li.alert::before{background:#C2410C;}
+.daily-brief-bullets li.critical::before{background:#DC2626;animation:agingPulse 2s infinite;}
+.daily-brief-bullets li.ok::before{background:#3B6D11;}
+.daily-brief-quote{
+  margin-top:14px;padding-top:12px;border-top:1px dashed #C9B380;
+  font-size:13.5px;font-style:italic;color:#6B5B43;line-height:1.5;
+  position:relative;z-index:1;
+}
+:root.dark .daily-brief-quote{color:#A99876;border-top-color:#3A3225;}
+.daily-brief-quote::before{content:'「';margin-right:2px;font-style:normal;color:#BC002D;}
+.daily-brief-quote::after{content:'」';margin-left:2px;font-style:normal;color:#BC002D;}
+.daily-brief-actions{
+  display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;position:relative;z-index:1;
+}
+.daily-brief-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  background:#1A1612;color:#F8F2E4;
+  font-family:var(--font-sans);font-size:13px;font-weight:500;
+  padding:8px 16px;border:none;border-radius:7px;cursor:pointer;
+  letter-spacing:.02em;transition:transform .12s, filter .12s;
+}
+.daily-brief-btn:hover{transform:translateY(-1px);filter:brightness(1.1);}
+.daily-brief-btn.ghost{
+  background:transparent;color:#1A1612;
+  border:1px solid rgba(26,22,18,.18);
+}
+:root.dark .daily-brief-btn.ghost{color:#F8F2E4;border-color:rgba(248,242,228,.18);}
+.daily-brief-btn.ghost:hover{background:rgba(26,22,18,.05);transform:none;filter:none;}
+.daily-brief-empty{
+  font-size:14px;color:#6B5B43;font-style:italic;
+  font-family:var(--font-sans);position:relative;z-index:1;
+}
+
 /* ── Aging WIP no card: borda lateral muda de cor com a idade do card na coluna ── */
 .card{position:relative;}
 .card.aging-warn{box-shadow:inset 3px 0 0 #D9A227;}
@@ -4063,6 +4184,186 @@ function getCardAgingTooltip(card) {
   if (ageMs <= 0) return '';
   const colTitle = (COLS.find(c=>c.id===card.col) || {}).title || card.col;
   return `Há ${formatDuration(ageMs)} em "${colTitle}"`;
+}
+
+// ── Daily Brief do Mestre Kan ─────────────────────────────────────
+// Card que aparece no topo do Home toda manhã com resumo + alertas.
+// Pode ser dispensado (esconde até o próximo dia).
+const DAILY_BRIEF_KEY = 'kanban_v8_daily_brief_dismissed';
+
+function _briefDismissedToday() {
+  try {
+    const last = localStorage.getItem(DAILY_BRIEF_KEY);
+    if (!last) return false;
+    return last === new Date().toISOString().slice(0, 10);
+  } catch(e) { return false; }
+}
+function _briefDismissToday() {
+  try { localStorage.setItem(DAILY_BRIEF_KEY, new Date().toISOString().slice(0,10)); } catch(e){}
+  const el = document.getElementById('daily-brief'); if (el) el.style.display = 'none';
+}
+
+// Coleta dados pra brief — é independente de board atual, usa todos os boards
+function _buildDailyBriefData() {
+  const all = (typeof _allCardsAcrossBoards === 'function') ? _allCardsAcrossBoards() : [];
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().slice(0,10);
+  const ystr = new Date(today.getTime() - 86400000).toISOString().slice(0,10);
+
+  const me = (typeof supaUser !== 'undefined' && supaUser && supaUser.user_metadata?.full_name)
+    ? supaUser.user_metadata.full_name
+    : (Array.isArray(team) && team.length ? team[0] : null);
+
+  const open = all.filter(c => c.col !== TERMINAL_COL);
+  const myOpen = me ? open.filter(c => c.responsavel === me) : open;
+
+  // Cards bloqueados aguardando este user
+  const blocked = myOpen.filter(c => c.col === 'blocked');
+
+  // Aging cards (stale + critical) — usa a função do gating
+  const staleOrWorse = open.filter(c => {
+    const lvl = (typeof getCardAgingLevel === 'function') ? getCardAgingLevel(c) : null;
+    return lvl === 'stale' || lvl === 'critical';
+  });
+
+  // Deadlines — vencendo em 0-3 dias úteis (excluindo concluídos)
+  const dueSoon = myOpen.filter(c => {
+    if (!c.deadline) return false;
+    const d = new Date(c.deadline + 'T00:00:00');
+    const diff = Math.round((d - today) / 86400000);
+    return diff >= 0 && diff <= 3;
+  });
+  const overdue = myOpen.filter(c => c.deadline && c.deadline < todayStr);
+
+  // Concluídos ontem (pra "feedback positivo")
+  const doneYesterday = all.filter(c => c.col === TERMINAL_COL && c.doneAt &&
+                                         c.doneAt.slice(0,10) === ystr);
+  const doneYesterdayMine = me ? doneYesterday.filter(c => c.responsavel === me) : doneYesterday;
+
+  // Streak via gamificação
+  let streak = 0;
+  try {
+    const gst = (typeof _gamifGetState === 'function') ? _gamifGetState() : null;
+    streak = gst?.streak?.count || 0;
+  } catch(e){}
+
+  return {
+    me, today, todayStr,
+    blocked, staleOrWorse, dueSoon, overdue, doneYesterdayMine, streak,
+    totalOpen: open.length,
+  };
+}
+
+// Frases sábias do Mestre Kan (rotaciona deterministicamente por dia)
+const _KAN_QUOTES = [
+  'A pedra desbastada é a que faz cair o monge.',
+  'Cuidado com o que escolhes. Tu te tornarás aquilo.',
+  'O bambu se curva, mas não quebra.',
+  'A jornada de mil cards começa com mover o primeiro.',
+  'Quem tem pressa come cru.',
+  'O foco é mais raro que o talento — e mais valioso.',
+  'Seja como a água: encontra seu caminho mesmo entre pedras.',
+  'Disciplina é fazer o que precisa ser feito mesmo quando não dá vontade.',
+  'Pequenos passos diários movem montanhas.',
+  'O mestre falhou mais vezes do que o iniciante tentou.',
+  'Não há vento favorável a quem não sabe pra onde vai.',
+  'Termine o que começou. Ou abandone com clareza.',
+  'O caminho é feito ao caminhar.',
+];
+function _kanQuoteOfTheDay() {
+  // Hash simples baseado em dia do ano pra rotacionar deterministicamente
+  const t = new Date();
+  const start = new Date(t.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((t - start) / 86400000);
+  return _KAN_QUOTES[dayOfYear % _KAN_QUOTES.length];
+}
+
+function _renderDailyBrief() {
+  if (_briefDismissedToday()) return '';
+  const d = _buildDailyBriefData();
+  const hour = new Date().getHours();
+  const greet = hour<5?'Boa madrugada':hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite';
+  const firstName = d.me ? d.me.split(' ')[0] : 'mestre';
+  const dateLabel = new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long' });
+
+  // Saudação contextual
+  let greetLine = `<strong>${greet}, ${_esc(firstName)}.</strong>`;
+  if (d.streak >= 3) {
+    greetLine += ` Você está em <strong>${d.streak} dias</strong> de prática contínua.`;
+  } else if (d.doneYesterdayMine.length > 0) {
+    greetLine += ` Ontem você concluiu <strong>${d.doneYesterdayMine.length} card${d.doneYesterdayMine.length>1?'s':''}</strong>.`;
+  } else if (d.totalOpen === 0) {
+    greetLine += ' O dojo está em paz — nenhum card em aberto.';
+  } else {
+    greetLine += ' O dojo te espera.';
+  }
+
+  // Lista de bullets — só os mais relevantes (max 4)
+  const bullets = [];
+  if (d.overdue.length > 0) {
+    bullets.push({
+      cls: 'critical',
+      html: `<strong>${d.overdue.length} card${d.overdue.length>1?'s':''} atrasado${d.overdue.length>1?'s':''}</strong> precisam de atenção urgente.`
+    });
+  }
+  if (d.blocked.length > 0) {
+    bullets.push({
+      cls: 'alert',
+      html: `<strong>${d.blocked.length} card${d.blocked.length>1?'s':''}</strong> ${d.blocked.length>1?'estão':'está'} bloqueado${d.blocked.length>1?'s':''} esperando ${d.blocked.length>1?'você':'você'}.`
+    });
+  }
+  if (d.staleOrWorse.length > 0) {
+    const oldest = d.staleOrWorse.sort((a,b)=>getCardAgeInColumnMs(b)-getCardAgeInColumnMs(a))[0];
+    const ageDays = Math.floor(getCardAgeInColumnMs(oldest)/86400000);
+    bullets.push({
+      cls: 'alert',
+      html: `<strong>"${_esc(oldest.name)}"</strong> está há <strong>${ageDays} dias</strong> sem mover. Conclua, divida ou arquive.`
+    });
+    if (d.staleOrWorse.length > 1) {
+      bullets.push({
+        cls: 'alert',
+        html: `Outros <strong>${d.staleOrWorse.length - 1} card${d.staleOrWorse.length-1>1?'s':''}</strong> também ${d.staleOrWorse.length-1>1?'estão':'está'} envelhecendo.`
+      });
+    }
+  }
+  if (d.dueSoon.length > 0 && bullets.length < 4) {
+    bullets.push({
+      cls: '',
+      html: `<strong>${d.dueSoon.length} deadline${d.dueSoon.length>1?'s':''}</strong> ${d.dueSoon.length>1?'próximos':'próximo'} (até 3 dias).`
+    });
+  }
+  if (bullets.length === 0) {
+    bullets.push({
+      cls: 'ok',
+      html: `Nenhum alerta. Continue no caminho — ${d.totalOpen} card${d.totalOpen!==1?'s':''} aguarda${d.totalOpen===1?'':'m'} sua atenção.`
+    });
+  }
+
+  const bulletsHTML = bullets.slice(0, 4).map(b =>
+    `<li class="${b.cls}">${b.html}</li>`
+  ).join('');
+
+  // Avatar do Mestre Kan ou fallback
+  const avatar = `<div class="daily-brief-avatar"><img src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" onerror="this.outerHTML='🥋'"/></div>`;
+
+  // Quote do dia (rotaciona)
+  const quote = _kanQuoteOfTheDay();
+
+  return `
+    <div class="daily-brief" id="daily-brief" data-kanji="改">
+      <div class="daily-brief-head">
+        ${avatar}
+        <div>
+          <div class="daily-brief-title">Carta do Dojo</div>
+          <div class="daily-brief-sub">${_esc(dateLabel)}</div>
+        </div>
+        <button class="daily-brief-close" onclick="_briefDismissToday()" title="Dispensar até amanhã" aria-label="Dispensar">×</button>
+      </div>
+      <div class="daily-brief-greet">${greetLine}</div>
+      <ul class="daily-brief-bullets">${bulletsHTML}</ul>
+      <div class="daily-brief-quote">${_esc(quote)}</div>
+    </div>
+  `;
 }
 
 // ── Attachments ──
@@ -7311,6 +7612,8 @@ function renderHome() {
         <button class="tbtn" onclick="switchBoard('${UNIFIED_BOARD_ID}',{goTo:'kanban'})">Ver Board Unificado →</button>
       </div>
     </div>
+
+    ${_renderDailyBrief()}
 
     <div class="dash-kpis">
       <div class="kpi-card kpi-accent" data-kanji="開" style="--accent:#374151;">
