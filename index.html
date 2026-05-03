@@ -3993,8 +3993,11 @@ body.density-compact .col{padding:7px;}
 
 <div class="ov" id="ov">
   <div class="modal">
-    <div class="mh" id="mh">Novo card</div>
-    <div class="field"><label>Descrição do card <button type="button" id="btn-ai-suggest" onclick="aiSuggestForCard()" style="float:right;background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border:none;border-radius:6px;padding:3px 9px 3px 4px;font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font-sans);display:inline-flex;align-items:center;gap:5px;"><img class="kan-avatar xs" src="mestre_kan_avatar.png?v=6" alt="" style="width:18px;height:18px;border-color:rgba(255,255,255,.3);"/> Pedir ao Mestre</button></label><input type="text" id="inp-name" placeholder="Ex: Redesign do site" /><div id="ai-suggest-out" style="font-size:11px;color:var(--color-text-tertiary);margin-top:5px;display:none;"></div></div>
+    <div class="mh" id="mh" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span id="mh-title">Novo card</span>
+      <button type="button" id="btn-ai-suggest" onclick="aiSuggestForCard()" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border:none;border-radius:6px;padding:5px 11px 5px 6px;font-size:11.5px;font-weight:500;cursor:pointer;font-family:var(--font-sans);display:inline-flex;align-items:center;gap:6px;letter-spacing:.02em;"><img class="kan-avatar xs" src="mestre_kan_avatar.png?v=6" alt="" style="width:18px;height:18px;border-color:rgba(255,255,255,.3);"/> Pedir ao Mestre</button>
+    </div>
+    <div class="field"><label>Descrição do card</label><input type="text" id="inp-name" placeholder="Ex: Redesign do site" /><div id="ai-suggest-out" style="font-size:11px;color:var(--color-text-tertiary);margin-top:5px;display:none;"></div></div>
     <div class="field" id="subtask-field" style="display:none;">
       <label>Subtarefas</label>
       <div id="modal-subtask-panel"></div>
@@ -12136,7 +12139,7 @@ function fillResponsavelSelect(currentValue) {
 
 function openModal(colId) {
   editId=null;cTagIds=[];selColor=COLORS[0];cAttachments=[];cSubtasks=[];cCustomValues={};
-  document.getElementById('mh').textContent='Novo card';
+  document.getElementById('mh-title').textContent='Novo card';
   document.getElementById('inp-name').value='';
   const aiOut = document.getElementById('ai-suggest-out'); if(aiOut){ aiOut.style.display='none'; aiOut.innerHTML=''; }
   document.getElementById('inp-pri').value='media';
@@ -12171,7 +12174,7 @@ function editCard(id) {
   cAttachments=[...(card.attachments||[])];
   cSubtasks=(card.subtasks||[]).map(s=>({...s}));
   cCustomValues = card.customFieldValues ? {...card.customFieldValues} : {};
-  document.getElementById('mh').textContent='Editar card';
+  document.getElementById('mh-title').textContent='Editar card';
   document.getElementById('inp-name').value=card.name;
   document.getElementById('inp-pri').value=card.priority;
   document.getElementById('inp-tag').value='';
