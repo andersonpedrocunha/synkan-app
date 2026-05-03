@@ -23538,6 +23538,35 @@ function _dojoStartWindEngine(overlay) {
       if (gusts[i].elapsed > gusts[i].dur) gusts.splice(i, 1);
     }
 
+    // ── BAMBUS: aplica física de balanço (spring + damper) ──
+    // Cada bambu tem sway angular afetado por rajadas próximas. Modelo
+    // de pêndulo com mola de retorno (spring K) e atrito (damping).
+    if (window._dojoBambuStates && window._dojoBambuStates.length) {
+      for (const b of window._dojoBambuStates) {
+        let torque = 0;
+        for (const g of gusts) {
+          const dy = Math.abs(b.centerY - g.cy);
+          if (dy > b.radius + g.radius * 0.5) continue;
+          const falloff = Math.max(0, 1 - dy / (b.radius + g.radius * 0.5));
+          const tProfile = Math.sin(Math.PI * (g.elapsed / g.dur));
+          torque += g.dir * g.force * 0.06 * falloff * tProfile / b.mass;
+        }
+        // Spring back: força que retorna ao naturalSway (ângulo de descanso)
+        const springK = 22;
+        torque += -(b.sway - b.naturalSway) * springK;
+        // Integração + damping
+        b.swayVel += torque * dt;
+        b.swayVel *= 0.92;
+        b.sway += b.swayVel * dt;
+        // Limita amplitude máxima
+        if (b.sway > 18) { b.sway = 18; b.swayVel = Math.min(0, b.swayVel); }
+        if (b.sway < -18) { b.sway = -18; b.swayVel = Math.max(0, b.swayVel); }
+        // Aplica transform no wrapper DOM
+        const wrap = overlay.querySelector(`.dojo-bambu-wrap[data-bambu-idx="${b.idx}"]`);
+        if (wrap) wrap.style.transform = `rotate(${b.sway.toFixed(2)}deg)`;
+      }
+    }
+
     // Atualiza folhas
     for (const lf of leaves) {
       if (lf.landed) {
@@ -23831,18 +23860,18 @@ function _dojoBuildSnowGroundSVG(W, H) {
       const cy = snowY - height * t;
       // Alterna lados (mas algumas vezes vai pros DOIS — duplo ramo)
       const goesLeft = flipFolhas ? (ci % 2 === 0) : (ci % 2 === 1);
-      // Cada cluster tem GALHO + 4-5 folhas saindo dele em leque
-      const baseLen = (28 + (1 - t) * 14) * scale;
-      // Direção do galho principal (vai pra um lado, levemente pra cima)
-      const branchAngle = goesLeft ? -75 : 75;
-      const branchLen = baseLen * 0.65;
+      // Cada cluster tem GALHO CURTO + folhas saindo dele em leque.
+      // Galho bem curto (folhas próximas ao caule, não esparramadas).
+      const baseLen = (24 + (1 - t) * 12) * scale;
+      const branchAngle = goesLeft ? -78 : 78;
+      const branchLen = baseLen * 0.22;  // antes 0.65 — agora MUITO mais curto
       const ba = (branchAngle * Math.PI) / 180;
       const bx = cx + Math.sin(ba) * branchLen;
       const by = cy - Math.cos(ba) * branchLen;
-      // Linha do galho (sai do caule até o ponto onde nascem as folhas)
+      // Galho fino (mal aparece — folhas parecem sair do caule mesmo)
       leaves += `<line x1="${cx.toFixed(1)}" y1="${cy.toFixed(1)}"
                         x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}"
-                        stroke="rgba(70,90,40,0.75)" stroke-width="1.2"
+                        stroke="rgba(70,90,40,0.65)" stroke-width="0.9"
                         stroke-linecap="round"/>`;
       // Folhas saindo do FIM do galho (não do nó do caule)
       // 4-5 folhas em leque, ângulos relativos ao galho
@@ -23863,26 +23892,58 @@ function _dojoBuildSnowGroundSVG(W, H) {
     return `<g class="bambu">${segments}${knots}${leaves}</g>`;
   }
 
-  // Bambus em 2 clusters (esq + dir), cada cluster com 3 plantas em
-  // profundidades diferentes (atrás/meio/frente — escalas diferentes)
+  // Bambus em 2 clusters (esq + dir), 3 plantas cada em profundidades
+  // diferentes. Renderizados em WRAPPERS DOM separados pra serem animados
+  // pelo engine de física (reagem ao vento via transform: rotate na base).
   const bambuClusters = [
-    { xRel: 0.06,  height: 105, sway: 10,  flip: false, scale: 0.85 }, // atrás
-    { xRel: 0.10,  height: 145, sway: -6,  flip: false, scale: 1.0  }, // meio
-    { xRel: 0.135, height: 78,  sway: 4,   flip: true,  scale: 0.75 }, // frente
-
-    { xRel: 0.86,  height: 92,  sway: -8,  flip: true,  scale: 0.85 },
-    { xRel: 0.905, height: 160, sway: 12,  flip: true,  scale: 1.0  },
-    { xRel: 0.93,  height: 70,  sway: -4,  flip: false, scale: 0.7  },
+    { xRel: 0.06,  height: 105, sway: 10,  flip: false, scale: 0.85, depth:'back'  },
+    { xRel: 0.10,  height: 145, sway: -6,  flip: false, scale: 1.0,  depth:'front' },
+    { xRel: 0.135, height: 78,  sway: 4,   flip: true,  scale: 0.75, depth:'back'  },
+    { xRel: 0.86,  height: 92,  sway: -8,  flip: true,  scale: 0.85, depth:'back'  },
+    { xRel: 0.905, height: 160, sway: 12,  flip: true,  scale: 1.0,  depth:'front' },
+    { xRel: 0.93,  height: 70,  sway: -4,  flip: false, scale: 0.7,  depth:'back'  },
   ];
-  // Renderiza por profundidade: scale menor (atrás) primeiro
-  const bambusBack = bambuClusters
-    .filter(b => b.scale < 0.9)
-    .map(b => bambuSVG(b.xRel * W, gy(b.xRel * W) - 2, b.height, b.sway, b.flip, b.scale))
-    .join('');
-  const bambusFront = bambuClusters
-    .filter(b => b.scale >= 0.9)
-    .map(b => bambuSVG(b.xRel * W, gy(b.xRel * W) - 2, b.height, b.sway, b.flip, b.scale))
-    .join('');
+
+  // Cada bambu vira um <div> wrapper com SVG dentro.
+  // O wrapper tem transform-origin: 50% 100% (base) — o engine aplica
+  // rotate(degrees) que parece o caule balançando ao vento.
+  function buildBambuWrapper(b, idx) {
+    const x = b.xRel * W;
+    const groundY = gy(x);
+    const wrapperW = Math.max(100, b.height * 1.4);
+    const wrapperH = b.height + 30;
+    // Desenha o bambu em coordenadas locais do wrapper (base no rodapé).
+    const localX = wrapperW / 2;
+    const localBaseY = wrapperH - 5;
+    const inner = bambuSVG(localX, localBaseY, b.height, b.sway, b.flip, b.scale);
+    return `<div class="dojo-bambu-wrap" data-bambu-idx="${idx}"
+      style="position:absolute;
+             left:${(x - wrapperW/2).toFixed(0)}px;
+             top:${(groundY - wrapperH + 5).toFixed(0)}px;
+             width:${wrapperW.toFixed(0)}px;
+             height:${wrapperH.toFixed(0)}px;
+             transform-origin:50% 100%;
+             pointer-events:none;
+             z-index:${b.depth === 'front' ? 4 : 3};">
+      <svg viewBox="0 0 ${wrapperW.toFixed(0)} ${wrapperH.toFixed(0)}"
+           width="100%" height="100%" style="overflow:visible;">
+        ${inner}
+      </svg>
+    </div>`;
+  }
+  const bambusHTML = bambuClusters.map((b, i) => buildBambuWrapper(b, i)).join('');
+  // Stash dos bambus pro engine ler depois
+  window._dojoBambuStates = bambuClusters.map((b, i) => ({
+    idx: i,
+    cx: b.xRel * W,
+    centerY: gy(b.xRel * W) - b.height * 0.5,
+    radius: b.height * 0.7,
+    mass: 1.5 + b.scale * 1.5,   // bambu é pesado — resiste ao vento
+    height: b.height,
+    sway: 0,         // ângulo atual em graus
+    swayVel: 0,      // velocidade angular em graus/s
+    naturalSway: b.sway * 0.05,  // viés natural sutil
+  }));
 
   // ── Pedras zen detalhadas (estilo karesansui) ──
   // Cada pedra: forma orgânica única (8 pontos com variação Perlin-like),
@@ -24147,15 +24208,12 @@ function _dojoBuildSnowGroundSVG(W, H) {
       <path d="${topPath}" stroke="url(#snow-edge)" stroke-width="2.5" fill="none" opacity="0.85"/>
       <!-- Camada 5: Sombra interna sutil -->
       <path d="${topPath}" stroke="rgba(180,200,230,0.25)" stroke-width="6" fill="none" transform="translate(0, 4)" opacity="0.5"/>
-      <!-- Camada 6: Pedras grandes (atrás, sobre a neve mas atrás dos bambus) -->
+      <!-- Camada 6: Pedras grandes (sobre a neve) -->
       ${stonesBack}
-      <!-- Camada 7: Bambus pequenos (atrás) -->
-      ${bambusBack}
-      <!-- Camada 8: Bambus grandes (na frente dos pequenos) -->
-      ${bambusFront}
-      <!-- Camada 9: Pedras pequenas (em primeiro plano, podem ficar em frente dos bambus) -->
+      <!-- Camada 7: Pedras pequenas (primeiro plano) -->
       ${stonesFront}
     </svg>
+    ${bambusHTML}
   `;
 }
 
