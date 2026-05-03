@@ -1396,6 +1396,113 @@ body.density-compact .card-cf-row{font-size:10px;}
 :root.dark .modal-effort-emoji{color:#F8F2E4;}
 .modal-effort-btn.is-active .modal-effort-emoji{color:#3C3489;}
 
+/* ── Zai Hub (página dedicada) ─────────────────────────────── */
+.zai-hub{padding:.5rem 0 2rem;display:flex;flex-direction:column;gap:18px;}
+.zai-hub-hero{
+  background:linear-gradient(135deg, #1A1612 0%, #2A241D 100%);
+  color:#F8F2E4;border-radius:18px;padding:32px 38px 28px;
+  font-family:var(--font-sans);position:relative;overflow:hidden;
+}
+.zai-hub-hero::before{
+  content:'財';position:absolute;right:30px;bottom:-20px;
+  font-size:160px;line-height:1;color:#F8F2E4;opacity:.06;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  pointer-events:none;letter-spacing:-.05em;
+}
+.zai-hub-hero::after{
+  content:'';position:absolute;left:-40px;top:-40px;
+  width:160px;height:160px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #BC002D 0%, #8E0022 70%);
+  opacity:.10;pointer-events:none;
+}
+.zai-hub-hero h1{
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;
+  font-size:32px;font-weight:600;letter-spacing:-.005em;margin:0 0 6px;
+  color:#F8F2E4;position:relative;z-index:1;
+}
+.zai-hub-hero p{
+  font-size:14.5px;color:#A99876;line-height:1.55;max-width:640px;margin:0;position:relative;z-index:1;
+}
+.zai-hub-stats{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;
+}
+@media(max-width:900px){.zai-hub-stats{grid-template-columns:repeat(2,1fr);}}
+.zai-hub-stat{
+  background:var(--color-background-primary);
+  border:0.5px solid var(--color-border-tertiary);
+  border-radius:14px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden;
+}
+.zai-hub-stat::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#3C3489;
+}
+.zai-hub-stat.income::before{background:#3B6D11;}
+.zai-hub-stat.burn::before{background:#A32D2D;}
+.zai-hub-stat.runway::before{background:#BC002D;}
+.zai-hub-stat-lbl{font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;}
+.zai-hub-stat-val{font-size:26px;font-weight:600;color:var(--color-text-primary);font-variant-numeric:tabular-nums;line-height:1.1;}
+.zai-hub-stat-val.up{color:#3B6D11;}
+.zai-hub-stat-val.down{color:#A32D2D;}
+.zai-hub-stat-sub{font-size:11.5px;color:var(--color-text-tertiary);}
+
+.zai-hub-section-h{
+  font-size:11px;font-weight:600;color:var(--color-text-tertiary);
+  text-transform:uppercase;letter-spacing:.08em;margin:6px 2px 2px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.zai-hub-section-h .zai-hub-action{
+  background:#1A1612;color:#F8F2E4;border:none;border-radius:7px;padding:6px 14px;
+  font-family:var(--font-sans);font-size:11.5px;font-weight:500;letter-spacing:.02em;cursor:pointer;
+  text-transform:none;
+}
+.zai-hub-section-h .zai-hub-action:hover{filter:brightness(1.10);}
+.zai-hub-boards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.zai-hub-board-tile{
+  background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);
+  border-radius:12px;padding:16px;cursor:pointer;
+  display:flex;flex-direction:column;gap:10px;transition:transform .15s, box-shadow .15s;
+}
+.zai-hub-board-tile:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.06);}
+.zai-hub-board-tile-h{display:flex;align-items:center;gap:10px;}
+.zai-hub-board-tile-icon{
+  width:36px;height:36px;border-radius:9px;
+  background:linear-gradient(135deg, #1A1612 0%, #2A241D 100%);
+  color:#F8F2E4;display:flex;align-items:center;justify-content:center;
+  font-family:'Hiragino Mincho ProN',serif;font-size:18px;flex-shrink:0;
+}
+.zai-hub-board-tile-name{font-size:14px;font-weight:600;color:var(--color-text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.zai-hub-board-tile-runway{
+  display:flex;align-items:center;gap:8px;font-family:var(--font-sans);font-size:11.5px;
+  color:var(--color-text-secondary);font-variant-numeric:tabular-nums;
+}
+.zai-hub-board-tile-bar{
+  height:6px;border-radius:3px;background:rgba(0,0,0,.05);overflow:hidden;
+}
+:root.dark .zai-hub-board-tile-bar{background:rgba(255,255,255,.08);}
+.zai-hub-board-tile-bar-fill{height:100%;background:linear-gradient(90deg, #3B6D11 0%, #6BA52E 100%);transition:width .4s;}
+.zai-hub-board-tile-bar-fill.warn{background:linear-gradient(90deg, #D9A227 0%, #FCD34D 100%);}
+.zai-hub-board-tile-bar-fill.danger{background:linear-gradient(90deg, #DC2626 0%, #F09595 100%);}
+.zai-hub-board-tile-stats{display:flex;gap:14px;font-size:11px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;}
+.zai-hub-board-tile-stats span strong{color:var(--color-text-primary);font-weight:600;}
+
+.zai-hub-empty{
+  background:linear-gradient(135deg, #FBF7EE 0%, #F8F2E4 100%);
+  border:1px dashed #C9B380;border-radius:14px;padding:28px;text-align:center;
+  font-family:var(--font-sans);
+}
+:root.dark .zai-hub-empty{background:linear-gradient(135deg, #1F1A14 0%, #1A1612 100%);border-color:#3A3225;}
+.zai-hub-empty-icon{
+  font-size:42px;color:#BC002D;font-family:'Hiragino Mincho ProN',serif;font-weight:400;
+  display:block;margin-bottom:8px;
+}
+.zai-hub-empty h3{font-size:16px;font-weight:600;color:var(--color-text-primary);margin:0 0 4px;}
+.zai-hub-empty p{font-size:13px;color:var(--color-text-secondary);margin:0 0 14px;line-height:1.5;}
+.zai-hub-empty button{
+  background:#1A1612;color:#F8F2E4;border:none;border-radius:8px;padding:10px 22px;
+  font-family:var(--font-sans);font-size:13px;font-weight:500;cursor:pointer;letter-spacing:.02em;
+}
+.zai-hub-empty button:hover{filter:brightness(1.10);}
+
 /* ── Zai Sprint 2: Playbook de regras ────────────────────────── */
 .zai-playbook-card{
   background:linear-gradient(135deg, #FBF7EE 0%, #F8F2E4 100%);
@@ -4061,6 +4168,8 @@ body.density-compact .col{padding:7px;}
     </button>
     <button class="sb-item" id="sb-canvas" onclick="switchTab('canvas')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M6.4 1.8h3.2"/><path d="M6.8 1.8v4.4L3.4 12.6a1.4 1.4 0 0 0 1.2 2H11.4a1.4 1.4 0 0 0 1.2-2L9.2 6.2V1.8"/><path d="M5.4 9.4h5.2"/><circle cx="6.5" cy="11.4" r="0.55" fill="currentColor"/><circle cx="9.2" cy="12.2" r="0.45" fill="currentColor"/></svg></span><span>Lab</span></button>
+    <button class="sb-item" id="sb-zai" onclick="switchTab('zai')">
+      <span class="sb-icon" style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:-.04em;color:#BC002D;">財</span><span>Zai</span></button>
     <button class="sb-item" id="sb-okrs" onclick="switchTab('okrs')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></span><span>OKRs</span></button>
     <button class="sb-item" id="sb-registry" onclick="switchTab('registry')">
@@ -4205,6 +4314,10 @@ body.density-compact .col{padding:7px;}
 
   <div id="view-okrs" style="display:none;">
     <div id="okrs-root"></div>
+  </div>
+
+  <div id="view-zai" style="display:none;">
+    <div id="zai-root"></div>
   </div>
 
   <div id="view-dojo" style="display:none;">
@@ -10582,6 +10695,7 @@ function switchTab(tab) {
   document.getElementById('view-canvas').style.display    = tab==='canvas'    ? '' : 'none';
   document.getElementById('view-registry').style.display  = tab==='registry'  ? '' : 'none';
   document.getElementById('view-okrs').style.display      = tab==='okrs'      ? '' : 'none';
+  document.getElementById('view-zai').style.display       = tab==='zai'       ? '' : 'none';
   document.getElementById('view-dojo').style.display      = tab==='dojo'      ? '' : 'none';
   document.getElementById('view-settings').style.display  = tab==='settings'  ? '' : 'none';
   document.getElementById('view-kanban').style.display    = tab==='kanban'    ? '' : 'none';
@@ -10609,6 +10723,7 @@ function switchTab(tab) {
   if (tab==='canvas') renderCanvasView();
   if (tab==='registry') renderRegistry();
   if (tab==='okrs') renderOKRs();
+  if (tab==='zai') renderZaiHub();
   if (tab==='dojo') renderDojo();
   if (tab==='settings') renderSettings();
   if (tab==='table') renderTableView();
@@ -22981,6 +23096,183 @@ function calcBoardRunwayMonths() {
   if (net >= 0) return Infinity;
   // net é negativo. Saldo divide pelo "outflow real" = -net
   return balance / (-net);
+}
+
+// ── Zai Hub (página dedicada do menu) ─────────────────────
+// Lista todos os boards Zai-enabled, agrega stats, oferece atalhos.
+// Acessível pelo item "財 Zai" da sidebar.
+
+function _getAllZaiBoards() {
+  return Object.entries(allBoards)
+    .filter(([bid, b]) => bid !== UNIFIED_BOARD_ID && (b.zaiEnabled || (b.cards||[]).some(c => c.moneyType)))
+    .map(([bid, b]) => ({ id: bid, board: b }));
+}
+
+// Calcula stats de um board específico (sem mexer em currentBoardId)
+function _calcBoardZaiStats(board) {
+  let inc = 0, fix = 0, varc = 0;
+  const cf = (board.customFields || []).find(f => f.type === 'currency');
+  (board.cards || []).forEach(c => {
+    if (c.col === TERMINAL_COL) return;
+    const t = c.moneyType;
+    if (!t) return;
+    const v = cf ? Math.abs(Number((c.customFieldValues||{})[cf.id]) || 0) : 0;
+    if (t === 'income') inc += v;
+    else if (t === 'fixed') fix += v;
+    else if (t === 'variable') varc += v;
+  });
+  const burn = fix + varc;
+  const net = inc - burn;
+  const balance = Number(board.shadowBalance) || 0;
+  let runway = Infinity;
+  if (net < 0) runway = balance / -net;
+  return { inc, burn, net, balance, runway };
+}
+
+function _fmtMoneyShort(n) {
+  if (!n) return 'R$ 0';
+  if (Math.abs(n) >= 1000000) return 'R$ ' + (n/1000000).toFixed(1) + 'M';
+  if (Math.abs(n) >= 1000) return 'R$ ' + Math.round(n/1000) + 'k';
+  return n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', minimumFractionDigits:0 });
+}
+function _fmtRunwayShort(m) {
+  if (!Number.isFinite(m)) return '∞';
+  if (m < 1) return Math.round(m * 30) + 'd';
+  if (m < 12) return m.toFixed(1) + 'm';
+  return (m / 12).toFixed(1) + 'a';
+}
+
+function renderZaiHub() {
+  const root = document.getElementById('zai-root');
+  if (!root) return;
+  const zaiBoards = _getAllZaiBoards();
+
+  if (zaiBoards.length === 0) {
+    // Estado vazio: convida a criar primeiro board financeiro
+    root.innerHTML = `
+      <div class="zai-hub">
+        <div class="zai-hub-hero">
+          <h1>財 Zai · Gestão Financeira</h1>
+          <p>Sem fluxo de caixa complicado. Cards têm tipo (Receita / Custo Fixo / Custo Variável) e o sistema calcula automaticamente seu <strong>burn rate</strong> e <strong>runway</strong>. A barra "vida do dinheiro" no topo do board mostra quantos meses de fôlego restam.</p>
+        </div>
+        <div class="zai-hub-empty">
+          <span class="zai-hub-empty-icon">財</span>
+          <h3>Você ainda não tem nenhum board financeiro</h3>
+          <p>Ative um template "Zai · Gestão Financeira" da Gallery,<br/>ou ative Zai num board que já existe.</p>
+          <button onclick="switchTab('gallery');setTimeout(()=>{const t=document.querySelector('.tpl-tile-name');if(t&&t.textContent.includes('Zai'))t.scrollIntoView({behavior:'smooth',block:'center'});},200);">+ Ativar template Zai</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Agrega stats de todos os boards Zai
+  let totalInc = 0, totalBurn = 0, totalBalance = 0;
+  const tiles = zaiBoards.map(({ id, board }) => {
+    const s = _calcBoardZaiStats(board);
+    totalInc += s.inc;
+    totalBurn += s.burn;
+    totalBalance += s.balance;
+    const pct = Number.isFinite(s.runway) ? Math.min(100, (s.runway / 18) * 100) : 100;
+    const fillCls = s.runway < 3 ? 'danger' : s.runway < 6 ? 'warn' : '';
+    return `
+      <div class="zai-hub-board-tile" onclick="switchBoard('${id}', { goTo: 'kanban' })">
+        <div class="zai-hub-board-tile-h">
+          <span class="zai-hub-board-tile-icon">財</span>
+          <span class="zai-hub-board-tile-name">${_esc(board.name)}</span>
+        </div>
+        <div class="zai-hub-board-tile-runway">
+          <span style="flex:1;">Runway</span>
+          <strong style="font-size:13px;color:var(--color-text-primary);">${_fmtRunwayShort(s.runway)}</strong>
+        </div>
+        <div class="zai-hub-board-tile-bar">
+          <div class="zai-hub-board-tile-bar-fill ${fillCls}" style="width:${pct}%;"></div>
+        </div>
+        <div class="zai-hub-board-tile-stats">
+          <span>+ <strong>${_fmtMoneyShort(s.inc)}</strong></span>
+          <span style="color:#A32D2D;">- <strong>${_fmtMoneyShort(s.burn)}</strong></span>
+          <span style="margin-left:auto;">Saldo <strong>${_fmtMoneyShort(s.balance)}</strong></span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Net consolidado
+  const totalNet = totalInc - totalBurn;
+  let totalRunway = Infinity;
+  if (totalNet < 0) totalRunway = totalBalance / -totalNet;
+  const fmt = n => n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', minimumFractionDigits:0, maximumFractionDigits:0 });
+
+  // Lista de Invest-Labs existentes (canvases formato 'invest')
+  const investLabs = Object.values(_canvases || {}).filter(cv => cv.format === 'invest');
+
+  root.innerHTML = `
+    <div class="zai-hub">
+      <div class="zai-hub-hero">
+        <h1>財 Zai · Gestão Financeira</h1>
+        <p>Visão consolidada de <strong>${zaiBoards.length} board${zaiBoards.length>1?'s':''} financeiro${zaiBoards.length>1?'s':''}</strong>. Acompanhe receitas, custos e runway em um único lugar. Clique em qualquer board pra abrir.</p>
+      </div>
+
+      <div class="zai-hub-stats">
+        <div class="zai-hub-stat">
+          <span class="zai-hub-stat-lbl">Saldo total</span>
+          <span class="zai-hub-stat-val">${fmt(totalBalance)}</span>
+          <span class="zai-hub-stat-sub">somando ${zaiBoards.length} board${zaiBoards.length>1?'s':''}</span>
+        </div>
+        <div class="zai-hub-stat income">
+          <span class="zai-hub-stat-lbl">Receita / mês</span>
+          <span class="zai-hub-stat-val up">${fmt(totalInc)}</span>
+          <span class="zai-hub-stat-sub">entradas mensais</span>
+        </div>
+        <div class="zai-hub-stat burn">
+          <span class="zai-hub-stat-lbl">Custos / mês</span>
+          <span class="zai-hub-stat-val down">${fmt(totalBurn)}</span>
+          <span class="zai-hub-stat-sub">fixos + variáveis</span>
+        </div>
+        <div class="zai-hub-stat runway">
+          <span class="zai-hub-stat-lbl">Runway combinado</span>
+          <span class="zai-hub-stat-val ${totalNet < 0 ? 'down' : 'up'}">${_fmtRunwayShort(totalRunway)}</span>
+          <span class="zai-hub-stat-sub">${totalNet >= 0 ? 'sobra '+fmt(totalNet)+'/mês' : 'saldo acaba em '+_fmtRunwayShort(totalRunway)}</span>
+        </div>
+      </div>
+
+      <div class="zai-hub-section-h">
+        <span>Boards financeiros</span>
+        <button class="zai-hub-action" onclick="switchTab('gallery')">+ Novo board Zai</button>
+      </div>
+      <div class="zai-hub-boards-grid">
+        ${tiles}
+      </div>
+
+      ${investLabs.length > 0 ? `
+        <div class="zai-hub-section-h" style="margin-top:6px;">
+          <span>Invest-Labs · simulações</span>
+          <button class="zai-hub-action" onclick="switchTab('canvas')">Ver todos no Lab</button>
+        </div>
+        <div class="zai-hub-boards-grid">
+          ${investLabs.slice(0, 6).map(cv => {
+            const board = allBoards[cv.investBoardId];
+            const ops = (cv.investScenario || []).length;
+            return `
+              <div class="zai-hub-board-tile" onclick="_currentCanvasId='${cv.id}';_canvasView='editor';switchTab('canvas');setTimeout(()=>renderCanvasView(),50);">
+                <div class="zai-hub-board-tile-h">
+                  <span class="zai-hub-board-tile-icon" style="background:linear-gradient(135deg,#3C3489,#5A4FA8);">財</span>
+                  <span class="zai-hub-board-tile-name">${_esc(cv.name)}</span>
+                </div>
+                <div class="zai-hub-board-tile-stats">
+                  <span>Simulando: <strong>${board ? _esc(board.name) : '?'}</strong></span>
+                </div>
+                <div class="zai-hub-board-tile-stats">
+                  <span>${ops} alteração${ops!==1?'es':''} pendente${ops!==1?'s':''}</span>
+                  <span style="margin-left:auto;color:var(--color-text-tertiary);">${cv.updatedAt ? new Date(cv.updatedAt).toLocaleDateString('pt-BR') : ''}</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `;
 }
 
 // ── Playbook de regras (Zai Sprint 2) ──────────────────────
