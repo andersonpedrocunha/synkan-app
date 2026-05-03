@@ -23477,31 +23477,24 @@ function _dojoStartWindEngine(overlay) {
     // Atualiza folhas
     for (const lf of leaves) {
       if (lf.landed) {
-        // Folha pousada: sem gravidade. Apenas leve "tremor" residual e
-        // empurrão suave de rajadas próximas (folha rola/tomba um pouco).
+        // Folha pousada: sem gravidade. Convergência rápida pra restRot
+        // (folha precisa ficar deitada visualmente em ~0.5s após pousar).
         let ax = 0;
         for (const g of gusts) {
           const dy = Math.abs(lf.y - g.cy);
           if (dy > g.radius) continue;
           const falloff = 1 - (dy / g.radius);
           const tProfile = Math.sin(Math.PI * (g.elapsed / g.dur));
-          // Rajadas movem folhas pousadas com força bem reduzida (atrito do chão)
           ax += g.dir * g.force * 0.15 * falloff * tProfile / lf.mass;
         }
         lf.vx += ax * dt;
-        // Atrito pesado (chão)
         lf.vx *= 0.88;
-        // Rolling rotation muito leve baseada no movimento horizontal
-        lf.rot += lf.vx * 0.3 * dt;
-        // Tendência a voltar pra rotação de descanso
+        // Convergência rápida pra rotação de descanso (era 0.5 → muito lento)
         const rotDelta = lf.restRot - lf.rot;
         const wrapped = ((rotDelta + 180) % 360 + 360) % 360 - 180;
-        lf.rot += wrapped * 0.5 * dt;
+        lf.rot += wrapped * 6 * dt;  // 6/s = chega em ~0.5s
         lf.x += lf.vx * dt;
-        // Acompanha o chão irregular: se folha rola horizontalmente,
-        // vai seguindo o relevo. _restY é offset persistente da folha.
         lf.y = _groundYAt(lf.x) + lf._yOffset;
-        // Wrap horizontal nas bordas
         if (lf.x < -lf.size) lf.x = W + lf.size;
         else if (lf.x > W + lf.size) lf.x = -lf.size;
       } else {
@@ -23521,27 +23514,24 @@ function _dojoStartWindEngine(overlay) {
         lf.vy *= 0.992;
         lf.vRot += (lf.vx * 0.5) * dt;
 
-        // Estabilização perto do chão: folha "deita" horizontal (90° ou 270°),
-        // não 0°/180°. O SVG da folha tem caule embaixo e ponta em cima na
-        // rotação 0° — pra ficar paralela ao chão (face plana visível), o
-        // ângulo precisa ser perpendicular: ±90°.
+        // Estabilização perto do chão: folha "deita" horizontal (90° ou 270°).
+        // Drag angular MUITO mais forte pra vencer vRot acumulado por rajadas.
         const groundLine = _groundYAt(lf.x);
         const distToGround = groundLine - lf.y;
-        if (distToGround < 350) {
-          const linear = 1 - Math.max(0, distToGround / 350);
-          const stabFactor = linear * linear; // ease-in
-          lf.vRot *= Math.max(0, 1 - stabFactor * 0.18);
-          // Escolhe o múltiplo de 90° mais próximo (90 ou 270 = horizontais)
+        if (distToGround < 400) {
+          const linear = 1 - Math.max(0, distToGround / 400);
+          const stabFactor = linear * linear;
+          // Drag angular agressivo — quando perto do chão, vRot decai rápido
+          lf.vRot *= Math.max(0, 1 - stabFactor * 0.5);
+          // Targets horizontais: 90 ou 270 (folha deitada de fato)
           const rotMod = ((lf.rot % 360) + 360) % 360;
-          // Targets horizontais: 90 ou 270. Pega o mais próximo.
-          let target;
-          if (rotMod < 180) target = 90;
-          else target = 270;
+          const target = (rotMod < 180) ? 90 : 270;
           let delta = target - rotMod;
           if (delta > 180)  delta -= 360;
           if (delta < -180) delta += 360;
-          lf.rot += delta * stabFactor * 4.5 * dt;
-          lf.vy *= Math.max(0, 1 - stabFactor * 0.12);
+          // Pull aumentado: 4.5 → 9 (folha chega ao chão deitada)
+          lf.rot += delta * stabFactor * 9 * dt;
+          lf.vy *= Math.max(0, 1 - stabFactor * 0.15);
         }
         lf.rot += lf.vRot * dt;
         lf.x += lf.vx * dt;
@@ -23612,31 +23602,44 @@ function _dojoBuildSnowGroundSVG(W, H) {
   const fillPath = `${topPath} L ${(W+step).toFixed(0)} ${(H+10).toFixed(0)} L 0 ${(H+10).toFixed(0)} Z`;
 
   // ── Montanhas distantes (3 camadas, cada uma mais clara/atrás) ──
-  // Silhueta minimalista — picos com vales suaves entre eles.
+  // Silhueta minimalista — picos arredondados (não zigzag). Cada montanha
+  // é desenhada com curvas Bezier cúbicas C: cp1, cp2, end. Bem arredondado.
   function mountainPath(yBase, peaks, blurOffsetX) {
     let p = `M -10 ${(yBase + 60).toFixed(1)} L -10 ${yBase.toFixed(1)} `;
+    // Estado: posição corrente (lastX, lastY)
+    let lastX = -10, lastY = yBase;
     for (let i = 0; i < peaks.length; i++) {
       const peak = peaks[i];
       const px = peak[0] * W + blurOffsetX;
       const py = yBase - peak[1];
-      if (i === 0) {
-        // Sobe da base esquerda até a primeira montanha
-        p += `L ${(px - 50).toFixed(1)} ${yBase.toFixed(1)} `;
-      }
-      // Pico
-      p += `L ${px.toFixed(1)} ${py.toFixed(1)} `;
-      // Vale entre montanhas (não vai até a base, fica acima)
-      if (i < peaks.length - 1) {
-        const nextPeak = peaks[i + 1];
-        const nextPx = nextPeak[0] * W + blurOffsetX;
-        const valleyX = (px + nextPx) / 2;
-        const valleyY = yBase - 10; // 10px acima da base — vales suaves
-        p += `L ${valleyX.toFixed(1)} ${valleyY.toFixed(1)} `;
-      } else {
-        // Desce após o último pico
-        p += `L ${(px + 50).toFixed(1)} ${yBase.toFixed(1)} `;
-      }
+      const peakWidth = peak[1] * 1.4; // largura da base proporcional à altura
+
+      // Ponto de partida da montanha (base esquerda do pico)
+      const startX = px - peakWidth;
+      const startY = yBase - 5;
+      // Ponto de chegada da montanha (base direita)
+      const endX = px + peakWidth;
+      const endY = yBase - 5;
+
+      // Linha do estado anterior até startX
+      p += `L ${startX.toFixed(1)} ${startY.toFixed(1)} `;
+      // Curva ascendente (lado esquerdo do pico)
+      // C cp1x cp1y cp2x cp2y endx endy
+      const cp1x = startX + peakWidth * 0.3;
+      const cp1y = startY;
+      const cp2x = px - peakWidth * 0.15;
+      const cp2y = py + 4;
+      p += `C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${px.toFixed(1)} ${py.toFixed(1)} `;
+      // Curva descendente (lado direito)
+      const cp3x = px + peakWidth * 0.15;
+      const cp3y = py + 4;
+      const cp4x = endX - peakWidth * 0.3;
+      const cp4y = endY;
+      p += `C ${cp3x.toFixed(1)} ${cp3y.toFixed(1)} ${cp4x.toFixed(1)} ${cp4y.toFixed(1)} ${endX.toFixed(1)} ${endY.toFixed(1)} `;
+
+      lastX = endX; lastY = endY;
     }
+    // Fecha até a borda direita
     p += `L ${(W + 10).toFixed(1)} ${yBase.toFixed(1)} `;
     p += `L ${(W + 10).toFixed(1)} ${(yBase + 60).toFixed(1)} Z`;
     return p;
