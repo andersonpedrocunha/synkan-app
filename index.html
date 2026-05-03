@@ -3824,6 +3824,10 @@ body.density-compact .col{padding:7px;}
         <span>Preenche automaticamente com dados do card e do cadastro vinculado.</span>
       </div>
     </div>
+    <div class="modal-dep-section" id="modal-effort-section">
+      <div class="modal-dep-h">⚡ Esforço (energia necessária)</div>
+      <div id="modal-effort-content"></div>
+    </div>
     <div class="modal-dep-section" id="modal-dep-section">
       <div class="modal-dep-h">⛓ Dependências</div>
       <div id="modal-dep-content"></div>
@@ -5233,18 +5237,27 @@ function toggleEnergyPopover() {
   }
 }
 
-// Heurística pra inferir effort baseado em sinais do card
+// Heurística pra inferir effort baseado em sinais do card.
+// Default: 2 (médio). Sobe pra 3 (pesado) se tem muitos sinais; cai pra 1 (leve)
+// se for nitidamente simples.
 function _inferCardEffort(card) {
   if (!card) return 2;
+  let score = 2;  // default: médio
+  // Priority é o sinal mais forte
+  if (card.priority === 'alta')   score++;
+  if (card.priority === 'baixa')  score--;
+  // Quantidade de subtarefas
   const subs = (card.subtasks || []).length;
+  if (subs >= 5) score++;
+  if (subs >= 10) score++;
+  // Threads manuais (descrição/notas)
   const desc = (card.threads || []).filter(t => t.type === 'manual').length;
-  const hasContact = !!card.contactId;
-  const hasDeadline = !!card.deadline;
-  let score = 1;
-  if (subs >= 3) score++;
-  if (subs >= 6) score++;
-  if (desc >= 2) score++;
-  if (hasContact && hasDeadline) score++;
+  if (desc >= 3) score++;
+  // Vínculos pesados
+  if (card.contactId && card.deadline) score++;
+  // Cards muito antigos sem mover indicam complexidade
+  const ageMs = (typeof getCardAgeInColumnMs === 'function') ? getCardAgeInColumnMs(card) : 0;
+  if (ageMs > 14 * 86400000) score++;
   // Cap entre 1 e 3
   return Math.max(1, Math.min(3, score));
 }
@@ -5268,6 +5281,47 @@ function setCardEffort(cardId, effort) {
   // Re-render modal effort UI
   if (typeof renderModalEffort === 'function') renderModalEffort(cardId);
   if (typeof render === 'function') render();
+}
+
+// Limpa o effort manual (volta ao auto-inferido)
+function clearCardEffort(cardId) {
+  const c = cards.find(x => x.id === cardId);
+  if (!c) return;
+  delete c.effort;
+  if (typeof autoThread === 'function') autoThread(c, 'Esforço resetado para automático');
+  saveData();
+  if (typeof renderModalEffort === 'function') renderModalEffort(cardId);
+  if (typeof render === 'function') render();
+}
+
+// Renderiza o seletor de effort no modal de edição
+function renderModalEffort(cardId) {
+  const el = document.getElementById('modal-effort-content');
+  if (!el) return;
+  const c = cards.find(x => x.id === cardId);
+  if (!c) { el.innerHTML = ''; return; }
+  const cur = (typeof getCardEffort === 'function') ? getCardEffort(c) : 2;
+  const isManual = Number.isFinite(c.effort);
+  const opts = [
+    { val: 1, emoji: '🌙', label: 'Leve',   desc: 'rápido, sem cérebro' },
+    { val: 2, emoji: '🌤', label: 'Médio',  desc: 'foco moderado' },
+    { val: 3, emoji: '🔥', label: 'Pesado', desc: 'demanda concentração' },
+  ];
+  el.innerHTML = `
+    <div class="modal-effort">
+      ${opts.map(o => `
+        <button class="modal-effort-btn${cur===o.val?' is-active':''}" onclick="setCardEffort(${cardId}, ${o.val})" title="${o.desc}">
+          <span class="modal-effort-emoji">${o.emoji}</span>
+          <span><strong>${o.label}</strong></span>
+          <span style="font-size:10px;color:var(--color-text-tertiary);">${o.desc}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--color-text-tertiary);">
+      <span>${isManual ? '✓ Definido manualmente' : `↳ Inferido automaticamente: ${['leve','médio','pesado'][cur-1]}`}</span>
+      ${isManual ? `<button onclick="clearCardEffort(${cardId})" style="background:transparent;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:11px;text-decoration:underline;">resetar pra auto</button>` : ''}
+    </div>
+  `;
 }
 
 // ── Smart Dependencies: análise de cascata de atraso ──────────────
@@ -11350,6 +11404,16 @@ function render() {
           const _focusEnergy = (typeof getFocusEnergy === 'function') ? getFocusEnergy() : 0;
           const _cardEffort = (typeof getCardEffort === 'function') ? getCardEffort(c) : 2;
           const energyCls = (!isDone && _focusEnergy > 0 && _cardEffort > _focusEnergy) ? ' energy-over-budget' : '';
+          // Badge de effort (só aparece se Focus Mode estiver ATIVO, pra evitar poluir)
+          const effortEmoji = ['🌙','🌤','🔥'][_cardEffort - 1] || '🌤';
+          const effortBadge = (_focusEnergy > 0 && !isDone) ?
+            `<span class="card-effort ef-${_cardEffort}" title="Esforço: ${['leve','médio','pesado'][_cardEffort-1]}">
+              <span class="ef-dots">
+                <span class="ef-dot${_cardEffort>=1?' on':''}"></span>
+                <span class="ef-dot${_cardEffort>=2?' on':''}"></span>
+                <span class="ef-dot${_cardEffort>=3?' on':''}"></span>
+              </span>${effortEmoji}
+            </span>` : '';
           // Dependências
           const _isBlocked = !isDone && typeof isCardBlocked === 'function' && isCardBlocked(c);
           const _blocksList = (typeof getCardBlocks === 'function') ? getCardBlocks(c) : [];
@@ -11389,7 +11453,7 @@ function render() {
                   </button>`:''}
                 </div>
               </div>`:''}
-              ${depBadge}
+              ${depBadge}${effortBadge?'<div style="margin-top:5px;display:flex;justify-content:flex-end;">'+effortBadge+'</div>':''}
               ${(allBoards[currentBoardId]?.isKaizen && c.col === 'kaizen_acao' && !isDone) ? `<button class="kaizen-promote-btn" onclick="event.stopPropagation();promoteKaizenAction(${cidArg})" title="Transformar esta ação em card real em outro board"><span class="kaizen-promote-icon">→</span> Promover pra board</button>` : ''}
             </div>
             ${!isDone?`<button class="card-done-btn" onclick="event.stopPropagation();toggleDone(${cidArg})">✓ done</button>`:''}
@@ -11623,6 +11687,7 @@ function editCard(id) {
   document.getElementById('ai-field').style.display='block';
   renderModalAI(id);
   if (typeof renderModalDeps === 'function') renderModalDeps(id);
+  if (typeof renderModalEffort === 'function') renderModalEffort(id);
   renderSel();renderLib();buildDots();updatePrev();
   fillCol(card.col);
   renderModalThreads(id);
