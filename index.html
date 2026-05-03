@@ -25619,7 +25619,9 @@ Campos do formulário: ${fieldsLine || '(nenhum)'}`;
 }
 
 async function saveForm() {
-  const f = _capEditingForm; if (!f) return;
+  console.log('[saveForm] início');
+  const f = _capEditingForm;
+  if (!f) { console.warn('[saveForm] _capEditingForm está nulo'); return; }
   f.name = (document.getElementById('cap-name')?.value || '').trim();
   if (!f.name) { alert('Dê um nome ao formulário.'); return; }
   f.description = (document.getElementById('cap-desc')?.value || '').trim();
@@ -25628,6 +25630,7 @@ async function saveForm() {
   if (!f.target_board_id) { alert('Escolha um board destino.'); return; }
   f.fields = (f.fields||[]).filter(x => (x.key||'').trim());
   if (!supaUser) { alert('Você precisa estar logado.'); return; }
+  console.log('[saveForm] state ok, target_board_id:', f.target_board_id);
   // Garante que temos um JWT válido antes de tentar salvar — se a sessão
   // estiver corrompida, peça pra usuario relogar (em vez de mandar request
   // sem token e deixar o Postgres bloquear via RLS).
@@ -25639,21 +25642,37 @@ async function saveForm() {
     return;
   }
   // Garante que o board destino EXISTE no Supabase (FK forms_target_board_id_fkey).
-  // Se o board está só no localStorage (criado antes de logar / nunca sincronizado),
-  // o Postgres rejeita o save com 409 Conflict. Por isso fazemos upsert preventivo.
-  try {
-    const c = _ensureSupaClient && _ensureSupaClient();
-    if (c && f.target_board_id && allBoards[f.target_board_id]) {
-      const _b = allBoards[f.target_board_id];
-      const _row = (typeof _boardToRow === 'function') ? _boardToRow({ ..._b, id: f.target_board_id }) : null;
-      if (_row) {
-        if (!_row.owner_id) _row.owner_id = supaUser.id;
-        const { error: _bErr } = await c.from('boards').upsert(_row);
-        if (_bErr) console.warn('[saveForm] upsert do board destino falhou:', _bErr.message);
+  // Usa REST direto (não o SDK) pra evitar a corrida pelo auth lock. Se a
+  // verificação falhar por qualquer motivo, prossegue — o catch do save
+  // pega o FK error com mensagem amigável.
+  if (f.target_board_id) {
+    try {
+      const found = await _capRESTCall(
+        `boards?id=eq.${encodeURIComponent(f.target_board_id)}&select=id`,
+        { timeoutMs: 4000 }
+      );
+      const exists = Array.isArray(found) && found.length > 0;
+      if (!exists && allBoards[f.target_board_id]) {
+        // Board existe localmente mas não no Supabase — sobe um stub mínimo
+        // (só id + owner + name + columns vazias) só pra satisfazer a FK.
+        const _b = allBoards[f.target_board_id];
+        const stub = {
+          id: f.target_board_id,
+          owner_id: supaUser.id,
+          name: _b.name || 'Board',
+          columns: _b.columns || [],
+        };
+        await _capRESTCall('boards', {
+          method: 'POST',
+          body: stub,
+          headers: { 'Prefer': 'return=minimal,resolution=ignore-duplicates' },
+          timeoutMs: 4000,
+        });
       }
+    } catch(e) {
+      // Falhou? Não bloqueia o save — segue e deixa o catch principal lidar
+      console.warn('[saveForm] pre-sync do board falhou (segue mesmo assim):', e?.message || e);
     }
-  } catch(e) {
-    console.warn('[saveForm] não consegui garantir o board destino:', e?.message || e);
   }
   const isEdit = _capEditingFormId !== '__new__' && _capEditingFormId;
   // ── Branding: copia logo + nome da empresa do dono pro form (renderizado
@@ -25692,10 +25711,16 @@ async function saveForm() {
     await appAlert('Não consegui salvar', friendly, { icon:'⚠️' });
     return;
   }
+  // Save deu certo — fecha modal NA HORA. Se o reload da lista falhar, não
+  // bloqueia a UX (a tela vai re-renderizar com a próxima ação do usuário).
   closeRegistryModal();
   _capEditingForm = null; _capEditingFormId = null;
-  await _capLoadAll();
-  _renderCaptureBody();
+  try {
+    await _capLoadAll();
+    _renderCaptureBody();
+  } catch(e) {
+    console.warn('[saveForm] reload da lista falhou:', e?.message || e);
+  }
 }
 
 // Converte mensagens crípticas do Postgres/Supabase em texto que faz sentido
