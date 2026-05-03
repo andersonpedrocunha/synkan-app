@@ -1478,6 +1478,184 @@ body.density-compact .card-cf-row{font-size:10px;}
 }
 .zai-hub-board-tile:hover .zai-hub-tile-edit{opacity:.8;}
 .zai-hub-tile-edit:hover{background:var(--color-background-tertiary,rgba(0,0,0,.05));opacity:1!important;}
+
+/* The Synk · UI */
+.synk-section{
+  background:var(--color-background-primary);
+  border:0.5px solid var(--color-border-tertiary);
+  border-radius:12px;padding:16px;
+}
+.synk-empty{text-align:center;padding:24px 12px;color:var(--color-text-secondary);}
+.synk-empty-icon{font-size:32px;color:#d4af37;margin-bottom:8px;}
+.synk-empty h4{margin:0 0 6px;font-size:15px;color:var(--color-text-primary);font-weight:600;}
+.synk-empty p{margin:0;font-size:13px;line-height:1.55;max-width:480px;margin:0 auto;}
+.synk-empty em{color:var(--color-text-primary);font-style:italic;}
+.synk-rules-list{display:flex;flex-direction:column;gap:10px;}
+.synk-rule{
+  border:1px solid var(--color-border-tertiary);border-radius:10px;padding:12px 14px;
+  background:var(--color-background-secondary);
+  transition:opacity .15s;
+}
+.synk-rule.is-inactive{opacity:.5;}
+.synk-rule-h{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.synk-rule-name{flex:1;font-weight:600;font-size:14px;color:var(--color-text-primary);}
+.synk-rule-actions{display:flex;gap:4px;}
+.synk-rule-actions button{
+  width:28px;height:28px;border:none;background:transparent;
+  border-radius:6px;cursor:pointer;font-size:13px;color:var(--color-text-secondary);
+}
+.synk-rule-actions button:hover{background:var(--color-background-tertiary,rgba(0,0,0,.06));color:var(--color-text-primary);}
+.synk-toggle.on{color:#3B6D11;}
+.synk-rule-flow{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  font-family:var(--font-sans);font-size:12.5px;color:var(--color-text-secondary);
+  margin-bottom:6px;
+}
+.synk-rule-from{font-weight:500;color:var(--color-text-primary);}
+.synk-rule-arrow{color:#d4af37;font-weight:600;}
+.synk-rule-dists{display:flex;gap:6px;flex-wrap:wrap;}
+.synk-dist-pill{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:99px;
+  background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.2);
+  font-size:11.5px;color:var(--color-text-primary);
+}
+.synk-dist-pill strong{color:#A88224;font-weight:600;}
+.synk-rule-stats{font-size:11px;color:var(--color-text-tertiary);font-family:var(--font-sans);}
+.synk-log{margin-top:14px;padding-top:12px;border-top:1px dashed var(--color-border-tertiary);}
+.synk-log-h{font-size:11.5px;letter-spacing:0.18em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:8px;}
+.synk-log-item{
+  display:flex;align-items:center;gap:10px;padding:6px 0;font-size:12px;
+  font-family:var(--font-sans);color:var(--color-text-secondary);
+}
+.synk-log-rule{font-weight:600;color:var(--color-text-primary);min-width:140px;}
+.synk-log-card{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.synk-log-time{color:var(--color-text-tertiary);font-size:11px;}
+
+/* Modal Synk form */
+.synk-form{display:flex;flex-direction:column;gap:12px;text-align:left;margin:6px 0 10px;}
+.synk-field{display:flex;flex-direction:column;gap:6px;font-family:var(--font-sans);}
+.synk-field > span{font-size:11.5px;letter-spacing:0.05em;color:var(--color-text-secondary);font-weight:500;}
+.synk-field input, .synk-field select{
+  padding:9px 11px;border:1px solid var(--color-border-tertiary);border-radius:8px;
+  background:var(--color-background-primary);color:var(--color-text-primary);
+  font-size:13.5px;font-family:var(--font-sans);
+}
+.synk-field input:focus, .synk-field select:focus{outline:none;border-color:#d4af37;}
+.synk-field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.synk-dist-h{
+  font-size:11.5px;letter-spacing:0.05em;color:var(--color-text-secondary);
+  font-family:var(--font-sans);font-weight:500;margin-top:6px;
+}
+.synk-dist-row{
+  display:grid;grid-template-columns:2fr 60px 1.2fr 2fr 28px;gap:6px;
+  align-items:center;
+}
+.synk-dist-row > select, .synk-dist-row > input{
+  padding:7px 9px;border:1px solid var(--color-border-tertiary);border-radius:6px;
+  background:var(--color-background-primary);color:var(--color-text-primary);
+  font-size:12.5px;font-family:var(--font-sans);min-width:0;
+}
+.synk-dist-rm{
+  width:28px;height:28px;border:none;background:transparent;color:var(--color-text-tertiary);
+  cursor:pointer;border-radius:6px;font-size:13px;
+}
+.synk-dist-rm:hover{background:rgba(163,45,45,.1);color:#A32D2D;}
+.synk-add-row{
+  align-self:flex-start;padding:7px 14px;border:1px dashed var(--color-border-tertiary);
+  background:transparent;color:var(--color-text-secondary);
+  border-radius:8px;font-size:12.5px;font-family:var(--font-sans);font-weight:500;
+  cursor:pointer;
+}
+.synk-add-row:hover{border-color:#d4af37;color:#A88224;background:rgba(212,175,55,.05);}
+
+/* Opportunity Cost · UI */
+.opcost-form{display:flex;flex-direction:column;gap:14px;text-align:left;margin:6px 0 10px;}
+.opcost-field, .opcost-form label{display:flex;flex-direction:column;gap:5px;font-family:var(--font-sans);}
+.opcost-field > span, .opcost-form label > span{font-size:11px;letter-spacing:0.04em;color:var(--color-text-secondary);font-weight:500;}
+.opcost-field input, .opcost-field select, .opcost-form label input{
+  padding:8px 11px;border:1px solid var(--color-border-tertiary);border-radius:7px;
+  background:var(--color-background-primary);color:var(--color-text-primary);
+  font-size:13px;font-family:var(--font-sans);
+}
+.opcost-field input:focus, .opcost-form label input:focus{outline:none;border-color:#d4af37;}
+.opcost-field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.opcost-paths{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.opcost-path{
+  padding:12px;border-radius:9px;
+  border:1px solid var(--color-border-tertiary);
+  background:var(--color-background-secondary);
+  display:flex;flex-direction:column;gap:8px;
+}
+.opcost-path-a{border-left:3px solid #3B6D11;}
+.opcost-path-b{border-left:3px solid #854F0B;}
+.opcost-path-h{display:flex;align-items:center;gap:8px;}
+.opcost-path-tag{
+  width:24px;height:24px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:#fff;
+  font-family:var(--font-sans);
+}
+.opcost-path-a .opcost-path-tag{background:#3B6D11;}
+.opcost-path-b .opcost-path-tag{background:#854F0B;}
+.opcost-path-h input{
+  flex:1;padding:6px 9px;border:1px solid var(--color-border-tertiary);border-radius:6px;
+  background:var(--color-background-primary);color:var(--color-text-primary);
+  font-size:13px;font-weight:600;font-family:var(--font-sans);
+}
+.opcost-recalc-btn{
+  align-self:flex-start;padding:8px 16px;border:1px solid #d4af37;
+  background:rgba(212,175,55,.08);color:#A88224;
+  border-radius:7px;font-size:12.5px;font-family:var(--font-sans);font-weight:600;
+  cursor:pointer;
+}
+.opcost-recalc-btn:hover{background:rgba(212,175,55,.15);}
+.opcost-preview{
+  background:var(--color-background-secondary);
+  border:1px solid var(--color-border-tertiary);
+  border-radius:9px;padding:14px;
+  display:flex;flex-direction:column;gap:14px;
+}
+.opcost-preview-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.opcost-preview-card{
+  padding:10px 12px;border-radius:8px;border:1px solid var(--color-border-tertiary);
+  background:var(--color-background-primary);
+  position:relative;
+  font-family:var(--font-sans);
+}
+.opcost-preview-card.is-winner{border-color:#3B6D11;background:rgba(59,109,17,.05);}
+.opcost-preview-card.is-winner::after{
+  content:'★';position:absolute;top:8px;right:10px;color:#d4af37;font-size:16px;
+}
+.opcost-preview-tag{
+  display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;
+  border-radius:5px;font-size:10.5px;font-weight:700;color:#fff;margin-right:6px;
+}
+.opcost-preview-name{font-size:11.5px;color:var(--color-text-secondary);font-weight:500;display:inline;}
+.opcost-preview-final{font-size:18px;font-weight:600;color:var(--color-text-primary);margin-top:6px;font-variant-numeric:tabular-nums;}
+.opcost-preview-profit{font-size:11px;color:#3B6D11;}
+.opcost-chart{padding:6px 0;background:var(--color-background-primary);border-radius:6px;}
+.opcost-verdict{
+  display:flex;align-items:center;gap:14px;padding:10px 12px;border-radius:8px;
+  background:rgba(212,175,55,.06);border:1px solid rgba(212,175,55,.2);
+  font-family:var(--font-sans);
+}
+.opcost-verdict-tag{
+  padding:4px 10px;border-radius:99px;border:1px solid;font-size:11.5px;font-weight:700;
+  letter-spacing:0.03em;
+}
+.opcost-verdict-cost{font-size:13px;color:var(--color-text-secondary);}
+.opcost-verdict-cost strong{color:#A88224;font-weight:700;}
+.opcost-narrative{
+  padding:14px;border-radius:8px;
+  background:rgba(60,40,25,0.04);border-left:3px solid #d4af37;
+  font-family:var(--font-sans);
+}
+.opcost-narrative-h{
+  font-size:11px;letter-spacing:0.18em;text-transform:uppercase;
+  color:#A88224;margin-bottom:6px;font-weight:600;
+}
+.opcost-narrative p{margin:0;font-size:13px;line-height:1.55;color:var(--color-text-primary);font-style:italic;}
 .zai-hub-board-tile-runway{
   display:flex;align-items:center;gap:8px;font-family:var(--font-sans);font-size:11.5px;
   color:var(--color-text-secondary);font-variant-numeric:tabular-nums;
@@ -8178,6 +8356,49 @@ const KANBAN_TEMPLATES = [
     ],
   },
 
+  // ── Objetivos pessoais (Sprint Zai-5 · Regra dos 1%) ─────
+  {
+    id: 'objetivos-pessoais',
+    name: 'Objetivos pessoais',
+    icon: '志',
+    accent: '#3D2E5A',
+    accentText: '#F4EDF7',
+    category: 'Pessoal',
+    description: '志 Kanban dos seus sonhos e metas pessoais. Fluxo: Sonho → Plano → Em ação → Conquistado. Cada objetivo tem meta financeira ou de hábito, deadline, milestones e a "Regra dos 1%": 1% melhor por dia = 37× melhor em um ano. Use a calculadora 1% no Zai pra descobrir o aporte certo.',
+    columns: [
+      {id:'sonho',       title:'Sonho'},
+      {id:'plano',       title:'Plano'},
+      {id:'acao',        title:'Em ação', wipLimit:5},
+      {id:'conquistado', title:'Conquistado'},
+    ],
+    tags: [
+      {text:'Financeiro',  colorIdx:2},
+      {text:'Saúde',       colorIdx:0},
+      {text:'Carreira',    colorIdx:1},
+      {text:'Família',     colorIdx:3},
+      {text:'Aventura',    colorIdx:4},
+    ],
+    customFields: [
+      {id:'cf_meta_valor',   label:'Meta (R$ ou unidade)',     type:'currency', showOnCard:true},
+      {id:'cf_meta_unidade', label:'Unidade da meta',           type:'select',   options:['R$','kg','horas','livros','km','viagens','outro'], showOnCard:false},
+      {id:'cf_progresso',    label:'Progresso atual',           type:'currency', showOnCard:true},
+      {id:'cf_prazo',        label:'Prazo (deadline)',          type:'date',     showOnCard:true},
+      {id:'cf_aporte_mensal',label:'Aporte / esforço mensal',   type:'currency', showOnCard:false},
+      {id:'cf_porque',       label:'Porque isso importa',       type:'text',     showOnCard:false},
+      {id:'cf_proximo',      label:'Próximo passo concreto',    type:'text',     showOnCard:false},
+    ],
+    cards: [
+      {name:'Reserva de emergência · 6 meses',    priority:'alta',  col:'acao',        tagIds:[0],    deadlineDays:300, cfv:{cf_meta_valor:60000, cf_meta_unidade:'R$', cf_progresso:18500, cf_aporte_mensal:3500, cf_prazo:'2027-03-01', cf_porque:'Tranquilidade pra tomar decisões corajosas', cf_proximo:'Aportar R$3.500 dia 5'}},
+      {name:'Apartamento próprio · entrada',      priority:'alta',  col:'plano',       tagIds:[0,3],  deadlineDays:730, cfv:{cf_meta_valor:120000, cf_meta_unidade:'R$', cf_progresso:8000, cf_aporte_mensal:5000, cf_prazo:'2028-05-01'}},
+      {name:'Viagem ao Japão · 2 semanas',        priority:'media', col:'sonho',       tagIds:[4],                      cfv:{cf_meta_valor:35000, cf_meta_unidade:'R$', cf_progresso:0, cf_porque:'Conhecer Kyoto, Quioto, Hokkaido'}},
+      {name:'10 livros lidos no ano',              priority:'media', col:'acao',        tagIds:[2],    deadlineDays:240, cfv:{cf_meta_valor:10, cf_meta_unidade:'livros', cf_progresso:4, cf_prazo:'2026-12-31'}},
+      {name:'Correr 5km sem parar',                priority:'media', col:'acao',        tagIds:[1],    deadlineDays:90,  cfv:{cf_meta_valor:5, cf_meta_unidade:'km', cf_progresso:2.4, cf_prazo:'2026-08-01', cf_proximo:'Treino C25K · semana 5'}},
+      {name:'Inglês · fluência B2',                priority:'baixa', col:'sonho',       tagIds:[2],                      cfv:{cf_meta_valor:0, cf_meta_unidade:'outro', cf_porque:'Trabalhar com clientes nos EUA'}},
+      {name:'Maratona financeira · investidor',    priority:'baixa', col:'plano',       tagIds:[0,2],  deadlineDays:1825,cfv:{cf_meta_valor:1000000, cf_meta_unidade:'R$', cf_progresso:35000, cf_aporte_mensal:5000, cf_prazo:'2031-05-01'}},
+      {name:'CNH renovada',                        priority:'baixa', col:'conquistado', tagIds:[],     doneDaysAgo:30,   cfv:{cf_meta_valor:0, cf_meta_unidade:'outro'}},
+    ],
+  },
+
   // ── Zai REMOVIDO da Gallery (fica só no módulo Zai do menu) ────
   // Definição preservada como ZAI_TEMPLATE (usado por createZaiBoardFromHub).
   // Pra retornar ao modelo antigo, volte este bloco com id 'zai-financeiro'.
@@ -12243,6 +12464,7 @@ function tblSetCol(id, newCol) {
   if (typeof autoThread === 'function') autoThread(card, `Movido de "${oldTitle}" para "${newTitle}"`);
   if (typeof _gamifTrigger === 'function' && movedToDone) _gamifTrigger('card_done', { cardId: id });
   if (movedToDone && typeof _checkReleasedDependents === 'function') _checkReleasedDependents(id);
+  if (movedToDone && typeof _zaiSynkApplyOnPaid === 'function') _zaiSynkApplyOnPaid(card);
   saveData();
   if (typeof _bindCurrentBoard === 'function') _bindCurrentBoard();
   render();
@@ -12355,6 +12577,7 @@ function toggleDone(id) {
     // XP por concluir
     if (movedToDone && typeof _gamifAwardCardDone === 'function') _gamifAwardCardDone(card);
     if (movedToDone && typeof _checkReleasedDependents === 'function') _checkReleasedDependents(card.id);
+    if (movedToDone && typeof _zaiSynkApplyOnPaid === 'function') _zaiSynkApplyOnPaid(card);
     // Confete na posição do clique se possível
     const ev = window.event;
     const x = ev?.clientX || window.innerWidth/2;
@@ -12963,6 +13186,7 @@ function _finalizeCardMove(card, newCol) {
     if (typeof _gamifAwardCardDone === 'function') _gamifAwardCardDone(card);
     if (card.recurrence) _spawnRecurrence(card);
     if (typeof _checkReleasedDependents === 'function') _checkReleasedDependents(card.id);
+    if (typeof _zaiSynkApplyOnPaid === 'function') _zaiSynkApplyOnPaid(card);
     audit('card.completed', { cardId: card.id, name: card.name });
     fireWebhook('card.completed', { cardId: card.id, name: card.name });
   } else if (movedFromDone) {
@@ -23898,6 +24122,893 @@ function _fmtRunwayShort(m) {
   return (m / 12).toFixed(1) + 'a';
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// THE SYNK · Sprint Zai-3 ── Distribuição automática entre boards Zai
+// Quando um card de RECEITA é marcado como PAGO/EXECUTADO, o sistema
+// olha as regras configuradas e cria cards proporcionais em outros
+// boards Zai (ex: 70% reinveste, 20% reserva, 10% lazer).
+// Storage: kanban_v8_zai_synk_rules (regras) + _log (histórico).
+// ═══════════════════════════════════════════════════════════════════
+const SYNK_RULES_KEY = 'kanban_v8_zai_synk_rules';
+const SYNK_LOG_KEY   = 'kanban_v8_zai_synk_log';
+
+function getSynkRules() {
+  try { return JSON.parse(localStorage.getItem(SYNK_RULES_KEY) || '[]') || []; }
+  catch(e) { return []; }
+}
+function saveSynkRules(rules) {
+  try { localStorage.setItem(SYNK_RULES_KEY, JSON.stringify(rules || [])); } catch(e){}
+}
+function getSynkLog() {
+  try { return JSON.parse(localStorage.getItem(SYNK_LOG_KEY) || '[]') || []; }
+  catch(e) { return []; }
+}
+function _addSynkLog(entry) {
+  const log = getSynkLog();
+  log.unshift({ ...entry, at: new Date().toISOString() });
+  // mantém últimos 100
+  try { localStorage.setItem(SYNK_LOG_KEY, JSON.stringify(log.slice(0,100))); } catch(e){}
+}
+
+function _genSynkId() { return 'synk_' + Math.random().toString(36).slice(2, 9); }
+
+// Resolve o boardId a partir do card. Buscamos qual board contém esse card
+// na nossa estrutura allBoards.
+function _findBoardOfCard(cardId) {
+  for (const [bid, b] of Object.entries(allBoards || {})) {
+    if (bid === UNIFIED_BOARD_ID) continue;
+    if ((b.cards || []).some(c => c.id === cardId)) return bid;
+  }
+  return null;
+}
+
+// Detecta se um board é Zai (zaiEnabled, isZaiBoard ou tem cards com moneyType)
+function _isZaiBoard(board) {
+  if (!board) return false;
+  if (board.zaiEnabled || board.isZaiBoard) return true;
+  return (board.cards || []).some(c => c.moneyType);
+}
+
+// Pega o campo currency primário do board (mesmo lookup que _zaiCurrencyField)
+function _boardCurrencyFieldId(board) {
+  if (!board) return null;
+  const f = (board.customFields || []).find(x => x.type === 'currency');
+  return f ? f.id : null;
+}
+
+// Engine principal: chamado quando um card vai pra coluna terminal/pago.
+// Se o card tem moneyType, está em board Zai e há regras matching, dispara.
+function _zaiSynkApplyOnPaid(card) {
+  if (!card || !card.moneyType) return;
+  const fromBoardId = _findBoardOfCard(card.id);
+  if (!fromBoardId) return;
+  const fromBoard = allBoards[fromBoardId];
+  if (!_isZaiBoard(fromBoard)) return;
+  const rules = getSynkRules().filter(r => r.active && r.trigger === 'card_paid');
+  if (!rules.length) return;
+
+  const cfId = _boardCurrencyFieldId(fromBoard);
+  const value = cfId ? Number((card.customFieldValues || {})[cfId]) : 0;
+  if (!Number.isFinite(value) || value <= 0) return;
+
+  rules.forEach(rule => {
+    // Filtro por board origem (* = qualquer Zai)
+    if (rule.fromBoardId && rule.fromBoardId !== '*' && rule.fromBoardId !== fromBoardId) return;
+    // Filtro por tipo de card
+    if (rule.cardTypeFilter && rule.cardTypeFilter !== 'all' && rule.cardTypeFilter !== card.moneyType) return;
+
+    const distributions = (rule.distribution || []).filter(d => d.toBoardId && d.pct > 0);
+    if (!distributions.length) return;
+
+    const fired = [];
+    distributions.forEach(dist => {
+      const target = allBoards[dist.toBoardId];
+      if (!target || !Array.isArray(target.cards)) return;
+      const portion = Math.round((value * dist.pct / 100) * 100) / 100;
+      if (portion <= 0) return;
+
+      // Coluna inicial do board destino: primeira não-terminal
+      const startCol = (target.COLS || []).find(c => c.id !== TERMINAL_COL) || (target.COLS || [])[0];
+      if (!startCol) return;
+
+      const newId = _genCardIdForBoard(dist.toBoardId);
+      const tplName = (dist.cardNameTpl || '{origin}').replace('{origin}', card.name || '(card)').replace('{pct}', dist.pct + '%');
+      const targetCfId = _boardCurrencyFieldId(target);
+      const cfv = {};
+      if (targetCfId) cfv[targetCfId] = portion;
+
+      const newCard = {
+        id: newId,
+        name: tplName,
+        priority: 'media',
+        col: startCol.id,
+        tagIds: [],
+        threads: [{
+          id: Date.now() + Math.random(),
+          text: `Criado pelo Synk · regra "${rule.name}" · ${dist.pct}% de "${card.name}"`,
+          date: new Date().toISOString(),
+          type: 'auto',
+        }],
+        attachments: [],
+        subtasks: [],
+        deadline: null,
+        createdAt: new Date().toISOString(),
+        doneAt: null,
+        responsavel: null,
+        customFieldValues: cfv,
+        moneyType: dist.moneyType || 'income',
+        synkOriginCardId: card.id,
+        synkOriginBoardId: fromBoardId,
+        synkRuleId: rule.id,
+      };
+      target.cards.push(newCard);
+      fired.push({ to: target.name, value: portion, pct: dist.pct });
+    });
+
+    if (fired.length) {
+      rule.fireCount = (rule.fireCount || 0) + 1;
+      rule.lastFiredAt = new Date().toISOString();
+      _addSynkLog({
+        ruleId: rule.id,
+        ruleName: rule.name,
+        originCardId: card.id,
+        originCardName: card.name,
+        originBoardId: fromBoardId,
+        originValue: value,
+        distributions: fired,
+      });
+    }
+  });
+  saveSynkRules(rules);
+  saveData();
+
+  // Notificação leve pro usuário
+  if (typeof appAlert === 'function') {
+    const totalFired = rules.reduce((acc, r) => acc + ((r.distribution||[]).filter(d => d.toBoardId).length), 0);
+    if (totalFired > 0) {
+      // Não interrompe — só auto-thread pra registro
+      try {
+        autoThread(card, `Synk: distribuição automática disparada (${totalFired} cards criados em outros boards Zai)`);
+      } catch(e){}
+    }
+  }
+}
+
+// ID novo de card por board específico (não usa o currentBoardId)
+function _genCardIdForBoard(boardId) {
+  const b = allBoards[boardId];
+  if (!b) return Date.now();
+  // mesma lógica que addCard mas escopada
+  const existing = (b.cards || []).map(c => Number(c.id)).filter(Number.isFinite);
+  const max = existing.length ? Math.max(...existing) : 0;
+  return max + 1;
+}
+
+// ── UI: render da seção The Synk no Zai Hub ───────────────
+function _renderSynkSectionHTML() {
+  const rules = getSynkRules();
+  const log = getSynkLog().slice(0, 5);
+
+  const empty = !rules.length;
+  const rulesHTML = rules.map(r => {
+    const fromName = r.fromBoardId === '*' ? 'Qualquer board Zai' : (allBoards[r.fromBoardId]?.name || '(board removido)');
+    const distTxt = (r.distribution || []).map(d => {
+      const toName = allBoards[d.toBoardId]?.name || '(?)';
+      return `<span class="synk-dist-pill">${_esc(toName.replace(/^Zai\s*[·\-]\s*/i,''))} <strong>${d.pct}%</strong></span>`;
+    }).join('');
+    const stats = r.fireCount ? `Disparada ${r.fireCount}× · última ${_relTime(r.lastFiredAt)}` : 'Aguardando primeiro disparo';
+    return `
+      <div class="synk-rule ${r.active?'is-active':'is-inactive'}">
+        <div class="synk-rule-h">
+          <span class="synk-rule-name">${_esc(r.name)}</span>
+          <span class="synk-rule-actions">
+            <button class="synk-toggle ${r.active?'on':''}" onclick="toggleSynkRule('${r.id}')" title="${r.active?'Desativar':'Ativar'}">${r.active?'●':'○'}</button>
+            <button class="synk-edit" onclick="openSynkRuleModal('${r.id}')" title="Editar">✎</button>
+            <button class="synk-del" onclick="confirmDeleteSynkRule('${r.id}')" title="Excluir">✕</button>
+          </span>
+        </div>
+        <div class="synk-rule-flow">
+          <span class="synk-rule-from">📥 ${_esc(fromName)}</span>
+          <span class="synk-rule-arrow">→</span>
+          <span class="synk-rule-dists">${distTxt || '<em style="color:#999;">sem distribuição</em>'}</span>
+        </div>
+        <div class="synk-rule-stats">${stats}</div>
+      </div>
+    `;
+  }).join('');
+
+  const logHTML = log.map(e => {
+    const totalFired = (e.distributions || []).reduce((a,d) => a + (d.value||0), 0);
+    return `
+      <div class="synk-log-item">
+        <span class="synk-log-rule">${_esc(e.ruleName)}</span>
+        <span class="synk-log-card">"${_esc(e.originCardName||'')}" · ${_fmtMoneyShort(e.originValue||0)}</span>
+        <span class="synk-log-time">${_relTime(e.at)}</span>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="zai-hub-section-h" style="margin-top:18px;">
+      <span>The Synk · distribuição automática</span>
+      <button class="zai-hub-action" onclick="openSynkRuleModal()">+ Nova regra</button>
+    </div>
+    <div class="synk-section">
+      ${empty ? `
+        <div class="synk-empty">
+          <div class="synk-empty-icon">⇅</div>
+          <h4>Nenhuma regra ainda</h4>
+          <p>Crie regras pra distribuir automaticamente o lucro entre seus boards Zai. Por exemplo: <em>"toda receita paga no Empresa, 20% vai pro Reserva e 10% pro Lazer"</em>.</p>
+        </div>
+      ` : `<div class="synk-rules-list">${rulesHTML}</div>`}
+      ${log.length ? `
+        <div class="synk-log">
+          <div class="synk-log-h">Histórico recente</div>
+          ${logHTML}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// Helper de tempo relativo (ex: "2h atrás", "ontem")
+function _relTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60)    return 'agora há pouco';
+  if (diff < 3600)  return Math.floor(diff/60) + 'min atrás';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h atrás';
+  if (diff < 172800) return 'ontem';
+  return Math.floor(diff/86400) + 'd atrás';
+}
+
+// ── Modal de criar/editar regra ───────────────────────────
+let _synkEditingRuleId = null;
+function openSynkRuleModal(ruleId) {
+  _synkEditingRuleId = ruleId || null;
+  const rule = ruleId ? getSynkRules().find(r => r.id === ruleId) : null;
+  const zaiBoards = _getAllZaiBoards();
+  if (zaiBoards.length < 2) {
+    appAlert('Pelo menos 2 boards Zai', 'Pra criar regras de distribuição, você precisa ter pelo menos 2 boards Zai. Crie outro board pelo módulo Zai antes.', { icon:'⚠️' });
+    return;
+  }
+
+  const isEdit = !!rule;
+  const name = rule?.name || '';
+  const fromBoardId = rule?.fromBoardId || zaiBoards[0]?.id || '';
+  const cardTypeFilter = rule?.cardTypeFilter || 'income';
+  const distribution = rule?.distribution || [
+    { toBoardId: zaiBoards[1]?.id || '', pct: 20, moneyType: 'income', cardNameTpl: 'Reserva · {origin}' },
+  ];
+
+  const boardOptionsFrom = `<option value="*">Qualquer board Zai</option>` + zaiBoards.map(b => `<option value="${b.id}" ${b.id===fromBoardId?'selected':''}>${_esc(b.board.name)}</option>`).join('');
+  const boardOptionsTo = (selected) => zaiBoards.map(b => `<option value="${b.id}" ${b.id===selected?'selected':''}>${_esc(b.board.name)}</option>`).join('');
+
+  const distRowsHTML = distribution.map((d, i) => `
+    <div class="synk-dist-row" data-i="${i}">
+      <select class="synk-dist-board">${boardOptionsTo(d.toBoardId)}</select>
+      <input type="number" class="synk-dist-pct" value="${d.pct}" min="1" max="100" step="1" placeholder="%" />
+      <select class="synk-dist-type">
+        <option value="income"   ${d.moneyType==='income'?'selected':''}>Receita</option>
+        <option value="fixed"    ${d.moneyType==='fixed'?'selected':''}>Custo fixo</option>
+        <option value="variable" ${d.moneyType==='variable'?'selected':''}>Custo variável</option>
+      </select>
+      <input type="text" class="synk-dist-tpl" value="${_esc(d.cardNameTpl || '{origin}')}" placeholder="Nome do card (use {origin})" />
+      <button class="synk-dist-rm" onclick="_synkRemoveDistRow(${i})" title="Remover">✕</button>
+    </div>
+  `).join('');
+
+  _appDialogShow(`
+    <div class="app-dialog-icon">⇅</div>
+    <h3 class="app-dialog-title">${isEdit?'Editar regra':'Nova regra de distribuição'}</h3>
+    <p class="app-dialog-msg" style="text-align:left;font-size:13px;color:var(--color-text-secondary);">Quando um card é marcado como pago/executado no board origem, o Synk cria cards proporcionais nos boards destino.</p>
+    <div class="synk-form">
+      <label class="synk-field">
+        <span>Nome da regra</span>
+        <input type="text" id="synk-name" value="${_esc(name)}" placeholder="Ex: Distribuição mensal · Empresa" />
+      </label>
+      <div class="synk-field-row">
+        <label class="synk-field">
+          <span>Quando um card paga em…</span>
+          <select id="synk-from">${boardOptionsFrom}</select>
+        </label>
+        <label class="synk-field">
+          <span>Tipo do card</span>
+          <select id="synk-type-filter">
+            <option value="income"   ${cardTypeFilter==='income'?'selected':''}>Só receitas</option>
+            <option value="all"      ${cardTypeFilter==='all'?'selected':''}>Qualquer tipo</option>
+            <option value="fixed"    ${cardTypeFilter==='fixed'?'selected':''}>Só custos fixos</option>
+            <option value="variable" ${cardTypeFilter==='variable'?'selected':''}>Só custos variáveis</option>
+          </select>
+        </label>
+      </div>
+      <div class="synk-dist-h">Distribui pra…</div>
+      <div id="synk-dist-list">${distRowsHTML}</div>
+      <button class="synk-add-row" onclick="_synkAddDistRow()">+ Adicionar destino</button>
+    </div>
+    <div class="app-dialog-actions">
+      <button class="app-dialog-btn" onclick="_appDialogClose(false)">Cancelar</button>
+      <button class="app-dialog-btn is-primary" onclick="saveSynkRuleFromModal()">${isEdit?'Salvar':'Criar regra'}</button>
+    </div>
+  `, () => {});
+}
+
+function _synkAddDistRow() {
+  const list = document.getElementById('synk-dist-list'); if (!list) return;
+  const zaiBoards = _getAllZaiBoards();
+  const i = list.children.length;
+  const row = document.createElement('div');
+  row.className = 'synk-dist-row';
+  row.dataset.i = i;
+  row.innerHTML = `
+    <select class="synk-dist-board">${zaiBoards.map(b => `<option value="${b.id}">${_esc(b.board.name)}</option>`).join('')}</select>
+    <input type="number" class="synk-dist-pct" value="10" min="1" max="100" step="1" placeholder="%" />
+    <select class="synk-dist-type">
+      <option value="income">Receita</option>
+      <option value="fixed">Custo fixo</option>
+      <option value="variable">Custo variável</option>
+    </select>
+    <input type="text" class="synk-dist-tpl" value="{origin}" placeholder="Nome do card" />
+    <button class="synk-dist-rm" onclick="_synkRemoveDistRow(${i})" title="Remover">✕</button>
+  `;
+  list.appendChild(row);
+}
+function _synkRemoveDistRow(i) {
+  const list = document.getElementById('synk-dist-list'); if (!list) return;
+  const row = list.querySelector(`.synk-dist-row[data-i="${i}"]`);
+  if (row) row.remove();
+}
+
+async function saveSynkRuleFromModal() {
+  const name = (document.getElementById('synk-name')?.value || '').trim();
+  if (!name) { await appAlert('Falta nome', 'Dê um nome pra essa regra.', { icon:'⚠️' }); return; }
+  const fromBoardId = document.getElementById('synk-from')?.value || '*';
+  const cardTypeFilter = document.getElementById('synk-type-filter')?.value || 'income';
+  const rows = [...document.querySelectorAll('#synk-dist-list .synk-dist-row')];
+  const distribution = rows.map(r => ({
+    toBoardId:   r.querySelector('.synk-dist-board')?.value || '',
+    pct:         Math.max(1, Math.min(100, parseInt(r.querySelector('.synk-dist-pct')?.value) || 0)),
+    moneyType:   r.querySelector('.synk-dist-type')?.value || 'income',
+    cardNameTpl: (r.querySelector('.synk-dist-tpl')?.value || '{origin}').trim(),
+  })).filter(d => d.toBoardId && d.pct > 0);
+
+  if (!distribution.length) { await appAlert('Sem destinos', 'Adicione pelo menos um destino com %.', { icon:'⚠️' }); return; }
+
+  const totalPct = distribution.reduce((a,d) => a + d.pct, 0);
+  if (totalPct > 100) {
+    const ok = await appConfirm('Total acima de 100%', `Os destinos somam ${totalPct}%. O sistema vai criar cards somando mais do que o valor original. Continuar?`, { okLabel:'Continuar' });
+    if (!ok) return;
+  }
+
+  const rules = getSynkRules();
+  if (_synkEditingRuleId) {
+    const idx = rules.findIndex(r => r.id === _synkEditingRuleId);
+    if (idx !== -1) {
+      rules[idx] = { ...rules[idx], name, fromBoardId, cardTypeFilter, distribution };
+    }
+  } else {
+    rules.push({
+      id: _genSynkId(),
+      name, fromBoardId, cardTypeFilter,
+      trigger: 'card_paid',
+      distribution,
+      active: true,
+      createdAt: new Date().toISOString(),
+      fireCount: 0,
+      lastFiredAt: null,
+    });
+  }
+  saveSynkRules(rules);
+  _appDialogClose(true);
+  if (typeof renderZaiHub === 'function') renderZaiHub();
+}
+
+function toggleSynkRule(id) {
+  const rules = getSynkRules();
+  const r = rules.find(x => x.id === id);
+  if (!r) return;
+  r.active = !r.active;
+  saveSynkRules(rules);
+  if (typeof renderZaiHub === 'function') renderZaiHub();
+}
+
+async function confirmDeleteSynkRule(id) {
+  const r = getSynkRules().find(x => x.id === id);
+  if (!r) return;
+  const ok = await appConfirm('Excluir regra', `Apagar a regra "${r.name}"?`, { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
+  saveSynkRules(getSynkRules().filter(x => x.id !== id));
+  if (typeof renderZaiHub === 'function') renderZaiHub();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OPPORTUNITY COST · Sprint Zai-4 ── Simulador "caminho A vs caminho B"
+// O usuário descreve duas opções financeiras (investir aqui vs alocar
+// ali, comprar à vista vs parcelar, contratar agora vs esperar) e o
+// sistema simula mês a mês. Mostra valor final, custo de oportunidade
+// da escolha errada e recomendação narrativa do Mestre Kan.
+// Salva no _canvases com format='opcost'.
+// ═══════════════════════════════════════════════════════════════════
+
+// Simulação composta: investe inicial + aportes mensais por N anos
+// retornoAnualPct → mensal: (1+rA)^(1/12) - 1
+function _opcostSimulate(initial, returnAnnualPct, monthlyAdd, years) {
+  const months = Math.max(1, Math.round(years * 12));
+  const rM = Math.pow(1 + (returnAnnualPct/100), 1/12) - 1;
+  const series = [];
+  let val = Number(initial) || 0;
+  for (let i = 0; i < months; i++) {
+    val = val * (1 + rM) + (Number(monthlyAdd) || 0);
+    if (i % 6 === 0 || i === months - 1) series.push({ month: i+1, value: val });
+  }
+  const final = val;
+  const totalInvested = (Number(initial)||0) + (Number(monthlyAdd)||0) * months;
+  const profit = final - totalInvested;
+  return { final, profit, totalInvested, series, months };
+}
+
+function _opcostCompute(pathA, pathB, years) {
+  const a = _opcostSimulate(pathA.initial, pathA.returnPct, pathA.monthlyAdd, years);
+  const b = _opcostSimulate(pathB.initial, pathB.returnPct, pathB.monthlyAdd, years);
+  const diff = a.final - b.final;
+  const winner = diff > 0 ? 'A' : (diff < 0 ? 'B' : 'tie');
+  const opCost = Math.abs(diff);
+  return { a, b, diff, winner, opCost };
+}
+
+// Frase do Mestre Kan baseada no resultado
+function _opcostNarrative(pathA, pathB, result) {
+  const fmt = n => n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 });
+  if (result.winner === 'tie') {
+    return `Os dois caminhos chegam ao mesmo lugar (${fmt(result.a.final)}). A escolha aqui é menos sobre dinheiro e mais sobre liquidez, risco e o que você vai aprender no caminho.`;
+  }
+  const winnerName = result.winner === 'A' ? pathA.name : pathB.name;
+  const loserName  = result.winner === 'A' ? pathB.name : pathA.name;
+  const wF = result.winner === 'A' ? result.a.final : result.b.final;
+  const lF = result.winner === 'A' ? result.b.final : result.a.final;
+  const pct = ((result.opCost / Math.max(1, lF)) * 100).toFixed(1);
+  return `O caminho "${winnerName}" supera "${loserName}" em ${fmt(result.opCost)} ao final do horizonte (${pct}% a mais). Esse é o seu custo de oportunidade se escolher o outro. Mas considere também: liquidez, risco, e quão reversível é cada decisão.`;
+}
+
+// SVG de comparação (gráfico de linhas simples)
+function _opcostChartSVG(result, pathA, pathB) {
+  const seriesA = result.a.series;
+  const seriesB = result.b.series;
+  const all = [...seriesA, ...seriesB].map(p => p.value);
+  const max = Math.max(...all, 1);
+  const W = 480, H = 180, P = 24;
+  const xScale = (i, n) => P + (i / Math.max(1, n-1)) * (W - 2*P);
+  const yScale = v => H - P - (v / max) * (H - 2*P);
+  const path = (series) => series.map((p,i) => (i===0?'M':'L') + xScale(i, series.length).toFixed(1) + ',' + yScale(p.value).toFixed(1)).join(' ');
+  return `
+    <svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" style="display:block;font-family:var(--font-sans);">
+      <line x1="${P}" y1="${H-P}" x2="${W-P}" y2="${H-P}" stroke="rgba(0,0,0,.15)" stroke-width="0.5"/>
+      <line x1="${P}" y1="${P}"   x2="${P}"   y2="${H-P}" stroke="rgba(0,0,0,.15)" stroke-width="0.5"/>
+      <path d="${path(seriesA)}" fill="none" stroke="#3B6D11" stroke-width="2.2"/>
+      <path d="${path(seriesB)}" fill="none" stroke="#854F0B" stroke-width="2.2" stroke-dasharray="4 4"/>
+      <text x="${W-P-110}" y="${P+12}" font-size="10.5" fill="#3B6D11" font-weight="600">— ${_esc(pathA.name||'A')}</text>
+      <text x="${W-P-110}" y="${P+26}" font-size="10.5" fill="#854F0B" font-weight="600">- - ${_esc(pathB.name||'B')}</text>
+    </svg>
+  `;
+}
+
+// — Modal de criação/edição —
+let _opcostEditingId = null;
+function openOpCostModal(canvasId) {
+  _opcostEditingId = canvasId || null;
+  const cv = canvasId ? _canvases[canvasId] : null;
+  const a = cv?.opcostA || { name: 'Investir reserva',  initial: 50000, returnPct: 13.75, monthlyAdd: 1000 };
+  const b = cv?.opcostB || { name: 'Comprar equipamento',initial: 50000, returnPct: 0,     monthlyAdd: 0 };
+  const years = cv?.opcostYears ?? 5;
+  const oppRate = cv?.opcostOppRate ?? 13.75;
+
+  _appDialogShow(`
+    <div class="app-dialog-icon">⚖</div>
+    <h3 class="app-dialog-title">${cv?'Editar simulação':'Caminho A vs Caminho B'}</h3>
+    <p class="app-dialog-msg" style="text-align:left;font-size:13px;color:var(--color-text-secondary);">Descreva duas opções e o sistema simula mês a mês. O Mestre Kan calcula o custo de oportunidade da escolha errada.</p>
+    <div class="opcost-form">
+      <div class="opcost-field">
+        <span>Nome da simulação</span>
+        <input type="text" id="oc-name" value="${_esc(cv?.name || 'Caminho A vs B')}" placeholder="Ex: Reserva CDI vs Comprar Mac" />
+      </div>
+
+      <div class="opcost-paths">
+        <div class="opcost-path opcost-path-a">
+          <div class="opcost-path-h"><span class="opcost-path-tag">A</span><input type="text" id="oc-a-name" value="${_esc(a.name)}" placeholder="Nome do caminho A"/></div>
+          <label><span>Investimento inicial (R$)</span><input type="number" id="oc-a-init"   value="${a.initial}"    min="0" step="100"/></label>
+          <label><span>Retorno anual esperado (%)</span><input type="number" id="oc-a-ret"   value="${a.returnPct}"  step="0.01"/></label>
+          <label><span>Aporte mensal (R$)</span><input type="number" id="oc-a-add"           value="${a.monthlyAdd}" min="0" step="50"/></label>
+        </div>
+        <div class="opcost-path opcost-path-b">
+          <div class="opcost-path-h"><span class="opcost-path-tag">B</span><input type="text" id="oc-b-name" value="${_esc(b.name)}" placeholder="Nome do caminho B"/></div>
+          <label><span>Investimento inicial (R$)</span><input type="number" id="oc-b-init"   value="${b.initial}"    min="0" step="100"/></label>
+          <label><span>Retorno anual esperado (%)</span><input type="number" id="oc-b-ret"   value="${b.returnPct}"  step="0.01"/></label>
+          <label><span>Aporte mensal (R$)</span><input type="number" id="oc-b-add"           value="${b.monthlyAdd}" min="0" step="50"/></label>
+        </div>
+      </div>
+
+      <div class="opcost-field-row">
+        <div class="opcost-field"><span>Horizonte (anos)</span><input type="number" id="oc-years" value="${years}" min="0.5" max="40" step="0.5"/></div>
+        <div class="opcost-field"><span>Taxa de oportunidade % a.a. (Selic)</span><input type="number" id="oc-opp" value="${oppRate}" step="0.01"/></div>
+      </div>
+
+      <button class="opcost-recalc-btn" onclick="_opcostUpdatePreview()">↻ Calcular agora</button>
+      <div id="oc-preview" class="opcost-preview"></div>
+    </div>
+    <div class="app-dialog-actions">
+      <button class="app-dialog-btn" onclick="_appDialogClose(false)">Cancelar</button>
+      <button class="app-dialog-btn is-primary" onclick="saveOpCostFromModal()">${cv?'Salvar':'Criar simulação'}</button>
+    </div>
+  `, () => {
+    setTimeout(_opcostUpdatePreview, 50);
+  });
+}
+
+function _opcostReadFormState() {
+  const num = id => Number(document.getElementById(id)?.value) || 0;
+  const txt = id => (document.getElementById(id)?.value || '').trim();
+  const pathA = { name: txt('oc-a-name'), initial: num('oc-a-init'), returnPct: num('oc-a-ret'), monthlyAdd: num('oc-a-add') };
+  const pathB = { name: txt('oc-b-name'), initial: num('oc-b-init'), returnPct: num('oc-b-ret'), monthlyAdd: num('oc-b-add') };
+  const years = num('oc-years') || 5;
+  const opp   = num('oc-opp') || 0;
+  return { pathA, pathB, years, opp };
+}
+
+function _opcostUpdatePreview() {
+  const wrap = document.getElementById('oc-preview'); if (!wrap) return;
+  const { pathA, pathB, years } = _opcostReadFormState();
+  if (years <= 0) { wrap.innerHTML = '<em style="color:#999;">Defina o horizonte em anos.</em>'; return; }
+  const result = _opcostCompute(pathA, pathB, years);
+  const fmt = n => n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 });
+  const winnerName = result.winner === 'A' ? pathA.name : (result.winner === 'B' ? pathB.name : 'Empate');
+  const winnerColor = result.winner === 'A' ? '#3B6D11' : (result.winner === 'B' ? '#854F0B' : '#666');
+  const narrative = _opcostNarrative(pathA, pathB, result);
+  wrap.innerHTML = `
+    <div class="opcost-preview-cards">
+      <div class="opcost-preview-card ${result.winner==='A'?'is-winner':''}">
+        <div class="opcost-preview-tag" style="background:#3B6D11;">A</div>
+        <div class="opcost-preview-name">${_esc(pathA.name||'Caminho A')}</div>
+        <div class="opcost-preview-final">${fmt(result.a.final)}</div>
+        <div class="opcost-preview-profit">+${fmt(result.a.profit)} de lucro</div>
+      </div>
+      <div class="opcost-preview-card ${result.winner==='B'?'is-winner':''}">
+        <div class="opcost-preview-tag" style="background:#854F0B;">B</div>
+        <div class="opcost-preview-name">${_esc(pathB.name||'Caminho B')}</div>
+        <div class="opcost-preview-final">${fmt(result.b.final)}</div>
+        <div class="opcost-preview-profit">+${fmt(result.b.profit)} de lucro</div>
+      </div>
+    </div>
+    <div class="opcost-chart">${_opcostChartSVG(result, pathA, pathB)}</div>
+    <div class="opcost-verdict">
+      <div class="opcost-verdict-tag" style="color:${winnerColor};border-color:${winnerColor};">Vencedor: ${_esc(winnerName)}</div>
+      <div class="opcost-verdict-cost">Custo de oportunidade: <strong>${fmt(result.opCost)}</strong></div>
+    </div>
+    <div class="opcost-narrative">
+      <div class="opcost-narrative-h">看 — Mestre Kan diz:</div>
+      <p>${_esc(narrative)}</p>
+    </div>
+  `;
+}
+
+async function saveOpCostFromModal() {
+  const name = (document.getElementById('oc-name')?.value || '').trim() || 'Caminho A vs B';
+  const { pathA, pathB, years, opp } = _opcostReadFormState();
+  if (!pathA.name || !pathB.name) { await appAlert('Falta nome', 'Dê um nome pra cada caminho.', { icon:'⚠️' }); return; }
+  if (years <= 0) { await appAlert('Horizonte inválido', 'Informe um horizonte em anos maior que zero.', { icon:'⚠️' }); return; }
+  const result = _opcostCompute(pathA, pathB, years);
+  const narrative = _opcostNarrative(pathA, pathB, result);
+
+  if (_opcostEditingId && _canvases[_opcostEditingId]) {
+    Object.assign(_canvases[_opcostEditingId], {
+      name,
+      opcostA: pathA, opcostB: pathB,
+      opcostYears: years, opcostOppRate: opp,
+      opcostResult: result, opcostNarrative: narrative,
+      updatedAt: new Date().toISOString(),
+    });
+  } else {
+    const id = 'cv_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    _canvases[id] = {
+      id, name, format: 'opcost',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      opcostA: pathA, opcostB: pathB,
+      opcostYears: years, opcostOppRate: opp,
+      opcostResult: result, opcostNarrative: narrative,
+    };
+  }
+  _saveCanvases();
+  _appDialogClose(true);
+  if (typeof renderZaiHub === 'function') renderZaiHub();
+}
+
+async function deleteOpCostCanvas(id) {
+  const cv = _canvases[id]; if (!cv) return;
+  const ok = await appConfirm('Excluir simulação', `Apagar "${cv.name}"?`, { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
+  delete _canvases[id];
+  _saveCanvases();
+  if (typeof renderZaiHub === 'function') renderZaiHub();
+}
+
+function _renderOpCostListHTML() {
+  const list = Object.values(_canvases || {}).filter(cv => cv.format === 'opcost').sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
+  if (!list.length) return '';
+  const tiles = list.slice(0, 6).map(cv => {
+    const r = cv.opcostResult || {};
+    const winnerName = r.winner === 'A' ? (cv.opcostA?.name||'A') : (r.winner === 'B' ? (cv.opcostB?.name||'B') : '—');
+    const opCost = r.opCost ? _fmtMoneyShort(r.opCost) : '—';
+    return `
+      <div class="zai-hub-board-tile">
+        <div class="zai-hub-board-tile-h">
+          <span class="zai-hub-board-tile-icon" style="background:linear-gradient(135deg,#3B6D11,#854F0B);">⚖</span>
+          <span class="zai-hub-board-tile-name">${_esc(cv.name)}</span>
+          <button class="zai-hub-tile-edit" title="Editar" onclick="event.stopPropagation();openOpCostModal('${cv.id}')">✎</button>
+          <button class="zai-hub-tile-edit" title="Excluir" onclick="event.stopPropagation();deleteOpCostCanvas('${cv.id}')" style="color:#A32D2D;">✕</button>
+        </div>
+        <div class="zai-hub-board-tile-stats" style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">
+          <span>Vencedor: <strong>${_esc(winnerName)}</strong></span>
+          <span>Custo de oportunidade: <strong>${opCost}</strong></span>
+          <span style="opacity:.7;">${cv.opcostYears||0} anos · taxa ${cv.opcostOppRate||0}%</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+  return `
+    <div class="zai-hub-section-h" style="margin-top:6px;">
+      <span>Opportunity Cost · simulações</span>
+      <button class="zai-hub-action" onclick="openOpCostModal()">+ Comparar caminhos</button>
+    </div>
+    <div class="zai-hub-boards-grid">${tiles}</div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// REGRA DOS 1% · Sprint Zai-5 ── Calculadora de meta com juros compostos
+// "1% melhor por dia = 37× melhor em um ano" (Atomic Habits, James Clear).
+// Aplicado a finanças: define meta R$X em N anos, sistema calcula
+// aporte mensal/diário necessário, mostra impacto de aumentar 1% no
+// aporte e cria card de objetivo automaticamente.
+// Salva no _canvases com format='goal-1pct'.
+// ═══════════════════════════════════════════════════════════════════
+
+// Calcula aporte mensal pra atingir meta em N anos com retorno R% a.a.
+//   FV = PMT * ((1+r)^n - 1) / r  +  PV * (1+r)^n
+//   PMT = (FV - PV*(1+r)^n) * r / ((1+r)^n - 1)
+function _calcRequiredMonthly(targetAmount, currentAmount, returnAnnualPct, years) {
+  const months = Math.max(1, Math.round(years * 12));
+  const r = Math.pow(1 + (returnAnnualPct/100), 1/12) - 1;
+  const fv = Number(targetAmount) || 0;
+  const pv = Number(currentAmount) || 0;
+  if (r <= 0) {
+    return Math.max(0, (fv - pv) / months);
+  }
+  const factor = Math.pow(1 + r, months);
+  const pmt = (fv - pv * factor) * r / (factor - 1);
+  return Math.max(0, pmt);
+}
+
+// Quantos meses pra chegar na meta dado um aporte fixo
+function _calcMonthsToReach(targetAmount, currentAmount, monthlyAdd, returnAnnualPct) {
+  const r = Math.pow(1 + (returnAnnualPct/100), 1/12) - 1;
+  let val = Number(currentAmount) || 0;
+  const target = Number(targetAmount) || 0;
+  if (val >= target) return 0;
+  if (monthlyAdd <= 0 && r <= 0) return Infinity;
+  let months = 0;
+  while (val < target && months < 1200) {  // máx 100 anos
+    val = val * (1 + r) + monthlyAdd;
+    months++;
+  }
+  return months >= 1200 ? Infinity : months;
+}
+
+let _goal1pctEditingId = null;
+function openGoal1pctModal(canvasId) {
+  _goal1pctEditingId = canvasId || null;
+  const cv = canvasId ? _canvases[canvasId] : null;
+  const target = cv?.goalTarget ?? 100000;
+  const current = cv?.goalCurrent ?? 0;
+  const years = cv?.goalYears ?? 5;
+  const ret = cv?.goalReturnPct ?? 13.75;
+  const goalName = cv?.name || 'Meta financeira';
+
+  _appDialogShow(`
+    <div class="app-dialog-icon">壱</div>
+    <h3 class="app-dialog-title">${cv?'Editar meta':'Calculadora · Regra dos 1%'}</h3>
+    <p class="app-dialog-msg" style="text-align:left;font-size:13px;color:var(--color-text-secondary);">"1% melhor por dia = 37× melhor em um ano". Defina sua meta e o sistema calcula o aporte mensal e diário necessário — e mostra como ficar 1% melhor a cada mês acelera tudo.</p>
+    <div class="opcost-form">
+      <div class="opcost-field">
+        <span>Nome da meta</span>
+        <input type="text" id="g1-name" value="${_esc(goalName)}" placeholder="Ex: Reserva de emergência, Apartamento, Viagem"/>
+      </div>
+      <div class="opcost-field-row">
+        <div class="opcost-field">
+          <span>Quanto quero ter (R$)</span>
+          <input type="number" id="g1-target" value="${target}" min="100" step="1000"/>
+        </div>
+        <div class="opcost-field">
+          <span>Quanto já tenho (R$)</span>
+          <input type="number" id="g1-current" value="${current}" min="0" step="100"/>
+        </div>
+      </div>
+      <div class="opcost-field-row">
+        <div class="opcost-field">
+          <span>Em quanto tempo (anos)</span>
+          <input type="number" id="g1-years" value="${years}" min="0.5" max="40" step="0.5"/>
+        </div>
+        <div class="opcost-field">
+          <span>Retorno esperado % a.a.</span>
+          <input type="number" id="g1-return" value="${ret}" step="0.01"/>
+        </div>
+      </div>
+
+      <button class="opcost-recalc-btn" onclick="_goal1pctUpdatePreview()">↻ Calcular agora</button>
+      <div id="g1-preview" class="opcost-preview"></div>
+    </div>
+    <div class="app-dialog-actions">
+      <button class="app-dialog-btn" onclick="_appDialogClose(false)">Cancelar</button>
+      <button class="app-dialog-btn is-primary" onclick="saveGoal1pctFromModal()">${cv?'Salvar':'Criar meta'}</button>
+    </div>
+  `, () => { setTimeout(_goal1pctUpdatePreview, 50); });
+}
+
+function _goal1pctReadForm() {
+  const num = id => Number(document.getElementById(id)?.value) || 0;
+  const txt = id => (document.getElementById(id)?.value || '').trim();
+  return {
+    name: txt('g1-name'),
+    target: num('g1-target'),
+    current: num('g1-current'),
+    years: num('g1-years') || 5,
+    returnPct: num('g1-return'),
+  };
+}
+
+function _goal1pctUpdatePreview() {
+  const wrap = document.getElementById('g1-preview'); if (!wrap) return;
+  const f = _goal1pctReadForm();
+  if (f.target <= f.current) {
+    wrap.innerHTML = '<em style="color:#3B6D11;">Você já tem o suficiente! Defina uma meta maior.</em>';
+    return;
+  }
+  if (f.years <= 0) { wrap.innerHTML = '<em style="color:#999;">Defina prazo em anos.</em>'; return; }
+
+  const monthly = _calcRequiredMonthly(f.target, f.current, f.returnPct, f.years);
+  const daily = monthly / 30;
+  // 1% a mais no aporte por mês: simulamos quanto antes chega
+  const monthly1pct = monthly * 1.01;
+  const monthsBase  = _calcMonthsToReach(f.target, f.current, monthly,    f.returnPct);
+  const months1pct  = _calcMonthsToReach(f.target, f.current, monthly1pct, f.returnPct);
+  const monthsDiff = monthsBase - months1pct;
+
+  // Aporte simbólico de "1 cafezinho" (R$10/dia = R$300/mês)
+  const monthlyCoffee = monthly + 300;
+  const monthsCoffee = _calcMonthsToReach(f.target, f.current, monthlyCoffee, f.returnPct);
+  const monthsCoffeeDiff = monthsBase - monthsCoffee;
+
+  const fmt = n => n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 });
+  const fmtMo = m => {
+    if (!Number.isFinite(m)) return '∞';
+    if (m < 1) return Math.round(m*30) + 'd';
+    if (m < 12) return m.toFixed(0) + ' meses';
+    const y = Math.floor(m/12), rem = m % 12;
+    return y + (y>1?' anos':' ano') + (rem>0 ? ' e ' + rem.toFixed(0) + ' meses' : '');
+  };
+
+  wrap.innerHTML = `
+    <div class="opcost-preview-cards">
+      <div class="opcost-preview-card is-winner">
+        <span class="opcost-preview-tag" style="background:#3B6D11;">月</span>
+        <span class="opcost-preview-name">Aporte mensal necessário</span>
+        <div class="opcost-preview-final">${fmt(monthly)}</div>
+        <div class="opcost-preview-profit" style="color:var(--color-text-secondary);">≈ ${fmt(daily)} por dia</div>
+      </div>
+      <div class="opcost-preview-card">
+        <span class="opcost-preview-tag" style="background:#854F0B;">壱</span>
+        <span class="opcost-preview-name">Aporte +1% (Kaizen)</span>
+        <div class="opcost-preview-final">${fmt(monthly1pct)}</div>
+        <div class="opcost-preview-profit" style="color:#3B6D11;">${monthsDiff > 0 ? `Conquista ${monthsDiff} ${monthsDiff>1?'meses':'mês'} antes` : 'Mesmo prazo'}</div>
+      </div>
+    </div>
+    <div class="opcost-narrative">
+      <div class="opcost-narrative-h">看 — Mestre Kan diz:</div>
+      <p>Pra atingir <strong>${fmt(f.target)}</strong> em <strong>${fmtMo(f.years*12)}</strong>, com retorno de ${f.returnPct}% a.a., você precisa investir <strong>${fmt(monthly)}/mês</strong> — ou cerca de <strong>${fmt(daily)}/dia</strong>. Se aumentar só 1% no aporte (= ${fmt(monthly1pct - monthly)} a mais), conquista a meta ${monthsDiff > 0 ? monthsDiff + ' ' + (monthsDiff>1?'meses':'mês') + ' antes' : 'no mesmo prazo'}. E se cortar um cafezinho diário (R$10/dia → R$300/mês a mais), antecipa em <strong>${fmtMo(Math.max(0,monthsCoffeeDiff))}</strong>. O Kaizen é assim: pequenos incrementos compostos viram montanhas.</p>
+    </div>
+  `;
+}
+
+async function saveGoal1pctFromModal() {
+  const f = _goal1pctReadForm();
+  if (!f.name) { await appAlert('Falta nome', 'Dê um nome pra essa meta.', { icon:'⚠️' }); return; }
+  if (f.target <= 0 || f.years <= 0) { await appAlert('Valores inválidos', 'Meta e prazo precisam ser maiores que zero.', { icon:'⚠️' }); return; }
+  const monthly = _calcRequiredMonthly(f.target, f.current, f.returnPct, f.years);
+
+  if (_goal1pctEditingId && _canvases[_goal1pctEditingId]) {
+    Object.assign(_canvases[_goal1pctEditingId], {
+      name: f.name,
+      goalTarget: f.target, goalCurrent: f.current,
+      goalYears: f.years, goalReturnPct: f.returnPct,
+      goalMonthlyRequired: monthly,
+      updatedAt: new Date().toISOString(),
+    });
+  } else {
+    const id = 'cv_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    _canvases[id] = {
+      id, name: f.name, format: 'goal-1pct',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      goalTarget: f.target, goalCurrent: f.current,
+      goalYears: f.years, goalReturnPct: f.returnPct,
+      goalMonthlyRequired: monthly,
+    };
+  }
+  _saveCanvases();
+  _appDialogClose(true);
+  if (typeof renderZaiHub === 'function') renderZaiHub();
+}
+
+async function deleteGoal1pctCanvas(id) {
+  const cv = _canvases[id]; if (!cv) return;
+  const ok = await appConfirm('Excluir meta', `Apagar "${cv.name}"?`, { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
+  delete _canvases[id];
+  _saveCanvases();
+  if (typeof renderZaiHub === 'function') renderZaiHub();
+}
+
+function _renderGoal1pctListHTML() {
+  const list = Object.values(_canvases || {}).filter(cv => cv.format === 'goal-1pct').sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
+  if (!list.length) {
+    return `
+      <div class="zai-hub-section-h" style="margin-top:6px;">
+        <span>Metas pessoais · Regra dos 1%</span>
+        <button class="zai-hub-action" onclick="openGoal1pctModal()">+ Calcular meta</button>
+      </div>
+      <div class="synk-empty" style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;">
+        <div class="synk-empty-icon">壱</div>
+        <h4>Nenhuma meta calculada ainda</h4>
+        <p>Use a calculadora pra descobrir o aporte mensal pra atingir uma meta financeira. O Mestre Kan mostra também o impacto de melhorar 1% por mês (Kaizen aplicado a finanças).</p>
+      </div>
+    `;
+  }
+  const fmt = n => n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 });
+  const tiles = list.slice(0, 6).map(cv => {
+    const pct = cv.goalCurrent && cv.goalTarget ? Math.min(100, (cv.goalCurrent / cv.goalTarget) * 100) : 0;
+    const monthly = cv.goalMonthlyRequired || 0;
+    return `
+      <div class="zai-hub-board-tile">
+        <div class="zai-hub-board-tile-h">
+          <span class="zai-hub-board-tile-icon" style="background:linear-gradient(135deg,#3D2E5A,#5A4980);">志</span>
+          <span class="zai-hub-board-tile-name">${_esc(cv.name)}</span>
+          <button class="zai-hub-tile-edit" title="Editar" onclick="event.stopPropagation();openGoal1pctModal('${cv.id}')">✎</button>
+          <button class="zai-hub-tile-edit" title="Excluir" onclick="event.stopPropagation();deleteGoal1pctCanvas('${cv.id}')" style="color:#A32D2D;">✕</button>
+        </div>
+        <div class="zai-hub-board-tile-runway">
+          <span style="flex:1;">Meta</span>
+          <strong style="font-size:13px;color:var(--color-text-primary);">${fmt(cv.goalTarget||0)}</strong>
+        </div>
+        <div class="zai-hub-board-tile-bar">
+          <div class="zai-hub-board-tile-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,#3D2E5A,#5A4980);"></div>
+        </div>
+        <div class="zai-hub-board-tile-stats">
+          <span>${pct.toFixed(0)}% feito</span>
+          <span style="color:#854F0B;">${fmt(monthly)}/mês</span>
+          <span style="margin-left:auto;opacity:.7;">${cv.goalYears||0}a · ${cv.goalReturnPct||0}%</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+  return `
+    <div class="zai-hub-section-h" style="margin-top:6px;">
+      <span>Metas pessoais · Regra dos 1%</span>
+      <button class="zai-hub-action" onclick="openGoal1pctModal()">+ Calcular meta</button>
+    </div>
+    <div class="zai-hub-boards-grid">${tiles}</div>
+  `;
+}
+
 function renderZaiHub() {
   const root = document.getElementById('zai-root');
   if (!root) return;
@@ -24003,6 +25114,8 @@ function renderZaiHub() {
         ${tiles}
       </div>
 
+      ${_renderSynkSectionHTML()}
+
       ${investLabs.length > 0 ? `
         <div class="zai-hub-section-h" style="margin-top:6px;">
           <span>Invest-Labs · simulações</span>
@@ -24030,6 +25143,10 @@ function renderZaiHub() {
           }).join('')}
         </div>
       ` : ''}
+
+      ${_renderOpCostListHTML()}
+
+      ${_renderGoal1pctListHTML()}
     </div>
   `;
 }
