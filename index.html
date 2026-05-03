@@ -21195,8 +21195,8 @@ function _showExtractActionsModal(actionsOrNull) {
     ov.className = 'voice-overlay';     // reusa o overlay base
     ov.innerHTML = `
       <div class="voice-card" id="extract-actions-card" style="max-width:640px;">
-        <div class="voice-card-icon" id="extract-actions-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h12"/></svg>
+        <div class="voice-card-icon" id="extract-actions-icon" style="background:#1A1612;overflow:hidden;padding:0;">
+          <img src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=&quot;font-size:36px;&quot;>🥋</span>'"/>
         </div>
         <div class="voice-card-title">Mestre Kan extrai ações…</div>
         <div class="voice-card-sub" id="extract-actions-sub">Analisando seu texto pra identificar tarefas acionáveis.</div>
