@@ -16984,10 +16984,12 @@ function _maybeWarnAIQuota() {
 // Pacotes: 100/300/1000 com desconto progressivo.
 // ═══════════════════════════════════════════════════════════════════
 const AI_ADDON_KEY = 'kanban_v8_ai_addons';
+// Pacotes com margem ~115% sobre custo (Haiku 4.5 ~R$ 0,03/chamada).
+// Mesma margem em todos os pacotes — preço por chamada uniforme (~R$ 0,065).
 const AI_ADDON_PACKAGES = [
-  { id:'ai_100',  amount: 100,  priceBRL: 9.90,  label:'100 chamadas',  perCall: '~R$ 0,10' },
-  { id:'ai_300',  amount: 300,  priceBRL: 24.90, label:'300 chamadas',  perCall: '~R$ 0,08', badge: '17% off' },
-  { id:'ai_1000', amount: 1000, priceBRL: 69.00, label:'1000 chamadas', perCall: '~R$ 0,07', badge: 'melhor valor' },
+  { id:'ai_100',  amount: 100,  priceBRL: 6.45,  label:'100 chamadas',  perCall: '~R$ 0,065' },
+  { id:'ai_300',  amount: 300,  priceBRL: 19.35, label:'300 chamadas',  perCall: '~R$ 0,065', badge: 'popular' },
+  { id:'ai_1000', amount: 1000, priceBRL: 64.50, label:'1000 chamadas', perCall: '~R$ 0,065', badge: 'alto volume' },
 ];
 
 function getAIAddons() {
@@ -17105,13 +17107,18 @@ async function confirmAITopupPurchase(pkgId) {
       await appAlert('Login necessário', 'Faça login pra comprar créditos.', { icon:'⚠️' });
       return;
     }
+    const userEmail = (typeof supaUser !== 'undefined' && supaUser) ? supaUser.email : null;
     const billingBase = (location.hostname === 'app.synkan.com.br')
-      ? 'https://billing.synkan.com.br'
-      : '/billing';
-    const res = await fetch(`${billingBase}/create-ai-topup-checkout`, {
+      ? 'https://billing.synkan.com.br/api/billing'
+      : '/api/billing';
+    const res = await fetch(`${billingBase}/create-ai-topup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, package_id: pkg.id }),
+      body: JSON.stringify({
+        user_id: userId,
+        user_email: userEmail,
+        package_id: pkg.id
+      }),
     });
     const data = await res.json();
     if (data.checkout_url) {
