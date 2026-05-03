@@ -1548,19 +1548,41 @@ body.density-compact .card-cf-row{font-size:10px;}
   font-family:var(--font-sans);font-weight:500;margin-top:6px;
 }
 .synk-dist-row{
-  display:grid;grid-template-columns:2fr 60px 1.2fr 2fr 28px;gap:6px;
+  display:grid;
+  grid-template-columns: minmax(0,1.6fr) 70px minmax(0,1.1fr) 28px;
+  grid-template-areas:
+    "board pct type rm"
+    "tpl tpl tpl rm";
+  gap:6px 8px;
   align-items:center;
+  padding:8px 0;
+  border-bottom:1px dashed rgba(0,0,0,0.06);
 }
+.synk-dist-row:last-child{border-bottom:none;}
+.synk-dist-row > .synk-dist-board{grid-area:board;}
+.synk-dist-row > .synk-dist-pct{grid-area:pct;text-align:center;}
+.synk-dist-row > .synk-dist-type{grid-area:type;}
+.synk-dist-row > .synk-dist-tpl{grid-area:tpl;}
+.synk-dist-row > .synk-dist-rm{grid-area:rm;align-self:start;margin-top:2px;}
 .synk-dist-row > select, .synk-dist-row > input{
   padding:7px 9px;border:1px solid var(--color-border-tertiary);border-radius:6px;
   background:var(--color-background-primary);color:var(--color-text-primary);
-  font-size:12.5px;font-family:var(--font-sans);min-width:0;
+  font-size:12.5px;font-family:var(--font-sans);min-width:0;width:100%;
+  box-sizing:border-box;
 }
+.synk-dist-row > select:focus, .synk-dist-row > input:focus{outline:none;border-color:#d4af37;}
+.synk-dist-tpl{font-style:italic;color:var(--color-text-secondary);}
 .synk-dist-rm{
   width:28px;height:28px;border:none;background:transparent;color:var(--color-text-tertiary);
   cursor:pointer;border-radius:6px;font-size:13px;
 }
 .synk-dist-rm:hover{background:rgba(163,45,45,.1);color:#A32D2D;}
+.synk-dist-h-cols{
+  display:grid;grid-template-columns: minmax(0,1.6fr) 70px minmax(0,1.1fr) 28px;
+  gap:6px 8px;font-size:10.5px;letter-spacing:0.06em;color:var(--color-text-tertiary);
+  text-transform:uppercase;font-family:var(--font-sans);font-weight:600;
+  padding:0 2px 4px;
+}
 .synk-add-row{
   align-self:flex-start;padding:7px 14px;border:1px dashed var(--color-border-tertiary);
   background:transparent;color:var(--color-text-secondary);
@@ -3714,6 +3736,8 @@ body.density-compact .col{padding:7px;}
 .app-dialog-overlay.is-open{display:flex;}
 @keyframes appDialogFadeIn{from{opacity:0}to{opacity:1}}
 .app-dialog-card{background:var(--color-background-primary);border-radius:14px;padding:24px 26px 20px;width:440px;max-width:96vw;box-shadow:0 24px 60px rgba(0,0,0,.28),0 0 0 0.5px var(--color-border-tertiary);animation:appDialogPop .22s cubic-bezier(.16,1.2,.3,1);}
+.app-dialog-card.is-wide{width:660px;}
+.app-dialog-card.is-wide .app-dialog-msg{text-align:left;}
 @keyframes appDialogPop{from{transform:scale(.92) translateY(8px);opacity:0}to{transform:none;opacity:1}}
 .app-dialog-icon{font-size:30px;line-height:1;margin-bottom:10px;}
 .app-dialog-title{font-size:17px;font-weight:600;color:var(--color-text-primary);margin:0 0 6px;line-height:1.3;}
@@ -21980,6 +22004,8 @@ function _appDialogShow(html, onMount) {
   const ov = document.getElementById('app-dialog-overlay');
   const card = document.getElementById('app-dialog-card');
   if (!ov || !card) return Promise.resolve(null);
+  // Reset modificadores de tamanho/largura antes de cada show; o onMount pode reaplicar
+  card.classList.remove('is-wide');
   card.innerHTML = html;
   ov.classList.add('is-open');
   // Click fora fecha (cancela)
@@ -24424,6 +24450,12 @@ function openSynkRuleModal(ruleId) {
         </label>
       </div>
       <div class="synk-dist-h">Distribui pra…</div>
+      <div class="synk-dist-h-cols">
+        <span>Board destino</span>
+        <span style="text-align:center;">%</span>
+        <span>Tipo</span>
+        <span></span>
+      </div>
       <div id="synk-dist-list">${distRowsHTML}</div>
       <button class="synk-add-row" onclick="_synkAddDistRow()">+ Adicionar destino</button>
     </div>
@@ -24431,7 +24463,9 @@ function openSynkRuleModal(ruleId) {
       <button class="app-dialog-btn" onclick="_appDialogClose(false)">Cancelar</button>
       <button class="app-dialog-btn is-primary" onclick="saveSynkRuleFromModal()">${isEdit?'Salvar':'Criar regra'}</button>
     </div>
-  `, () => {});
+  `, (card) => {
+    if (card) card.classList.add('is-wide');
+  });
 }
 
 function _synkAddDistRow() {
@@ -24640,7 +24674,8 @@ function openOpCostModal(canvasId) {
       <button class="app-dialog-btn" onclick="_appDialogClose(false)">Cancelar</button>
       <button class="app-dialog-btn is-primary" onclick="saveOpCostFromModal()">${cv?'Salvar':'Criar simulação'}</button>
     </div>
-  `, () => {
+  `, (card) => {
+    if (card) card.classList.add('is-wide');
     setTimeout(_opcostUpdatePreview, 50);
   });
 }
@@ -24851,7 +24886,10 @@ function openGoal1pctModal(canvasId) {
       <button class="app-dialog-btn" onclick="_appDialogClose(false)">Cancelar</button>
       <button class="app-dialog-btn is-primary" onclick="saveGoal1pctFromModal()">${cv?'Salvar':'Criar meta'}</button>
     </div>
-  `, () => { setTimeout(_goal1pctUpdatePreview, 50); });
+  `, (card) => {
+    if (card) card.classList.add('is-wide');
+    setTimeout(_goal1pctUpdatePreview, 50);
+  });
 }
 
 function _goal1pctReadForm() {
