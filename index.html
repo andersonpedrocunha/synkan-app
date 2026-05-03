@@ -1183,6 +1183,112 @@ body.density-compact .card-cf-row{font-size:10px;}
 .col-n.wip-warn{background:#FCEBEB;color:#A32D2D;border-color:#F09595;font-weight:600;}
 .col-archived{font-size:11px;color:var(--color-text-tertiary);text-align:center;padding:6px 4px;background:transparent;border:0.5px dashed var(--color-border-tertiary);border-radius:6px;margin-top:6px;cursor:default;}
 
+/* ── Board Kaizen (Retrospectiva) ─────────────────────────────── */
+.board-kaizen{
+  position:relative;
+}
+.board-kaizen::before{
+  content:'改善';
+  position:fixed;right:24px;bottom:24px;
+  font-size:160px;line-height:1;font-weight:400;
+  color:#1A1612;opacity:.025;
+  pointer-events:none;z-index:0;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  letter-spacing:-.04em;
+}
+:root.dark .board-kaizen::before{color:#F8F2E4;opacity:.04;}
+
+.kaizen-banner{
+  background:linear-gradient(135deg, #FBF7EE 0%, #F8F2E4 100%);
+  border:1px solid #E0D5C2;border-radius:12px;
+  padding:14px 18px;margin-bottom:14px;
+  display:flex;align-items:center;gap:14px;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  position:relative;overflow:hidden;
+}
+:root.dark .kaizen-banner{
+  background:linear-gradient(135deg, #1F1A14 0%, #1A1612 100%);
+  border-color:#3A3225;
+}
+.kaizen-banner::before{
+  content:'';position:absolute;right:-20px;top:-20px;
+  width:80px;height:80px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #BC002D 0%, #8E0022 70%);
+  opacity:.10;pointer-events:none;
+}
+.kaizen-banner-icon{
+  font-size:34px;line-height:1;flex-shrink:0;
+  color:#1A1612;font-weight:400;
+}
+:root.dark .kaizen-banner-icon{color:#F8F2E4;}
+.kaizen-banner-text{flex:1;min-width:0;position:relative;z-index:1;}
+.kaizen-banner-title{
+  font-size:16px;font-weight:600;color:#1A1612;letter-spacing:.005em;
+}
+:root.dark .kaizen-banner-title{color:#F8F2E4;}
+.kaizen-banner-sub{
+  font-size:12.5px;color:#6B5B43;margin-top:2px;
+  font-family:var(--font-sans);
+}
+:root.dark .kaizen-banner-sub{color:#A99876;}
+
+/* Cores específicas das colunas Kaizen (badge da coluna) */
+.col.kaizen-col-melhorou .col-name::before{content:'改善 · ';color:#3B6D11;font-weight:400;font-family:'Hiragino Mincho ProN',serif;}
+.col.kaizen-col-problema .col-name::before{content:'問題 · ';color:#A32D2D;font-weight:400;font-family:'Hiragino Mincho ProN',serif;}
+.col.kaizen-col-acao .col-name::before    {content:'行動 · ';color:#3C3489;font-weight:400;font-family:'Hiragino Mincho ProN',serif;}
+.col.kaizen-col-melhorou .col-h{border-bottom:2px solid #3B6D11;}
+.col.kaizen-col-problema .col-h{border-bottom:2px solid #A32D2D;}
+.col.kaizen-col-acao .col-h    {border-bottom:2px solid #3C3489;}
+
+/* Botão "Promover ação" nos cards da coluna 行動 */
+.kaizen-promote-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  background:#3C3489;color:#fff;
+  font-family:var(--font-sans);font-size:11px;font-weight:500;
+  padding:4px 9px;border:none;border-radius:6px;cursor:pointer;
+  margin-top:6px;letter-spacing:.02em;transition:filter .12s, transform .12s;
+}
+.kaizen-promote-btn:hover{filter:brightness(1.15);transform:translateY(-1px);}
+.kaizen-promote-icon{font-size:11px;}
+
+/* CTA "Nova Retrospectiva" no boards manager */
+.boards-cta-kaizen{
+  background:linear-gradient(135deg, #FBF7EE 0%, #F8F2E4 100%);
+  border:1px dashed #C9B380;border-radius:14px;
+  padding:18px 22px;margin-bottom:14px;
+  display:flex;align-items:center;gap:16px;cursor:pointer;
+  transition:transform .15s, box-shadow .2s;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  position:relative;overflow:hidden;
+}
+:root.dark .boards-cta-kaizen{
+  background:linear-gradient(135deg, #1F1A14 0%, #1A1612 100%);
+  border-color:#5A4F3A;
+}
+.boards-cta-kaizen:hover{
+  transform:translateY(-2px);
+  box-shadow:0 4px 18px rgba(26,22,18,.10);
+}
+.boards-cta-kaizen-icon{
+  font-size:38px;line-height:1;flex-shrink:0;color:#BC002D;
+  font-family:'Hiragino Mincho ProN',serif;font-weight:400;
+}
+.boards-cta-kaizen-body{flex:1;}
+.boards-cta-kaizen-title{
+  font-size:15px;font-weight:600;color:#1A1612;letter-spacing:.005em;
+}
+:root.dark .boards-cta-kaizen-title{color:#F8F2E4;}
+.boards-cta-kaizen-sub{
+  font-size:12.5px;color:#6B5B43;margin-top:2px;
+  font-family:var(--font-sans);
+}
+:root.dark .boards-cta-kaizen-sub{color:#A99876;}
+.boards-cta-kaizen-arrow{
+  color:#BC002D;font-size:20px;font-family:var(--font-sans);
+  transition:transform .15s;
+}
+.boards-cta-kaizen:hover .boards-cta-kaizen-arrow{transform:translateX(4px);}
+
 /* ── Painel de Flow Metrics (Cycle Time + Forecast) ────────────── */
 .flow-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
 @media(max-width:900px){.flow-grid{grid-template-columns:1fr 1fr;}}
@@ -5951,6 +6057,137 @@ function createBoard(opts) {
   return id;
 }
 
+// ── Kaizen Board (Retrospectiva) ─────────────────────────────────
+// Board especial pra ciclo de melhoria contínua (Kaizen).
+// 3 colunas pré-prontas: 改善 (Melhorou) · 問題 (Problema) · 行動 (Ação).
+// Cards na coluna "Ação" podem ser promovidos pra outros boards.
+function createKaizenBoard(opts) {
+  if (!checkAndBlockOrAllow('board')) return null;
+  const id = _genBoardId();
+  const today = new Date();
+  const dateLabel = today.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' });
+  const name = (opts && opts.name) || `Retrospectiva · ${dateLabel}`;
+  allBoards[id] = {
+    name,
+    icon: '🥋',
+    isKaizen: true,           // flag marcadora
+    kaizenDate: today.toISOString().slice(0,10),
+    cards: [],
+    COLS: [
+      { id: 'kaizen_melhorou', title: 'Melhorou' },
+      { id: 'kaizen_problema', title: 'Problema' },
+      { id: 'kaizen_acao',     title: 'Ação' },
+      { id: 'done',            title: 'Concluído' },
+    ],
+    team: [...DEFAULT_TEAM],
+    globalTags: [],
+    customFields: [],
+    kanbanConfig: { ...DEFAULT_CONFIG, sort:'newest' },
+  };
+  saveData();
+  try { fireWebhook('board.created', { boardId: id, name, isKaizen: true }); } catch(e){}
+  return id;
+}
+
+// Wrapper que cria + abre direto o board kaizen
+function startNewKaizenRetro() {
+  const bid = createKaizenBoard();
+  if (!bid) return;
+  if (typeof switchBoard === 'function') switchBoard(bid, { goTo: 'kanban' });
+  // Mensagem inspiracional pelo Mestre Kan
+  if (typeof _showKanWarning === 'function') {
+    setTimeout(() => {
+      _showKanWarning(
+        '改善 · Hora da reflexão',
+        'Liste o que <strong>melhorou</strong>, o que se tornou <strong>problema</strong>, e quais <strong>ações</strong> a equipe precisa tomar. Cards de Ação podem ser promovidos pra outros boards e virar tarefas reais.',
+        'info'
+      );
+    }, 400);
+  }
+}
+
+// Promove um card da coluna "Ação" pra outro board (vira card real)
+function promoteKaizenAction(cardId) {
+  const c = cards.find(x => x.id === cardId);
+  if (!c) return;
+  // Lista boards destino (excluindo o atual e o Unificado)
+  const targets = Object.entries(allBoards)
+    .filter(([bid, b]) => bid !== currentBoardId && bid !== UNIFIED_BOARD_ID && !b.isKaizen)
+    .map(([bid, b]) => ({ id: bid, name: b.name, icon: b.icon || '📋' }));
+  if (targets.length === 0) {
+    if (typeof appAlert === 'function') {
+      appAlert('Sem boards destino', 'Você precisa ter pelo menos outro board normal pra promover esta ação.', { icon:'📋', okLabel:'OK' });
+    } else {
+      alert('Crie outro board antes de promover esta ação.');
+    }
+    return;
+  }
+  // Modal simples: lista de boards
+  const html = `
+    <div style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto;">
+      ${targets.map(t => `
+        <button class="kaizen-target-btn" onclick="_doPromoteKaizen(${cardId}, '${t.id}')"
+                style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:8px;cursor:pointer;text-align:left;font-family:var(--font-sans);font-size:14px;color:var(--color-text-primary);transition:background .12s;"
+                onmouseover="this.style.background='var(--color-background-tertiary,rgba(0,0,0,.04))';"
+                onmouseout="this.style.background='var(--color-background-secondary)';">
+          <span style="font-size:20px;flex-shrink:0;">${t.icon}</span>
+          <span style="flex:1;">${_esc(t.name)}</span>
+          <span style="opacity:.5;">→</span>
+        </button>
+      `).join('')}
+    </div>
+  `;
+  if (typeof appAlert === 'function') {
+    appAlert('Promover ação para qual board?', html, { icon:'→', okLabel:'Cancelar', cancelLabel:'' });
+  } else {
+    const choice = prompt('Board destino:\n\n' + targets.map((t,i) => `${i+1}. ${t.name}`).join('\n'));
+    const idx = parseInt(choice) - 1;
+    if (targets[idx]) _doPromoteKaizen(cardId, targets[idx].id);
+  }
+}
+
+function _doPromoteKaizen(cardId, targetBoardId) {
+  const c = cards.find(x => x.id === cardId);
+  if (!c) return;
+  const target = allBoards[targetBoardId];
+  if (!target) return;
+  // Cria card novo no board destino, na primeira coluna não-terminal
+  const firstCol = (target.COLS || []).find(col => col.id !== TERMINAL_COL) || { id: 'todo' };
+  const newCard = {
+    id: Date.now() + Math.random(),
+    name: c.name,
+    priority: c.priority || 'media',
+    col: firstCol.id,
+    tagIds: [],
+    threads: [
+      { id: Date.now()+Math.random(), text: `Promovido da retrospectiva "${allBoards[currentBoardId]?.name || ''}"`, date: new Date().toISOString(), type:'auto' }
+    ],
+    attachments: [],
+    subtasks: (c.subtasks || []).map(s => ({ ...s })),
+    deadline: c.deadline || null,
+    createdAt: new Date().toISOString(),
+    colChangedAt: new Date().toISOString(),
+    doneAt: null,
+    responsavel: c.responsavel || null,
+    customFieldValues: {},
+  };
+  target.cards = target.cards || [];
+  target.cards.push(newCard);
+  // Marca o card original como done na retro
+  c.col = TERMINAL_COL;
+  c.colChangedAt = new Date().toISOString();
+  c.doneAt = new Date().toISOString();
+  if (typeof autoThread === 'function') autoThread(c, `Promovido para "${target.name}"`);
+  saveData();
+  // Fecha modal se houver
+  if (typeof closeAppAlert === 'function') closeAppAlert();
+  // Feedback
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Ação promovida', `Card movido para <strong>"${target.name}"</strong>. A semente plantada na retrospectiva agora vira prática.`, 'info');
+  }
+  render();
+}
+
 function renameBoard(id, newName) {
   if (!allBoards[id]) return;
   const v = (newName||'').trim();
@@ -6181,6 +6418,16 @@ function renderBoardsManager() {
       </div>
     </div>
     <div class="boards-unified-row">${unifiedTile()}</div>
+
+    <div class="boards-cta-kaizen" onclick="startNewKaizenRetro()" title="Crie um board especial para retrospectiva (改善 · Melhorou, 問題 · Problema, 行動 · Ação)">
+      <div class="boards-cta-kaizen-icon">改善</div>
+      <div class="boards-cta-kaizen-body">
+        <div class="boards-cta-kaizen-title">Nova retrospectiva (Kaizen)</div>
+        <div class="boards-cta-kaizen-sub">Pause. Reflita. Melhore. Crie um board com 3 colunas pré-prontas e promova ações pra outros boards.</div>
+      </div>
+      <span class="boards-cta-kaizen-arrow">→</span>
+    </div>
+
     <div class="boards-others-label">Boards individuais</div>
     <div class="boards-grid">
       ${ids.map(tile).join('')}
@@ -9701,6 +9948,27 @@ function deadlineBadge(deadline, isDone) {
 function render() {
   const ct=document.getElementById('cols'); ct.innerHTML='';
   ct.style.gridTemplateColumns = `repeat(${COLS.length}, minmax(0, 1fr))`;
+  // Aplica visual de retrospectiva quando o board for kaizen
+  const _kanbanView = document.getElementById('view-kanban');
+  const _isKaizen = !!(allBoards[currentBoardId] && allBoards[currentBoardId].isKaizen);
+  if (_kanbanView) _kanbanView.classList.toggle('board-kaizen', _isKaizen);
+  // Insere banner Kaizen no topo (se ainda não existir)
+  if (_isKaizen && _kanbanView && !_kanbanView.querySelector('.kaizen-banner')) {
+    const banner = document.createElement('div');
+    banner.className = 'kaizen-banner';
+    banner.innerHTML = `
+      <div class="kaizen-banner-icon">改善</div>
+      <div class="kaizen-banner-text">
+        <div class="kaizen-banner-title">Retrospectiva Kaizen</div>
+        <div class="kaizen-banner-sub">Reflita: o que <strong>melhorou</strong>, qual <strong>problema</strong> apareceu, qual <strong>ação</strong> tomar. Cards de Ação podem ser promovidos pra outros boards.</div>
+      </div>
+    `;
+    _kanbanView.insertBefore(banner, _kanbanView.firstChild);
+  } else if (!_isKaizen && _kanbanView) {
+    // Remove banner se mudou pra board normal
+    const oldBanner = _kanbanView.querySelector('.kaizen-banner');
+    if (oldBanner) oldBanner.remove();
+  }
   const visible = filteredCards();
   // pré-calcula auto-archive somente sobre cards "done" que sobreviveram aos filtros
   const archive = computeArchive(visible.filter(c=>c.col===TERMINAL_COL));
@@ -9716,7 +9984,10 @@ function render() {
     const wipExceeded = col.wipLimit && totalInCol > col.wipLimit;
     const countLabel = col.wipLimit ? `${totalInCol}/${col.wipLimit}` : totalInCol;
     const div=document.createElement('div');
-    div.className='col'+(col.id==='blocked'?' col-blocked':col.id===TERMINAL_COL?' col-done':'')+(wipExceeded?' wip-exceeded':'');
+    const _kaizenColCls = (col.id === 'kaizen_melhorou') ? ' kaizen-col-melhorou'
+                        : (col.id === 'kaizen_problema') ? ' kaizen-col-problema'
+                        : (col.id === 'kaizen_acao')     ? ' kaizen-col-acao' : '';
+    div.className='col'+(col.id==='blocked'?' col-blocked':col.id===TERMINAL_COL?' col-done':'')+(wipExceeded?' wip-exceeded':'')+_kaizenColCls;
     div.innerHTML=`
       <div class="col-head${wipExceeded?' col-h':''}">
         <span class="col-name">${col.title}</span>
@@ -9793,6 +10064,7 @@ function render() {
                   </button>`:''}
                 </div>
               </div>`:''}
+              ${(allBoards[currentBoardId]?.isKaizen && c.col === 'kaizen_acao' && !isDone) ? `<button class="kaizen-promote-btn" onclick="event.stopPropagation();promoteKaizenAction(${cidArg})" title="Transformar esta ação em card real em outro board"><span class="kaizen-promote-icon">→</span> Promover pra board</button>` : ''}
             </div>
             ${!isDone?`<button class="card-done-btn" onclick="event.stopPropagation();toggleDone(${cidArg})">✓ done</button>`:''}
           </div>`;
