@@ -1259,6 +1259,177 @@ body.density-compact .card-cf-row{font-size:10px;}
 .dep-picker-empty{font-size:12.5px;color:var(--color-text-tertiary);text-align:center;padding:18px 0;}
 .dep-picker-actions{display:flex;justify-content:flex-end;gap:8px;}
 
+/* ── Pomodoro Dojo (FAB + overlay zen) ──────────────────────── */
+.pomo-fab{
+  position:fixed;right:24px;bottom:88px;z-index:80;
+  width:54px;height:54px;border-radius:50%;
+  background:linear-gradient(135deg, #1A1612 0%, #2A241D 100%);
+  color:#F8F2E4;border:1px solid #3A3225;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  box-shadow:0 4px 14px rgba(26,22,18,.36), 0 1px 3px rgba(0,0,0,.16);
+  transition:transform .18s, filter .18s;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  font-weight:400;line-height:1;gap:1px;
+}
+.pomo-fab:hover{transform:scale(1.08) translateY(-2px);filter:brightness(1.10);}
+.pomo-fab:active{transform:scale(0.96);}
+.pomo-fab-kanji{font-size:18px;letter-spacing:-.04em;}
+.pomo-fab-time{font-size:9px;font-family:var(--font-sans);font-weight:600;letter-spacing:.04em;color:#BC002D;}
+/* Quando ativo (rodando), o FAB mostra o tempo restante e ganha pulse vermelho */
+.pomo-fab.is-running{
+  background:linear-gradient(135deg, #BC002D 0%, #8E0022 100%);
+  border-color:#A30024;
+  animation:pomoFabPulse 1.6s ease-in-out infinite;
+}
+.pomo-fab.is-running .pomo-fab-kanji{color:#F8F2E4;}
+.pomo-fab.is-running .pomo-fab-time{color:#FBF7EE;}
+.pomo-fab.is-break{background:linear-gradient(135deg, #3B6D11 0%, #2A4F0B 100%);border-color:#3B6D11;animation:none;}
+.pomo-fab.is-break .pomo-fab-kanji{color:#F8F2E4;}
+.pomo-fab.is-break .pomo-fab-time{color:#EAF3DE;}
+@keyframes pomoFabPulse{
+  0%,100%{box-shadow:0 4px 14px rgba(188,0,45,.4), 0 0 0 0 rgba(188,0,45,.5);}
+  50%    {box-shadow:0 4px 14px rgba(188,0,45,.4), 0 0 0 12px rgba(188,0,45,0);}
+}
+@media(max-width:640px){.pomo-fab{right:16px;bottom:74px;width:48px;height:48px;}.pomo-fab-kanji{font-size:16px;}.pomo-fab-time{font-size:8px;}}
+
+/* Overlay do timer zen */
+.pomo-overlay{
+  position:fixed;inset:0;z-index:200;
+  background:radial-gradient(ellipse at center, rgba(26,22,18,.78) 0%, rgba(0,0,0,.92) 100%);
+  backdrop-filter:blur(8px);
+  display:none;align-items:center;justify-content:center;
+  animation:pomoOverlayIn .35s ease-out;
+}
+.pomo-overlay.is-open{display:flex;}
+@keyframes pomoOverlayIn{from{opacity:0;}to{opacity:1;}}
+.pomo-card{
+  background:linear-gradient(135deg, #FBF7EE 0%, #F8F2E4 100%);
+  border:1px solid #E0D5C2;border-radius:22px;
+  padding:42px 38px 32px;max-width:440px;width:90%;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  color:#1A1612;text-align:center;
+  box-shadow:0 14px 56px rgba(0,0,0,.42);
+  position:relative;overflow:hidden;
+}
+:root.dark .pomo-card{
+  background:linear-gradient(135deg, #1F1A14 0%, #1A1612 100%);
+  color:#F8F2E4;border-color:#3A3225;
+}
+/* Kanji watermark gigante atrás */
+.pomo-card::before{
+  content:attr(data-kanji);
+  position:absolute;right:-20px;bottom:-40px;
+  font-size:230px;line-height:1;font-weight:400;
+  color:#1A1612;opacity:.04;
+  pointer-events:none;letter-spacing:-.06em;
+}
+:root.dark .pomo-card::before{color:#F8F2E4;opacity:.06;}
+/* Selo hinomaru no canto */
+.pomo-card::after{
+  content:'';position:absolute;left:-30px;top:-30px;
+  width:90px;height:90px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #BC002D 0%, #8E0022 70%);
+  opacity:.10;pointer-events:none;
+}
+.pomo-mode{
+  font-size:11.5px;font-weight:600;letter-spacing:.10em;text-transform:uppercase;
+  color:#BC002D;margin-bottom:2px;font-family:var(--font-sans);
+  position:relative;z-index:1;
+}
+.pomo-mode-kanji{
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  font-size:13px;color:#6B5B43;font-weight:400;letter-spacing:.05em;
+  margin-bottom:18px;position:relative;z-index:1;
+}
+:root.dark .pomo-mode-kanji{color:#A99876;}
+/* Círculo principal com timer */
+.pomo-ring-wrap{
+  position:relative;width:240px;height:240px;margin:0 auto 22px;
+  display:flex;align-items:center;justify-content:center;
+}
+.pomo-ring-svg{position:absolute;inset:0;transform:rotate(-90deg);}
+.pomo-ring-bg{fill:none;stroke:rgba(26,22,18,.08);stroke-width:6;}
+:root.dark .pomo-ring-bg{stroke:rgba(248,242,228,.10);}
+.pomo-ring-fg{
+  fill:none;stroke:#BC002D;stroke-width:6;stroke-linecap:round;
+  transition:stroke-dashoffset .9s linear, stroke .3s;
+}
+.pomo-ring-fg.break{stroke:#3B6D11;}
+/* Animação de respiração no círculo (modo focus) */
+.pomo-ring-wrap.is-running::before{
+  content:'';position:absolute;inset:18px;border-radius:50%;
+  background:radial-gradient(circle, rgba(188,0,45,.05) 0%, transparent 70%);
+  animation:pomoBreath 6s ease-in-out infinite;
+}
+.pomo-ring-wrap.is-running.break::before{
+  background:radial-gradient(circle, rgba(59,109,17,.06) 0%, transparent 70%);
+}
+@keyframes pomoBreath{
+  0%,100%{transform:scale(0.95);opacity:.5;}
+  50%    {transform:scale(1.05);opacity:1;}
+}
+.pomo-time{
+  font-size:62px;font-weight:600;letter-spacing:-.025em;
+  font-variant-numeric:tabular-nums;line-height:1;
+  color:#1A1612;font-family:var(--font-sans);
+  position:relative;z-index:1;
+}
+:root.dark .pomo-time{color:#F8F2E4;}
+.pomo-actions{
+  display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+  font-family:var(--font-sans);position:relative;z-index:1;
+}
+.pomo-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--font-sans);font-size:13.5px;font-weight:500;
+  padding:10px 20px;border:none;border-radius:9px;cursor:pointer;
+  letter-spacing:.02em;transition:transform .12s, filter .12s;
+}
+.pomo-btn-primary{background:#1A1612;color:#F8F2E4;}
+.pomo-btn-primary:hover{transform:translateY(-1px);filter:brightness(1.12);}
+.pomo-btn-ghost{background:transparent;color:#1A1612;border:1px solid rgba(26,22,18,.18);}
+:root.dark .pomo-btn-ghost{color:#F8F2E4;border-color:rgba(248,242,228,.18);}
+.pomo-btn-ghost:hover{background:rgba(26,22,18,.05);}
+.pomo-modes{
+  display:flex;justify-content:center;gap:6px;margin:12px 0 4px;
+  position:relative;z-index:1;
+}
+.pomo-mode-pill{
+  font-family:var(--font-sans);font-size:11.5px;font-weight:500;
+  padding:5px 11px;border-radius:999px;cursor:pointer;
+  background:transparent;border:1px solid rgba(26,22,18,.15);color:#6B5B43;
+  transition:background .15s, color .15s, border-color .15s;
+}
+:root.dark .pomo-mode-pill{color:#A99876;border-color:rgba(248,242,228,.18);}
+.pomo-mode-pill.active{background:#1A1612;color:#F8F2E4;border-color:#1A1612;}
+:root.dark .pomo-mode-pill.active{background:#F8F2E4;color:#1A1612;border-color:#F8F2E4;}
+.pomo-mode-pill:hover:not(.active){background:rgba(26,22,18,.04);}
+/* Estatísticas no rodapé */
+.pomo-stats{
+  margin-top:20px;padding-top:16px;border-top:1px dashed #C9B380;
+  display:flex;justify-content:space-around;gap:14px;
+  font-family:var(--font-sans);position:relative;z-index:1;
+}
+:root.dark .pomo-stats{border-top-color:#3A3225;}
+.pomo-stat{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.pomo-stat-val{font-size:18px;font-weight:600;color:#1A1612;font-variant-numeric:tabular-nums;}
+:root.dark .pomo-stat-val{color:#F8F2E4;}
+.pomo-stat-lbl{font-size:10.5px;color:#6B5B43;text-transform:uppercase;letter-spacing:.06em;font-weight:500;}
+:root.dark .pomo-stat-lbl{color:#A99876;}
+.pomo-quote{
+  margin-top:14px;font-size:13px;font-style:italic;color:#6B5B43;line-height:1.45;
+  position:relative;z-index:1;
+}
+:root.dark .pomo-quote{color:#A99876;}
+.pomo-quote::before{content:'「';color:#BC002D;font-style:normal;margin-right:1px;}
+.pomo-quote::after{content:'」';color:#BC002D;font-style:normal;margin-left:1px;}
+.pomo-close{
+  position:absolute;right:14px;top:14px;background:transparent;border:none;
+  font-size:22px;color:#6B5B43;cursor:pointer;line-height:1;padding:6px 10px;border-radius:6px;
+  font-family:var(--font-sans);opacity:.55;transition:opacity .15s, background .15s;z-index:2;
+}
+.pomo-close:hover{opacity:1;background:rgba(0,0,0,.05);}
+
 /* ── Voice Cards (FAB de microfone + overlay) ────────────────── */
 .voice-fab{
   position:fixed;right:24px;bottom:24px;z-index:80;
@@ -8065,10 +8236,30 @@ function _settingsIASection() {
     </div>
 
     ${_settingsVoiceCardsSection()}
+    ${_settingsPomoSection()}
     ${_settingsWebhooksSection()}
     ${_settingsCalendarSection()}
     ${_settingsEmailToCardSection()}
     ${_settingsApiSsoSection()}
+  `;
+}
+
+function _settingsPomoSection() {
+  const enabled = (typeof isPomoEnabled === 'function') ? isPomoEnabled() : true;
+  const stats = (typeof _getPomoStatsTodayWeek === 'function') ? _getPomoStatsTodayWeek() : { today:0, week:0 };
+  return `
+    <div class="settings-card">
+      <div class="settings-card-h">
+        <span class="settings-card-title" style="display:inline-flex;align-items:center;gap:8px;">集中 Pomodoro Dojo</span>
+        <span class="settings-status-pill ${enabled?'on':'off'}">${enabled?'ativo':'desligado'}</span>
+      </div>
+      <div class="settings-card-sub">Timer de foco com tema dojo. 3 modos: <strong>Foco 25min · Descanso 5min · Zen 15min</strong>. Botão flutuante (canto inferior direito) sempre visível, mostra o tempo restante quando ativo. Cada sessão de foco completa rende <strong>15 XP</strong> no Dojo. Ciclos de hoje: <strong>${stats.today}</strong> · 7 dias: <strong>${stats.week}</strong>.</div>
+      <label class="cfg-field" style="margin-top:8px;">
+        <input type="checkbox" ${enabled?'checked':''} onchange="setPomoEnabled(this.checked)" />
+        <span class="cfg-field-icon">集</span>
+        <span class="cfg-field-label">Mostrar botão flutuante de Pomodoro</span>
+      </label>
+    </div>
   `;
 }
 
@@ -20118,6 +20309,304 @@ function deleteDocument(id) {
   renderRegistry();
 }
 
+// ── Pomodoro Dojo (集中 = concentração) ─────────────────────────
+// Timer com 3 modos: Foco / Descanso curto / Descanso longo.
+// Estado mantido em closure global. Persistência: stats e config no localStorage.
+
+const POMO_ENABLED_KEY = 'kanban_v8_pomo_enabled';
+const POMO_STATS_KEY   = 'kanban_v8_pomo_stats';
+
+const POMO_MODES = {
+  focus:       { label:'Foco',           kanji:'集中', kanjiRomaji:'shūchū',  durationSec: 25 * 60, color:'#BC002D', cls:'' },
+  short_break: { label:'Descanso curto', kanji:'休憩', kanjiRomaji:'kyūkei',  durationSec:  5 * 60, color:'#3B6D11', cls:'break' },
+  long_break:  { label:'Descanso longo', kanji:'禅',   kanjiRomaji:'zen',     durationSec: 15 * 60, color:'#3B6D11', cls:'break' },
+};
+const POMO_QUOTES = [
+  'A pressa é o oposto da maestria.',
+  'Quem persegue dois coelhos não pega nenhum.',
+  'O foco é o que separa o aluno do mestre.',
+  'Cada minuto de prática é uma pedra na fundação.',
+  'Respire. O caminho está aberto.',
+  'A tempestade não dura para sempre. O foco também não — descanse quando precisar.',
+];
+
+const _pomo = {
+  mode: 'focus',
+  remainingSec: POMO_MODES.focus.durationSec,
+  running: false,
+  intervalId: null,
+  startedAt: null,
+};
+
+function isPomoEnabled() {
+  try {
+    const v = localStorage.getItem(POMO_ENABLED_KEY);
+    if (v === null) return true;
+    return v === 'true';
+  } catch(e) { return true; }
+}
+function setPomoEnabled(enabled) {
+  try { localStorage.setItem(POMO_ENABLED_KEY, enabled ? 'true' : 'false'); } catch(e){}
+  if (enabled) {
+    if (typeof _initPomo === 'function') _initPomo();
+  } else {
+    pomoStop();
+    const fab = document.getElementById('pomo-fab');
+    if (fab) fab.remove();
+    closePomoOverlay();
+  }
+  if (currentTab === 'settings' && typeof renderSettings === 'function') renderSettings();
+  if (typeof audit === 'function') audit('pomo.toggle', { enabled });
+}
+
+function getPomoStats() {
+  try {
+    return JSON.parse(localStorage.getItem(POMO_STATS_KEY) || '{}') || {};
+  } catch(e) { return {}; }
+}
+function _saveDayPomoStat() {
+  const stats = getPomoStats();
+  const today = new Date().toISOString().slice(0,10);
+  stats[today] = (stats[today] || 0) + 1;
+  // Mantém só últimos 60 dias
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 60);
+  const cutStr = cutoff.toISOString().slice(0,10);
+  Object.keys(stats).forEach(k => { if (k < cutStr) delete stats[k]; });
+  try { localStorage.setItem(POMO_STATS_KEY, JSON.stringify(stats)); } catch(e){}
+}
+function _getPomoStatsTodayWeek() {
+  const stats = getPomoStats();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().slice(0,10);
+  let weekCount = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    weekCount += stats[d.toISOString().slice(0,10)] || 0;
+  }
+  return { today: stats[todayStr] || 0, week: weekCount };
+}
+
+function _initPomo() {
+  if (!isPomoEnabled()) return;
+  if (document.getElementById('pomo-fab')) return;
+  // Cria FAB
+  const fab = document.createElement('button');
+  fab.id = 'pomo-fab';
+  fab.className = 'pomo-fab';
+  fab.title = 'Pomodoro Dojo · timer de foco';
+  fab.innerHTML = `<span class="pomo-fab-kanji">集中</span><span class="pomo-fab-time" id="pomo-fab-time">25:00</span>`;
+  fab.onclick = openPomoOverlay;
+  document.body.appendChild(fab);
+  _updatePomoFab();
+
+  // Cria overlay
+  if (document.getElementById('pomo-overlay')) return;
+  const ov = document.createElement('div');
+  ov.id = 'pomo-overlay';
+  ov.className = 'pomo-overlay';
+  ov.innerHTML = `
+    <div class="pomo-card" id="pomo-card" data-kanji="集">
+      <button class="pomo-close" onclick="closePomoOverlay()" title="Fechar (timer continua rodando)" aria-label="Fechar">×</button>
+      <div class="pomo-mode" id="pomo-mode-label">Foco</div>
+      <div class="pomo-mode-kanji" id="pomo-mode-kanji">集中 · shūchū</div>
+      <div class="pomo-ring-wrap" id="pomo-ring-wrap">
+        <svg class="pomo-ring-svg" viewBox="0 0 240 240">
+          <circle class="pomo-ring-bg" cx="120" cy="120" r="110"/>
+          <circle class="pomo-ring-fg" id="pomo-ring-fg" cx="120" cy="120" r="110" pathLength="100" stroke-dasharray="100 100" stroke-dashoffset="0"/>
+        </svg>
+        <div class="pomo-time" id="pomo-time">25:00</div>
+      </div>
+      <div class="pomo-modes">
+        <button class="pomo-mode-pill" data-mode="focus"       onclick="pomoSetMode('focus')">25 · Foco</button>
+        <button class="pomo-mode-pill" data-mode="short_break" onclick="pomoSetMode('short_break')">5 · Pausa</button>
+        <button class="pomo-mode-pill" data-mode="long_break"  onclick="pomoSetMode('long_break')">15 · Zen</button>
+      </div>
+      <div class="pomo-actions">
+        <button class="pomo-btn pomo-btn-primary" id="pomo-btn-toggle" onclick="pomoToggleRun()">▶ Iniciar</button>
+        <button class="pomo-btn pomo-btn-ghost" onclick="pomoReset()">Resetar</button>
+      </div>
+      <div class="pomo-stats" id="pomo-stats"></div>
+      <div class="pomo-quote" id="pomo-quote"></div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  _renderPomoUI();
+}
+
+function openPomoOverlay() {
+  const ov = document.getElementById('pomo-overlay');
+  if (!ov) return;
+  _renderPomoUI();
+  ov.classList.add('is-open');
+}
+function closePomoOverlay() {
+  const ov = document.getElementById('pomo-overlay');
+  if (ov) ov.classList.remove('is-open');
+}
+
+function pomoSetMode(mode) {
+  if (!POMO_MODES[mode]) return;
+  if (_pomo.running) pomoStop();
+  _pomo.mode = mode;
+  _pomo.remainingSec = POMO_MODES[mode].durationSec;
+  _renderPomoUI();
+  _updatePomoFab();
+}
+
+function pomoToggleRun() {
+  if (_pomo.running) pomoStop();
+  else pomoStart();
+}
+
+function pomoStart() {
+  if (_pomo.running) return;
+  if (_pomo.remainingSec <= 0) _pomo.remainingSec = POMO_MODES[_pomo.mode].durationSec;
+  _pomo.running = true;
+  _pomo.startedAt = Date.now();
+  _pomo.intervalId = setInterval(() => {
+    _pomo.remainingSec--;
+    if (_pomo.remainingSec <= 0) {
+      _pomoSessionComplete();
+    } else {
+      _renderPomoUI();
+      _updatePomoFab();
+    }
+  }, 1000);
+  _renderPomoUI();
+  _updatePomoFab();
+}
+
+function pomoStop() {
+  if (_pomo.intervalId) { clearInterval(_pomo.intervalId); _pomo.intervalId = null; }
+  _pomo.running = false;
+  _renderPomoUI();
+  _updatePomoFab();
+}
+
+function pomoReset() {
+  pomoStop();
+  _pomo.remainingSec = POMO_MODES[_pomo.mode].durationSec;
+  _renderPomoUI();
+  _updatePomoFab();
+}
+
+function _pomoSessionComplete() {
+  const wasFocus = _pomo.mode === 'focus';
+  pomoStop();
+  if (wasFocus) {
+    _saveDayPomoStat();
+    if (typeof _gamifAwardXP === 'function') {
+      try { _gamifAwardXP(15, 'pomodoro_focus'); } catch(e){}
+    }
+  }
+  // Som sutil (beep)
+  _pomoBeep();
+  // Aviso do mestre
+  if (typeof _showKanWarning === 'function') {
+    if (wasFocus) {
+      _showKanWarning(
+        '集中 → 休憩',
+        'Sessão de foco completa. Descanse 5 minutos. <strong>O bambu se curva.</strong>',
+        'info'
+      );
+    } else {
+      _showKanWarning(
+        '休憩 → 集中',
+        'Descanso completo. Hora de voltar pra prática, mestre.',
+        'info'
+      );
+    }
+  }
+  // Auto-troca de modo: foco → pausa curta, pausa → foco
+  const next = wasFocus ? 'short_break' : 'focus';
+  pomoSetMode(next);
+  // Reabre overlay se fechado, pra dar destaque
+  openPomoOverlay();
+}
+
+function _pomoBeep() {
+  // Beep sutil via Web Audio (sino japonês simulado)
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 660; // tom alto, tipo sino
+    g.gain.value = 0.08;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.4);
+    setTimeout(() => { try { o.stop(); ctx.close(); } catch(e){} }, 1500);
+  } catch(e){}
+}
+
+function _formatPomoTime(sec) {
+  if (sec < 0) sec = 0;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function _renderPomoUI() {
+  const mode = POMO_MODES[_pomo.mode];
+  if (!mode) return;
+  const total = mode.durationSec;
+  const pct = total > 0 ? (_pomo.remainingSec / total) * 100 : 0;
+
+  const timeEl = document.getElementById('pomo-time');
+  if (timeEl) timeEl.textContent = _formatPomoTime(_pomo.remainingSec);
+
+  const ringFg = document.getElementById('pomo-ring-fg');
+  if (ringFg) {
+    ringFg.setAttribute('stroke-dashoffset', String(100 - pct));
+    ringFg.classList.toggle('break', mode.cls === 'break');
+  }
+  const ringWrap = document.getElementById('pomo-ring-wrap');
+  if (ringWrap) {
+    ringWrap.classList.toggle('is-running', _pomo.running);
+    ringWrap.classList.toggle('break', mode.cls === 'break');
+  }
+
+  const modeLbl = document.getElementById('pomo-mode-label');
+  if (modeLbl) modeLbl.textContent = mode.label;
+  const modeKanji = document.getElementById('pomo-mode-kanji');
+  if (modeKanji) modeKanji.textContent = `${mode.kanji} · ${mode.kanjiRomaji}`;
+  const card = document.getElementById('pomo-card');
+  if (card) card.setAttribute('data-kanji', mode.kanji.charAt(0));
+
+  const btn = document.getElementById('pomo-btn-toggle');
+  if (btn) btn.textContent = _pomo.running ? '⏸ Pausar' : '▶ Iniciar';
+
+  document.querySelectorAll('.pomo-mode-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.mode === _pomo.mode);
+  });
+
+  const stats = _getPomoStatsTodayWeek();
+  const statsEl = document.getElementById('pomo-stats');
+  if (statsEl) {
+    statsEl.innerHTML = `
+      <div class="pomo-stat"><span class="pomo-stat-val">${stats.today}</span><span class="pomo-stat-lbl">hoje</span></div>
+      <div class="pomo-stat"><span class="pomo-stat-val">${stats.week}</span><span class="pomo-stat-lbl">7 dias</span></div>
+      <div class="pomo-stat"><span class="pomo-stat-val">${(stats.today * 25)} min</span><span class="pomo-stat-lbl">foco hoje</span></div>
+    `;
+  }
+  const quoteEl = document.getElementById('pomo-quote');
+  if (quoteEl && !quoteEl.dataset.locked) {
+    const idx = Math.floor((Date.now() / 86400000)) % POMO_QUOTES.length;
+    quoteEl.textContent = POMO_QUOTES[idx];
+  }
+}
+
+function _updatePomoFab() {
+  const fab = document.getElementById('pomo-fab');
+  if (!fab) return;
+  const timeEl = document.getElementById('pomo-fab-time');
+  if (timeEl) timeEl.textContent = _formatPomoTime(_pomo.remainingSec);
+  const isBreak = _pomo.mode !== 'focus';
+  fab.classList.toggle('is-running', _pomo.running && !isBreak);
+  fab.classList.toggle('is-break', _pomo.running && isBreak);
+}
+
 // ── Voice Cards: captura voz, estrutura via IA, cria card ──────
 let _voiceRecognition = null;
 let _voiceTranscript = '';
@@ -20446,6 +20935,8 @@ if (getStorageMode() === 'supabase') {
 
 // Inicializa Voice Cards (FAB + overlay)
 if (typeof _initVoiceCards === 'function') _initVoiceCards();
+// Inicializa Pomodoro Dojo (FAB + overlay)
+if (typeof _initPomo === 'function') _initPomo();
 </script>
 </body>
 </html>
