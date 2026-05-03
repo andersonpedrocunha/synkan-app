@@ -3863,6 +3863,52 @@ body.density-compact .col{padding:7px;}
 .app-dialog-card{background:var(--color-background-primary);border-radius:14px;padding:24px 26px 20px;width:440px;max-width:96vw;box-shadow:0 24px 60px rgba(0,0,0,.28),0 0 0 0.5px var(--color-border-tertiary);animation:appDialogPop .22s cubic-bezier(.16,1.2,.3,1);}
 .app-dialog-card.is-wide{width:660px;}
 .app-dialog-card.is-wide .app-dialog-msg{text-align:left;}
+
+/* AI Top-up: banner no Settings */
+.ai-topup-banner{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;border-radius:10px;
+  background:linear-gradient(135deg, rgba(107,63,160,0.08), rgba(155,111,212,0.05));
+  border:1px solid rgba(107,63,160,0.2);
+  margin-top:12px;
+}
+.ai-topup-banner-info{flex:1;min-width:0;}
+.ai-topup-banner-title{font-size:13px;font-weight:600;color:#6B3FA0;margin-bottom:3px;}
+:root.dark .ai-topup-banner-title{color:#B89AE8;}
+.ai-topup-banner-sub{font-size:12.5px;color:var(--color-text-secondary);line-height:1.4;}
+
+/* AI Top-up: modal de pacotes */
+.ai-topup-grid{
+  display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;
+  margin:12px 0 8px;
+}
+.ai-topup-pkg{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:18px 12px;border-radius:11px;
+  border:1.5px solid var(--color-border-tertiary);
+  background:var(--color-background-primary);
+  cursor:pointer;text-align:center;
+  font-family:var(--font-sans);
+  transition:transform .15s, border-color .15s, box-shadow .15s;
+  position:relative;
+}
+.ai-topup-pkg:hover{
+  border-color:#9B6FD4;transform:translateY(-2px);
+  box-shadow:0 6px 20px rgba(107,63,160,0.18);
+}
+.ai-topup-pkg-h{display:flex;align-items:baseline;gap:5px;flex-wrap:wrap;justify-content:center;}
+.ai-topup-pkg-amount{font-size:30px;font-weight:700;color:var(--color-text-primary);font-variant-numeric:tabular-nums;line-height:1;}
+.ai-topup-pkg-unit{font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.05em;}
+.ai-topup-pkg-badge{
+  position:absolute;top:-9px;right:8px;
+  background:linear-gradient(135deg,#6B3FA0,#9B6FD4);color:#fff;
+  font-size:10px;letter-spacing:0.05em;font-weight:600;
+  padding:2px 9px;border-radius:99px;
+  text-transform:uppercase;
+}
+.ai-topup-pkg-price{font-size:18px;font-weight:600;color:#6B3FA0;font-variant-numeric:tabular-nums;}
+:root.dark .ai-topup-pkg-price{color:#B89AE8;}
+.ai-topup-pkg-percall{font-size:10.5px;color:var(--color-text-tertiary);}
 @keyframes appDialogPop{from{transform:scale(.92) translateY(8px);opacity:0}to{transform:none;opacity:1}}
 .app-dialog-icon{font-size:30px;line-height:1;margin-bottom:10px;}
 .app-dialog-title{font-size:17px;font-weight:600;color:var(--color-text-primary);margin:0 0 6px;line-height:1.3;}
@@ -5529,6 +5575,15 @@ function canCreate(resource) {
   const max = limits[resource === 'okr' ? 'okrs' : resource];
   if (max === -1 || max === undefined) return { ok: true, used: 0, max: -1 };
   const used = getResourceUsage(resource);
+  // Pra IA: se usou tudo do plano, créditos extras (add-on) liberam mais
+  if (resource === 'ai' && used >= max) {
+    try {
+      const addons = (typeof getAIAddons === 'function') ? getAIAddons() : { credits: 0 };
+      if (addons.credits > 0) {
+        return { ok: true, used, max, fromAddon: true, addonCredits: addons.credits };
+      }
+    } catch(e){}
+  }
   return { ok: used < max, used, max };
 }
 
@@ -10660,23 +10715,24 @@ function _settingsIASection() {
     </div>
 
     ${(() => {
-      // Calcula o limite EFETIVO: o menor entre o plano e o pessoal.
-      // Plano com ai = -1 significa ilimitado.
       const planLimits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : { ai: -1, name: '—' };
+      const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
       const planMax = planLimits.ai;
       const planName = planLimits.name || '';
       const planUnlimited = planMax === -1;
       const personalLimit = q.limit;
-      const effectiveLimit = planUnlimited
-        ? personalLimit
-        : Math.min(personalLimit, planMax);
+      const effectiveLimit = planUnlimited ? personalLimit : Math.min(personalLimit, planMax);
       const pctEff = Math.min(100, Math.round((q.used / Math.max(1, effectiveLimit)) * 100));
       const personalAbovePlan = !planUnlimited && personalLimit > planMax;
+      const addons = (typeof getAIAddons === 'function') ? getAIAddons() : { credits: 0 };
+      const hasAddons = addons.credits > 0;
+      // Top-up só aparece pra plano pago não-ilimitado (tem make sense)
+      const canBuyTopup = planCode !== 'trial' && !planUnlimited;
       return `
     <div class="settings-card">
       <div class="settings-card-h">
         <span class="settings-card-title">Limite de chamadas de IA por mês</span>
-        <span class="settings-status-pill ${q.used >= effectiveLimit ? 'off' : 'on'}">${q.used}/${effectiveLimit} este mês</span>
+        <span class="settings-status-pill ${q.used >= effectiveLimit && !hasAddons ? 'off' : 'on'}">${q.used}/${effectiveLimit} este mês${hasAddons ? ` · +${addons.credits} extras` : ''}</span>
       </div>
       <div class="settings-card-sub">
         Seu plano <strong>${_esc(planName)}</strong> permite
@@ -10701,11 +10757,22 @@ function _settingsIASection() {
         ${personalAbovePlan ? `
           <div style="font-size:12px;color:#A88224;margin-top:4px;">
             ⚠ Seu limite pessoal está acima do limite do plano (${planMax}). Vale o que for menor — efetivo: <strong>${effectiveLimit}/mês</strong>.
-            ${planMax < 1000 ? ' <a onclick="_goToPlanTab()" style="color:var(--color-text-primary);cursor:pointer;text-decoration:underline;">Ver planos</a>' : ''}
           </div>
         ` : ''}
         <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-top:4px;">O Mestre Kan avisa quando você atinge 50%, 80% e 95% do limite efetivo.</div>
       </div>
+
+      ${canBuyTopup ? `
+        <div class="ai-topup-banner">
+          <div class="ai-topup-banner-info">
+            <div class="ai-topup-banner-title">⚡ Créditos extras</div>
+            <div class="ai-topup-banner-sub">${hasAddons
+              ? `Você tem <strong>${addons.credits}</strong> chamadas extras disponíveis. Não expiram — sobram pro próximo mês.`
+              : 'Compre pacotes adicionais quando precisar de mais capacidade. Não expiram, sobram pro próximo mês.'}</div>
+          </div>
+          <button class="btn-c" onclick="openAITopupModal()">Comprar créditos</button>
+        </div>
+      ` : ''}
     </div>`;
     })()}
 
@@ -16863,13 +16930,18 @@ function bumpAIQuota() {
   const cfg = getAIQuotaCfg();
   const month = _monthKey();
   const count = (cfg.month===month) ? (cfg.count||0)+1 : 1;
-  // Reset dos avisos quando o mês muda
   const warned = (cfg.month===month) ? (cfg.warned || []) : [];
   setAIQuotaCfg({ limit: cfg.limit, month, count, warned });
-  // Atualiza contador em memória usado pelo gating de plano
   _aiUsageThisMonth = (_aiUsageThisMonth || 0) + 1;
+  // Se já passou do limite do plano, consome créditos extras (add-ons)
+  try {
+    const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+    const planMax = limits ? limits.ai : -1;
+    if (planMax !== -1 && _aiUsageThisMonth > planMax) {
+      consumeAIAddonCredit();
+    }
+  } catch(e){}
   _maybeWarnAIQuota();
-  // Atualiza badges visíveis em qualquer painel de IA
   try { refreshAIQuotaPill(); } catch(e){}
 }
 
@@ -16897,9 +16969,161 @@ function _maybeWarnAIQuota() {
       warned.add(t.key);
       const pct = Math.round(q.used / q.limit * 100);
       _showKanWarning(t.title, t.body(pct), t.style);
+      // No 80%, se estiver em plano pago (não-trial), oferece pacotes adicionais
+      if (t.pct === 0.80 && typeof _maybeOfferAITopup === 'function') {
+        setTimeout(_maybeOfferAITopup, 800);
+      }
     }
   }
   setAIQuotaCfg({ ...cfg, warned: Array.from(warned) });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AI Add-ons — pacotes adicionais de chamadas IA (compra avulsa)
+// Margem ~100% sobre custo (Haiku 4.5 ~R$3 por 100 chamadas).
+// Pacotes: 100/300/1000 com desconto progressivo.
+// ═══════════════════════════════════════════════════════════════════
+const AI_ADDON_KEY = 'kanban_v8_ai_addons';
+const AI_ADDON_PACKAGES = [
+  { id:'ai_100',  amount: 100,  priceBRL: 9.90,  label:'100 chamadas',  perCall: '~R$ 0,10' },
+  { id:'ai_300',  amount: 300,  priceBRL: 24.90, label:'300 chamadas',  perCall: '~R$ 0,08', badge: '17% off' },
+  { id:'ai_1000', amount: 1000, priceBRL: 69.00, label:'1000 chamadas', perCall: '~R$ 0,07', badge: 'melhor valor' },
+];
+
+function getAIAddons() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(AI_ADDON_KEY) || '{}');
+    return { credits: Number(raw.credits)||0, history: Array.isArray(raw.history) ? raw.history : [] };
+  } catch(e) { return { credits: 0, history: [] }; }
+}
+function _saveAIAddons(state) {
+  try { localStorage.setItem(AI_ADDON_KEY, JSON.stringify(state || { credits:0, history:[] })); } catch(e){}
+}
+// Adiciona créditos (chamado quando webhook do Stripe confirma compra,
+// ou em dev pelo botão "Simular compra")
+function addAIAddonCredits(amount, source) {
+  const a = getAIAddons();
+  a.credits = (a.credits||0) + (Number(amount)||0);
+  a.history.unshift({ at: new Date().toISOString(), amount, source: source || 'manual' });
+  if (a.history.length > 50) a.history = a.history.slice(0, 50);
+  _saveAIAddons(a);
+  if (typeof renderSettings === 'function' && currentTab === 'settings') renderSettings();
+  if (typeof refreshAIQuotaPill === 'function') refreshAIQuotaPill();
+}
+// Consome 1 crédito extra. Retorna true se consumiu, false se não havia.
+function consumeAIAddonCredit() {
+  const a = getAIAddons();
+  if (a.credits <= 0) return false;
+  a.credits -= 1;
+  _saveAIAddons(a);
+  return true;
+}
+
+// Verifica se faz sentido oferecer top-up agora (plano pago + plan limit
+// próximo de estourar + cliente ainda não tem créditos extras suficientes)
+function _maybeOfferAITopup() {
+  // Não oferece em trial (eles devem fazer upgrade primeiro, não comprar add-on)
+  const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+  if (planCode === 'trial' || !planCode) return;
+  // Faixa Preta tem ai = -1 (ilimitado), não precisa
+  const planLimits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+  if (planLimits && planLimits.ai === -1) return;
+  // Já oferecido este mês?
+  const cfg = getAIQuotaCfg();
+  if (cfg.topupOffered === _monthKey()) return;
+  setAIQuotaCfg({ ...cfg, topupOffered: _monthKey() });
+  // Mostra modal
+  if (typeof openAITopupModal === 'function') openAITopupModal({ proactive: true });
+}
+
+async function openAITopupModal(opts) {
+  const proactive = !!opts?.proactive;
+  const a = getAIAddons();
+  const planLimits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+  const planName = planLimits?.name || 'seu plano';
+  const fmt = n => 'R$ ' + Number(n).toFixed(2).replace('.', ',');
+
+  const packagesHTML = AI_ADDON_PACKAGES.map(pkg => `
+    <button class="ai-topup-pkg" onclick="confirmAITopupPurchase('${pkg.id}')" data-pkg-id="${pkg.id}">
+      <div class="ai-topup-pkg-h">
+        <span class="ai-topup-pkg-amount">${pkg.amount}</span>
+        <span class="ai-topup-pkg-unit">chamadas</span>
+        ${pkg.badge ? `<span class="ai-topup-pkg-badge">${_esc(pkg.badge)}</span>` : ''}
+      </div>
+      <div class="ai-topup-pkg-price">${fmt(pkg.priceBRL)}</div>
+      <div class="ai-topup-pkg-percall">${_esc(pkg.perCall)} por chamada</div>
+    </button>
+  `).join('');
+
+  const headline = proactive
+    ? 'Você usou 80% das suas chamadas IA do mês.'
+    : 'Comprar mais chamadas de IA';
+
+  const subline = proactive
+    ? `Quer adicionar mais capacidade pro Mestre Kan agora? Os créditos extras <strong>não expiram</strong> — sobram pro próximo mês também. Plano atual: ${_esc(planName)}.`
+    : 'Os créditos extras adicionam capacidade ao seu limite mensal e <strong>não expiram</strong>. Sobram pro mês seguinte. Use à vontade quando precisar.';
+
+  _appDialogShow(`
+    <div class="app-dialog-icon" style="background:linear-gradient(135deg,#6B3FA0,#9B6FD4);color:#fff;">⚡</div>
+    <h3 class="app-dialog-title">${headline}</h3>
+    <p class="app-dialog-msg" style="text-align:left;">${subline}</p>
+    ${a.credits > 0 ? `<div style="text-align:center;font-size:13px;color:var(--color-text-secondary);margin-bottom:12px;">Você já tem <strong style="color:var(--color-text-primary);">${a.credits}</strong> créditos extras disponíveis.</div>` : ''}
+    <div class="ai-topup-grid">${packagesHTML}</div>
+    <p style="font-size:11.5px;color:var(--color-text-tertiary);text-align:center;margin:12px 0 0;">
+      Pagamento via Stripe. Os créditos são adicionados na sua conta após a confirmação.
+    </p>
+    <div class="app-dialog-actions">
+      <button class="app-dialog-btn" onclick="_appDialogClose(false)">${proactive ? 'Mais tarde' : 'Fechar'}</button>
+    </div>
+  `, (card) => { if (card) card.classList.add('is-wide'); });
+}
+
+async function confirmAITopupPurchase(pkgId) {
+  const pkg = AI_ADDON_PACKAGES.find(p => p.id === pkgId);
+  if (!pkg) return;
+  const fmt = n => 'R$ ' + Number(n).toFixed(2).replace('.', ',');
+  const ok = await appConfirm(
+    `Comprar ${pkg.amount} chamadas?`,
+    `Você vai ser redirecionado pra o Stripe pra completar a compra de ${fmt(pkg.priceBRL)}. Os créditos são adicionados imediatamente após o pagamento.`,
+    { okLabel:'Ir pro pagamento' }
+  );
+  if (!ok) return;
+
+  // Em produção: chama o billing-server pra criar checkout session.
+  // Em dev: simula a compra (créditos adicionados localmente).
+  if (_isDevHost()) {
+    addAIAddonCredits(pkg.amount, 'dev_simulate');
+    await appAlert('✓ Créditos adicionados (modo dev)',
+      `${pkg.amount} chamadas adicionadas. Em produção isso passaria pelo Stripe checkout.`,
+      { icon:'⚡' });
+    return;
+  }
+  // Produção: redireciona pro billing-server
+  try {
+    const userId = (typeof supaUser !== 'undefined' && supaUser) ? supaUser.id : null;
+    if (!userId) {
+      await appAlert('Login necessário', 'Faça login pra comprar créditos.', { icon:'⚠️' });
+      return;
+    }
+    const billingBase = (location.hostname === 'app.synkan.com.br')
+      ? 'https://billing.synkan.com.br'
+      : '/billing';
+    const res = await fetch(`${billingBase}/create-ai-topup-checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, package_id: pkg.id }),
+    });
+    const data = await res.json();
+    if (data.checkout_url) {
+      window.location.href = data.checkout_url;
+    } else {
+      await appAlert('Erro', data.error || 'Não consegui iniciar o checkout. Tente novamente.', { icon:'⚠️' });
+    }
+  } catch(e) {
+    await appAlert('Erro de conexão',
+      'Não consegui falar com o servidor de pagamento. Verifique sua conexão e tente de novo.',
+      { icon:'⚠️' });
+  }
 }
 
 function _showKanWarning(title, body, style) {
