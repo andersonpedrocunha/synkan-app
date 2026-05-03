@@ -1471,6 +1471,13 @@ body.density-compact .card-cf-row{font-size:10px;}
   font-family:'Hiragino Mincho ProN',serif;font-size:18px;flex-shrink:0;
 }
 .zai-hub-board-tile-name{font-size:14px;font-weight:600;color:var(--color-text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.zai-hub-tile-edit{
+  flex-shrink:0;width:26px;height:26px;border:none;background:transparent;
+  color:var(--color-text-secondary);cursor:pointer;border-radius:6px;
+  font-size:13px;opacity:0;transition:opacity .15s, background .15s;
+}
+.zai-hub-board-tile:hover .zai-hub-tile-edit{opacity:.8;}
+.zai-hub-tile-edit:hover{background:var(--color-background-tertiary,rgba(0,0,0,.05));opacity:1!important;}
 .zai-hub-board-tile-runway{
   display:flex;align-items:center;gap:8px;font-family:var(--font-sans);font-size:11.5px;
   color:var(--color-text-secondary);font-variant-numeric:tabular-nums;
@@ -8100,6 +8107,31 @@ function _ensureZaiPrefix(name) {
   n = n.replace(/^z[aA][iI]\s*[·\-:|]?\s*/i, '').trim();
   if (!n) n = 'Visão Financeira';
   return 'Zai · ' + n;
+}
+
+// Renomeia um board Zai existente direto pelo hub (mantém prefixo "Zai · ")
+async function renameZaiBoardFromHub(boardId) {
+  const b = allBoards[boardId];
+  if (!b) return;
+  // Mostra só a parte editável (sem o prefixo) como default
+  const currentName = b.name || '';
+  const editable = currentName.replace(/^z[aA][iI]\s*[·\-:|]?\s*/i, '').trim() || '';
+  const userName = await appPrompt('Renomear board Zai', {
+    icon: '✎',
+    message: 'O prefixo "Zai ·" fica fixo. Mude o que vem depois.',
+    defaultValue: editable,
+    placeholder: 'Ex: Empresa, Pessoal, Família, Projeto X…',
+    okLabel: 'Renomear',
+  });
+  if (userName === null) return;
+  const finalName = _ensureZaiPrefix(userName);
+  // Marca o board como Zai pra travar prefixo em renames futuros via outras telas
+  b.isZaiBoard = true;
+  b.name = finalName;
+  saveData();
+  refreshSidebarBoardLabel();
+  // Re-renderiza o hub Zai
+  if (typeof renderZaiHub === 'function') renderZaiHub();
 }
 
 // Cria um board novo a partir do ZAI_TEMPLATE (acessado pelo hub Zai)
@@ -23456,6 +23488,7 @@ function renderZaiHub() {
         <div class="zai-hub-board-tile-h">
           <span class="zai-hub-board-tile-icon">財</span>
           <span class="zai-hub-board-tile-name">${_esc(board.name)}</span>
+          <button class="zai-hub-tile-edit" title="Renomear board" onclick="event.stopPropagation();renameZaiBoardFromHub('${id}')">✎</button>
         </div>
         <div class="zai-hub-board-tile-runway">
           <span style="flex:1;">Runway</span>
