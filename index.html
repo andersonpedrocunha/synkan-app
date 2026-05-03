@@ -22897,7 +22897,32 @@ function _gamifAwardAICall() {
 // trigger: stat (de _gamif.stats) que precisa ser > 0 pra conquista aparecer no painel principal.
 // Se trigger='universal', sempre aparece (todo mundo pode pegar).
 // Se já desbloqueada, sempre aparece independente do trigger.
+// Helpers pra checagens contra estado global (não só _gamif)
+function _countHabitCards(filterFn) {
+  let n = 0;
+  Object.values(allBoards || {}).forEach(b => {
+    if (!b || b.sourceTemplateId !== 'habitos-ritual') return;
+    (b.cards || []).forEach(c => { try { if (filterFn(c, b)) n++; } catch(e){} });
+  });
+  return n;
+}
+function _countCanvasesByFormat(format) {
+  return Object.values(_canvases || {}).filter(cv => cv.format === format).length;
+}
+function _countCanvasesNonZai() {
+  const ZAI = new Set(['opcost', 'goal-1pct', 'invest']);
+  return Object.values(_canvases || {}).filter(cv => !ZAI.has(cv.format)).length;
+}
+function _countPromotedFromLabs() {
+  let n = 0;
+  Object.values(_canvases || {}).forEach(cv => {
+    Object.values(cv.promoted || {}).forEach(p => { if (p && (p.boardId || p.cardId)) n++; });
+  });
+  return n;
+}
+
 const ACHIEVEMENTS = [
+  // ── Conquistas originais (mantidas) ─────────────────────────
   { id:'first_kata',          name:'Primeiro Kata',          desc:'Conclua seu primeiro card.',                       icon:'🥋', rarity:'common',    trigger:'universal',       check: g => g.stats.cardsDone >= 1 },
   { id:'first_lead',          name:'Primeiro Discípulo',     desc:'Cadastre seu primeiro lead.',                      icon:'👤', rarity:'common',    trigger:'contactsCreated', check: g => g.stats.contactsCreated >= 1 },
   { id:'velocidade_vento',    name:'Velocidade do Vento',    desc:'Conclua 10 cards num único dia.',                  icon:'💨', rarity:'rare',      trigger:'universal',       check: g => (g.today?.cardsDone||0) >= 10 || (g.stats.cardsTodayMax||0) >= 10 },
@@ -22908,6 +22933,26 @@ const ACHIEVEMENTS = [
   { id:'montanha_movida',     name:'Montanha Movida',        desc:'Conclua 100 cards no total.',                      icon:'🏔', rarity:'epic',      trigger:'universal',       check: g => g.stats.cardsDone >= 100 },
   { id:'mestre_negocios',     name:'Mestre dos Negócios',    desc:'Converta 10 leads em clientes.',                   icon:'💼', rarity:'epic',      trigger:'leadsConverted',  check: g => g.stats.leadsConverted >= 10 },
   { id:'caminho_bushido',     name:'Caminho do Bushido',     desc:'Atinja a Faixa Preta.',                            icon:'⚔', rarity:'legendary', trigger:'universal',       check: g => g.belt >= 7 },
+
+  // ── 道 Hábitos & Disciplina (novas) ──────────────────────
+  { id:'primeira_brasa',      name:'Primeira Brasa',         desc:'Crie seu primeiro hábito no board Hábitos.',       icon:'🌱', rarity:'common',    trigger:'universal',
+    check: () => _countHabitCards(() => true) >= 1 },
+  { id:'onda_tranquila',      name:'Onda Tranquila',         desc:'Mantenha um hábito por 7 dias seguidos.',          icon:'🌬', rarity:'rare',      trigger:'universal',
+    check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 7) >= 1 },
+  { id:'pedra_polida',        name:'Pedra Polida',           desc:'Streak de 30 dias num único hábito.',              icon:'🪨', rarity:'epic',      trigger:'universal',
+    check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 30) >= 1 },
+  { id:'sete_pilares',        name:'Sete Pilares',           desc:'Tenha 7 hábitos em prática ou estabelecidos.',     icon:'🏛', rarity:'epic',      trigger:'universal',
+    check: () => _countHabitCards(c => c.col === 'pratica' || c.col === 'estabelecido') >= 7 },
+  { id:'mestre_ritual',       name:'Mestre do Ritual',       desc:'90 dias seguidos no mesmo hábito.',                icon:'🕯', rarity:'legendary', trigger:'universal',
+    check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 90) >= 1 },
+
+  // ── 創 Criatividade (novas) ──────────────────────────────
+  { id:'primeira_ideia',      name:'Primeira Ideia',         desc:'Crie seu primeiro Lab.',                            icon:'💡', rarity:'common',    trigger:'universal',
+    check: () => _countCanvasesNonZai() >= 1 },
+  { id:'mapa_mental',         name:'Mapa Mental',            desc:'Crie 5 Labs em formato Mindmap.',                  icon:'🧠', rarity:'rare',      trigger:'universal',
+    check: () => _countCanvasesByFormat('mindmap') >= 5 },
+  { id:'plano_em_acao',       name:'Plano em Ação',          desc:'Promova 10 ações de Labs pra boards.',             icon:'🎯', rarity:'epic',      trigger:'universal',
+    check: () => _countPromotedFromLabs() >= 10 },
 ];
 
 // Decide se uma conquista é "relevante pra você" agora — visível no painel principal
