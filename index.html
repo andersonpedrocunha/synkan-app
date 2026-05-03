@@ -23523,7 +23523,7 @@ function _dojoStartWindEngine(overlay) {
 
         // Detecta pouso: chegou ao chão (irregular). Cada folha tem _yOffset
         // próprio pra desalinhar o tapete (algumas mais altas/baixas).
-        const groundLine = _groundYAt(lf.x);
+        // Reaproveita groundLine declarado acima (estabilização aerodinâmica).
         if (lf.y >= groundLine - lf.size * 0.15) {
           lf.landed = true;
           lf.landedTime = elapsed;
