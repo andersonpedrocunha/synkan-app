@@ -1183,6 +1183,55 @@ body.density-compact .card-cf-row{font-size:10px;}
 .col-n.wip-warn{background:#FCEBEB;color:#A32D2D;border-color:#F09595;font-weight:600;}
 .col-archived{font-size:11px;color:var(--color-text-tertiary);text-align:center;padding:6px 4px;background:transparent;border:0.5px dashed var(--color-border-tertiary);border-radius:6px;margin-top:6px;cursor:default;}
 
+/* ── Painel de Flow Metrics (Cycle Time + Forecast) ────────────── */
+.flow-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:900px){.flow-grid{grid-template-columns:1fr 1fr;}}
+.flow-kpi{
+  background:var(--color-background-primary);
+  border:0.5px solid var(--color-border-tertiary);
+  border-radius:10px;padding:12px 14px;
+  display:flex;flex-direction:column;gap:3px;
+  position:relative;overflow:hidden;
+}
+.flow-kpi::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#3C3489;
+}
+.flow-kpi.fk-cycle::before{background:#3C3489;}
+.flow-kpi.fk-lead::before{background:#0C447C;}
+.flow-kpi.fk-thr::before{background:#3B6D11;}
+.flow-kpi.fk-wip::before{background:#854F0B;}
+.flow-kpi-label{font-size:10px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;}
+.flow-kpi-value{font-size:24px;font-weight:600;color:var(--color-text-primary);line-height:1.05;font-variant-numeric:tabular-nums;}
+.flow-kpi-sub{font-size:11px;color:var(--color-text-tertiary);}
+
+/* Histograma horizontal de cycle time */
+.flow-hist{display:flex;align-items:flex-end;gap:3px;height:80px;padding:8px 0;border-bottom:1px solid var(--color-border-tertiary);}
+.flow-hist-bar{flex:1;background:linear-gradient(180deg, #3C3489 0%, #5A4FA8 100%);border-radius:3px 3px 0 0;min-height:3px;position:relative;cursor:default;transition:filter .15s;}
+.flow-hist-bar:hover{filter:brightness(1.15);}
+.flow-hist-bar[data-count="0"]{opacity:.15;}
+.flow-hist-axis{display:flex;justify-content:space-between;font-size:10px;color:var(--color-text-tertiary);margin-top:6px;font-variant-numeric:tabular-nums;}
+
+/* Forecast box */
+.flow-forecast{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px;}
+@media(max-width:600px){.flow-forecast{grid-template-columns:1fr;}}
+.flow-fc-box{
+  border:1px dashed var(--color-border-secondary);border-radius:10px;
+  padding:11px 13px;display:flex;flex-direction:column;gap:2px;
+  background:linear-gradient(135deg, rgba(60,52,137,.04) 0%, transparent 100%);
+}
+.flow-fc-label{font-size:10px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;}
+.flow-fc-value{font-size:20px;font-weight:600;color:var(--color-text-primary);font-variant-numeric:tabular-nums;}
+.flow-fc-sub{font-size:11px;color:var(--color-text-tertiary);}
+.flow-fc-input{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-tertiary);
+  margin-bottom:8px;
+}
+.flow-fc-input input{
+  width:50px;padding:3px 7px;border:1px solid var(--color-border-secondary);
+  border-radius:5px;font-size:12px;font-family:var(--font-sans);background:var(--color-background-primary);color:var(--color-text-primary);
+  text-align:center;font-variant-numeric:tabular-nums;
+}
+
 /* ── Daily Brief do Mestre Kan (Home, topo) ────────────────────── */
 .daily-brief{
   position:relative;
@@ -4186,6 +4235,260 @@ function getCardAgingTooltip(card) {
   return `Há ${formatDuration(ageMs)} em "${colTitle}"`;
 }
 
+// ── Métricas de Fluxo Kanban (Cycle Time + Lead Time + Forecast) ──
+// Cycle Time: tempo de quando o card entrou em "trabalho ativo" até concluir.
+// Lead Time:  tempo de criado até concluído.
+// Forecast Monte Carlo: simula throughput histórico pra prever completion futura.
+
+// Tenta extrair do histórico do card o momento em que ele saiu do backlog
+// (procura threads tipo "Movido para X" e pega o primeiro que não seja backlog).
+function _firstNonBacklogMoveTime(card) {
+  if (!card || !Array.isArray(card.threads)) return null;
+  // Lê threads em ordem cronológica
+  const moves = card.threads
+    .filter(t => t && t.type === 'auto' && /^Movido para "/i.test(t.text || ''))
+    .map(t => ({ date: t.date, text: t.text }));
+  for (const m of moves) {
+    // Detecta se a coluna destino NÃO é a primeira (backlog/idéias/inbox)
+    const target = (m.text.match(/^Movido para "([^"]+)"/) || [])[1] || '';
+    const targetCol = COLS.find(c => c.title === target);
+    if (!targetCol) continue;
+    // Considera "trabalho ativo": qualquer coluna que NÃO seja a primeira do board
+    // e não seja terminal
+    const idx = COLS.findIndex(c => c.id === targetCol.id);
+    if (idx > 0 && targetCol.id !== TERMINAL_COL) {
+      return new Date(m.date).getTime();
+    }
+  }
+  return null;
+}
+
+function getCardCycleTimeMs(card) {
+  if (!card || card.col !== TERMINAL_COL || !card.doneAt) return null;
+  const start = _firstNonBacklogMoveTime(card);
+  if (!start) {
+    // Fallback: usa createdAt (vira igual ao lead time)
+    if (!card.createdAt) return null;
+    return new Date(card.doneAt).getTime() - new Date(card.createdAt).getTime();
+  }
+  return new Date(card.doneAt).getTime() - start;
+}
+function getCardLeadTimeMs(card) {
+  if (!card || card.col !== TERMINAL_COL || !card.doneAt || !card.createdAt) return null;
+  return new Date(card.doneAt).getTime() - new Date(card.createdAt).getTime();
+}
+
+// Calcula percentis (p50, p80, p95) de uma lista de durações
+function _percentile(sortedArr, p) {
+  if (!sortedArr.length) return 0;
+  const idx = (p / 100) * (sortedArr.length - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if (lo === hi) return sortedArr[lo];
+  return sortedArr[lo] + (sortedArr[hi] - sortedArr[lo]) * (idx - lo);
+}
+
+// Compute flow metrics pros últimos N cards concluídos
+function computeFlowMetrics(cardsList, opts) {
+  opts = opts || {};
+  const lookbackDays = opts.lookbackDays || 90;
+  const cutoff = Date.now() - lookbackDays * 86400000;
+
+  const done = (cardsList || [])
+    .filter(c => c.col === TERMINAL_COL && c.doneAt && new Date(c.doneAt).getTime() >= cutoff);
+
+  const cycleSamples = done.map(getCardCycleTimeMs).filter(v => v !== null && v >= 0);
+  const leadSamples  = done.map(getCardLeadTimeMs).filter(v => v !== null && v >= 0);
+
+  cycleSamples.sort((a,b) => a-b);
+  leadSamples.sort((a,b) => a-b);
+
+  // Throughput diário (cards concluídos por dia em dias úteis dos últimos 30d)
+  const thrDays = 30;
+  const thrCutoff = Date.now() - thrDays * 86400000;
+  const recentDone = done.filter(c => new Date(c.doneAt).getTime() >= thrCutoff);
+  const thrPerDay = {};
+  recentDone.forEach(c => {
+    const dStr = c.doneAt.slice(0, 10);
+    thrPerDay[dStr] = (thrPerDay[dStr] || 0) + 1;
+  });
+  // Inclui dias zerados nos últimos 30d (úteis: seg-sex) pra distribuição honesta
+  const throughputSamples = [];
+  for (let i = 0; i < thrDays; i++) {
+    const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - i);
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) continue; // ignora fim de semana
+    const dStr = d.toISOString().slice(0,10);
+    throughputSamples.push(thrPerDay[dStr] || 0);
+  }
+
+  return {
+    sampleCount: cycleSamples.length,
+    cycleP50: _percentile(cycleSamples, 50),
+    cycleP80: _percentile(cycleSamples, 80),
+    cycleP95: _percentile(cycleSamples, 95),
+    cycleMean: cycleSamples.length ? cycleSamples.reduce((a,b)=>a+b,0) / cycleSamples.length : 0,
+    leadP50: _percentile(leadSamples, 50),
+    leadMean: leadSamples.length ? leadSamples.reduce((a,b)=>a+b,0) / leadSamples.length : 0,
+    cycleSamples,
+    leadSamples,
+    throughputSamples,
+    throughputMean: throughputSamples.length ? throughputSamples.reduce((a,b)=>a+b,0) / throughputSamples.length : 0,
+    inFlight: (cardsList || []).filter(c => c.col !== TERMINAL_COL).length,
+  };
+}
+
+// Forecast Monte Carlo: pra completar `target` cards, simula 1000 vezes
+// quantos dias úteis levaria, samplig do throughput histórico.
+function forecastDaysToComplete(throughputSamples, target, runs) {
+  runs = runs || 1000;
+  if (!throughputSamples || throughputSamples.length === 0 || target <= 0) {
+    return { p50: null, p80: null, p95: null };
+  }
+  const results = [];
+  for (let r = 0; r < runs; r++) {
+    let done = 0, days = 0;
+    while (done < target && days < 1000) {
+      const sample = throughputSamples[Math.floor(Math.random() * throughputSamples.length)];
+      done += sample;
+      days++;
+    }
+    results.push(days);
+  }
+  results.sort((a,b) => a-b);
+  return {
+    p50: _percentile(results, 50),
+    p80: _percentile(results, 80),
+    p95: _percentile(results, 95),
+  };
+}
+
+// Formata ms em label humano (h, dias)
+function _msToLabel(ms) {
+  if (!ms || ms < 0) return '—';
+  const d = ms / 86400000;
+  if (d < 1) return Math.round(ms / 3600000) + 'h';
+  if (d < 14) return d.toFixed(1) + 'd';
+  return Math.round(d) + 'd';
+}
+
+// Estado do forecast (input do usuário) — quantos cards prever
+let _forecastTarget = 10;
+function setForecastTarget(v) {
+  const n = parseInt(v) || 1;
+  _forecastTarget = Math.max(1, Math.min(200, n));
+  // Re-render só o painel de fluxo (otimização)
+  const old = document.getElementById('flow-metrics-panel');
+  if (old) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = _renderFlowMetricsPanel(cards);
+    old.replaceWith(wrap.firstElementChild);
+  }
+}
+
+// Renderiza painel completo de Flow Metrics
+function _renderFlowMetricsPanel(cardsList) {
+  const m = computeFlowMetrics(cardsList || cards, { lookbackDays: 90 });
+
+  // Histograma: agrupa cycle samples em buckets de 1d (até 14d, depois "14+")
+  const buckets = new Array(15).fill(0);  // 0..13d e 14+
+  m.cycleSamples.forEach(ms => {
+    const d = Math.floor(ms / 86400000);
+    const idx = Math.min(d, 14);
+    buckets[idx]++;
+  });
+  const maxBucket = Math.max(...buckets, 1);
+  const histHTML = buckets.map((cnt, i) => {
+    const h = (cnt / maxBucket) * 70;
+    const lbl = i === 14 ? '14+d' : i + 'd';
+    return `<div class="flow-hist-bar" data-count="${cnt}"
+            title="${cnt} card${cnt!==1?'s':''} levou ${lbl}"
+            style="height:${Math.max(3, h)}px;"></div>`;
+  }).join('');
+
+  const fc = forecastDaysToComplete(m.throughputSamples, _forecastTarget, 1000);
+
+  const lookbackInfo = m.sampleCount > 0
+    ? `Baseado em ${m.sampleCount} card${m.sampleCount!==1?'s':''} concluído${m.sampleCount!==1?'s':''} nos últimos 90 dias`
+    : 'Sem dados suficientes (precisa de cards concluídos)';
+
+  const enoughData = m.sampleCount >= 3;
+
+  return `
+    <div class="dash-row" id="flow-metrics-panel">
+      <div class="dash-panel">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title">Métricas de fluxo</span>
+          <span class="dash-panel-sub">${_esc(lookbackInfo)}</span>
+        </div>
+        ${enoughData ? `
+          <div class="flow-grid">
+            <div class="flow-kpi fk-cycle">
+              <span class="flow-kpi-label">Cycle Time (P50)</span>
+              <span class="flow-kpi-value">${_msToLabel(m.cycleP50)}</span>
+              <span class="flow-kpi-sub">P80: ${_msToLabel(m.cycleP80)} · P95: ${_msToLabel(m.cycleP95)}</span>
+            </div>
+            <div class="flow-kpi fk-lead">
+              <span class="flow-kpi-label">Lead Time (P50)</span>
+              <span class="flow-kpi-value">${_msToLabel(m.leadP50)}</span>
+              <span class="flow-kpi-sub">média ${_msToLabel(m.leadMean)}</span>
+            </div>
+            <div class="flow-kpi fk-thr">
+              <span class="flow-kpi-label">Throughput</span>
+              <span class="flow-kpi-value">${m.throughputMean.toFixed(1)}</span>
+              <span class="flow-kpi-sub">cards/dia útil (30d)</span>
+            </div>
+            <div class="flow-kpi fk-wip">
+              <span class="flow-kpi-label">WIP atual</span>
+              <span class="flow-kpi-value">${m.inFlight}</span>
+              <span class="flow-kpi-sub">cards em andamento</span>
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px;font-weight:600;">Distribuição do Cycle Time</div>
+          <div class="flow-hist">${histHTML}</div>
+          <div class="flow-hist-axis">
+            <span>0d</span><span>7d</span><span>14d+</span>
+          </div>
+
+          <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 6px;font-weight:600;">Forecast probabilístico (Monte Carlo · 1000 simulações)</div>
+          <div class="flow-fc-input">
+            <span>Pra concluir</span>
+            <input type="number" min="1" max="200" value="${_forecastTarget}"
+                   onchange="setForecastTarget(this.value)"
+                   onkeydown="if(event.key==='Enter')setForecastTarget(this.value)" />
+            <span>cards novos…</span>
+          </div>
+          ${fc.p50 !== null ? `
+            <div class="flow-forecast">
+              <div class="flow-fc-box">
+                <span class="flow-fc-label">P50 · provável</span>
+                <span class="flow-fc-value">${Math.round(fc.p50)} dias</span>
+                <span class="flow-fc-sub">50% chance de terminar nesse prazo</span>
+              </div>
+              <div class="flow-fc-box">
+                <span class="flow-fc-label">P80 · seguro</span>
+                <span class="flow-fc-value">${Math.round(fc.p80)} dias</span>
+                <span class="flow-fc-sub">80% chance — bom pra prometer</span>
+              </div>
+              <div class="flow-fc-box">
+                <span class="flow-fc-label">P95 · pessimista</span>
+                <span class="flow-fc-value">${Math.round(fc.p95)} dias</span>
+                <span class="flow-fc-sub">95% chance — buffer máximo</span>
+              </div>
+            </div>
+          ` : '<div class="dash-empty">Throughput zero nos últimos 30 dias — conclua cards pra gerar previsões.</div>'}
+
+        ` : `
+          <div class="dash-empty" style="padding:24px 0;">
+            Precisa de pelo menos <strong>3 cards concluídos</strong> nos últimos 90 dias pra calcular as métricas de fluxo.
+            ${m.sampleCount > 0 ? `Você tem ${m.sampleCount} até agora — continue praticando, mestre.` : 'Comece movendo cards pra "Done".'}
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
 // ── Daily Brief do Mestre Kan ─────────────────────────────────────
 // Card que aparece no topo do Home toda manhã com resumo + alertas.
 // Pode ser dispensado (esconde até o próximo dia).
@@ -4910,6 +5213,9 @@ function renderDashboard() {
         }).join('') : '<div class="dash-empty">Nenhum card em aberto.</div>'}
       </div>
     </div>
+
+    <div class="dash-section-title">Fluxo Kanban</div>
+    ${_renderFlowMetricsPanel(cards)}
 
     <div class="dash-section-title">Próximos passos</div>
     <div class="dash-row">
