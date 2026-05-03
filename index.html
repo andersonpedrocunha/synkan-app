@@ -1183,6 +1183,106 @@ body.density-compact .card-cf-row{font-size:10px;}
 .col-n.wip-warn{background:#FCEBEB;color:#A32D2D;border-color:#F09595;font-weight:600;}
 .col-archived{font-size:11px;color:var(--color-text-tertiary);text-align:center;padding:6px 4px;background:transparent;border:0.5px dashed var(--color-border-tertiary);border-radius:6px;margin-top:6px;cursor:default;}
 
+/* ── Voice Cards (FAB de microfone + overlay) ────────────────── */
+.voice-fab{
+  position:fixed;right:24px;bottom:24px;z-index:80;
+  width:54px;height:54px;border-radius:50%;
+  background:linear-gradient(135deg, #3C3489 0%, #5A4FA8 100%);
+  color:#fff;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px rgba(60,52,137,.36), 0 1px 3px rgba(0,0,0,.16);
+  transition:transform .18s, box-shadow .18s, filter .18s;
+}
+.voice-fab:hover{transform:scale(1.08) translateY(-2px);filter:brightness(1.10);box-shadow:0 8px 22px rgba(60,52,137,.44);}
+.voice-fab:active{transform:scale(0.96);}
+.voice-fab svg{width:24px;height:24px;}
+.voice-fab.is-recording{
+  background:linear-gradient(135deg, #BC002D 0%, #DC1945 100%);
+  animation:voiceFabPulse 1.4s ease-in-out infinite;
+}
+@keyframes voiceFabPulse{
+  0%,100%{box-shadow:0 4px 14px rgba(188,0,45,.4), 0 0 0 0 rgba(188,0,45,.5);}
+  50%    {box-shadow:0 4px 14px rgba(188,0,45,.4), 0 0 0 14px rgba(188,0,45,0);}
+}
+@media(max-width:640px){.voice-fab{right:16px;bottom:16px;width:48px;height:48px;}.voice-fab svg{width:20px;height:20px;}}
+
+/* Overlay durante gravação */
+.voice-overlay{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.62);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;
+  animation:voiceOverlayIn .25s ease-out;
+}
+.voice-overlay.is-open{display:flex;}
+@keyframes voiceOverlayIn{from{opacity:0;}to{opacity:1;}}
+.voice-card{
+  background:linear-gradient(135deg, #FBF7EE 0%, #F8F2E4 100%);
+  border:1px solid #E0D5C2;border-radius:18px;
+  padding:32px 32px 26px;max-width:480px;width:90%;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  color:#1A1612;text-align:center;
+  box-shadow:0 12px 48px rgba(0,0,0,.32);
+  position:relative;
+}
+:root.dark .voice-card{
+  background:linear-gradient(135deg, #1F1A14 0%, #1A1612 100%);
+  color:#F8F2E4;border-color:#3A3225;
+}
+.voice-card-icon{
+  width:80px;height:80px;border-radius:50%;
+  background:linear-gradient(135deg, #BC002D 0%, #DC1945 100%);
+  display:flex;align-items:center;justify-content:center;color:#fff;
+  margin:0 auto 18px;animation:voiceMicPulse 1.4s ease-in-out infinite;
+}
+.voice-card-icon svg{width:40px;height:40px;}
+@keyframes voiceMicPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(188,0,45,.55);}
+  50%    {box-shadow:0 0 0 18px rgba(188,0,45,0);}
+}
+.voice-card.is-processing .voice-card-icon{
+  background:linear-gradient(135deg, #3C3489 0%, #5A4FA8 100%);
+  animation:none;
+}
+.voice-card.is-processing .voice-card-icon svg{animation:voiceSpin 1.2s linear infinite;}
+@keyframes voiceSpin{from{transform:rotate(0);}to{transform:rotate(360deg);}}
+.voice-card-title{
+  font-size:20px;font-weight:600;letter-spacing:.005em;margin-bottom:6px;
+}
+.voice-card-sub{
+  font-size:13px;color:#6B5B43;font-family:var(--font-sans);
+  margin-bottom:18px;line-height:1.45;
+}
+:root.dark .voice-card-sub{color:#A99876;}
+.voice-card-transcript{
+  background:rgba(255,255,255,.55);border:1px dashed #C9B380;border-radius:10px;
+  padding:14px 16px;min-height:64px;font-family:var(--font-sans);font-size:14px;line-height:1.45;
+  color:#2A241D;text-align:left;margin-bottom:18px;
+  font-style:italic;font-weight:400;
+}
+:root.dark .voice-card-transcript{
+  background:rgba(0,0,0,.25);color:#E8DEC9;border-color:#5A4F3A;
+}
+.voice-card-transcript:empty::before{content:'Diga algo… (ex: "criar card de revisão da proposta cliente X até quinta de manhã, prioridade alta")';color:#A99876;font-style:italic;}
+.voice-card-actions{
+  display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+  font-family:var(--font-sans);
+}
+.voice-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--font-sans);font-size:13.5px;font-weight:500;
+  padding:9px 18px;border:none;border-radius:8px;cursor:pointer;
+  letter-spacing:.02em;transition:transform .12s, filter .12s;
+}
+.voice-btn-primary{background:#1A1612;color:#F8F2E4;}
+.voice-btn-primary:hover{transform:translateY(-1px);filter:brightness(1.1);}
+.voice-btn-ghost{background:transparent;color:#1A1612;border:1px solid rgba(26,22,18,.18);}
+:root.dark .voice-btn-ghost{color:#F8F2E4;border-color:rgba(248,242,228,.18);}
+.voice-btn-ghost:hover{background:rgba(26,22,18,.05);}
+.voice-card-error{
+  background:#FCEBEB;color:#A32D2D;border-radius:8px;padding:10px 14px;
+  font-family:var(--font-sans);font-size:13px;margin-bottom:14px;
+}
+
 /* ── Board Kaizen (Retrospectiva) ─────────────────────────────── */
 .board-kaizen{
   position:relative;
@@ -19699,6 +19799,283 @@ function deleteDocument(id) {
   renderRegistry();
 }
 
+// ── Voice Cards: captura voz, estrutura via IA, cria card ──────
+let _voiceRecognition = null;
+let _voiceTranscript = '';
+let _voiceIsRecording = false;
+
+function _initVoiceCards() {
+  // Verifica suporte
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    console.warn('[voice] Web Speech API não suportada nesse navegador');
+    return; // Não mostra FAB se navegador não suporta
+  }
+
+  // Cria FAB se ainda não existe
+  if (document.getElementById('voice-fab')) return;
+  const fab = document.createElement('button');
+  fab.id = 'voice-fab';
+  fab.className = 'voice-fab';
+  fab.title = 'Criar card por voz (Cmd+Shift+M)';
+  fab.setAttribute('aria-label', 'Criar card por voz');
+  fab.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10a7 7 0 0 1-14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+  fab.onclick = startVoiceCapture;
+  document.body.appendChild(fab);
+
+  // Cria overlay se ainda não existe
+  if (document.getElementById('voice-overlay')) return;
+  const ov = document.createElement('div');
+  ov.id = 'voice-overlay';
+  ov.className = 'voice-overlay';
+  ov.innerHTML = `
+    <div class="voice-card" id="voice-card">
+      <div class="voice-card-icon" id="voice-card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+          <path d="M19 10a7 7 0 0 1-14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </div>
+      <div class="voice-card-title" id="voice-card-title">Ouvindo…</div>
+      <div class="voice-card-sub" id="voice-card-sub">Diga o que precisa ser feito. O Mestre Kan vai estruturar.</div>
+      <div class="voice-card-error" id="voice-card-error" style="display:none;"></div>
+      <div class="voice-card-transcript" id="voice-card-transcript"></div>
+      <div class="voice-card-actions">
+        <button class="voice-btn voice-btn-ghost" onclick="cancelVoiceCapture()">Cancelar</button>
+        <button class="voice-btn voice-btn-primary" id="voice-btn-confirm" onclick="confirmVoiceCapture()">Criar card</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+
+  // Atalho Cmd/Ctrl+Shift+M
+  document.addEventListener('keydown', (e) => {
+    const isMac = /Mac/.test(navigator.platform);
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    if (mod && e.shiftKey && (e.key === 'M' || e.key === 'm')) {
+      e.preventDefault();
+      startVoiceCapture();
+    }
+  });
+}
+
+function startVoiceCapture() {
+  if (_voiceIsRecording) return;
+  // Verifica se está logado e há board atual
+  if (typeof currentBoardId === 'undefined' || !currentBoardId || currentBoardId === UNIFIED_BOARD_ID) {
+    if (typeof appAlert === 'function') {
+      appAlert('Selecione um board primeiro', 'Voice Cards cria cards no board que você está visualizando. Abra um board específico (não o Unificado) e tente de novo.', { icon:'📋', okLabel:'OK' });
+    }
+    return;
+  }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+
+  _voiceTranscript = '';
+  const fab = document.getElementById('voice-fab');
+  const ov  = document.getElementById('voice-overlay');
+  const card = document.getElementById('voice-card');
+  const transcript = document.getElementById('voice-card-transcript');
+  const errBox = document.getElementById('voice-card-error');
+  const title = document.getElementById('voice-card-title');
+  const sub   = document.getElementById('voice-card-sub');
+  const btnConfirm = document.getElementById('voice-btn-confirm');
+
+  if (!ov) return;
+
+  // Reset UI
+  if (transcript) transcript.textContent = '';
+  if (errBox) { errBox.style.display = 'none'; errBox.textContent = ''; }
+  if (title) title.textContent = 'Ouvindo…';
+  if (sub)   sub.textContent   = 'Diga o que precisa ser feito. O Mestre Kan vai estruturar.';
+  if (card) card.classList.remove('is-processing');
+  if (btnConfirm) btnConfirm.style.display = 'none';
+  if (fab) fab.classList.add('is-recording');
+  ov.classList.add('is-open');
+
+  _voiceRecognition = new SR();
+  _voiceRecognition.lang = 'pt-BR';
+  _voiceRecognition.interimResults = true;
+  _voiceRecognition.continuous = true;
+  _voiceRecognition.maxAlternatives = 1;
+
+  _voiceRecognition.onresult = (event) => {
+    let interim = '', final = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const t = event.results[i][0].transcript;
+      if (event.results[i].isFinal) final += t + ' ';
+      else interim += t;
+    }
+    _voiceTranscript = (_voiceTranscript + final).trim();
+    const display = (_voiceTranscript + ' ' + interim).trim();
+    if (transcript) transcript.textContent = display;
+    if (display.length > 0 && btnConfirm) btnConfirm.style.display = 'inline-flex';
+  };
+
+  _voiceRecognition.onerror = (event) => {
+    console.warn('[voice] error:', event.error);
+    if (errBox) {
+      const map = {
+        'not-allowed': 'Permissão de microfone negada. Habilite no navegador e tente de novo.',
+        'no-speech':   'Não escutei nada. Tenta de novo.',
+        'audio-capture': 'Microfone não detectado.',
+        'network':     'Sem conexão pra processar fala.',
+      };
+      errBox.textContent = map[event.error] || `Erro: ${event.error}`;
+      errBox.style.display = 'block';
+    }
+    _voiceIsRecording = false;
+    if (fab) fab.classList.remove('is-recording');
+  };
+
+  _voiceRecognition.onend = () => {
+    _voiceIsRecording = false;
+    if (fab) fab.classList.remove('is-recording');
+    if (title && _voiceTranscript) title.textContent = 'Pronto';
+    if (sub && _voiceTranscript) sub.textContent = 'Confirme pra criar o card. O Mestre Kan vai cuidar dos detalhes.';
+  };
+
+  try {
+    _voiceRecognition.start();
+    _voiceIsRecording = true;
+  } catch(e) {
+    console.warn('[voice] start failed:', e);
+    _voiceIsRecording = false;
+  }
+}
+
+function cancelVoiceCapture() {
+  if (_voiceRecognition && _voiceIsRecording) {
+    try { _voiceRecognition.stop(); } catch(e){}
+  }
+  _voiceIsRecording = false;
+  _voiceTranscript = '';
+  const ov  = document.getElementById('voice-overlay');
+  const fab = document.getElementById('voice-fab');
+  if (ov) ov.classList.remove('is-open');
+  if (fab) fab.classList.remove('is-recording');
+}
+
+async function confirmVoiceCapture() {
+  if (_voiceRecognition && _voiceIsRecording) {
+    try { _voiceRecognition.stop(); } catch(e){}
+  }
+  const transcript = _voiceTranscript.trim();
+  if (!transcript) {
+    cancelVoiceCapture();
+    return;
+  }
+
+  const card = document.getElementById('voice-card');
+  const title = document.getElementById('voice-card-title');
+  const sub   = document.getElementById('voice-card-sub');
+  const btnConfirm = document.getElementById('voice-btn-confirm');
+  if (card) card.classList.add('is-processing');
+  if (title) title.textContent = 'Mestre Kan medita…';
+  if (sub)   sub.textContent   = 'Estruturando o card a partir da sua fala.';
+  if (btnConfirm) btnConfirm.style.display = 'none';
+
+  // Tenta estruturar via IA. Se IA não disponível, cria card simples.
+  let parsed = null;
+  try {
+    parsed = await _parseVoiceTranscriptViaAI(transcript);
+  } catch(e) {
+    console.warn('[voice] parse via AI falhou:', e);
+  }
+
+  // Fallback: usa transcript direto como nome
+  if (!parsed || !parsed.name) {
+    parsed = { name: transcript, priority: 'media' };
+  }
+
+  // Cria o card no board atual
+  _createCardFromParsedVoice(parsed);
+
+  // Fecha overlay
+  setTimeout(() => {
+    cancelVoiceCapture();
+  }, 200);
+}
+
+async function _parseVoiceTranscriptViaAI(transcript) {
+  if (typeof callClaudeAPI !== 'function') return null;
+  // Calcula data de hoje pra contexto
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+  const isoToday = today.toISOString().slice(0,10);
+  const teamList = (Array.isArray(team) && team.length) ? team.join(', ') : '';
+
+  const system = `Você estrutura comandos de voz em português brasileiro pra criar cards de kanban. Devolva APENAS JSON válido, sem markdown, sem explicação. O esquema é:
+
+{
+  "name": string (obrigatório, nome do card claro e conciso, primeira letra maiúscula),
+  "priority": "alta" | "media" | "baixa" (inferida do tom/urgência; default "media"),
+  "deadline": string ISO YYYY-MM-DD ou null (se a fala mencionar prazo, calcula a data; senão null),
+  "responsavel": string ou null (se a fala mencionar uma pessoa que está na equipe, retorna o nome; senão null)
+}
+
+Hoje é ${todayStr} (${isoToday}). ${teamList ? 'Equipe disponível: ' + teamList + '.' : ''}
+
+Exemplos:
+- "criar card de revisão de proposta cliente A até quinta de manhã prioridade alta" →
+  {"name":"Revisão de proposta cliente A","priority":"alta","deadline":"<próxima quinta>","responsavel":null}
+- "tarefa urgente pro João: ligar pro fornecedor amanhã" →
+  {"name":"Ligar pro fornecedor","priority":"alta","deadline":"<amanhã>","responsavel":"João"}
+- "lembrar de fazer backup" →
+  {"name":"Fazer backup","priority":"media","deadline":null,"responsavel":null}`;
+
+  const r = await callClaudeAPI({
+    system,
+    instruction: `Comando de voz: "${transcript}"\n\nDevolva o JSON estruturado.`,
+    max_tokens: 300,
+  });
+  if (r.error) {
+    console.warn('[voice] IA retornou erro:', r.error);
+    return null;
+  }
+  if (typeof parseAIJson === 'function') {
+    return parseAIJson(r.text);
+  }
+  try { return JSON.parse(r.text); } catch(e) { return null; }
+}
+
+function _createCardFromParsedVoice(parsed) {
+  if (!parsed || !parsed.name) return;
+  // Encontra primeira coluna não-terminal
+  const firstCol = (COLS || []).find(c => c.id !== TERMINAL_COL) || { id: 'todo' };
+  const newCard = {
+    id: Date.now() + Math.random(),
+    name: parsed.name,
+    priority: ['alta','media','baixa'].includes(parsed.priority) ? parsed.priority : 'media',
+    col: firstCol.id,
+    tagIds: [],
+    threads: [
+      { id: Date.now()+Math.random(), text: '🎤 Card criado por voz', date: new Date().toISOString(), type:'auto' }
+    ],
+    attachments: [],
+    subtasks: [],
+    deadline: parsed.deadline || null,
+    createdAt: new Date().toISOString(),
+    colChangedAt: new Date().toISOString(),
+    doneAt: null,
+    responsavel: parsed.responsavel && team.includes(parsed.responsavel) ? parsed.responsavel : null,
+    customFieldValues: {},
+  };
+  cards.push(newCard);
+  saveData();
+  if (typeof render === 'function') render();
+  // Toast de sucesso pelo Mestre Kan
+  if (typeof _showKanWarning === 'function') {
+    const details = [];
+    if (newCard.priority !== 'media') details.push('prioridade ' + newCard.priority);
+    if (newCard.deadline) details.push('deadline ' + newCard.deadline);
+    if (newCard.responsavel) details.push('responsável ' + newCard.responsavel);
+    const detailsStr = details.length ? ' · ' + details.join(' · ') : '';
+    _showKanWarning('Card criado por voz', `<strong>"${newCard.name}"</strong>${detailsStr}`, 'info');
+  }
+}
+
 if (getStorageMode() === 'supabase') {
   document.getElementById('sb-foot').textContent = 'v8 · cloud';
   // Aguarda SDK carregar (script async pode ainda não estar disponível)
@@ -19717,6 +20094,9 @@ if (getStorageMode() === 'supabase') {
   switchTab('home');
   if (typeof refreshAccountUI === 'function') refreshAccountUI();
 }
+
+// Inicializa Voice Cards (FAB + overlay)
+if (typeof _initVoiceCards === 'function') _initVoiceCards();
 </script>
 </body>
 </html>
