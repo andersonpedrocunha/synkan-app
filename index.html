@@ -1396,6 +1396,30 @@ body.density-compact .card-cf-row{font-size:10px;}
 .sig-canvas-clear:hover{background:rgba(0,0,0,.05);}
 .sig-canvas-confirm-group{display:flex;gap:8px;}
 
+/* Banner no topo do modal quando o card está trancado */
+.modal-lock-banner{
+  display:flex;align-items:flex-start;gap:11px;
+  background:linear-gradient(135deg, #FBF7EE 0%, #F8F2E4 100%);
+  border:1px solid #C9B380;border-left:4px solid #3B6D11;
+  border-radius:10px;padding:13px 16px;margin:0 0 16px;
+  font-family:var(--font-sans);
+}
+:root.dark .modal-lock-banner{background:linear-gradient(135deg, #1F1A14 0%, #1A1612 100%);border-color:#3A3225;border-left-color:#3B6D11;}
+.mlb-icon{font-size:22px;flex-shrink:0;line-height:1;color:#3B6D11;}
+.mlb-body{flex:1;min-width:0;}
+.mlb-title{font-size:14px;font-weight:600;color:#1A1612;margin-bottom:3px;}
+:root.dark .mlb-title{color:#F8F2E4;}
+.mlb-sub{font-size:12.5px;color:#6B5B43;line-height:1.5;}
+:root.dark .mlb-sub{color:#A99876;}
+.mlb-sub strong{color:#A32D2D;}
+
+/* Quando modal está locked: inputs disabled ficam visualmente claros */
+.modal-card-locked .field input:disabled,
+.modal-card-locked .field select:disabled,
+.modal-card-locked .field textarea:disabled{
+  background:rgba(0,0,0,.03);color:#6B5B43;cursor:not-allowed;opacity:.7;
+}
+
 /* Indicador "trancado" no card aprovado */
 .card.is-signed-locked{position:relative;}
 .card.is-signed-locked::after{
@@ -11654,7 +11678,7 @@ function render() {
           }
           const lockedCls = (typeof _cardIsLocked === 'function' && _cardIsLocked(c)) ? ' is-signed-locked' : '';
           return `<div class="card-wrap">
-            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}${lockedCls}" ${sourceStyle} draggable="${lockedCls?'false':'true'}" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
+            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}${lockedCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
               ${sourceLine}
               ${F.tags && tags.length?`<div class="card-tags">${tags.map(t=>`<span class="ctag" style="background:${t.color.bg};color:${t.color.text};">${t.text}</span>`).join('')}</div>`:''}
               <div class="card-desc">${c.name}</div>
@@ -11699,16 +11723,23 @@ function _processCardDrop(newCol) {
   const card = cards.find(c => c.id === dragId);
   if (!card || card.col === newCol) return;
 
-  // ── Bloqueio: card aprovado-com-assinatura não pode voltar ──────
+  // ── Bloqueio: card aprovado-com-assinatura SÓ avança no fluxo ────
+  // Permite mover pra colunas POSTERIORES (avanço), bloqueia retorno.
   if (typeof _cardIsLocked === 'function' && _cardIsLocked(card)) {
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning(
-        'Card trancado',
-        `Este card está <strong>aprovado com assinatura imutável</strong>. Pra desfazer, abra o card e revogue a assinatura primeiro.`,
-        'warn'
-      );
+    const fromIdx = COLS.findIndex(c => c.id === card.col);
+    const toIdx   = COLS.findIndex(c => c.id === newCol);
+    // Permite só avanço estrito (toIdx > fromIdx) — bloqueia volta e iguais.
+    if (toIdx <= fromIdx) {
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning(
+          'Card trancado',
+          `Este card está <strong>aprovado com assinatura imutável</strong>. Avança no fluxo, mas não volta. Pra revisar, abra o card e revogue a assinatura (com motivo).`,
+          'warn'
+        );
+      }
+      return;
     }
-    return;
+    // Avanço permitido — segue normalmente
   }
 
   // ── Bloqueio: coluna alvo exige assinatura? ─────────────────────
@@ -12061,7 +12092,62 @@ function editCard(id) {
     doneStats.style.display='none';
     doneStats.innerHTML='';
   }
+  // Aplica modo read-only se card está trancado por assinatura
+  if (typeof _applyModalLockState === 'function') _applyModalLockState(card);
   document.getElementById('ov').classList.add('open');
+}
+
+// Lock visual + funcional do modal de edição quando card é signed-locked.
+// Inputs ficam disabled, botões de delete/dup somem, banner explicativo aparece.
+function _applyModalLockState(card) {
+  const ov = document.getElementById('ov');
+  if (!ov) return;
+  const isLocked = (typeof _cardIsLocked === 'function') ? _cardIsLocked(card) : false;
+  ov.classList.toggle('modal-card-locked', isLocked);
+
+  // Esconde / restaura banner
+  let banner = document.getElementById('modal-lock-banner');
+  if (isLocked) {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'modal-lock-banner';
+      banner.className = 'modal-lock-banner';
+      const card2 = document.querySelector('#ov .modal-card, #ov .mcard, #ov .modal');
+      const insertParent = card2 || ov.firstElementChild;
+      if (insertParent) insertParent.insertBefore(banner, insertParent.firstChild);
+    }
+    banner.innerHTML = `
+      <span class="mlb-icon">🔒</span>
+      <div class="mlb-body">
+        <div class="mlb-title">Card aprovado e assinado</div>
+        <div class="mlb-sub">Os campos estão bloqueados pra preservar a integridade. Você pode adicionar comentários no histórico e mover o card pra colunas posteriores. Pra revisar, role até "Assinatura" e clique em <strong>Revogar</strong> (motivo obrigatório).</div>
+      </div>
+    `;
+  } else if (banner) {
+    banner.remove();
+  }
+
+  // Desabilita inputs principais
+  const lockableSelectors = [
+    '#inp-name', '#inp-pri', '#inp-tag', '#inp-deadline',
+    '#inp-recurrence', '#inp-rec-interval', '#inp-rec-count',
+    '#inp-responsavel', '#inp-contact',
+    '.field input:not(.sig-canvas-clear input)',
+    '.field select', '.field textarea',
+  ];
+  lockableSelectors.forEach(sel => {
+    document.querySelectorAll('#ov ' + sel).forEach(el => {
+      // Não trava: inputs dentro da assinatura (canvas, etc) e thread/comment
+      if (el.closest('.sig-display, .sig-canvas-card, #thread-field, #thread-input-wrap')) return;
+      el.disabled = isLocked;
+    });
+  });
+
+  // Esconde botões de excluir/duplicar
+  const btnDel = document.getElementById('btn-del');
+  const btnDup = document.getElementById('btn-dup');
+  if (btnDel) btnDel.style.display = isLocked ? 'none' : '';
+  if (btnDup) btnDup.style.display = isLocked ? 'none' : '';
 }
 
 function closeModal() { document.getElementById('ov').classList.remove('open'); }
@@ -15657,11 +15743,42 @@ function _cardIsLocked(card) {
 }
 
 async function _revokeCardSignature(cardId, fieldId) {
-  if (!confirm('Revogar a assinatura? Isso apaga o hash atual.')) return;
   const c = cards.find(x => x.id === cardId);
   if (!c || !c.customFieldValues) return;
+  // Pede motivo obrigatório pra auditoria
+  const motivo = prompt(
+    'Revogar assinatura abre o card pra revisão.\n\n' +
+    'Por que está revogando? (obrigatório, fica registrado no histórico)',
+    ''
+  );
+  if (motivo === null) return;        // cancelou
+  if (!motivo.trim()) {
+    alert('Motivo é obrigatório pra revogar assinatura.');
+    return;
+  }
+  // Captura snapshot da assinatura ANTES de remover (pra auditoria)
+  let prevSig = null;
+  try {
+    const raw = c.customFieldValues[fieldId];
+    prevSig = raw ? (typeof raw === 'object' ? raw : JSON.parse(raw)) : null;
+  } catch(e){}
+  const me = (typeof supaUser !== 'undefined' && supaUser && supaUser.user_metadata?.full_name)
+    ? supaUser.user_metadata.full_name
+    : (typeof team !== 'undefined' && team[0]) || 'Você';
   delete c.customFieldValues[fieldId];
-  if (typeof autoThread === 'function') autoThread(c, '✗ Assinatura revogada');
+  // Histórico: thread visível
+  if (typeof autoThread === 'function') {
+    autoThread(c, `✗ Assinatura revogada por ${me}. Motivo: ${motivo.trim()}`);
+  }
+  // Histórico interno de revogações (pra auditoria longa)
+  c.signatureRevocations = c.signatureRevocations || [];
+  c.signatureRevocations.push({
+    fieldId,
+    revokedBy: me,
+    revokedAt: new Date().toISOString(),
+    reason: motivo.trim(),
+    previousSignature: prevSig ? { by: prevSig.by, at: prevSig.at, hash: prevSig.hash } : null,
+  });
   saveData();
   if (typeof renderModalCustomFields === 'function') renderModalCustomFields(cardId);
   if (typeof render === 'function') render();
