@@ -22455,16 +22455,19 @@ const GAMIF_CFG_KEY = 'kanban_v8_gamif_cfg';
 // Defaults — usuário pode alterar tudo em Configurações → Dojo
 const GAMIF_DEFAULTS = {
   enabled: true,
+  // XP base por ação. Reduzido pra que progressão seja resultado de prática
+  // sustentada (semanas/meses), não de uma sessão concentrada.
   xp: {
-    cardDoneAlta: 20, cardDoneMedia: 10, cardDoneBaixa: 5,
-    onTimeBonus: 10, earlyBonus: 5,
-    leadConverted: 50,
-    contactCreated: 5,
-    docGenerated: 15,
-    aiCall: 5,
+    cardDoneAlta: 8, cardDoneMedia: 4, cardDoneBaixa: 2,
+    onTimeBonus: 4, earlyBonus: 2,
+    leadConverted: 20,
+    contactCreated: 2,
+    docGenerated: 6,
+    aiCall: 1,
   },
-  // Cap diário de XP por categoria (anti-farm)
-  dailyCaps: { aiCall: 50, contactCreated: 50, docGenerated: 100 },
+  // Cap diário de XP por categoria (anti-farm). Cap de cardDone novo limita
+  // ganhos por concluir vários cards num dia só.
+  dailyCaps: { aiCall: 15, contactCreated: 20, docGenerated: 40, cardDone: 60 },
   // Animações (toast + confete + modal de subida)
   animations: true,
 };
@@ -22636,15 +22639,17 @@ try {
 } catch(e) {}
 
 const BELTS = [
+  // Thresholds aumentados ~3x. A progressão deve refletir prática sustentada
+  // (semanas/meses), não uma sessão concentrada de farm.
   { idx:0, name:'Branca',           title:'Aluno',                color:'#F5F4F1', color2:'#CFCDC8', threshold:0,     quote:'Toda jornada de mil passos começa com um único passo. Bem-vindo ao dojo.' },
-  { idx:1, name:'Amarela',          title:'Discípulo',            color:'#F5C518', color2:'#D4A40E', threshold:100,   quote:'A semente germina em silêncio. Você plantou a sua. Continue regando.' },
-  { idx:2, name:'Laranja',          title:'Discípulo Avançado',   color:'#FF8C00', color2:'#D4690A', threshold:300,   quote:'O sol nasce devagar mas ilumina o mundo todo. Sua disciplina já se vê.' },
-  { idx:3, name:'Verde',            title:'Senpai',               color:'#3B6D11', color2:'#2A4F0B', threshold:700,   quote:'Como o bambu, você é flexível e firme. Pronto pra orientar quem chega.' },
-  { idx:4, name:'Azul',             title:'Sensei Iniciante',     color:'#1E68C1', color2:'#0E4A91', threshold:1500,  quote:'O céu não tem limites — mas você sabe respeitar a tempestade. Ensinar é seu próximo passo.' },
-  { idx:5, name:'Roxa',             title:'Sensei',               color:'#6B3FA0', color2:'#4A2870', threshold:3000,  quote:'A noite traz sabedoria. Você já não busca o caminho — você é o caminho.' },
-  { idx:6, name:'Marrom',           title:'Mestre',               color:'#6B4226', color2:'#4A2E1A', threshold:6000,  quote:'A terra acolhe a raiz mais profunda. Sua presença sustenta os que vêm depois.' },
-  { idx:7, name:'Preta · 1° dan',   title:'Grão-Mestre',          color:'#1A1A1A', color2:'#000000', threshold:12000, quote:'A faixa preta não é um fim. É o sinal de que agora você está pronto pra começar de verdade.' },
-  { idx:8, name:'Preta · 2° dan',   title:'Grão-Mestre Eminente', color:'#1A1A1A', color2:'#FFD700', threshold:25000, quote:'O ouro brilha mesmo no preto. Você já não treina pra vencer — você treina pra inspirar.' },
+  { idx:1, name:'Amarela',          title:'Discípulo',            color:'#F5C518', color2:'#D4A40E', threshold:300,   quote:'A semente germina em silêncio. Você plantou a sua. Continue regando.' },
+  { idx:2, name:'Laranja',          title:'Discípulo Avançado',   color:'#FF8C00', color2:'#D4690A', threshold:900,   quote:'O sol nasce devagar mas ilumina o mundo todo. Sua disciplina já se vê.' },
+  { idx:3, name:'Verde',            title:'Senpai',               color:'#3B6D11', color2:'#2A4F0B', threshold:2200,  quote:'Como o bambu, você é flexível e firme. Pronto pra orientar quem chega.' },
+  { idx:4, name:'Azul',             title:'Sensei Iniciante',     color:'#1E68C1', color2:'#0E4A91', threshold:5000,  quote:'O céu não tem limites — mas você sabe respeitar a tempestade. Ensinar é seu próximo passo.' },
+  { idx:5, name:'Roxa',             title:'Sensei',               color:'#6B3FA0', color2:'#4A2870', threshold:11000, quote:'A noite traz sabedoria. Você já não busca o caminho — você é o caminho.' },
+  { idx:6, name:'Marrom',           title:'Mestre',               color:'#6B4226', color2:'#4A2E1A', threshold:22000, quote:'A terra acolhe a raiz mais profunda. Sua presença sustenta os que vêm depois.' },
+  { idx:7, name:'Preta · 1° dan',   title:'Grão-Mestre',          color:'#1A1A1A', color2:'#000000', threshold:45000, quote:'A faixa preta não é um fim. É o sinal de que agora você está pronto pra começar de verdade.' },
+  { idx:8, name:'Preta · 2° dan',   title:'Grão-Mestre Eminente', color:'#1A1A1A', color2:'#FFD700', threshold:90000, quote:'O ouro brilha mesmo no preto. Você já não treina pra vencer — você treina pra inspirar.' },
 ];
 
 function _saveGamif() { try { localStorage.setItem(GAMIF_KEY, JSON.stringify(_gamif)); } catch(e){} }
@@ -22862,7 +22867,8 @@ function _gamifAwardCardDone(card) {
   }
   const total = base + bonus;
   const label = `Card concluído (${({alta:'alta',media:'média',baixa:'baixa'})[card.priority]||'média'})${parts.length?' · '+parts.join(' · '):''}`;
-  awardXP(total, label);
+  // Passa category 'cardDone' pra aplicar cap diário (anti-farm)
+  awardXP(total, label, 'cardDone');
 }
 function _gamifAwardLeadConverted(contactName) {
   if (!_gamifCfg.enabled) return;
@@ -22922,37 +22928,33 @@ function _countPromotedFromLabs() {
 }
 
 const ACHIEVEMENTS = [
-  // ── Conquistas originais (mantidas) ─────────────────────────
+  // ── Conquistas universais (gerais, qualquer área) ──────────
   { id:'first_kata',          name:'Primeiro Kata',          desc:'Conclua seu primeiro card.',                       icon:'🥋', rarity:'common',    trigger:'universal',       check: g => g.stats.cardsDone >= 1 },
-  { id:'first_lead',          name:'Primeiro Discípulo',     desc:'Cadastre seu primeiro lead.',                      icon:'👤', rarity:'common',    trigger:'contactsCreated', check: g => g.stats.contactsCreated >= 1 },
-  { id:'velocidade_vento',    name:'Velocidade do Vento',    desc:'Conclua 10 cards num único dia.',                  icon:'💨', rarity:'rare',      trigger:'universal',       check: g => (g.today?.cardsDone||0) >= 10 || (g.stats.cardsTodayMax||0) >= 10 },
-  { id:'chama_eterna',        name:'Chama Eterna',           desc:'Streak de 7 dias úteis.',                          icon:'🔥', rarity:'rare',      trigger:'universal',       check: g => g.streak.count >= 7 || g.streak.longest >= 7 },
-  { id:'discipulo_kan',       name:'Discípulo do Kan',       desc:'Invoque o Mestre Kan 50 vezes.',                   icon:'🤖', rarity:'rare',      trigger:'aiCalls',         check: g => g.stats.aiCalls >= 50 },
-  { id:'pergaminho_sagrado',  name:'Pergaminho Sagrado',     desc:'Gere 10 documentos.',                              icon:'📜', rarity:'rare',      trigger:'docsGenerated',   check: g => g.stats.docsGenerated >= 10 },
-  { id:'onda_imparavel',      name:'Onda Imparável',         desc:'Streak de 30 dias úteis.',                         icon:'🌊', rarity:'epic',      trigger:'universal',       check: g => g.streak.count >= 30 || g.streak.longest >= 30 },
-  { id:'montanha_movida',     name:'Montanha Movida',        desc:'Conclua 100 cards no total.',                      icon:'🏔', rarity:'epic',      trigger:'universal',       check: g => g.stats.cardsDone >= 100 },
-  { id:'mestre_negocios',     name:'Mestre dos Negócios',    desc:'Converta 10 leads em clientes.',                   icon:'💼', rarity:'epic',      trigger:'leadsConverted',  check: g => g.stats.leadsConverted >= 10 },
+  { id:'velocidade_vento',    name:'Velocidade do Vento',    desc:'Conclua 15 cards num único dia.',                  icon:'💨', rarity:'rare',      trigger:'universal',       check: g => (g.today?.cardsDone||0) >= 15 || (g.stats.cardsTodayMax||0) >= 15 },
+  { id:'chama_eterna',        name:'Chama Eterna',           desc:'Streak de 14 dias úteis.',                         icon:'🔥', rarity:'rare',      trigger:'universal',       check: g => g.streak.count >= 14 || g.streak.longest >= 14 },
+  { id:'onda_imparavel',      name:'Onda Imparável',         desc:'Streak de 60 dias úteis.',                         icon:'🌊', rarity:'epic',      trigger:'universal',       check: g => g.streak.count >= 60 || g.streak.longest >= 60 },
+  { id:'montanha_movida',     name:'Montanha Movida',        desc:'Conclua 300 cards no total.',                      icon:'🏔', rarity:'epic',      trigger:'universal',       check: g => g.stats.cardsDone >= 300 },
   { id:'caminho_bushido',     name:'Caminho do Bushido',     desc:'Atinja a Faixa Preta.',                            icon:'⚔', rarity:'legendary', trigger:'universal',       check: g => g.belt >= 7 },
 
   // ── 道 Hábitos & Disciplina (novas) ──────────────────────
-  { id:'primeira_brasa',      name:'Primeira Brasa',         desc:'Crie seu primeiro hábito no board Hábitos.',       icon:'🌱', rarity:'common',    trigger:'universal',
-    check: () => _countHabitCards(() => true) >= 1 },
-  { id:'onda_tranquila',      name:'Onda Tranquila',         desc:'Mantenha um hábito por 7 dias seguidos.',          icon:'🌬', rarity:'rare',      trigger:'universal',
-    check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 7) >= 1 },
-  { id:'pedra_polida',        name:'Pedra Polida',           desc:'Streak de 30 dias num único hábito.',              icon:'🪨', rarity:'epic',      trigger:'universal',
-    check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 30) >= 1 },
-  { id:'sete_pilares',        name:'Sete Pilares',           desc:'Tenha 7 hábitos em prática ou estabelecidos.',     icon:'🏛', rarity:'epic',      trigger:'universal',
-    check: () => _countHabitCards(c => c.col === 'pratica' || c.col === 'estabelecido') >= 7 },
-  { id:'mestre_ritual',       name:'Mestre do Ritual',       desc:'90 dias seguidos no mesmo hábito.',                icon:'🕯', rarity:'legendary', trigger:'universal',
-    check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 90) >= 1 },
+  { id:'primeira_brasa',      name:'Primeira Brasa',         desc:'Mantenha um hábito por 3 dias seguidos.',          icon:'🌱', rarity:'common',    trigger:'universal',
+    check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 3) >= 1 },
+  { id:'onda_tranquila',      name:'Onda Tranquila',         desc:'Mantenha um hábito por 14 dias seguidos.',         icon:'🌬', rarity:'rare',      trigger:'universal',
+    check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 14) >= 1 },
+  { id:'pedra_polida',        name:'Pedra Polida',           desc:'Streak de 45 dias num único hábito.',              icon:'🪨', rarity:'epic',      trigger:'universal',
+    check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 45) >= 1 },
+  { id:'sete_pilares',        name:'Sete Pilares',           desc:'Tenha 7 hábitos estabelecidos (90d+).',            icon:'🏛', rarity:'epic',      trigger:'universal',
+    check: () => _countHabitCards(c => c.col === 'estabelecido') >= 7 },
+  { id:'mestre_ritual',       name:'Mestre do Ritual',       desc:'120 dias seguidos no mesmo hábito.',               icon:'🕯', rarity:'legendary', trigger:'universal',
+    check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 120) >= 1 },
 
   // ── 創 Criatividade (novas) ──────────────────────────────
-  { id:'primeira_ideia',      name:'Primeira Ideia',         desc:'Crie seu primeiro Lab.',                            icon:'💡', rarity:'common',    trigger:'universal',
-    check: () => _countCanvasesNonZai() >= 1 },
-  { id:'mapa_mental',         name:'Mapa Mental',            desc:'Crie 5 Labs em formato Mindmap.',                  icon:'🧠', rarity:'rare',      trigger:'universal',
-    check: () => _countCanvasesByFormat('mindmap') >= 5 },
-  { id:'plano_em_acao',       name:'Plano em Ação',          desc:'Promova 10 ações de Labs pra boards.',             icon:'🎯', rarity:'epic',      trigger:'universal',
-    check: () => _countPromotedFromLabs() >= 10 },
+  { id:'primeira_ideia',      name:'Primeira Ideia',         desc:'Crie 3 Labs.',                                      icon:'💡', rarity:'common',    trigger:'universal',
+    check: () => _countCanvasesNonZai() >= 3 },
+  { id:'mapa_mental',         name:'Mapa Mental',            desc:'Crie 10 Labs em formato Mindmap.',                 icon:'🧠', rarity:'rare',      trigger:'universal',
+    check: () => _countCanvasesByFormat('mindmap') >= 10 },
+  { id:'plano_em_acao',       name:'Plano em Ação',          desc:'Promova 25 ações de Labs pra boards.',             icon:'🎯', rarity:'epic',      trigger:'universal',
+    check: () => _countPromotedFromLabs() >= 25 },
 ];
 
 // Decide se uma conquista é "relevante pra você" agora — visível no painel principal
