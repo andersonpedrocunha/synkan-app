@@ -23488,12 +23488,20 @@ function _dojoStartWindEngine(overlay) {
     }
   }
 
+  // Rajada FORTE inicial pra dar impacto visual desde o começo
+  // (afeta TODA a faixa de altura, fazendo todos os bambus balançarem)
+  setTimeout(() => {
+    spawnGust({ dir: 1, cy: H * 0.55, radius: H * 0.5, force: 460, dur: 2.4 });
+  }, 200);
+  setTimeout(() => {
+    spawnGust({ dir: -1, cy: H * 0.45, radius: H * 0.5, force: 380, dur: 2.0 });
+  }, 1200);
+
   // Spawn rajadas em intervalos
-  let nextGustAt = 0.4; // primeiro gust vem cedo pra criar movimento imediato
+  let nextGustAt = 2.5;
   function maybeSpawnGust(elapsed) {
     if (elapsed < nextGustAt) return;
     spawnGust();
-    // Próxima rajada em 1.2-2.6s
     nextGustAt = elapsed + rand(1.2, 2.6);
   }
 
@@ -23539,29 +23547,32 @@ function _dojoStartWindEngine(overlay) {
     }
 
     // ── BAMBUS: aplica física de balanço (spring + damper) ──
-    // Cada bambu tem sway angular afetado por rajadas próximas. Modelo
-    // de pêndulo com mola de retorno (spring K) e atrito (damping).
+    // Sistema de pêndulo: torque de rajadas + mola de retorno + damping.
+    // Tunning realista: spring suave (K=4) deixa o bambu balançar visivelmente,
+    // damping moderado (0.96) deixa oscilar 2-3x antes de parar.
     if (window._dojoBambuStates && window._dojoBambuStates.length) {
       for (const b of window._dojoBambuStates) {
         let torque = 0;
         for (const g of gusts) {
+          // Rajada afeta bambu se sua faixa Y inclui a altura do bambu
+          const reach = b.radius + g.radius;
           const dy = Math.abs(b.centerY - g.cy);
-          if (dy > b.radius + g.radius * 0.5) continue;
-          const falloff = Math.max(0, 1 - dy / (b.radius + g.radius * 0.5));
-          const tProfile = Math.sin(Math.PI * (g.elapsed / g.dur));
-          torque += g.dir * g.force * 0.06 * falloff * tProfile / b.mass;
+          if (dy > reach) continue;
+          const falloff = Math.max(0, 1 - dy / reach);
+          const tProfile = Math.sin(Math.PI * Math.min(1, g.elapsed / g.dur));
+          // Torque proporcional à força do vento, inversamente à massa
+          torque += g.dir * g.force * 0.22 * falloff * tProfile / b.mass;
         }
-        // Spring back: força que retorna ao naturalSway (ângulo de descanso)
-        const springK = 22;
+        // Spring back: traz o caule de volta ao natural com força LEVE
+        const springK = 4;
         torque += -(b.sway - b.naturalSway) * springK;
-        // Integração + damping
+        // Integração
         b.swayVel += torque * dt;
-        b.swayVel *= 0.92;
+        b.swayVel *= 0.96;  // damping suave (oscila um pouco antes de parar)
         b.sway += b.swayVel * dt;
-        // Limita amplitude máxima
-        if (b.sway > 18) { b.sway = 18; b.swayVel = Math.min(0, b.swayVel); }
-        if (b.sway < -18) { b.sway = -18; b.swayVel = Math.max(0, b.swayVel); }
-        // Aplica transform no wrapper DOM
+        // Limita amplitude máxima a ±25°
+        if (b.sway > 25)  { b.sway = 25;  b.swayVel = Math.min(0, b.swayVel); }
+        if (b.sway < -25) { b.sway = -25; b.swayVel = Math.max(0, b.swayVel); }
         const wrap = overlay.querySelector(`.dojo-bambu-wrap[data-bambu-idx="${b.idx}"]`);
         if (wrap) wrap.style.transform = `rotate(${b.sway.toFixed(2)}deg)`;
       }
@@ -23924,6 +23935,9 @@ function _dojoBuildSnowGroundSVG(W, H) {
              height:${wrapperH.toFixed(0)}px;
              transform-origin:50% 100%;
              pointer-events:none;
+             overflow:visible;
+             will-change:transform;
+             transition:none;
              z-index:${b.depth === 'front' ? 4 : 3};">
       <svg viewBox="0 0 ${wrapperW.toFixed(0)} ${wrapperH.toFixed(0)}"
            width="100%" height="100%" style="overflow:visible;">
@@ -23932,17 +23946,19 @@ function _dojoBuildSnowGroundSVG(W, H) {
     </div>`;
   }
   const bambusHTML = bambuClusters.map((b, i) => buildBambuWrapper(b, i)).join('');
-  // Stash dos bambus pro engine ler depois
+  // Stash dos bambus pro engine ler depois.
+  // Mass mais leve pra bambus balançarem visivelmente; radius generoso pra
+  // qualquer rajada da metade superior afetar bambus de altura média.
   window._dojoBambuStates = bambuClusters.map((b, i) => ({
     idx: i,
     cx: b.xRel * W,
-    centerY: gy(b.xRel * W) - b.height * 0.5,
-    radius: b.height * 0.7,
-    mass: 1.5 + b.scale * 1.5,   // bambu é pesado — resiste ao vento
+    centerY: gy(b.xRel * W) - b.height * 0.6,  // centro de gravidade do caule
+    radius: b.height * 1.1,                    // alcance vertical generoso
+    mass: 0.7 + b.scale * 0.6,                 // 0.85-1.3 (mais leve = mais oscila)
     height: b.height,
-    sway: 0,         // ângulo atual em graus
-    swayVel: 0,      // velocidade angular em graus/s
-    naturalSway: b.sway * 0.05,  // viés natural sutil
+    sway: 0,
+    swayVel: 0,
+    naturalSway: 0,
   }));
 
   // ── Pedras zen detalhadas (estilo karesansui) ──
