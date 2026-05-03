@@ -23663,19 +23663,20 @@ function _dojoBuildSnowGroundSVG(W, H) {
     }
     return p;
   }
-  // Posições dos bambus (relativas a W) — distribuídos pra não ficar centralizados
+  // Posições dos bambus (relativas a W) — espalhados pelo chão
   const bambuPositions = [
-    { xRel: 0.06, height: 95,  sway: 8  },
-    { xRel: 0.09, height: 78,  sway: -5 },
-    { xRel: 0.86, height: 110, sway: -10},
-    { xRel: 0.91, height: 85,  sway: 6  },
-    { xRel: 0.94, height: 70,  sway: -4 },
+    { xRel: 0.08, height: 110, sway: 8  },
+    { xRel: 0.13, height: 88,  sway: -6 },
+    { xRel: 0.16, height: 72,  sway: 4  },
+    { xRel: 0.78, height: 130, sway: -12},
+    { xRel: 0.84, height: 95,  sway: 7  },
+    { xRel: 0.89, height: 78,  sway: -5 },
   ];
   const bambusHTML = bambuPositions.map(b => {
     const x = b.xRel * W;
     const snowY = gy(x) - 4;
     return `<path d="${bambuPath(x, snowY, b.height, b.sway)}"
-      stroke="rgba(40,32,22,0.55)" stroke-width="1.4"
+      stroke="rgba(220,210,195,0.85)" stroke-width="2.2"
       stroke-linecap="round" fill="none"/>`;
   }).join('');
 
@@ -23687,11 +23688,13 @@ function _dojoBuildSnowGroundSVG(W, H) {
         fill="${color}" opacity="0.85"/>
     `;
   }
+  // Pedras com cor mais clara (visíveis sobre neve translúcida em fundo escuro)
   const stonesData = [
-    { xRel: 0.32, w: 28, h: 11, color: 'rgba(60,55,52,0.6)' },
-    { xRel: 0.34, w: 18, h: 7,  color: 'rgba(80,72,68,0.55)' },
-    { xRel: 0.62, w: 35, h: 13, color: 'rgba(50,46,44,0.65)' },
-    { xRel: 0.66, w: 14, h: 5,  color: 'rgba(70,65,62,0.5)' },
+    { xRel: 0.30, w: 38, h: 16, color: 'rgba(90,82,75,0.95)' },
+    { xRel: 0.34, w: 24, h: 10, color: 'rgba(110,98,90,0.85)' },
+    { xRel: 0.58, w: 46, h: 19, color: 'rgba(80,72,68,0.95)' },
+    { xRel: 0.63, w: 22, h: 9,  color: 'rgba(105,95,88,0.85)' },
+    { xRel: 0.46, w: 18, h: 7,  color: 'rgba(120,108,98,0.75)' },
   ];
   const stonesHTML = stonesData.map(s => {
     const x = s.xRel * W;
@@ -23699,36 +23702,44 @@ function _dojoBuildSnowGroundSVG(W, H) {
     return stoneEllipse(x, snowY, s.w, s.h, s.color);
   }).join('');
 
-  // ── Pagoda silhueta no horizonte (canto direito, BEM longe) ──
-  const pagodaXRel = 0.78;
+  // ── Pagoda silhueta no horizonte (canto direito) — maior e mais visível ──
+  const pagodaXRel = 0.80;
   const pagodaX = pagodaXRel * W;
-  const pagodaBaseY = mtBaseY - 12;
+  // Posicionada um pouco acima da neve, abaixo da linha das montanhas
+  const pagodaBaseY = baseY - 18;
+  const pagodaFill = 'rgba(20,15,12,0.92)';
   const pagodaHTML = `
-    <g opacity="0.32">
-      <!-- Telhados decrescentes (3 níveis) -->
-      <path d="M ${(pagodaX-22).toFixed(0)} ${pagodaBaseY}
-               L ${(pagodaX-18).toFixed(0)} ${(pagodaBaseY-3).toFixed(0)}
-               L ${(pagodaX+18).toFixed(0)} ${(pagodaBaseY-3).toFixed(0)}
-               L ${(pagodaX+22).toFixed(0)} ${pagodaBaseY} Z"
-        fill="rgba(35,25,20,0.85)"/>
-      <rect x="${(pagodaX-12).toFixed(0)}" y="${(pagodaBaseY-14).toFixed(0)}"
-            width="24" height="11" fill="rgba(35,25,20,0.7)"/>
-      <path d="M ${(pagodaX-18).toFixed(0)} ${(pagodaBaseY-14).toFixed(0)}
-               L ${(pagodaX-15).toFixed(0)} ${(pagodaBaseY-17).toFixed(0)}
-               L ${(pagodaX+15).toFixed(0)} ${(pagodaBaseY-17).toFixed(0)}
-               L ${(pagodaX+18).toFixed(0)} ${(pagodaBaseY-14).toFixed(0)} Z"
-        fill="rgba(35,25,20,0.85)"/>
-      <rect x="${(pagodaX-9).toFixed(0)}" y="${(pagodaBaseY-25).toFixed(0)}"
-            width="18" height="9" fill="rgba(35,25,20,0.7)"/>
-      <path d="M ${(pagodaX-14).toFixed(0)} ${(pagodaBaseY-25).toFixed(0)}
-               L ${(pagodaX-11).toFixed(0)} ${(pagodaBaseY-28).toFixed(0)}
-               L ${(pagodaX+11).toFixed(0)} ${(pagodaBaseY-28).toFixed(0)}
-               L ${(pagodaX+14).toFixed(0)} ${(pagodaBaseY-25).toFixed(0)} Z"
-        fill="rgba(35,25,20,0.85)"/>
-      <!-- Mastro -->
-      <line x1="${pagodaX.toFixed(0)}" y1="${(pagodaBaseY-28).toFixed(0)}"
-            x2="${pagodaX.toFixed(0)}" y2="${(pagodaBaseY-34).toFixed(0)}"
-            stroke="rgba(35,25,20,0.85)" stroke-width="1"/>
+    <g>
+      <!-- Telhado base (mais largo) -->
+      <path d="M ${(pagodaX-32).toFixed(0)} ${pagodaBaseY}
+               L ${(pagodaX-26).toFixed(0)} ${(pagodaBaseY-5).toFixed(0)}
+               L ${(pagodaX+26).toFixed(0)} ${(pagodaBaseY-5).toFixed(0)}
+               L ${(pagodaX+32).toFixed(0)} ${pagodaBaseY} Z"
+        fill="${pagodaFill}"/>
+      <!-- Andar 1 -->
+      <rect x="${(pagodaX-17).toFixed(0)}" y="${(pagodaBaseY-19).toFixed(0)}"
+            width="34" height="14" fill="${pagodaFill}"/>
+      <!-- Telhado 2 -->
+      <path d="M ${(pagodaX-25).toFixed(0)} ${(pagodaBaseY-19).toFixed(0)}
+               L ${(pagodaX-20).toFixed(0)} ${(pagodaBaseY-23).toFixed(0)}
+               L ${(pagodaX+20).toFixed(0)} ${(pagodaBaseY-23).toFixed(0)}
+               L ${(pagodaX+25).toFixed(0)} ${(pagodaBaseY-19).toFixed(0)} Z"
+        fill="${pagodaFill}"/>
+      <!-- Andar 2 -->
+      <rect x="${(pagodaX-12).toFixed(0)}" y="${(pagodaBaseY-34).toFixed(0)}"
+            width="24" height="11" fill="${pagodaFill}"/>
+      <!-- Telhado 3 (topo) -->
+      <path d="M ${(pagodaX-19).toFixed(0)} ${(pagodaBaseY-34).toFixed(0)}
+               L ${(pagodaX-15).toFixed(0)} ${(pagodaBaseY-37).toFixed(0)}
+               L ${(pagodaX+15).toFixed(0)} ${(pagodaBaseY-37).toFixed(0)}
+               L ${(pagodaX+19).toFixed(0)} ${(pagodaBaseY-34).toFixed(0)} Z"
+        fill="${pagodaFill}"/>
+      <!-- Mastro / sōrin -->
+      <line x1="${pagodaX.toFixed(0)}" y1="${(pagodaBaseY-37).toFixed(0)}"
+            x2="${pagodaX.toFixed(0)}" y2="${(pagodaBaseY-46).toFixed(0)}"
+            stroke="${pagodaFill}" stroke-width="1.5"/>
+      <!-- Esfera no topo -->
+      <circle cx="${pagodaX.toFixed(0)}" cy="${(pagodaBaseY-47).toFixed(0)}" r="2" fill="${pagodaFill}"/>
     </g>
   `;
 
@@ -23748,21 +23759,21 @@ function _dojoBuildSnowGroundSVG(W, H) {
           <feGaussianBlur stdDeviation="0.8"/>
         </filter>
       </defs>
-      <!-- Montanhas distantes (atrás de tudo, opacidade decrescente conforme distância) -->
-      <path d="${mt3}" fill="rgba(40,40,55,0.18)"/>
-      <path d="${mt2}" fill="rgba(35,35,50,0.28)"/>
-      <path d="${mt1}" fill="rgba(28,28,42,0.42)"/>
-      <!-- Pagoda silhueta -->
+      <!-- Camada 1: Montanhas distantes (atrás de tudo) -->
+      <path d="${mt3}" fill="rgba(50,50,65,0.45)"/>
+      <path d="${mt2}" fill="rgba(40,40,55,0.62)"/>
+      <path d="${mt1}" fill="rgba(28,28,42,0.78)"/>
+      <!-- Camada 2: Pagoda silhueta (entre montanhas e neve) -->
       ${pagodaHTML}
-      <!-- Pedras (atrás da neve mas após montanhas) -->
-      ${stonesHTML}
-      <!-- Fill volumétrico da neve -->
+      <!-- Camada 3: Fill volumétrico da neve (translúcido) -->
       <path d="${fillPath}" fill="url(#snow-fill)" filter="url(#snow-blur)"/>
-      <!-- Highlight superior -->
-      <path d="${topPath}" stroke="url(#snow-edge)" stroke-width="2.5" fill="none" opacity="0.8"/>
-      <!-- Sombra interna -->
+      <!-- Camada 4: Highlight superior da neve -->
+      <path d="${topPath}" stroke="url(#snow-edge)" stroke-width="2.5" fill="none" opacity="0.85"/>
+      <!-- Camada 5: Sombra interna sutil -->
       <path d="${topPath}" stroke="rgba(180,200,230,0.25)" stroke-width="6" fill="none" transform="translate(0, 4)" opacity="0.5"/>
-      <!-- Bambus (na frente da neve) -->
+      <!-- Camada 6: Pedras EM CIMA da neve (visíveis) -->
+      ${stonesHTML}
+      <!-- Camada 7: Bambus (mais à frente, saindo da neve) -->
       ${bambusHTML}
     </svg>
   `;
