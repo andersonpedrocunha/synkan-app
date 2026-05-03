@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Formulário</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111'/%3E%3Crect x='6' y='11' width='4' height='14' rx='1.2' fill='rgba(255,255,255,.55)'/%3E%3Crect x='14' y='6' width='4' height='20' rx='1.2' fill='%23fff'/%3E%3Crect x='22' y='14' width='4' height='11' rx='1.2' fill='rgba(255,255,255,.55)'/%3E%3C/svg%3E" />
+<style>
+  *,*::before,*::after{box-sizing:border-box;}
+  :root{
+    --bg:#F4F4F2;
+    --card:#FFFFFF;
+    --text:#1F1E1B;
+    --text-2:#5C5953;
+    --text-3:#888780;
+    --border:#E1DFDA;
+    --border-2:#CFCDC8;
+    --accent:#111111;
+    --error:#A32D2D;
+    --success:#3B6D11;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1B1A18;--card:#28262F;--text:#F5F4F1;--text-2:#B8B4AC;--text-3:#888780;
+      --border:#3A3733;--border-2:#4A4742;--accent:#F5F4F1;
+    }
+  }
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:1.5;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;}
+  .wrap{width:100%;max-width:520px;}
+  .brand{display:flex;align-items:center;gap:9px;margin-bottom:18px;color:var(--text-2);font-size:13px;font-weight:600;letter-spacing:-.005em;}
+  .brand svg{width:24px;height:24px;flex-shrink:0;}
+  .card{background:var(--card);border:0.5px solid var(--border);border-radius:14px;padding:32px 28px;box-shadow:0 6px 24px rgba(0,0,0,.04);}
+  h1{margin:0 0 6px;font-size:22px;font-weight:600;letter-spacing:-0.01em;}
+  .desc{color:var(--text-2);font-size:13.5px;margin:0 0 24px;line-height:1.6;}
+  form{display:flex;flex-direction:column;gap:14px;}
+  label{display:block;font-size:11.5px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+  label .req{color:var(--error);font-weight:600;}
+  input,textarea,select{width:100%;padding:11px 13px;border:0.5px solid var(--border-2);border-radius:8px;background:var(--card);color:var(--text);font-family:inherit;font-size:14px;line-height:1.4;outline:none;transition:border-color .15s,box-shadow .15s;}
+  input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,0,0,.04);}
+  textarea{resize:vertical;min-height:90px;}
+  .btn{width:100%;padding:13px 16px;background:var(--accent);color:var(--card);border:none;border-radius:9px;font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer;transition:opacity .15s,transform .05s;}
+  .btn:hover{opacity:.9;}
+  .btn:active{transform:scale(.99);}
+  .btn:disabled{opacity:.5;cursor:default;}
+  .status{margin-top:14px;padding:11px 13px;border-radius:8px;font-size:13px;line-height:1.5;display:none;}
+  .status.error{background:#FCEBEB;color:var(--error);border:0.5px solid #F2C8C8;display:block;}
+  .status.success{background:#E0F4E0;color:var(--success);border:0.5px solid #BCE0BC;display:block;}
+  .foot{margin-top:18px;text-align:center;font-size:11px;color:var(--text-3);}
+  .foot a{color:var(--text-2);text-decoration:none;}
+  .foot a:hover{text-decoration:underline;}
+  .loading{text-align:center;padding:40px 20px;color:var(--text-3);font-size:13.5px;}
+  .err-block{padding:18px 20px;border:0.5px solid #F2C8C8;background:#FCEBEB;color:var(--error);border-radius:10px;font-size:13px;line-height:1.6;}
+  .err-block strong{display:block;margin-bottom:6px;font-weight:600;}
+  .err-block code{background:rgba(255,255,255,.6);padding:2px 5px;border-radius:3px;font-size:11.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="0" y="0" width="32" height="32" rx="7" fill="#111"/>
+      <rect x="8.5"  y="12.5" width="4" height="14" rx="1.2" fill="rgba(255,255,255,.20)"/>
+      <rect x="16.5" y="7.5"  width="4" height="20" rx="1.2" fill="rgba(255,255,255,.28)"/>
+      <rect x="24.5" y="15.5" width="4" height="11" rx="1.2" fill="rgba(255,255,255,.20)"/>
+      <rect x="6"  y="11" width="4" height="14" rx="1.2" fill="rgba(255,255,255,.55)"/>
+      <rect x="14" y="6"  width="4" height="20" rx="1.2" fill="#fff"/>
+      <rect x="22" y="14" width="4" height="11" rx="1.2" fill="rgba(255,255,255,.55)"/>
+    </svg>
+    Synkan
+  </div>
+  <div class="card" id="card">
+    <div class="loading" id="loading">Carregando formulário…</div>
+  </div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  const formId = params.get('form');
+  const supaUrl = params.get('s') || params.get('supa_url');
+  const supaKey = params.get('k') || params.get('supa_key');
+
+  const $ = (id) => document.getElementById(id);
+  const escapeHTML = (s) => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  if (!formId || !supaUrl || !supaKey) {
+    $('card').innerHTML = `
+      <div class="err-block">
+        <strong>Configuração inválida</strong>
+        Esperando URL no formato:<br>
+        <code>synkan_form.html?form=ID&amp;s=URL_SUPABASE&amp;k=ANON_KEY</code><br><br>
+        Gere o link correto pelo app, em <strong>🌐 Captação → Formulários → Compartilhar</strong>.
+      </div>`;
+    return;
+  }
+
+  if (!window.supabase || !window.supabase.createClient) {
+    $('card').innerHTML = `<div class="err-block"><strong>Não consegui carregar o SDK do Supabase</strong>Verifique sua conexão e atualize a página.</div>`;
+    return;
+  }
+
+  const sb = window.supabase.createClient(supaUrl, supaKey);
+
+  function renderForm(form) {
+    document.title = (form.name || 'Formulário') + ' · Synkan';
+    const fields = Array.isArray(form.fields) ? form.fields : [];
+    const inputs = fields.map((f, idx) => {
+      const id = 'fld_' + idx;
+      const label = `<label for="${id}">${escapeHTML(f.label || f.key || ('Campo '+(idx+1)))} ${f.required?'<span class="req">*</span>':''}</label>`;
+      const placeholder = f.placeholder ? ` placeholder="${escapeHTML(f.placeholder)}"` : '';
+      const required = f.required ? ' required' : '';
+      let input = '';
+      if (f.type === 'textarea') {
+        input = `<textarea id="${id}" name="${escapeHTML(f.key)}"${placeholder}${required}></textarea>`;
+      } else if (f.type === 'select') {
+        const opts = (Array.isArray(f.options)?f.options:[]).map(o=>`<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('');
+        input = `<select id="${id}" name="${escapeHTML(f.key)}"${required}><option value="">— escolha —</option>${opts}</select>`;
+      } else {
+        const t = ({email:'email',phone:'tel',number:'number',url:'url',date:'date'}[f.type]) || 'text';
+        input = `<input id="${id}" name="${escapeHTML(f.key)}" type="${t}"${placeholder}${required} />`;
+      }
+      return `<div>${label}${input}</div>`;
+    }).join('');
+
+    $('card').innerHTML = `
+      <h1>${escapeHTML(form.name || 'Formulário')}</h1>
+      ${form.description ? `<p class="desc">${escapeHTML(form.description)}</p>` : ''}
+      <form id="theform">
+        ${inputs}
+        <button class="btn" type="submit" id="submitBtn">Enviar</button>
+      </form>
+      <div class="status" id="status"></div>
+    `;
+
+    $('theform').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = $('submitBtn');
+      const status = $('status');
+      btn.disabled = true; btn.textContent = 'Enviando…';
+      status.className = 'status'; status.textContent = '';
+
+      const data = {};
+      const fd = new FormData(e.target);
+      for (const [k,v] of fd.entries()) data[k] = v;
+
+      const payload = {
+        form_id: formId,
+        data,
+        source_url: document.referrer || location.href,
+        user_agent: navigator.userAgent,
+      };
+
+      const { error } = await sb.from('leads_inbox').insert(payload);
+      if (error) {
+        status.className = 'status error';
+        status.textContent = 'Não consegui enviar: ' + (error.message || 'erro desconhecido') + '. Tente de novo em instantes.';
+        btn.disabled = false; btn.textContent = 'Enviar';
+        return;
+      }
+      $('card').innerHTML = `
+        <h1>✓ Recebido</h1>
+        <p class="desc">${escapeHTML(form.success_message || 'Em breve entraremos em contato.')}</p>
+      `;
+    });
+  }
+
+  (async function bootstrap(){
+    const { data, error } = await sb
+      .from('forms')
+      .select('id,name,description,fields,success_message,is_active')
+      .eq('id', formId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (error) {
+      $('card').innerHTML = `<div class="err-block"><strong>Erro ao carregar o formulário</strong>${escapeHTML(error.message)}</div>`;
+      return;
+    }
+    if (!data) {
+      $('card').innerHTML = `<div class="err-block"><strong>Formulário indisponível</strong>Pode estar inativo ou o link está incorreto.</div>`;
+      return;
+    }
+    renderForm(data);
+  })();
+})();
+</script>
+</body>
+</html>
