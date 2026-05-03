@@ -10326,6 +10326,64 @@ function getCompanyInfo() {
 function setCompanyInfo(info) {
   try { localStorage.setItem(COMPANY_KEY, JSON.stringify(info||{})); } catch(e){}
 }
+
+// Versão imediata (sem debounce) com feedback no botão. Usado pelo botão
+// "Replicar marca nos formulários" em Settings → Empresa.
+async function syncBrandingToFormsNow(btn) {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaUser.id) {
+    appAlert('Você precisa estar logado pra sincronizar a marca nos formulários.', '', { icon:'⚠️' });
+    return;
+  }
+  const original = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Sincronizando…'; }
+  try {
+    const co = getCompanyInfo() || {};
+    const branding = {
+      companyName:     co.name     || '',
+      companyLogo:     co.logo     || '',
+      companySubtitle: co.subtitle || '',
+    };
+    const result = await _capRESTCall(`forms?owner_id=eq.${encodeURIComponent(supaUser.id)}`, {
+      method: 'PATCH',
+      body: { branding },
+      headers: { 'Prefer': 'return=representation' },
+    });
+    const n = Array.isArray(result) ? result.length : 0;
+    if (btn) { btn.innerHTML = `✓ ${n} form${n!==1?'s':''} atualizado${n!==1?'s':''}`; }
+    setTimeout(() => { if (btn && original) { btn.innerHTML = original; btn.disabled = false; } }, 2400);
+  } catch(e) {
+    if (btn) { btn.innerHTML = original || '↻ Replicar marca nos formulários'; btn.disabled = false; }
+    appAlert('Não consegui replicar a marca', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+// Sincroniza branding em TODOS os forms do usuário com a empresa atual.
+// Chamado debounced sempre que o usuário muda nome/logo/subtítulo da empresa
+// em Settings — assim, forms criados antes da feature também ganham o
+// branding sem precisar editar um por um.
+function _syncBrandingToAllForms() {
+  if (_syncBrandingToAllForms._timer) clearTimeout(_syncBrandingToAllForms._timer);
+  _syncBrandingToAllForms._timer = setTimeout(async () => {
+    try {
+      if (typeof supaUser === 'undefined' || !supaUser || !supaUser.id) return;
+      if (typeof _capRESTCall !== 'function') return;
+      const co = getCompanyInfo() || {};
+      const branding = {
+        companyName:     co.name     || '',
+        companyLogo:     co.logo     || '',
+        companySubtitle: co.subtitle || '',
+      };
+      await _capRESTCall(`forms?owner_id=eq.${encodeURIComponent(supaUser.id)}`, {
+        method: 'PATCH',
+        body: { branding },
+        headers: { 'Prefer': 'return=minimal' },
+      });
+      console.log('[branding] sincronizado em todos os forms do usuário');
+    } catch(e) {
+      console.warn('[branding] falha ao sincronizar:', e?.message || e);
+    }
+  }, 800);
+}
 function pickCompanyLogo() {
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*';
@@ -10340,6 +10398,7 @@ function pickCompanyLogo() {
       info.logo = dataURL;
       setCompanyInfo(info);
       audit('company.logo', { size: dataURL.length });
+      _syncBrandingToAllForms();
       if (currentTab === 'settings') renderSettings();
     } catch(err) {
       alert('Não consegui processar essa imagem: ' + (err?.message || err));
@@ -10377,6 +10436,7 @@ async function clearCompanyLogo() {
   const info = getCompanyInfo();
   delete info.logo;
   setCompanyInfo(info);
+  _syncBrandingToAllForms();
   if (currentTab === 'settings') renderSettings();
 }
 function saveCompanyFromUI() {
@@ -10394,6 +10454,8 @@ function saveCompanyFromUI() {
   saveCompanyFromUI._auditTimer = setTimeout(() => {
     try { audit('company.info', { name: info.name }); } catch(e) {}
   }, 800);
+  // Sincroniza branding em todos os forms do usuário (debounced também)
+  _syncBrandingToAllForms();
 }
 
 // ── Perfil: nome editável + foto ─────────────────────────────────
@@ -10603,6 +10665,7 @@ function _settingsContaSection() {
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
           <button class="btn-c" onclick="pickCompanyLogo()">📷 ${co.logo?'Trocar logo':'Adicionar logo'}</button>
           ${co.logo ? `<button class="btn-c" onclick="clearCompanyLogo()">Remover logo</button>` : ''}
+          <button class="btn-c" onclick="syncBrandingToFormsNow(this)" title="Replica logo + nome em todos os formulários públicos">↻ Replicar marca nos formulários</button>
         </div>
       </div>`;
     })()}
@@ -27137,7 +27200,7 @@ function renderZaiHub() {
       <div class="zai-hub">
         <div class="zai-hub-hero">
           <h1>財 Zai · Visão Financeira</h1>
-          <p>Sem fluxo de caixa complicado. Cards têm tipo (Receita / Custo Fixo / Custo Variável) e o sistema calcula automaticamente seu <strong>burn rate</strong> e <strong>runway</strong>. A barra "vida do dinheiro" no topo do board mostra quantos meses de fôlego restam.</p>
+          <p>Sem fluxo de caixa complicado. Cards têm tipo (Receita / Custo Fixo / Custo Variável) e o sistema calcula <strong>burn rate</strong> e <strong>runway</strong> automaticamente. Use o <strong>Synk</strong> pra distribuir um valor entre boards, o <strong>Custo de Oportunidade</strong> pra comparar gasto vs. investimento ao longo do tempo, o <strong>Invest-Lab</strong> pra simular cenários antes de mexer no caixa real, e o <strong>Pessoal · Regra dos 1%</strong> pra acompanhar metas de longo prazo (poupança, hábitos, estudos).</p>
         </div>
         <div class="zai-hub-empty">
           <span class="zai-hub-empty-icon">財</span>
@@ -27195,7 +27258,7 @@ function renderZaiHub() {
     <div class="zai-hub">
       <div class="zai-hub-hero">
         <h1>財 Zai · Visão Financeira</h1>
-        <p>Visão consolidada de <strong>${zaiBoards.length} board${zaiBoards.length>1?'s':''} financeiro${zaiBoards.length>1?'s':''}</strong>. Acompanhe receitas, custos e runway em um único lugar. Clique em qualquer board pra abrir.</p>
+        <p>Visão consolidada de <strong>${zaiBoards.length} board${zaiBoards.length>1?'s':''} financeiro${zaiBoards.length>1?'s':''}</strong>. Acompanhe receitas, custos e runway num só lugar — e use <strong>Synk</strong> (distribuição entre boards), <strong>Custo de Oportunidade</strong> (gasto vs. investimento), <strong>Invest-Lab</strong> (cenários hipotéticos) e <strong>Pessoal · Regra dos 1%</strong> (metas + aportes diários) pra ir além do fluxo de caixa.</p>
         <div style="margin-top:14px;">
           <button class="zai-hub-new-btn" onclick="createZaiBoardFromHub()" style="padding:8px 16px;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.08);color:#d4af37;border-radius:8px;cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:600;letter-spacing:0.3px;">+ Novo board Zai</button>
         </div>
