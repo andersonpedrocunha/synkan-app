@@ -1315,6 +1315,14 @@ body.density-compact .card-cf-row{font-size:10px;}
 .card-effort.ef-1 .ef-dot.on{background:#3B6D11;}
 .card-effort.ef-2 .ef-dot.on{background:#854F0B;}
 .card-effort.ef-3 .ef-dot.on{background:#A32D2D;}
+.card-effort .ef-kanji{
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  font-size:13px;font-weight:400;line-height:1;letter-spacing:-.02em;
+  color:var(--color-text-tertiary);
+}
+.card-effort.ef-1 .ef-kanji{color:#3B6D11;}
+.card-effort.ef-2 .ef-kanji{color:#854F0B;}
+.card-effort.ef-3 .ef-kanji{color:#A32D2D;}
 
 /* No modal de edição: seletor de effort */
 .modal-effort{display:flex;gap:6px;}
@@ -1335,6 +1343,75 @@ body.density-compact .card-cf-row{font-size:10px;}
 }
 :root.dark .modal-effort-emoji{color:#F8F2E4;}
 .modal-effort-btn.is-active .modal-effort-emoji{color:#3C3489;}
+
+/* ── Modal de assinatura por desenho (canvas) ─────────────────── */
+.sig-canvas-overlay{
+  position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.50);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;
+}
+.sig-canvas-overlay.is-open{display:flex;}
+.sig-canvas-card{
+  background:linear-gradient(135deg, #FBF7EE 0%, #F8F2E4 100%);
+  border:1px solid #E0D5C2;border-radius:14px;padding:24px 26px 20px;
+  max-width:520px;width:92%;
+  font-family:var(--font-sans);box-shadow:0 14px 56px rgba(0,0,0,.32);
+  position:relative;
+}
+:root.dark .sig-canvas-card{background:linear-gradient(135deg, #1F1A14 0%, #1A1612 100%);border-color:#3A3225;}
+.sig-canvas-card::before{
+  content:'印';position:absolute;right:10px;top:6px;
+  font-size:64px;color:#BC002D;opacity:.10;font-family:'Hiragino Mincho ProN',serif;
+  pointer-events:none;line-height:1;
+}
+.sig-canvas-h{
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;
+  font-size:18px;font-weight:600;color:#1A1612;margin-bottom:4px;
+}
+:root.dark .sig-canvas-h{color:#F8F2E4;}
+.sig-canvas-sub{
+  font-size:13px;color:#6B5B43;margin-bottom:14px;line-height:1.45;
+}
+:root.dark .sig-canvas-sub{color:#A99876;}
+.sig-canvas-box{
+  background:#fff;border:2px dashed #C9B380;border-radius:10px;
+  position:relative;cursor:crosshair;touch-action:none;
+}
+.sig-canvas-box canvas{display:block;width:100%;height:180px;}
+.sig-canvas-baseline{
+  position:absolute;left:14px;right:14px;bottom:30px;
+  border-bottom:1px solid #C9B380;pointer-events:none;
+}
+.sig-canvas-placeholder{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  font-family:'Hiragino Mincho ProN',serif;color:#A99876;font-size:13px;
+  pointer-events:none;font-style:italic;
+}
+.sig-canvas-actions{
+  display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px;
+}
+.sig-canvas-clear{
+  background:transparent;border:1px solid rgba(26,22,18,.18);color:#6B5B43;
+  font-size:12.5px;padding:7px 14px;border-radius:7px;cursor:pointer;font-family:var(--font-sans);
+}
+.sig-canvas-clear:hover{background:rgba(0,0,0,.05);}
+.sig-canvas-confirm-group{display:flex;gap:8px;}
+
+/* Indicador "trancado" no card aprovado */
+.card.is-signed-locked{position:relative;}
+.card.is-signed-locked::after{
+  content:'';position:absolute;top:6px;right:6px;
+  width:14px;height:14px;background:#3B6D11;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3H9z'/%3E%3C/svg%3E") no-repeat center/contain;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'%3E%3Cpath d='M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3H9z'/%3E%3C/svg%3E") no-repeat center/contain;
+  pointer-events:none;
+}
+
+/* Pré-visualização da assinatura desenhada */
+.sig-drawing-preview{
+  background:#fff;border:1px solid #E0D5C2;border-radius:6px;
+  padding:6px;margin-top:8px;display:inline-block;max-width:240px;
+}
+.sig-drawing-preview img{display:block;max-width:100%;height:auto;}
 
 /* ── Campo Assinatura (signature) ─────────────────────────────── */
 .sig-display{
@@ -7161,7 +7238,7 @@ const KANBAN_TEMPLATES = [
     columns: [
       {id:'lancada',    title:'Lançada'},
       {id:'aguardando', title:'Aguardando aprovação', wipLimit:8},
-      {id:'aprovada',   title:'Aprovada'},
+      {id:'aprovada',   title:'Aprovada', requiresSignature:'cf_assinatura', lockOnceSigned:true},
       {id:'reembolsada',title:'Reembolsada'},
       {id:'recusada',   title:'Recusada'},
       {id:'done',       title:'Encerrada'},
@@ -7204,7 +7281,7 @@ const KANBAN_TEMPLATES = [
       {id:'rascunho',    title:'Rascunho'},
       {id:'enviado',     title:'Enviado ao cliente', wipLimit:10},
       {id:'negociacao',  title:'Em negociação',      wipLimit:6},
-      {id:'aprovado',    title:'Aprovado'},
+      {id:'aprovado',    title:'Aprovado', requiresSignature:'cf_assinatura_gst', lockOnceSigned:true},
       {id:'contratado',  title:'Contratado'},
       {id:'done',        title:'Encerrado'},
     ],
@@ -11548,14 +11625,14 @@ function render() {
           const _cardEffort = (typeof getCardEffort === 'function') ? getCardEffort(c) : 2;
           const energyCls = (!isDone && _focusEnergy > 0 && _cardEffort > _focusEnergy) ? ' energy-over-budget' : '';
           // Badge de effort (só aparece se Focus Mode estiver ATIVO, pra evitar poluir)
-          const effortEmoji = ['🌙','🌤','🔥'][_cardEffort - 1] || '🌤';
+          const effortKanji = ['軽','中','重'][_cardEffort - 1] || '中';
           const effortBadge = (_focusEnergy > 0 && !isDone) ?
             `<span class="card-effort ef-${_cardEffort}" title="Esforço: ${['leve','médio','pesado'][_cardEffort-1]}">
               <span class="ef-dots">
                 <span class="ef-dot${_cardEffort>=1?' on':''}"></span>
                 <span class="ef-dot${_cardEffort>=2?' on':''}"></span>
                 <span class="ef-dot${_cardEffort>=3?' on':''}"></span>
-              </span>${effortEmoji}
+              </span><span class="ef-kanji">${effortKanji}</span>
             </span>` : '';
           // Dependências
           const _isBlocked = !isDone && typeof isCardBlocked === 'function' && isCardBlocked(c);
@@ -11575,8 +11652,9 @@ function render() {
           } else if (_blocksOpen.length > 0 && !isDone) {
             depBadge = `<span class="card-dep-badge blocker" title="Este card bloqueia: ${_esc(_blocksOpen.map(b=>b.name).join(', '))}">⛓ bloqueia ${_blocksOpen.length}</span>`;
           }
+          const lockedCls = (typeof _cardIsLocked === 'function' && _cardIsLocked(c)) ? ' is-signed-locked' : '';
           return `<div class="card-wrap">
-            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
+            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}${lockedCls}" ${sourceStyle} draggable="${lockedCls?'false':'true'}" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
               ${sourceLine}
               ${F.tags && tags.length?`<div class="card-tags">${tags.map(t=>`<span class="ctag" style="background:${t.color.bg};color:${t.color.text};">${t.text}</span>`).join('')}</div>`:''}
               <div class="card-desc">${c.name}</div>
@@ -11619,6 +11697,54 @@ function render() {
 function _processCardDrop(newCol) {
   if (!dragId || !newCol) return;
   const card = cards.find(c => c.id === dragId);
+  if (!card || card.col === newCol) return;
+
+  // ── Bloqueio: card aprovado-com-assinatura não pode voltar ──────
+  if (typeof _cardIsLocked === 'function' && _cardIsLocked(card)) {
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning(
+        'Card trancado',
+        `Este card está <strong>aprovado com assinatura imutável</strong>. Pra desfazer, abra o card e revogue a assinatura primeiro.`,
+        'warn'
+      );
+    }
+    return;
+  }
+
+  // ── Bloqueio: coluna alvo exige assinatura? ─────────────────────
+  const targetColForSig = (COLS || []).find(x => x.id === newCol);
+  if (targetColForSig && targetColForSig.requiresSignature) {
+    const sigField = customFields.find(f => f.id === targetColForSig.requiresSignature && f.type === 'signature');
+    if (sigField) {
+      // Verifica se já tem assinatura válida pra este field
+      const sigVal = card.customFieldValues?.[sigField.id];
+      let hasSig = false;
+      if (sigVal) {
+        try {
+          const s = (typeof sigVal === 'object') ? sigVal : JSON.parse(sigVal);
+          hasSig = !!(s && s.by && s.hash);
+        } catch(e){}
+      }
+      if (!hasSig) {
+        // Abre modal pra coletar assinatura. Após assinar, repete o drop.
+        openSignatureCanvas({
+          title: 'Assine pra mover pra ' + targetColForSig.title,
+          subtitle: `Pra mover este card pra "${targetColForSig.title}", precisamos da sua assinatura. Desenhe abaixo (mouse ou touch). Hash SHA-256 do card + assinatura será gravado.`,
+          onConfirm: async (drawingDataUrl) => {
+            await _commitCardSignature(card.id, sigField.id, drawingDataUrl);
+            // Após assinar, finaliza o drop:
+            _finalizeCardMove(card, newCol);
+          }
+        });
+        return; // Bloqueia o drop até a assinatura ser feita
+      }
+    }
+  }
+  _finalizeCardMove(card, newCol);
+}
+
+// Finaliza o movimento do card depois das checagens (separado pra reuso após assinatura)
+function _finalizeCardMove(card, newCol) {
   if (!card || card.col === newCol) return;
   const movedToDone   = newCol === TERMINAL_COL && card.col !== TERMINAL_COL;
   const movedFromDone = card.col === TERMINAL_COL && newCol !== TERMINAL_COL;
@@ -11745,8 +11871,12 @@ function renderModalCustomFields() {
       if (sig && sig.by) {
         const dt = sig.at ? new Date(sig.at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
         const shortHash = (sig.hash || '').slice(0, 12);
+        const drawingHTML = sig.drawing
+          ? `<div class="sig-drawing-preview"><img src="${sig.drawing}" alt="Assinatura"/></div>`
+          : '';
         inp = `<div class="sig-display">
           <div class="sig-line"><span class="sig-check">✓</span><strong>${_esc(sig.by)}</strong> <span class="sig-meta">· ${_esc(dt)}</span></div>
+          ${drawingHTML}
           <div class="sig-hash" title="Hash SHA-256 da assinatura">hash: <code>${shortHash}…</code></div>
           <div class="sig-verify" id="sig-verify-${f.id}">verificando…</div>
           <button type="button" class="sig-revoke" onclick="_revokeCardSignature(${editingCard.id}, '${f.id}')">Revogar assinatura</button>
@@ -15346,14 +15476,146 @@ function _signatureCardSnapshot(card) {
   });
 }
 
+// Abre o modal de canvas pra desenhar a assinatura.
+// onConfirm é chamado com (drawingDataUrl) quando o usuário confirma.
+function openSignatureCanvas(opts) {
+  opts = opts || {};
+  let ov = document.getElementById('sig-canvas-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'sig-canvas-overlay';
+    ov.className = 'sig-canvas-overlay';
+    ov.innerHTML = `
+      <div class="sig-canvas-card">
+        <div class="sig-canvas-h" id="sig-canvas-h">Assine pra aprovar</div>
+        <div class="sig-canvas-sub" id="sig-canvas-sub">Desenhe sua assinatura abaixo. O hash SHA-256 do conteúdo do card + sua assinatura será gravado de forma imutável.</div>
+        <div class="sig-canvas-box" id="sig-canvas-box">
+          <canvas id="sig-canvas" width="800" height="180"></canvas>
+          <div class="sig-canvas-baseline"></div>
+          <div class="sig-canvas-placeholder" id="sig-canvas-placeholder">desenhe sua assinatura aqui ✍</div>
+        </div>
+        <div class="sig-canvas-actions">
+          <button class="sig-canvas-clear" onclick="_sigCanvasClear()">Limpar</button>
+          <div class="sig-canvas-confirm-group">
+            <button class="voice-btn voice-btn-ghost" onclick="closeSignatureCanvas()">Cancelar</button>
+            <button class="voice-btn voice-btn-primary" id="sig-canvas-confirm" onclick="_sigCanvasConfirm()" disabled>Confirmar assinatura</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(ov);
+    _initSigCanvas();
+  }
+  // Atualiza textos
+  if (opts.title) document.getElementById('sig-canvas-h').textContent = opts.title;
+  if (opts.subtitle) document.getElementById('sig-canvas-sub').textContent = opts.subtitle;
+  // Reset estado
+  _sigCanvasClear();
+  _sigCanvasOnConfirm = opts.onConfirm || null;
+  _sigCanvasOnCancel  = opts.onCancel || null;
+  ov.classList.add('is-open');
+}
+function closeSignatureCanvas() {
+  const ov = document.getElementById('sig-canvas-overlay');
+  if (ov) ov.classList.remove('is-open');
+  if (_sigCanvasOnCancel) _sigCanvasOnCancel();
+  _sigCanvasOnConfirm = null;
+  _sigCanvasOnCancel  = null;
+}
+
+let _sigCanvasOnConfirm = null;
+let _sigCanvasOnCancel = null;
+let _sigCanvasHasInk = false;
+
+function _initSigCanvas() {
+  const canvas = document.getElementById('sig-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let drawing = false, lastX = 0, lastY = 0;
+  function getPoint(e) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    return { x: x * sx, y: y * sy };
+  }
+  function start(e) {
+    e.preventDefault();
+    drawing = true;
+    const p = getPoint(e);
+    lastX = p.x; lastY = p.y;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.strokeStyle = '#1A1612';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }
+  function move(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const p = getPoint(e);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    lastX = p.x; lastY = p.y;
+    if (!_sigCanvasHasInk) {
+      _sigCanvasHasInk = true;
+      const ph = document.getElementById('sig-canvas-placeholder'); if (ph) ph.style.display = 'none';
+      const btn = document.getElementById('sig-canvas-confirm'); if (btn) btn.disabled = false;
+    }
+  }
+  function end() { drawing = false; }
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  canvas.addEventListener('mouseup', end);
+  canvas.addEventListener('mouseleave', end);
+  canvas.addEventListener('touchstart', start);
+  canvas.addEventListener('touchmove', move);
+  canvas.addEventListener('touchend', end);
+}
+
+function _sigCanvasClear() {
+  const canvas = document.getElementById('sig-canvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  _sigCanvasHasInk = false;
+  const ph = document.getElementById('sig-canvas-placeholder'); if (ph) ph.style.display = '';
+  const btn = document.getElementById('sig-canvas-confirm'); if (btn) btn.disabled = true;
+}
+
+async function _sigCanvasConfirm() {
+  const canvas = document.getElementById('sig-canvas');
+  if (!canvas || !_sigCanvasHasInk) return;
+  const drawing = canvas.toDataURL('image/png');
+  const cb = _sigCanvasOnConfirm;
+  closeSignatureCanvas();
+  if (cb) await cb(drawing);
+}
+
+// Versão refatorada: abre modal de canvas e assina com o desenho
 async function _signCardField(cardId, fieldId) {
+  const c = cards.find(x => x.id === cardId);
+  if (!c) return;
+  openSignatureCanvas({
+    title: 'Assine pra aprovar',
+    subtitle: 'Desenhe sua assinatura abaixo com o mouse (ou dedo no mobile). O hash SHA-256 do conteúdo deste card + sua assinatura será gravado de forma imutável.',
+    onConfirm: async (drawingDataUrl) => {
+      await _commitCardSignature(cardId, fieldId, drawingDataUrl);
+    }
+  });
+}
+
+// Commit real da assinatura (chamado pelo modal após o usuário desenhar)
+async function _commitCardSignature(cardId, fieldId, drawingDataUrl) {
   const c = cards.find(x => x.id === cardId);
   if (!c) return;
   const me = (typeof supaUser !== 'undefined' && supaUser && supaUser.user_metadata?.full_name)
     ? supaUser.user_metadata.full_name
     : (typeof team !== 'undefined' && team[0]) || 'Você';
   const at = new Date().toISOString();
-  // Cria snapshot ANTES de gravar a assinatura (pra hash não incluir a própria assinatura)
   const cv = { ...(c.customFieldValues || {}) };
   delete cv[fieldId];
   const snap = JSON.stringify({
@@ -15361,13 +15623,37 @@ async function _signCardField(cardId, fieldId) {
     responsavel: c.responsavel || '', customFieldValues: cv,
     subtasks: (c.subtasks || []).map(s => ({ text: s.text, done: !!s.done })),
   });
-  const hash = await _sha256Hex(snap + '|' + me + '|' + at);
+  const hash = await _sha256Hex(snap + '|' + me + '|' + at + '|' + (drawingDataUrl||''));
   c.customFieldValues = c.customFieldValues || {};
-  c.customFieldValues[fieldId] = JSON.stringify({ by: me, at, hash, snap });
-  if (typeof autoThread === 'function') autoThread(c, `✍ Assinado por ${me}`);
+  c.customFieldValues[fieldId] = JSON.stringify({
+    by: me, at, hash, snap, drawing: drawingDataUrl || null,
+  });
+  if (typeof autoThread === 'function') autoThread(c, `✍ Assinado por ${me} (com desenho)`);
   saveData();
   if (typeof renderModalCustomFields === 'function') renderModalCustomFields(cardId);
   if (typeof render === 'function') render();
+}
+
+// Verifica se o card tem alguma assinatura válida (algum field type=signature preenchido)
+function _cardHasValidSignature(card) {
+  if (!card || !Array.isArray(customFields)) return false;
+  return customFields.some(f => {
+    if (f.type !== 'signature') return false;
+    const v = card.customFieldValues?.[f.id];
+    if (!v) return false;
+    try {
+      const sig = (typeof v === 'object') ? v : JSON.parse(v);
+      return !!(sig && sig.by && sig.hash);
+    } catch(e) { return false; }
+  });
+}
+
+// Verifica se o card está em uma coluna "lockOnceSigned" e tem assinatura
+function _cardIsLocked(card) {
+  if (!card) return false;
+  const col = (COLS || []).find(c => c.id === card.col);
+  if (!col || !col.lockOnceSigned) return false;
+  return _cardHasValidSignature(card);
 }
 
 async function _revokeCardSignature(cardId, fieldId) {
