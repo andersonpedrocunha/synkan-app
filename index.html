@@ -9959,6 +9959,39 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof refreshAccountUI === 'function') refreshAccountUI();
   // Tour de boas-vindas (apenas no primeiro acesso)
   setTimeout(() => { try { maybeStartOnboarding(); } catch(e) { console.warn('onboarding error', e); } }, 600);
+
+  // ── Limpa query params de retorno do Stripe (?ai_topup=success|canceled,
+  // ?upgrade=success, etc.) — mostra toast quando relevante e remove da URL
+  // pra não poluir o histórico/refresh.
+  try {
+    const params = new URLSearchParams(location.search);
+    const aiTopup = params.get('ai_topup');
+    const upgrade = params.get('upgrade');
+    if (aiTopup === 'success') {
+      setTimeout(() => {
+        if (typeof _showKanWarning === 'function') {
+          _showKanWarning('Compra confirmada', '✓ Seus créditos extras foram adicionados. Bom uso da prática.', 'info');
+        }
+      }, 800);
+    } else if (aiTopup === 'canceled') {
+      setTimeout(() => {
+        if (typeof _showKanWarning === 'function') {
+          _showKanWarning('Compra cancelada', 'Ok, sem problema. Pode comprar quando precisar.', 'info');
+        }
+      }, 600);
+    }
+    if (upgrade === 'success') {
+      setTimeout(() => {
+        if (typeof _showKanWarning === 'function') {
+          _showKanWarning('Plano atualizado', '✓ Bem-vindo ao novo nível. Faça bom uso.', 'info');
+        }
+      }, 800);
+    }
+    // Remove os params da URL sem reload
+    if (aiTopup || upgrade) {
+      window.history.replaceState({}, '', location.pathname + location.hash);
+    }
+  } catch(e) { console.warn('clear stripe params:', e); }
 });
 
 // ── Onboarding tour (primeiro acesso) ────────────────────────────────
