@@ -11970,6 +11970,9 @@ function deadlineBadge(deadline, isDone) {
 
 // Renderiza a Runway Bar do Zai no topo do kanban
 function _renderZaiRunwayBar() {
+  // Guard: se ZAI_TYPES ainda não foi inicializada (TDZ durante load), sai
+  if (typeof ZAI_TYPES === 'undefined' || !ZAI_TYPES) return;
+  if (typeof isBoardZaiEnabled !== 'function') return;
   const view = document.getElementById('view-kanban');
   if (!view) return;
   view.querySelectorAll('.zai-runway-bar').forEach(el => el.remove());
@@ -22988,17 +22991,22 @@ function deleteDocument(id) {
 //   - Runway = Saldo / Burn rate (em meses)
 // E mostra uma barra "vida de videogame" no topo do board.
 
-const ZAI_TYPES = {
+// IMPORTANTE: usa `var` (não `const`) porque render() inicial pode rodar antes
+// desta linha durante o load do script. Com const, dava TDZ → app travava antes
+// de abrir tela de login. var é hoisted como undefined; os usos têm guard.
+var ZAI_TYPES = {
   income:   { label:'Receita',         icon:'💰', emoji:'+', color:'#3B6D11', sign:+1 },
   fixed:    { label:'Custo fixo',      icon:'🔁', emoji:'~', color:'#A32D2D', sign:-1 },
   variable: { label:'Custo variável',  icon:'⚡', emoji:'-', color:'#854F0B', sign:-1 },
 };
 
 function getCardMoneyType(card) {
+  if (typeof ZAI_TYPES === 'undefined' || !ZAI_TYPES) return null;
   return card && card.moneyType && ZAI_TYPES[card.moneyType] ? card.moneyType : null;
 }
 
 function setCardMoneyType(cardId, type) {
+  if (typeof ZAI_TYPES === 'undefined' || !ZAI_TYPES) return;
   const c = cards.find(x => x.id === cardId);
   if (!c) return;
   if (type && ZAI_TYPES[type]) c.moneyType = type;
@@ -23029,6 +23037,7 @@ function getCardMoneyValue(card) {
 // Burn rate mensal = soma de custos fixos (recorrentes) + variáveis ativos.
 // Cards em coluna terminal (Done/Pago/etc) NÃO contam (já saíram).
 function calcBoardBurnRate() {
+  if (typeof ZAI_TYPES === 'undefined' || !ZAI_TYPES) return 0;
   let burn = 0;
   (cards || []).forEach(c => {
     if (c.col === TERMINAL_COL) return;
@@ -23042,6 +23051,7 @@ function calcBoardBurnRate() {
 
 // Receita mensal recorrente esperada
 function calcBoardIncomeRate() {
+  if (typeof ZAI_TYPES === 'undefined' || !ZAI_TYPES) return 0;
   let inc = 0;
   (cards || []).forEach(c => {
     if (c.col === TERMINAL_COL) return;
