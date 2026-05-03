@@ -25601,7 +25601,10 @@ function _renderGoal1pctListHTML() {
   }
   const fmt = n => n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 });
   const tiles = list.slice(0, 6).map(cv => {
-    const pct = cv.goalCurrent && cv.goalTarget ? Math.min(100, (cv.goalCurrent / cv.goalTarget) * 100) : 0;
+    // Progresso atual = base inicial + soma dos aportes registrados
+    const current = _goal1pctComputeProgress(cv);
+    const target = Number(cv.goalTarget) || 0;
+    const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
     const monthly = cv.goalMonthlyRequired || 0;
     return `
       <div class="zai-hub-board-tile" onclick="openGoal1pctDetailsModal('${cv.id}')">
@@ -25612,14 +25615,14 @@ function _renderGoal1pctListHTML() {
           <button class="zai-hub-tile-edit" title="Excluir" onclick="event.stopPropagation();deleteGoal1pctCanvas('${cv.id}')" style="color:#A32D2D;">✕</button>
         </div>
         <div class="zai-hub-board-tile-runway">
-          <span style="flex:1;">Meta</span>
-          <strong style="font-size:13px;color:var(--color-text-primary);">${fmt(cv.goalTarget||0)}</strong>
+          <span style="flex:1;">${fmt(current)} <span style="opacity:.55;font-weight:400;">de</span> ${fmt(target)}</span>
+          <strong style="font-size:13px;color:var(--color-text-primary);">${pct.toFixed(0)}%</strong>
         </div>
         <div class="zai-hub-board-tile-bar">
           <div class="zai-hub-board-tile-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,#3D2E5A,#5A4980);"></div>
         </div>
         <div class="zai-hub-board-tile-stats">
-          <span>${pct.toFixed(0)}% feito</span>
+          <span>${(cv.goalContributions||[]).length} aporte${(cv.goalContributions||[]).length===1?'':'s'}</span>
           <span style="color:#854F0B;">${fmt(monthly)}/mês</span>
           <span style="margin-left:auto;opacity:.7;">${cv.goalYears||0}a · ${cv.goalReturnPct||0}%</span>
         </div>
