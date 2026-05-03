@@ -120,15 +120,8 @@
     const wrap = $('company-brand');
     if (!wrap) return;
     if (!branding || (!branding.companyName && !branding.companyLogo)) {
-      // Sem branding: mostra um header mínimo só com Synkan
-      wrap.innerHTML = `
-        <div class="company-brand">
-          <div class="company-brand-logo" style="display:flex;justify-content:center;">
-            ${synkanLogoSVG.replace('width="18" height="18"','').replace('viewBox="0 0 32 32"','viewBox="0 0 32 32" width="48" height="48"')}
-          </div>
-          <h2 class="company-brand-name">Synkan</h2>
-        </div>
-      `;
+      // Sem branding: header fica vazio (Synkan continua no rodapé).
+      wrap.innerHTML = '';
       return;
     }
     const logoHTML = branding.companyLogo
