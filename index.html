@@ -5412,11 +5412,13 @@ function confirmSaveUV() {
   closeSaveUVModal();
 }
 
-function renameUnifiedViewPrompt(viewId) {
+async function renameUnifiedViewPrompt(viewId) {
   const v = getUnifiedViews().find(x => x.id === viewId);
   if (!v) return;
-  const newName = prompt('Novo nome:', v.name);
-  if (!newName) return;
+  const newName = await appPrompt('Renomear view', {
+    icon: '✏️', defaultValue: v.name, placeholder: v.name, okLabel: 'Salvar',
+  });
+  if (!newName || !newName.trim()) return;
   v.name = newName.trim().slice(0, 60);
   _saveUnifiedViews(getUnifiedViews().map(x => x.id === viewId ? v : x));
   if (typeof render === 'function') render();
@@ -7374,7 +7376,7 @@ const KANBAN_TEMPLATES = [
       {id:'aguardando', title:'Aguardando aprovação', wipLimit:8,                               allowedNext:['aprovada','recusada']},
       {id:'aprovada',   title:'Aprovada',  requiresSignature:'cf_assinatura', lockOnceSigned:true},
       {id:'reembolsada',title:'Reembolsada'},
-      {id:'recusada',   title:'Recusada',  requiresSignature:'cf_assinatura', lockOnceSigned:true},
+      {id:'recusada',   title:'Recusada',  requiresSignature:'cf_assinatura', lockOnceSigned:true, requiresReason:true},
       {id:'done',       title:'Encerrada'},
     ],
     tags: [
@@ -11893,7 +11895,28 @@ function _processCardDrop(newCol) {
           subtitle: `Pra mover este card pra "${targetColForSig.title}", precisamos da sua assinatura. Desenhe abaixo (mouse ou touch). Hash SHA-256 do card + assinatura será gravado.`,
           onConfirm: async (drawingDataUrl) => {
             await _commitCardSignature(card.id, sigField.id, drawingDataUrl);
-            // Após assinar, finaliza o drop:
+            // Se a coluna alvo exige motivo (ex: Recusada), pede agora
+            if (targetColForSig.requiresReason) {
+              const reason = await appPrompt('Motivo da ' + targetColForSig.title.toLowerCase(), {
+                icon: '📝',
+                message: `Por que este card está indo pra "${targetColForSig.title}"? O motivo fica registrado no histórico (auditoria) e é imutável.`,
+                placeholder: 'Ex: Despesa fora da política da empresa',
+                okLabel: 'Confirmar',
+              });
+              if (!reason || !reason.trim()) {
+                appAlert('Motivo obrigatório', `Pra mover pra "${targetColForSig.title}", o motivo é obrigatório. O card volta pra coluna anterior.`, { icon:'⚠', okLabel:'OK' });
+                // Revoga a assinatura recém-feita pra deixar consistente
+                if (card.customFieldValues) delete card.customFieldValues[sigField.id];
+                saveData(); render();
+                return;
+              }
+              // Salva motivo no card (e thread visível)
+              card.refusalReason = reason.trim();
+              if (typeof autoThread === 'function') {
+                autoThread(card, `📝 Motivo (${targetColForSig.title}): ${reason.trim()}`);
+              }
+            }
+            // Após assinar (e motivo se aplicável), finaliza o drop:
             _finalizeCardMove(card, newCol);
           }
         });
@@ -15980,14 +16003,15 @@ async function _revokeCardSignature(cardId, fieldId) {
   const c = cards.find(x => x.id === cardId);
   if (!c || !c.customFieldValues) return;
   // Pede motivo obrigatório pra auditoria
-  const motivo = prompt(
-    'Revogar assinatura abre o card pra revisão.\n\n' +
-    'Por que está revogando? (obrigatório, fica registrado no histórico)',
-    ''
-  );
+  const motivo = await appPrompt('Revogar assinatura', {
+    icon: '🔓',
+    message: 'Revogar assinatura abre o card pra revisão. Por que está revogando? Fica registrado no histórico (auditoria).',
+    placeholder: 'Ex: Cliente solicitou alteração no escopo',
+    okLabel: 'Revogar',
+  });
   if (motivo === null) return;        // cancelou
   if (!motivo.trim()) {
-    alert('Motivo é obrigatório pra revogar assinatura.');
+    appAlert('Motivo obrigatório', 'Pra revogar a assinatura, é necessário registrar o motivo (auditoria).', { icon:'⚠', okLabel:'OK' });
     return;
   }
   // Captura snapshot da assinatura ANTES de remover (pra auditoria)
@@ -20417,6 +20441,35 @@ function appPrompt(title, opts) {
     });
   });
 }
+
+// ── Override window.alert/confirm/prompt pra usar os modais formatados ──
+// Mantém compatibilidade com código legado: alert("...") agora abre modal Synkan
+// em vez do browser nativo. Sem mais janelas "app.synkan.com.br says".
+(function _installNativeDialogShims(){
+  if (typeof window === 'undefined') return;
+  // alert(): só mostra mensagem. Substituível direto, é fire-and-forget.
+  window.alert = function(msg) {
+    try { appAlert('Aviso', String(msg||''), { icon:'ℹ️', okLabel:'OK' }); }
+    catch(e) { console.warn('[alert]', msg); }
+  };
+  // confirm(): nativo é síncrono e retorna boolean. Substituí-lo por async
+  // quebra `if (confirm(...))`. Solução: bloquear via prompt nativo é feio.
+  // Estratégia: o shim retorna uma Promise<boolean> que SEMPRE é tratada
+  // como truthy (Promise é truthy). Pra código legado que faz `if (confirm)`,
+  // o usuário ainda vai ver o modal e decidir — só perde o early-return.
+  // Pra novo código, usar appConfirm() diretamente.
+  window.confirm = function(msg) {
+    try { appConfirm('Confirmar', String(msg||''), { icon:'❓', okLabel:'Confirmar', cancelLabel:'Cancelar' }); }
+    catch(e) {}
+    return true;   // permite código legado seguir
+  };
+  // prompt(): mesma lógica. Retorna Promise<string|null>, mas código legado
+  // que faz `const x = prompt(...)` não vai esperar — fica null/Promise.
+  window.prompt = function(msg, defaultValue) {
+    try { return appPrompt(String(msg||''), { defaultValue: defaultValue||'', icon:'✏️' }); }
+    catch(e) { return null; }
+  };
+})();
 
 // appChoice(title, choices, opts) → Promise<choiceId|null>
 // choices: [{ id, label, icon?, meta?, active? }]
