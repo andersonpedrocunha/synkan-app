@@ -14431,9 +14431,25 @@ async function supaRemoveMember(boardId, userId) {
 }
 
 // — Boot routing —
+// Re-rodar isso a cada TOKEN_REFRESH/SIGNED_IN é o que estava
+// jogando o usuário pra Home no meio do uso. Agora detecta se é o
+// mesmo user já logado e, se for, só atualiza UI sem reset de tab.
+let _lastSignedInUserId = null;
 async function _onSignedIn(session) {
+  const sameUserAsBefore = _lastSignedInUserId && _lastSignedInUserId === session.user.id;
   supaUser = session.user;
   showAuthOverlay(false);
+  // Cache JWT recém-recebido (evita corrida pelo lock no próximo REST call)
+  try { _capInvalidateJWTCache && _capInvalidateJWTCache(); } catch(e){}
+
+  // Se é o MESMO user que já estava logado (token refresh, mudança de aba,
+  // wake do sleep), só atualiza UI leve e sai. NÃO troca tab, NÃO recarrega
+  // boards, NÃO reinicializa realtime.
+  if (sameUserAsBefore) {
+    refreshAccountUI();
+    return;
+  }
+  _lastSignedInUserId = session.user.id;
 
   // Atualiza profile (caso falte full_name)
   const c = _ensureSupaClient();
@@ -14479,6 +14495,8 @@ async function _onSignedIn(session) {
 
 async function _onSignedOut() {
   supaUser = null;
+  _lastSignedInUserId = null;
+  try { _capInvalidateJWTCache && _capInvalidateJWTCache(); } catch(e){}
   if (supaRealtimeCh && supaClient) { supaClient.removeChannel(supaRealtimeCh); supaRealtimeCh = null; }
   showAuthOverlay(true);
   refreshAccountUI();
