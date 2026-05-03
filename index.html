@@ -15661,9 +15661,10 @@ function _genNodeId() { return 'n_' + Date.now().toString(36) + (++_canvasIconCo
 function _genEdgeId() { return 'e_' + Date.now().toString(36) + (++_canvasIconCounter); }
 
 const CANVAS_FORMAT_META = {
+  note:     { label: 'Nota',          icon: '🥋', desc: 'Anote pensamentos soltos. O Mestre Kan extrai ações automaticamente. Ideal pra brainstorm, captura rápida e ideias antes de virarem tarefa.' },
   blank:    { label: 'Em branco',     icon: '✨', desc: 'Página totalmente vazia. Sem template, sem barra. Espaço puro pra pensar.' },
   mindmap:  { label: 'Mapa de Ideias', icon: '🌿', desc: 'Cards conectados com status (ideia → aprovado → pronto). Não é um whiteboard.' },
-  document: { label: 'Documento',     icon: '📝', desc: 'Editor com formatação. Bullets viram cards no clique.' },
+  document: { label: 'Documento',     icon: '📝', desc: 'Editor com formatação completa. Bullets viram cards, H2 viram colunas.' },
   table:    { label: 'Tabela',        icon: '📊', desc: 'Linhas com prioridade e responsável. Cada linha vira card.' },
   plan:     { label: 'Plano de Ação', icon: '🎯', desc: 'Pré-preenchido com objetivo, etapas, responsáveis e riscos.' },
 };
@@ -15701,6 +15702,7 @@ function createCanvas(name, format) {
     promoted: {}, // { nodeId|rowId|liId: { boardId, cardId } }
   };
   if (format === 'document') base.docContent = '';
+  if (format === 'note')     base.docContent = '<p>Comece a escrever pensamentos, ideias, o que precisa ser feito… O Mestre Kan extrai ações depois.</p>';
   if (format === 'blank')    base.blankContent = '';
   if (format === 'plan')     base.docContent = PLAN_TEMPLATE;
   if (format === 'table')    base.tableRows = [
@@ -15732,7 +15734,7 @@ function renderCanvasView() {
     const cv = _canvases[_currentCanvasId];
     const fmt = cv.format || 'mindmap';
     if (fmt === 'blank') renderBlankEditor();
-    else if (fmt === 'document' || fmt === 'plan') renderDocumentEditor();
+    else if (fmt === 'document' || fmt === 'plan' || fmt === 'note') renderDocumentEditor();
     else if (fmt === 'table') renderTableEditor();
     else renderCanvasEditor();
   } else {
@@ -16270,7 +16272,7 @@ function confirmPromote() {
     closePromoteModal();
     _promoteContext = null;
     if (cv.format === 'table') renderTableEditor();
-    if (cv.format === 'document' || cv.format === 'plan') renderDocumentEditor();
+    if (cv.format === 'document' || cv.format === 'plan' || cv.format === 'note') renderDocumentEditor();
     alert(`${createdCount} card(s) criado(s) em ${board.name}.`);
     return;
   }
@@ -17580,8 +17582,8 @@ function confirmConvertToBoard() {
   // Cria board com defaults; depois ajustamos colunas se for doc/plan
   const boardId = createBoard({ name });
   const board = allBoards[boardId];
-  // Para document/plan: substituir colunas pelos H2s do doc
-  if (cv.format === 'document' || cv.format === 'plan') {
+  // Para document/plan/note: substituir colunas pelos H2s do doc
+  if (cv.format === 'document' || cv.format === 'plan' || cv.format === 'note') {
     // Pega só seções com cards. Se nenhuma, usa Backlog padrão.
     const useful = summary.columns.filter(c => (c.count||0) > 0);
     const cols = useful.length ? useful.slice() : [{ id:'backlog', title:'Backlog', items:[] }];
@@ -17622,7 +17624,7 @@ function confirmConvertToBoard() {
       });
       cv.promoted[n.id] = { boardId, cardId };
     });
-  } else if (cv.format === 'document' || cv.format === 'plan') {
+  } else if (cv.format === 'document' || cv.format === 'plan' || cv.format === 'note') {
     summary.columns.forEach(col => {
       (col.items||[]).forEach(text => {
         _push({
@@ -21102,9 +21104,9 @@ let _extractedActions = [];
 async function extractActionsFromDoc() {
   const cv = (typeof _curCanvas === 'function') ? _curCanvas() : null;
   if (!cv) return;
-  if (cv.format !== 'document' && cv.format !== 'plan' && cv.format !== 'blank') {
+  if (cv.format !== 'document' && cv.format !== 'plan' && cv.format !== 'blank' && cv.format !== 'note') {
     if (typeof appAlert === 'function') {
-      appAlert('Não suportado', 'Extração de ações funciona em formatos de texto (Documento, Plano, Em branco). Pra mindmap/tabela use o "Promover" tradicional.', { icon:'📝', okLabel:'OK' });
+      appAlert('Não suportado', 'Extração de ações funciona em formatos de texto (Nota, Documento, Plano, Em branco). Pra mindmap/tabela use o "Promover" tradicional.', { icon:'📝', okLabel:'OK' });
     }
     return;
   }
