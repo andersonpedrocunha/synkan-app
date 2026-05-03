@@ -1396,6 +1396,109 @@ body.density-compact .card-cf-row{font-size:10px;}
 :root.dark .modal-effort-emoji{color:#F8F2E4;}
 .modal-effort-btn.is-active .modal-effort-emoji{color:#3C3489;}
 
+/* ── Module Zai · Gestão Financeira via Kanban ───────────────── */
+.zai-runway-bar{
+  background:linear-gradient(135deg, #1A1612 0%, #2A241D 100%);
+  color:#F8F2E4;border-radius:14px;padding:18px 22px;
+  margin-bottom:14px;font-family:var(--font-sans);
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:10px;
+}
+.zai-runway-bar::before{
+  content:'財';position:absolute;right:12px;bottom:-22px;
+  font-size:120px;line-height:1;color:#F8F2E4;opacity:.05;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  pointer-events:none;
+}
+.zai-runway-head{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;
+  position:relative;z-index:1;
+}
+.zai-runway-title{font-size:11px;font-weight:600;letter-spacing:.10em;text-transform:uppercase;color:#A99876;}
+.zai-runway-balance-wrap{display:flex;align-items:center;gap:8px;font-size:13px;color:#A99876;}
+.zai-runway-balance-input{
+  background:rgba(248,242,228,.06);border:1px solid rgba(248,242,228,.18);
+  color:#F8F2E4;font-family:var(--font-sans);font-size:14px;font-weight:600;
+  padding:4px 10px;border-radius:6px;width:130px;text-align:right;
+  font-variant-numeric:tabular-nums;outline:none;
+}
+.zai-runway-balance-input:focus{border-color:#BC002D;}
+.zai-runway-stats{display:flex;gap:18px;flex-wrap:wrap;font-variant-numeric:tabular-nums;position:relative;z-index:1;}
+.zai-runway-stat{display:flex;flex-direction:column;gap:1px;}
+.zai-runway-stat-lbl{font-size:10px;color:#A99876;text-transform:uppercase;letter-spacing:.06em;font-weight:600;}
+.zai-runway-stat-val{font-size:18px;font-weight:600;color:#F8F2E4;}
+.zai-runway-stat-val.income{color:#A8D87A;}
+.zai-runway-stat-val.burn{color:#F09595;}
+.zai-runway-bar-track{
+  height:14px;background:rgba(248,242,228,.10);border-radius:7px;overflow:hidden;
+  position:relative;z-index:1;
+}
+.zai-runway-bar-fill{
+  height:100%;border-radius:7px;transition:width .6s ease, background .3s;
+  background:linear-gradient(90deg, #3B6D11 0%, #6BA52E 100%);
+}
+.zai-runway-bar-fill.warning{background:linear-gradient(90deg, #D9A227 0%, #FCD34D 100%);}
+.zai-runway-bar-fill.danger{background:linear-gradient(90deg, #DC2626 0%, #F09595 100%);animation:zaiRunwayPulse 2s ease-in-out infinite;}
+@keyframes zaiRunwayPulse{0%,100%{opacity:1;}50%{opacity:.65;}}
+.zai-runway-end-date{font-size:11px;color:#A99876;text-align:right;position:relative;z-index:1;}
+.zai-runway-end-date strong{color:#F09595;font-weight:600;}
+
+/* Toggle de view Executiva ↔ Financeira (chip no header) */
+.zai-view-toggle{
+  display:inline-flex;align-items:center;background:var(--color-background-secondary);
+  border:0.5px solid var(--color-border-tertiary);border-radius:999px;padding:2px;
+  font-family:var(--font-sans);font-size:11.5px;
+}
+.zai-view-toggle button{
+  background:transparent;border:none;color:var(--color-text-tertiary);
+  padding:5px 12px;border-radius:999px;cursor:pointer;font-family:inherit;font-size:11.5px;
+  font-weight:500;letter-spacing:.02em;transition:background .12s, color .12s;
+}
+.zai-view-toggle button.is-active{
+  background:var(--color-background-primary);color:var(--color-text-primary);
+  font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+
+/* Badge $ no card (visual de tipo financeiro) */
+.card-zai-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10.5px;font-weight:600;letter-spacing:.02em;
+  padding:2px 8px;border-radius:999px;font-family:var(--font-sans);
+  font-variant-numeric:tabular-nums;
+}
+.card-zai-badge.income  {background:#EAF3DE;color:#3B6D11;}
+.card-zai-badge.fixed   {background:#FCEBEB;color:#A32D2D;}
+.card-zai-badge.variable{background:#FAEEDA;color:#854F0B;}
+:root.dark .card-zai-badge.income  {background:rgba(59,109,17,.18);color:#A8D87A;}
+:root.dark .card-zai-badge.fixed   {background:rgba(163,45,45,.18);color:#F09595;}
+:root.dark .card-zai-badge.variable{background:rgba(133,79,11,.18);color:#FAD088;}
+
+/* Em modo "Financial view", o valor é destacado no card */
+body.zai-financial-view .card-cf-value.is-currency{
+  font-size:15px;font-weight:600;color:var(--color-text-primary);
+}
+body.zai-financial-view .card .card-zai-badge{
+  font-size:11.5px;padding:3px 9px;
+}
+body.zai-financial-view .card .card-desc{
+  font-size:12.5px;opacity:.85;
+}
+
+/* No modal de edição: seletor de money type */
+.modal-zai-types{display:flex;gap:6px;}
+.modal-zai-type-btn{
+  flex:1;padding:9px 11px;border-radius:8px;cursor:pointer;
+  background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-family:var(--font-sans);font-size:11px;color:var(--color-text-secondary);
+  transition:background .12s, border-color .12s;
+}
+.modal-zai-type-btn:hover{background:rgba(0,0,0,.04);}
+.modal-zai-type-btn.is-active.income  {background:rgba(59,109,17,.10);border-color:#3B6D11;color:#3B6D11;}
+.modal-zai-type-btn.is-active.fixed   {background:rgba(163,45,45,.10);border-color:#A32D2D;color:#A32D2D;}
+.modal-zai-type-btn.is-active.variable{background:rgba(133,79,11,.10);border-color:#854F0B;color:#854F0B;}
+.modal-zai-type-emoji{font-size:18px;line-height:1;}
+
 /* ── OCR de recibos: badge na Gallery + botão no card ──────────── */
 .tpl-tile-ai{position:relative;border:1px solid #BC002D !important;}
 .tpl-tile-ai::before{
@@ -4063,6 +4166,10 @@ body.density-compact .col{padding:7px;}
         <span>Preenche automaticamente com dados do card e do cadastro vinculado.</span>
       </div>
     </div>
+    <div class="modal-dep-section" id="modal-zai-section" style="display:none;">
+      <div class="modal-dep-h">財 Tipo financeiro</div>
+      <div id="modal-zai-content"></div>
+    </div>
     <div class="modal-dep-section" id="modal-ocr-section" style="display:none;">
       <div class="modal-dep-h">📸 IA lê recibos / notas fiscais</div>
       <div id="modal-ocr-content"></div>
@@ -5538,6 +5645,41 @@ function clearCardEffort(cardId) {
   saveData();
   if (typeof renderModalEffort === 'function') renderModalEffort(cardId);
   if (typeof render === 'function') render();
+}
+
+// Render da seção Zai no modal (tipo financeiro do card)
+function renderModalZai(cardId) {
+  const section = document.getElementById('modal-zai-section');
+  const content = document.getElementById('modal-zai-content');
+  if (!section || !content) return;
+  // Aparece se o board já está em modo Zai OU tem campo currency (potencialmente financeiro)
+  const showZai = isBoardZaiEnabled() || !!_zaiCurrencyField();
+  section.style.display = showZai ? '' : 'none';
+  if (!showZai) { content.innerHTML = ''; return; }
+  const card = cards.find(c => c.id === cardId);
+  if (!card) { content.innerHTML = ''; return; }
+  const cur = getCardMoneyType(card);
+  const opts = [
+    { val: 'income',   label: 'Receita',        emoji: '💰', desc: 'entrada' },
+    { val: 'fixed',    label: 'Custo fixo',     emoji: '🔁', desc: 'recorrente' },
+    { val: 'variable', label: 'Custo variável', emoji: '⚡', desc: 'one-shot' },
+    { val: null,       label: 'Sem tipo',        emoji: '—', desc: 'não conta no Zai' },
+  ];
+  content.innerHTML = `
+    <div class="modal-zai-types">
+      ${opts.map(o => `
+        <button class="modal-zai-type-btn${cur===o.val?' is-active '+(o.val||''):''}"
+                onclick="setCardMoneyType(${cardId}, ${o.val?"'"+o.val+"'":'null'})">
+          <span class="modal-zai-type-emoji">${o.emoji}</span>
+          <span><strong>${o.label}</strong></span>
+          <span style="font-size:10px;color:var(--color-text-tertiary);">${o.desc}</span>
+        </button>
+      `).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:8px;line-height:1.45;">
+      O valor vem do campo <strong>moeda</strong> do card (custom field). Cards classificados aqui entram no cálculo de <strong>burn rate</strong> e <strong>runway</strong> do board.
+    </div>
+  `;
 }
 
 // Render do botão OCR (só aparece se o board tem flag aiOCR)
@@ -7446,6 +7588,54 @@ const KANBAN_TEMPLATES = [
       {name:'Renovação contrato · Cliente E',    priority:'media', col:'contratado', tagIds:[4],   doneDaysAgo:5,   cfv:{cf_valor:24000, cf_cliente:'Cliente E',     cf_responsavel:'Tainá Dutra',    cf_forma:'Mensal',     cf_validade:'2026-04-30', cf_proposta:'PROP-2026-011'}},
     ],
   },
+  // ── Zai · Gestão Financeira via Kanban ─────────────────────
+  {
+    id: 'zai-financeiro',
+    name: 'Zai · Gestão Financeira',
+    icon: '財',
+    accent: '#1A1612',
+    accentText: '#F8F2E4',
+    category: 'Financeiro',
+    aiOCR: true,
+    zaiEnabled: true,
+    description: '財 Gestão financeira via kanban — sem fluxo de caixa complicado. Cards têm tipo (Receita / Custo fixo / Custo variável). O sistema calcula burn rate e runway automaticamente. Barra "vida do dinheiro" no topo mostra quantos meses de fôlego restam. Toggle entre View Executiva e Financeira. OCR de notas + assinatura nas aprovações.',
+    columns: [
+      {id:'planejado',  title:'Planejado'},
+      {id:'doing',      title:'Em execução', wipLimit:8},
+      {id:'aguardando', title:'Aguardando aprovação', wipLimit:6, allowedNext:['aprovado','recusado']},
+      {id:'aprovado',   title:'Aprovado', requiresSignature:'cf_assinatura', lockOnceSigned:true},
+      {id:'pago',       title:'Executado / Pago'},
+      {id:'recusado',   title:'Recusado', requiresSignature:'cf_assinatura', lockOnceSigned:true, requiresReason:true},
+      {id:'done',       title:'Encerrado'},
+    ],
+    tags: [
+      {text:'Operacional',   colorIdx:0},
+      {text:'Marketing',     colorIdx:1},
+      {text:'Pessoal',       colorIdx:2},
+      {text:'Investimento',  colorIdx:4},
+      {text:'Imposto',       colorIdx:3},
+    ],
+    customFields: [
+      {id:'cf_valor',       label:'Valor',                     type:'currency', showOnCard:true},
+      {id:'cf_data',        label:'Data prevista',             type:'date',     showOnCard:false},
+      {id:'cf_fornecedor',  label:'Fornecedor / Origem',       type:'text',     showOnCard:false},
+      {id:'cf_recibo',      label:'NF / Recibo',               type:'text',     showOnCard:false},
+      {id:'cf_categoria',   label:'Categoria',                 type:'select',   options:['Operacional','Marketing','Pessoal','Investimento','Imposto','Software','Outros'], showOnCard:false},
+      {id:'cf_assinatura',  label:'Assinatura do gestor',      type:'signature',showOnCard:false},
+    ],
+    cards: [
+      {name:'Receita: Cliente A · mensalidade',  priority:'alta',  col:'doing',      tagIds:[0],   deadlineDays:5,   moneyType:'income',   cfv:{cf_valor:8500, cf_categoria:'Operacional', cf_fornecedor:'Cliente A',         cf_data:'2026-05-10'}},
+      {name:'Receita: Cliente B · projeto',      priority:'alta',  col:'doing',      tagIds:[0],   deadlineDays:8,   moneyType:'income',   cfv:{cf_valor:12000,cf_categoria:'Operacional', cf_fornecedor:'Cliente B',         cf_data:'2026-05-13'}},
+      {name:'AWS · cloud',                       priority:'alta',  col:'planejado',  tagIds:[0],   deadlineDays:8,   moneyType:'fixed',    cfv:{cf_valor:1850, cf_categoria:'Software',    cf_fornecedor:'Amazon Web Services',cf_data:'2026-05-13'}},
+      {name:'Aluguel escritório',                priority:'alta',  col:'aguardando', tagIds:[0,2], deadlineDays:5,   moneyType:'fixed',    cfv:{cf_valor:6500, cf_categoria:'Operacional', cf_fornecedor:'Imobiliária Central',cf_data:'2026-05-10'}},
+      {name:'Folha · Maio',                       priority:'alta',  col:'aprovado',   tagIds:[2],   deadlineDays:1,   moneyType:'fixed',    cfv:{cf_valor:42000,cf_categoria:'Pessoal',     cf_fornecedor:'Equipe (5 pessoas)',cf_data:'2026-05-06'}},
+      {name:'Anúncios Meta · campanha lançamento',priority:'media',col:'doing',      tagIds:[1],   deadlineDays:0,   moneyType:'variable', cfv:{cf_valor:3200, cf_categoria:'Marketing',   cf_fornecedor:'Meta Ads',          cf_data:'2026-05-05'}},
+      {name:'DAS Simples Nacional',               priority:'alta', col:'aguardando', tagIds:[4],   deadlineDays:-3,  moneyType:'fixed',    cfv:{cf_valor:2400, cf_categoria:'Imposto',     cf_fornecedor:'Receita Federal',   cf_data:'2026-05-01'}},
+      {name:'Internet fibra',                     priority:'media',col:'planejado',  tagIds:[0],   deadlineDays:12,  moneyType:'fixed',    cfv:{cf_valor:280,  cf_categoria:'Operacional', cf_fornecedor:'Vivo Empresas',     cf_data:'2026-05-17'}},
+      {name:'Aporte em CDB',                      priority:'baixa',col:'planejado',  tagIds:[3],   deadlineDays:20,  moneyType:'variable', cfv:{cf_valor:5000, cf_categoria:'Investimento',cf_fornecedor:'Banco · CDB 110% CDI',cf_data:'2026-05-25'}},
+      {name:'Google Workspace',                   priority:'baixa',col:'pago',       tagIds:[0],   deadlineDays:-12, doneDaysAgo:8, moneyType:'fixed', cfv:{cf_valor:520, cf_categoria:'Software', cf_fornecedor:'Google', cf_data:'2026-04-23'}},
+    ],
+  },
 ];
 
 function _instantiateTemplateCards(tpl, startNCard) {
@@ -7474,6 +7664,7 @@ function _instantiateTemplateCards(tpl, startNCard) {
       deadline, createdAt: created.toISOString(), doneAt,
       responsavel: null,
       customFieldValues: spec.cfv ? {...spec.cfv} : {},
+      moneyType: spec.moneyType || null,
     };
   });
   return { cards: cardsOut, nCard };
@@ -7501,6 +7692,7 @@ function addTemplateToBoards(templateId, opts) {
     updatedAt: new Date().toISOString(),
     sourceTemplateId: tpl.id,
     aiOCR: !!tpl.aiOCR,
+    zaiEnabled: !!tpl.zaiEnabled,
   };
   saveData();
   // Abre o board recém criado no Kanban
@@ -11537,6 +11729,77 @@ function deadlineBadge(deadline, isDone) {
   return `<div class="deadline-badge deadline-ok">📅 ${lbl}</div>`;
 }
 
+// Renderiza a Runway Bar do Zai no topo do kanban
+function _renderZaiRunwayBar() {
+  const view = document.getElementById('view-kanban');
+  if (!view) return;
+  view.querySelectorAll('.zai-runway-bar').forEach(el => el.remove());
+  if (!isBoardZaiEnabled()) return;
+  const balance = getBoardShadowBalance();
+  const burn = calcBoardBurnRate();
+  const inc  = calcBoardIncomeRate();
+  const net  = inc - burn;
+  const months = calcBoardRunwayMonths();
+  const fmt = n => n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', minimumFractionDigits:0, maximumFractionDigits:0 });
+  const fmtMonths = m => {
+    if (!Number.isFinite(m)) return '∞';
+    if (m < 1) return Math.round(m * 30) + 'd';
+    if (m < 12) return m.toFixed(1) + 'm';
+    return (m / 12).toFixed(1) + 'a';
+  };
+  // Pct de "vida" baseada em runway (max 18m = 100%)
+  const maxM = 18;
+  const pct = Number.isFinite(months) ? Math.min(100, (months / maxM) * 100) : 100;
+  const fillCls = months < 3 ? 'danger' : months < 6 ? 'warning' : '';
+  // Data prevista de fim do dinheiro
+  let endDate = '';
+  if (Number.isFinite(months) && months > 0 && months < 240) {
+    const d = new Date(); d.setDate(d.getDate() + months * 30);
+    endDate = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+  }
+  const bar = document.createElement('div');
+  bar.className = 'zai-runway-bar';
+  bar.innerHTML = `
+    <div class="zai-runway-head">
+      <span class="zai-runway-title">財 · Runway · vida do dinheiro</span>
+      <div class="zai-runway-balance-wrap">
+        <span>Saldo hoje:</span>
+        <input type="number" class="zai-runway-balance-input" value="${balance || ''}" placeholder="0"
+               min="0" step="100"
+               onchange="setBoardShadowBalance(this.value)" />
+      </div>
+    </div>
+    <div class="zai-runway-stats">
+      <div class="zai-runway-stat">
+        <span class="zai-runway-stat-lbl">Receita / mês</span>
+        <span class="zai-runway-stat-val income">${fmt(inc)}</span>
+      </div>
+      <div class="zai-runway-stat">
+        <span class="zai-runway-stat-lbl">Custos / mês</span>
+        <span class="zai-runway-stat-val burn">${fmt(burn)}</span>
+      </div>
+      <div class="zai-runway-stat">
+        <span class="zai-runway-stat-lbl">Saldo líquido / mês</span>
+        <span class="zai-runway-stat-val ${net>=0?'income':'burn'}">${fmt(net)}</span>
+      </div>
+      <div class="zai-runway-stat" style="margin-left:auto;">
+        <span class="zai-runway-stat-lbl">Runway</span>
+        <span class="zai-runway-stat-val">${fmtMonths(months)}</span>
+      </div>
+    </div>
+    <div class="zai-runway-bar-track">
+      <div class="zai-runway-bar-fill ${fillCls}" style="width:${pct}%"></div>
+    </div>
+    ${endDate ? `<div class="zai-runway-end-date">Com o ritmo atual, o saldo acaba em <strong>${endDate}</strong>.</div>` : ''}
+  `;
+  // Insere depois do banner de cascata se houver, senão no topo
+  const cascade = view.querySelector('.cascade-banner');
+  const kaizen  = view.querySelector('.kaizen-banner');
+  const after = cascade || kaizen;
+  if (after) after.after(bar);
+  else view.insertBefore(bar, view.firstChild);
+}
+
 // Toolbar de Focus Mode (energia) — chip clicável no topo do kanban
 function _renderEnergyToolbar() {
   const view = document.getElementById('view-kanban');
@@ -11563,8 +11826,15 @@ function _renderEnergyToolbar() {
   wrap.style.cssText = 'display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px;position:relative;';
   // Inclui o dropdown de Views salvas se for Unified Board
   const viewsBarHTML = (typeof _renderUnifiedViewsBar === 'function') ? _renderUnifiedViewsBar() : '';
+  // Toggle de view do Zai (Executiva ↔ Financeira), só se board é Zai
+  const zaiViewHTML = isBoardZaiEnabled() ? `
+    <span class="zai-view-toggle">
+      <button class="${getZaiView()==='executive'?'is-active':''}" onclick="setZaiView('executive')">Executiva</button>
+      <button class="${getZaiView()==='financial'?'is-active':''}" onclick="setZaiView('financial')">Financeira 財</button>
+    </span>` : '';
   wrap.innerHTML = `
     ${viewsBarHTML}
+    ${zaiViewHTML}
     <span class="energy-bar${isActive?' is-active':''}" onclick="toggleEnergyPopover()" id="energy-bar"
           title="Modo Foco · ${isActive ? 'mostre só tarefas que cabem na sua energia hoje' : 'desligado — mostrando tudo'}">
       <span class="energy-icon">${cur ? cur.emoji : '⚡'}</span>
@@ -11682,6 +11952,10 @@ function render() {
   }
   // Banner de atraso em cascata (Smart Dependencies)
   if (typeof _renderCascadeBanner === 'function') _renderCascadeBanner();
+  // Runway Bar do Zai (se board é financeiro)
+  if (typeof _renderZaiRunwayBar === 'function') _renderZaiRunwayBar();
+  // Aplica classe de view financeira no body
+  document.body.classList.toggle('zai-financial-view', isBoardZaiEnabled() && getZaiView() === 'financial');
   // Toolbar de Focus Mode (energia)
   if (typeof _renderEnergyToolbar === 'function') _renderEnergyToolbar();
   const visible = filteredCards();
@@ -11791,6 +12065,14 @@ function render() {
             depBadge = `<span class="card-dep-badge blocker" title="Este card bloqueia: ${_esc(_blocksOpen.map(b=>b.name).join(', '))}">⛓ bloqueia ${_blocksOpen.length}</span>`;
           }
           const lockedCls = (typeof _cardIsLocked === 'function' && _cardIsLocked(c)) ? ' is-signed-locked' : '';
+          // Badge Zai (money type)
+          const _zaiType = (typeof getCardMoneyType === 'function') ? getCardMoneyType(c) : null;
+          const _zaiVal  = (typeof getCardMoneyValue === 'function') ? getCardMoneyValue(c) : 0;
+          const zaiBadge = _zaiType ? (() => {
+            const meta = ZAI_TYPES[_zaiType];
+            const valFmt = _zaiVal ? Math.abs(_zaiVal).toLocaleString('pt-BR', { style:'currency', currency:'BRL', minimumFractionDigits:0, maximumFractionDigits:0 }) : '';
+            return `<span class="card-zai-badge ${_zaiType}" title="${meta.label}${valFmt?' · '+valFmt:''}">${meta.emoji}${valFmt?' '+valFmt:''}</span>`;
+          })() : '';
           return `<div class="card-wrap">
             <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}${lockedCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
               ${sourceLine}
@@ -11812,7 +12094,7 @@ function render() {
                   </button>`:''}
                 </div>
               </div>`:''}
-              ${depBadge}${effortBadge?'<div style="margin-top:5px;display:flex;justify-content:flex-end;">'+effortBadge+'</div>':''}
+              ${zaiBadge}${depBadge}${effortBadge?'<div style="margin-top:5px;display:flex;justify-content:flex-end;">'+effortBadge+'</div>':''}
               ${(allBoards[currentBoardId]?.isKaizen && c.col === 'kaizen_acao' && !isDone) ? `<button class="kaizen-promote-btn" onclick="event.stopPropagation();promoteKaizenAction(${cidArg})" title="Transformar esta ação em card real em outro board"><span class="kaizen-promote-icon">→</span> Promover pra board</button>` : ''}
             </div>
             ${!isDone?`<button class="card-done-btn" onclick="event.stopPropagation();toggleDone(${cidArg})">✓ done</button>`:''}
@@ -12224,6 +12506,7 @@ function editCard(id) {
   renderModalAI(id);
   if (typeof renderModalDeps === 'function') renderModalDeps(id);
   if (typeof renderModalEffort === 'function') renderModalEffort(id);
+  if (typeof renderModalZai === 'function') renderModalZai(id);
   if (typeof renderModalOCR === 'function') renderModalOCR(id);
   renderSel();renderLib();buildDots();updatePrev();
   fillCol(card.col);
@@ -22115,6 +22398,146 @@ function deleteDocument(id) {
   _saveDocuments();
   audit('document.deleted', { id, number: d.number });
   renderRegistry();
+}
+
+// ── Module Zai · Gestão Financeira via Kanban ────────────────
+// Cada card pode ter um "money type": custo fixo (recorrente mensal),
+// custo variável (one-shot), receita (entrada). Board tem um "shadow balance"
+// (saldo de referência informado pelo usuário). Sistema calcula:
+//   - Burn rate = soma de custos fixos + variáveis do mês
+//   - Runway = Saldo / Burn rate (em meses)
+// E mostra uma barra "vida de videogame" no topo do board.
+
+const ZAI_TYPES = {
+  income:   { label:'Receita',         icon:'💰', emoji:'+', color:'#3B6D11', sign:+1 },
+  fixed:    { label:'Custo fixo',      icon:'🔁', emoji:'~', color:'#A32D2D', sign:-1 },
+  variable: { label:'Custo variável',  icon:'⚡', emoji:'-', color:'#854F0B', sign:-1 },
+};
+
+function getCardMoneyType(card) {
+  return card && card.moneyType && ZAI_TYPES[card.moneyType] ? card.moneyType : null;
+}
+
+function setCardMoneyType(cardId, type) {
+  const c = cards.find(x => x.id === cardId);
+  if (!c) return;
+  if (type && ZAI_TYPES[type]) c.moneyType = type;
+  else delete c.moneyType;
+  if (typeof autoThread === 'function') {
+    autoThread(c, type ? `Tipo financeiro: ${ZAI_TYPES[type].label}` : 'Tipo financeiro removido');
+  }
+  saveData();
+  if (typeof renderModalZai === 'function') renderModalZai(cardId);
+  if (typeof render === 'function') render();
+}
+
+// Detecta o campo currency principal do board (o "valor" do card)
+function _zaiCurrencyField() {
+  return (customFields || []).find(f => f.type === 'currency') || null;
+}
+
+// Pega o valor monetário de um card (do primeiro custom field currency)
+function getCardMoneyValue(card) {
+  if (!card) return 0;
+  const f = _zaiCurrencyField();
+  if (!f) return 0;
+  const v = (card.customFieldValues || {})[f.id];
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// Burn rate mensal = soma de custos fixos (recorrentes) + variáveis ativos.
+// Cards em coluna terminal (Done/Pago/etc) NÃO contam (já saíram).
+function calcBoardBurnRate() {
+  let burn = 0;
+  (cards || []).forEach(c => {
+    if (c.col === TERMINAL_COL) return;
+    const t = getCardMoneyType(c);
+    if (!t || t === 'income') return;
+    const v = getCardMoneyValue(c);
+    burn += Math.abs(v);
+  });
+  return burn;
+}
+
+// Receita mensal recorrente esperada
+function calcBoardIncomeRate() {
+  let inc = 0;
+  (cards || []).forEach(c => {
+    if (c.col === TERMINAL_COL) return;
+    const t = getCardMoneyType(c);
+    if (t !== 'income') return;
+    inc += Math.abs(getCardMoneyValue(c));
+  });
+  return inc;
+}
+
+// Net rate (positivo = sobra dinheiro; negativo = consome saldo)
+function calcBoardNetRate() {
+  return calcBoardIncomeRate() - calcBoardBurnRate();
+}
+
+function getBoardShadowBalance() {
+  const b = allBoards[currentBoardId];
+  return Number(b?.shadowBalance) || 0;
+}
+function setBoardShadowBalance(value) {
+  const b = allBoards[currentBoardId];
+  if (!b) return;
+  const n = Number(value);
+  if (Number.isFinite(n) && n >= 0) b.shadowBalance = n;
+  else delete b.shadowBalance;
+  saveData();
+  if (typeof render === 'function') render();
+}
+
+// Runway em meses. Se net é positivo (entra mais do que sai), runway = ∞
+function calcBoardRunwayMonths() {
+  const balance = getBoardShadowBalance();
+  const burn = calcBoardBurnRate();
+  const inc  = calcBoardIncomeRate();
+  if (burn <= 0) return Infinity;
+  const net = inc - burn;
+  if (net >= 0) return Infinity;
+  // net é negativo. Saldo divide pelo "outflow real" = -net
+  return balance / (-net);
+}
+
+// ── Toggle View Executiva ↔ Financeira ─────────────────────
+const ZAI_VIEW_KEY = 'kanban_v8_zai_view_per_board';
+function getZaiView() {
+  try {
+    const map = JSON.parse(localStorage.getItem(ZAI_VIEW_KEY) || '{}');
+    return map[currentBoardId] || 'executive';
+  } catch(e) { return 'executive'; }
+}
+function setZaiView(view) {
+  try {
+    const map = JSON.parse(localStorage.getItem(ZAI_VIEW_KEY) || '{}');
+    map[currentBoardId] = view;
+    localStorage.setItem(ZAI_VIEW_KEY, JSON.stringify(map));
+  } catch(e){}
+  document.body.classList.toggle('zai-financial-view', view === 'financial');
+  if (typeof render === 'function') render();
+}
+function toggleZaiView() {
+  setZaiView(getZaiView() === 'financial' ? 'executive' : 'financial');
+}
+
+// Verifica se o board atual é "Zai-aware" (tem cards com moneyType OU está marcado)
+function isBoardZaiEnabled() {
+  const b = allBoards[currentBoardId];
+  if (!b) return false;
+  if (b.zaiEnabled) return true;
+  // Auto-detect: se houver pelo menos 1 card com moneyType, considera Zai
+  return (cards || []).some(c => c.moneyType);
+}
+function setBoardZaiEnabled(enabled) {
+  const b = allBoards[currentBoardId];
+  if (!b) return;
+  b.zaiEnabled = !!enabled;
+  saveData();
+  if (typeof render === 'function') render();
 }
 
 // ── OCR de recibo/NF (Claude Vision) ──────────────────────────
