@@ -28178,14 +28178,39 @@ function startVoiceCapture() {
   _voiceRecognition.onerror = (event) => {
     console.warn('[voice] error:', event.error);
     if (errBox) {
-      const map = {
-        'not-allowed': 'Permissão de microfone negada. Habilite no navegador e tente de novo.',
-        'no-speech':   'Não escutei nada. Tenta de novo.',
-        'audio-capture': 'Microfone não detectado.',
-        'network':     'Sem conexão pra processar fala.',
-      };
-      errBox.textContent = map[event.error] || `Erro: ${event.error}`;
-      errBox.style.display = 'block';
+      if (event.error === 'not-allowed') {
+        // Erro de permissão: mostra instruções claras + botão pra reativar
+        const isChrome  = /Chrome/i.test(navigator.userAgent) && !/Edg/i.test(navigator.userAgent);
+        const isFirefox = /Firefox/i.test(navigator.userAgent);
+        const isSafari  = /Safari/i.test(navigator.userAgent) && !/Chrome/i.test(navigator.userAgent);
+        let how = '';
+        if (isChrome) {
+          how = '<strong>Chrome:</strong> Clica no ícone de <strong>cadeado/info</strong> à esquerda da URL → <em>Configurações do site</em> → Microfone: <em>Permitir</em>. Ou cola na URL: <code style="background:rgba(0,0,0,0.06);padding:1px 6px;border-radius:3px;">chrome://settings/content/microphone</code>';
+        } else if (isFirefox) {
+          how = '<strong>Firefox:</strong> Clica no ícone de microfone à esquerda da URL e remove o bloqueio. Ou: <em>Configurações → Privacidade → Permissões → Microfone</em>.';
+        } else if (isSafari) {
+          how = '<strong>Safari:</strong> Menu Safari → Configurações → Sites → Microfone → escolha <em>Permitir</em> para este site.';
+        } else {
+          how = 'Procure nas configurações do seu navegador a permissão de microfone para este site e ative.';
+        }
+        errBox.innerHTML = `
+          <div style="margin-bottom:8px;font-weight:600;">Permissão de microfone negada</div>
+          <div style="font-size:12px;line-height:1.5;margin-bottom:10px;">${how}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="_voiceRetry()" style="padding:6px 14px;border:1px solid #C2185B;background:#C2185B;color:#fff;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">↻ Tentar novamente</button>
+            <button onclick="_voiceCopyChromeSettings()" style="padding:6px 14px;border:1px solid var(--color-border-tertiary);background:transparent;color:var(--color-text-primary);border-radius:6px;font-size:12px;cursor:pointer;">Copiar URL de configuração</button>
+          </div>
+        `;
+        errBox.style.display = 'block';
+      } else {
+        const map = {
+          'no-speech':   'Não escutei nada. Tenta de novo.',
+          'audio-capture': 'Microfone não detectado.',
+          'network':     'Sem conexão pra processar fala.',
+        };
+        errBox.textContent = map[event.error] || `Erro: ${event.error}`;
+        errBox.style.display = 'block';
+      }
     }
     _voiceIsRecording = false;
     if (fab) fab.classList.remove('is-recording');
@@ -28217,6 +28242,50 @@ function cancelVoiceCapture() {
   const fab = document.getElementById('voice-fab');
   if (ov) ov.classList.remove('is-open');
   if (fab) fab.classList.remove('is-recording');
+}
+
+// Tenta novamente a captura de áudio. Em vez de só re-iniciar o
+// SpeechRecognition (que volta a falhar se o navegador lembrar do "negar"),
+// usa getUserMedia primeiro pra forçar o prompt de permissão.
+async function _voiceRetry() {
+  const errBox = document.getElementById('voice-err');
+  if (errBox) errBox.style.display = 'none';
+  try {
+    // Pede permissão explícita via getUserMedia — força o prompt
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Liberou: para o stream e inicia a captura de fala
+    stream.getTracks().forEach(t => t.stop());
+    if (typeof startVoiceCapture === 'function') startVoiceCapture();
+  } catch (e) {
+    if (errBox) {
+      errBox.innerHTML = `
+        <div style="margin-bottom:6px;font-weight:600;">Permissão ainda bloqueada</div>
+        <div style="font-size:12px;line-height:1.5;">
+          O navegador lembra que você negou antes. Você precisa habilitar manualmente:
+          clica no ícone de cadeado à esquerda da URL e ative o microfone.
+        </div>
+      `;
+      errBox.style.display = 'block';
+    }
+  }
+}
+
+// Copia a URL de configurações de microfone do Chrome pra área de transferência
+function _voiceCopyChromeSettings() {
+  const url = 'chrome://settings/content/microphone';
+  navigator.clipboard?.writeText(url).then(() => {
+    const errBox = document.getElementById('voice-err');
+    if (errBox) {
+      const orig = errBox.innerHTML;
+      errBox.innerHTML = `
+        <div style="font-weight:600;color:#3B6D11;">✓ URL copiada!</div>
+        <div style="font-size:12px;margin-top:4px;">
+          Cola na barra de endereço do Chrome (Cmd/Ctrl + L → Cmd/Ctrl + V → Enter).
+        </div>
+      `;
+      setTimeout(() => { if (errBox) errBox.innerHTML = orig; }, 4000);
+    }
+  }).catch(() => {});
 }
 
 async function confirmVoiceCapture() {
