@@ -1680,19 +1680,19 @@ body.density-compact .card-cf-row{font-size:10px;}
 }
 .opcost-narrative p{margin:0;font-size:13px;line-height:1.55;color:var(--color-text-primary);font-style:italic;}
 
-/* Ícone inline do Mestre Kan (avatar circular pequeno com kanji 看) */
+/* Ícone inline do Mestre Kan (avatar circular pequeno com SVG do personagem) */
 .kan-icon-inline{
   display:inline-flex;align-items:center;justify-content:center;
-  width:26px;height:26px;border-radius:50%;
+  width:30px;height:30px;border-radius:50%;
   background:radial-gradient(circle at 35% 35%, #4A3A28 0%, #1F1610 70%);
   color:#F8F2E4;
-  font-family:'Hiragino Mincho ProN','Yu Mincho','Times New Roman',serif;
-  font-size:13px;font-weight:300;letter-spacing:0;
   flex-shrink:0;
   box-shadow:0 2px 5px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,200,120,0.15) inset;
   position:relative;
   text-transform:none;
+  overflow:hidden;
 }
+.kan-icon-inline svg{width:100%;height:100%;display:block;}
 .kan-icon-inline::after{
   content:'';position:absolute;inset:-2px;border-radius:50%;
   border:1px solid rgba(212,175,55,0.35);
@@ -4262,6 +4262,75 @@ body.density-compact .col{padding:7px;}
   100% { transform:translate3d(220px, 112vh, 0) rotate(820deg) scale(1); opacity:0; }
 }
 
+/* ── PATHS DA DIREITA PRA ESQUERDA (vento potente das laterais) ── */
+
+/* Path E — vento forte da direita, varre toda a tela */
+.dojo-sakura-petal.path-e{ animation:leafFallE linear forwards; }
+@keyframes leafFallE{
+  0%   { transform:translate3d(0,-60px,0) rotate(15deg) scale(1);   opacity:0; }
+  6%   { opacity:1; }
+  20%  { transform:translate3d(-180px, 16vh, 0) rotate(-100deg) scale(1.06); }
+  45%  { transform:translate3d(-420px, 42vh, 0) rotate(-260deg) scale(.94); }
+  70%  { transform:translate3d(-580px, 70vh, 0) rotate(-410deg) scale(1.02); }
+  92%  { opacity:1; }
+  100% { transform:translate3d(-780px, 112vh, 0) rotate(-560deg) scale(1); opacity:0; }
+}
+/* Path F — direita pra esquerda com balanço amplo */
+.dojo-sakura-petal.path-f{ animation:leafFallF linear forwards; }
+@keyframes leafFallF{
+  0%   { transform:translate3d(0,-60px,0) rotate(-20deg) scale(1);   opacity:0; }
+  6%   { opacity:1; }
+  25%  { transform:translate3d(-240px, 22vh, 0) rotate(-120deg) scale(.96); }
+  50%  { transform:translate3d(-380px, 50vh, 0) rotate(-250deg) scale(1.08); }
+  75%  { transform:translate3d(-520px, 78vh, 0) rotate(-380deg) scale(.98); }
+  92%  { opacity:1; }
+  100% { transform:translate3d(-700px, 112vh, 0) rotate(-510deg) scale(1); opacity:0; }
+}
+/* Path G — RAJADA forte: drift extremo da direita, folha "voa" rápido */
+.dojo-sakura-petal.path-g{ animation:leafFallG linear forwards; }
+@keyframes leafFallG{
+  0%   { transform:translate3d(0,-60px,0) rotate(-45deg) scale(1);   opacity:0; }
+  4%   { opacity:1; }
+  30%  { transform:translate3d(-380px, 28vh, 0) rotate(-180deg) scale(1.12); }
+  55%  { transform:translate3d(-650px, 55vh, 0) rotate(-360deg) scale(.95); }
+  80%  { transform:translate3d(-820px, 82vh, 0) rotate(-520deg) scale(1.05); }
+  92%  { opacity:1; }
+  100% { transform:translate3d(-1000px, 112vh, 0) rotate(-680deg) scale(1); opacity:0; }
+}
+/* Path H — RAJADA forte: drift extremo da esquerda */
+.dojo-sakura-petal.path-h{ animation:leafFallH linear forwards; }
+@keyframes leafFallH{
+  0%   { transform:translate3d(0,-60px,0) rotate(45deg) scale(1);   opacity:0; }
+  4%   { opacity:1; }
+  30%  { transform:translate3d(380px, 28vh, 0) rotate(180deg) scale(1.12); }
+  55%  { transform:translate3d(650px, 55vh, 0) rotate(360deg) scale(.95); }
+  80%  { transform:translate3d(820px, 82vh, 0) rotate(520deg) scale(1.05); }
+  92%  { opacity:1; }
+  100% { transform:translate3d(1000px, 112vh, 0) rotate(680deg) scale(1); opacity:0; }
+}
+
+/* Wind streaks — linhas horizontais sutis simulando rajada de vento */
+.dojo-wind-streak{
+  position:absolute;height:1.5px;
+  background:linear-gradient(90deg, transparent, rgba(255,220,160,0.35), transparent);
+  pointer-events:none;
+  will-change:transform,opacity;
+}
+.dojo-wind-streak.from-left{ animation:windStreakLeftRight linear forwards; }
+.dojo-wind-streak.from-right{ animation:windStreakRightLeft linear forwards; }
+@keyframes windStreakLeftRight{
+  0%   { transform:translateX(-30vw); opacity:0; }
+  10%  { opacity:.7; }
+  90%  { opacity:.7; }
+  100% { transform:translateX(130vw); opacity:0; }
+}
+@keyframes windStreakRightLeft{
+  0%   { transform:translateX(30vw); opacity:0; }
+  10%  { opacity:.7; }
+  90%  { opacity:.7; }
+  100% { transform:translateX(-130vw); opacity:0; }
+}
+
 /* Frase poética central */
 .dojo-sakura-haiku{
   position:absolute;left:50%;top:38%;
@@ -4345,7 +4414,9 @@ body.density-compact .col{padding:7px;}
   font-size:26px;font-weight:300;
   box-shadow:0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,200,120,0.15) inset;
   flex-shrink:0;
+  overflow:hidden;
 }
+.dojo-kan-master-avatar svg{width:100%;height:100%;display:block;}
 .dojo-kan-master-info h3{
   margin:0;font-size:18px;font-weight:600;
   color:#1F1610;letter-spacing:0.02em;
@@ -22963,6 +23034,44 @@ const _LEAF_VARIANTS = [_LEAF_GINKGO_SVG, _LEAF_MAPLE_SVG, _LEAF_OVAL_SVG];
 // Mantém alias por compatibilidade (não usado, mas evita break em testes)
 const _SAKURA_PETAL_SVG = _LEAF_GINKGO_SVG;
 
+// SVG do Mestre Kan — silhueta de mestre japonês com chapéu de palha (kasa).
+// Estilo minimalista, funciona em tamanhos pequenos (24px) e médios (54px).
+const _MESTRE_KAN_SVG = `
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <linearGradient id="mk-hat" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#8B6B3A"/>
+      <stop offset="60%" stop-color="#5A4220"/>
+      <stop offset="100%" stop-color="#3A2A14"/>
+    </linearGradient>
+    <linearGradient id="mk-robe" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"  stop-color="#2A1F14"/>
+      <stop offset="100%" stop-color="#0D0805"/>
+    </linearGradient>
+  </defs>
+  <!-- Chapéu de palha (kasa cônico) -->
+  <path d="M 6,28 Q 32,2 58,28 Q 56,30 32,30 Q 8,30 6,28 Z"
+        fill="url(#mk-hat)" stroke="rgba(212,175,55,0.5)" stroke-width="0.6" stroke-linejoin="round"/>
+  <!-- Linhas de palha (textura) -->
+  <path d="M 32,8 L 32,28 M 22,12 L 24,28 M 42,12 L 40,28 M 14,18 L 18,28 M 50,18 L 46,28"
+        stroke="rgba(0,0,0,0.35)" stroke-width="0.5" fill="none"/>
+  <!-- Aba inferior do chapéu (sombra) -->
+  <path d="M 6,28 Q 32,33 58,28" fill="none" stroke="rgba(0,0,0,0.5)" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Sombra do rosto sob o chapéu -->
+  <ellipse cx="32" cy="36" rx="11" ry="9" fill="rgba(0,0,0,0.55)"/>
+  <!-- Olhos zen (linhas finas douradas) -->
+  <path d="M 26,35 Q 28,34 30,35 M 34,35 Q 36,34 38,35"
+        stroke="rgba(255,213,128,0.85)" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+  <!-- Bigode zen -->
+  <path d="M 27,42 Q 29,44 32,43 Q 35,44 37,42"
+        stroke="rgba(212,175,135,0.7)" stroke-width="0.7" fill="none" stroke-linecap="round"/>
+  <!-- Manto / ombros -->
+  <path d="M 14,52 Q 22,46 32,46 Q 42,46 50,52 L 56,64 L 8,64 Z"
+        fill="url(#mk-robe)" stroke="rgba(212,175,55,0.25)" stroke-width="0.5" stroke-linejoin="round"/>
+  <!-- Lapela do manto (V central) -->
+  <path d="M 32,46 L 28,58 L 36,58 Z" fill="rgba(212,175,55,0.18)" stroke="rgba(212,175,55,0.5)" stroke-width="0.4"/>
+</svg>`;
+
 function _dojoPlayWelcomeAnimation() {
   // Evita disparar duas vezes
   if (document.querySelector('.dojo-sakura-overlay')) return;
@@ -22970,36 +23079,38 @@ function _dojoPlayWelcomeAnimation() {
   const overlay = document.createElement('div');
   overlay.className = 'dojo-sakura-overlay';
 
-  // Spawn ~50 folhas distribuídas em 3 camadas de profundidade.
+  // Spawn ~70 folhas distribuídas em 3 camadas de profundidade.
   // Camada de fundo: pequenas, lentas, blur, mais opacas (longe).
   // Camada média: tamanho normal, velocidade média.
   // Camada da frente: maiores, mais rápidas, sombra mais escura (perto).
-  // Cada folha pega aleatoriamente 1 dos 3 SVGs (Ginkgo / bordo / oval),
-  // 1 dos 4 paths de animação, e variação tonal por hue-rotate sutil.
-  const N = 52;
-  const PATHS = ['path-a','path-b','path-c','path-d'];
+  // Cada folha pega aleatoriamente 1 dos 3 SVGs e 1 dos 8 paths.
+  // Paths a-d: vento da esquerda. e-h: vento da direita (rajadas potentes).
+  const N = 70;
+  const PATHS_LEFT  = ['path-a','path-b','path-c','path-d'];
+  const PATHS_RIGHT = ['path-e','path-f','path-g','path-h'];
   const LAYERS = [
-    { cls:'layer-back',  sizeMin:14, sizeMax:22, durMin:11, durMax:16 },
-    { cls:'layer-mid',   sizeMin:22, sizeMax:32, durMin:8,  durMax:12 },
-    { cls:'layer-front', sizeMin:30, sizeMax:46, durMin:6,  durMax:9  },
+    { cls:'layer-back',  sizeMin:14, sizeMax:22, durMin:9,  durMax:13 },
+    { cls:'layer-mid',   sizeMin:22, sizeMax:32, durMin:6,  durMax:9  },
+    { cls:'layer-front', sizeMin:30, sizeMax:48, durMin:4.5, durMax:7 },
   ];
   let petalsHTML = '';
   for (let i = 0; i < N; i++) {
-    // Distribui camadas: 40% back, 40% mid, 20% front
-    const r = Math.random();
-    const layer = r < 0.4 ? LAYERS[0] : (r < 0.8 ? LAYERS[1] : LAYERS[2]);
-    const left  = Math.random() * 105 - 5;            // -5%..100% (algumas começam fora)
+    // Distribui camadas: 35% back, 40% mid, 25% front (mais peso à frente pra impacto)
+    const rL = Math.random();
+    const layer = rL < 0.35 ? LAYERS[0] : (rL < 0.75 ? LAYERS[1] : LAYERS[2]);
+    // 50% vem da esquerda (varre pra direita), 50% vem da direita (varre pra esquerda)
+    const fromRight = Math.random() < 0.5;
+    // Posição inicial: se vem da esquerda, começa em 0..50%. Se da direita, em 50..100%.
+    const left  = fromRight ? (50 + Math.random() * 55) : (-5 + Math.random() * 55);
     const size  = (layer.sizeMin + Math.random() * (layer.sizeMax - layer.sizeMin)).toFixed(0);
     const dur   = (layer.durMin + Math.random() * (layer.durMax - layer.durMin)).toFixed(2);
-    const delay = (Math.random() * 6).toFixed(2);     // 0–6s — varia o início
-    const path  = PATHS[Math.floor(Math.random() * PATHS.length)];
-    // Variação tonal: hue-rotate -20 a +25 (tons mais avermelhados ou esverdeados)
+    const delay = (Math.random() * 5).toFixed(2);
+    const pool  = fromRight ? PATHS_RIGHT : PATHS_LEFT;
+    const path  = pool[Math.floor(Math.random() * pool.length)];
     const hue   = (-20 + Math.random() * 45).toFixed(0);
-    // Saturação e brilho leves
-    const sat   = (90 + Math.random() * 30).toFixed(0);
+    const sat   = (95 + Math.random() * 30).toFixed(0);
     const bright= (90 + Math.random() * 25).toFixed(0);
     const svg   = _LEAF_VARIANTS[Math.floor(Math.random() * _LEAF_VARIANTS.length)];
-    // O viewBox SVG precisa de IDs únicos pros gradientes — substitui sufixo
     const uniqueSvg = svg.replace(/id="lg-([a-z]+)"/g, `id="lg-$1-${i}"`)
                           .replace(/url\(#lg-([a-z]+)\)/g, `url(#lg-$1-${i})`);
     petalsHTML += `<div class="dojo-sakura-petal ${layer.cls} ${path}"
@@ -23008,8 +23119,22 @@ function _dojoPlayWelcomeAnimation() {
              filter:hue-rotate(${hue}deg) saturate(${sat}%) brightness(${bright}%) drop-shadow(0 2px 4px rgba(60,30,10,0.4));">${uniqueSvg}</div>`;
   }
 
+  // Wind streaks — rajadas horizontais visíveis (simulam ar correndo)
+  let streaksHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const fromRight = Math.random() < 0.5;
+    const top = (5 + Math.random() * 85).toFixed(0);  // 5–90% vh
+    const dur = (1.4 + Math.random() * 1.6).toFixed(2);
+    const delay = (Math.random() * 5).toFixed(2);
+    const w = (180 + Math.random() * 280).toFixed(0);
+    streaksHTML += `<div class="dojo-wind-streak ${fromRight?'from-right':'from-left'}"
+      style="top:${top}%;width:${w}px;
+             animation-duration:${dur}s;animation-delay:${delay}s;"></div>`;
+  }
+
   const q = _dojoGetTodayQuote();
   overlay.innerHTML = `
+    ${streaksHTML}
     ${petalsHTML}
     <div class="dojo-sakura-haiku">
       <span class="dojo-sakura-haiku-kanji">${q.kanji}</span>
@@ -23062,7 +23187,7 @@ function _dojoOpenKanWelcomeModal() {
   m.innerHTML = `
     <div class="dojo-kan-card" role="dialog" aria-modal="true">
       <div class="dojo-kan-master">
-        <div class="dojo-kan-master-avatar">看</div>
+        <div class="dojo-kan-master-avatar">${_MESTRE_KAN_SVG}</div>
         <div class="dojo-kan-master-info">
           <h3>Mestre Kan</h3>
           <span>${weekday} · ${dateStr}</span>
@@ -24870,7 +24995,7 @@ function _opcostUpdatePreview() {
       <div class="opcost-verdict-cost">Custo de oportunidade: <strong>${fmt(result.opCost)}</strong></div>
     </div>
     <div class="opcost-narrative">
-      <div class="opcost-narrative-h"><span class="kan-icon-inline">看</span> Mestre Kan diz</div>
+      <div class="opcost-narrative-h"><span class="kan-icon-inline">${_MESTRE_KAN_SVG}</span> Mestre Kan diz</div>
       <p>${_esc(narrative)}</p>
     </div>
   `;
@@ -25101,7 +25226,7 @@ function _goal1pctUpdatePreview() {
       </div>
     </div>
     <div class="opcost-narrative">
-      <div class="opcost-narrative-h"><span class="kan-icon-inline">看</span> Mestre Kan diz</div>
+      <div class="opcost-narrative-h"><span class="kan-icon-inline">${_MESTRE_KAN_SVG}</span> Mestre Kan diz</div>
       <p>Pra atingir <strong>${fmt(f.target)}</strong> em <strong>${fmtMo(f.years*12)}</strong>, com retorno de ${f.returnPct}% a.a., você precisa investir <strong>${fmt(monthly)}/mês</strong> — ou cerca de <strong>${fmt(daily)}/dia</strong>. Se aumentar só 1% no aporte (= ${fmt(monthly1pct - monthly)} a mais), conquista a meta ${monthsDiff > 0 ? monthsDiff + ' ' + (monthsDiff>1?'meses':'mês') + ' antes' : 'no mesmo prazo'}. E se cortar um cafezinho diário (R$10/dia → R$300/mês a mais), antecipa em <strong>${fmtMo(Math.max(0,monthsCoffeeDiff))}</strong>. O Kaizen é assim: pequenos incrementos compostos viram montanhas.</p>
     </div>
   `;
