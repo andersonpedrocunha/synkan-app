@@ -3926,6 +3926,217 @@ body.density-compact .col{padding:7px;}
 @media(max-width:1100px){.home.dojo .dojo-vert{display:none;}}
 
 /* ─────────────────────────────────────────────────────────────────────
+   DOJO · WELCOME ANIMATION (Sakura + vento) — inspirada em Ghost of Yotei
+   Dispara só uma vez por dia ao abrir o módulo Dojo. Pétalas caem da
+   esquerda pra direita arrastadas pelo vento. Vinheta escura ao redor.
+   Frase do dia em mincho aparece centralizada. Após ~3s, modal Kan abre.
+   ───────────────────────────────────────────────────────────────────── */
+.dojo-sakura-overlay{
+  position:fixed;inset:0;z-index:9000;pointer-events:none;
+  overflow:hidden;
+  background:radial-gradient(circle at 50% 40%, rgba(0,0,0,0) 0%, rgba(20,12,8,0.55) 75%, rgba(15,8,4,0.92) 100%);
+  opacity:0;animation:sakuraFadeIn .9s ease-out forwards;
+}
+.dojo-sakura-overlay.fading{animation:sakuraFadeOut 1.2s ease-in forwards;}
+@keyframes sakuraFadeIn  { from{opacity:0;} to{opacity:1;} }
+@keyframes sakuraFadeOut { from{opacity:1;} to{opacity:0;} }
+
+/* Sun beams dourados (efeito Yotei — luz invadindo a vinheta) */
+.dojo-sakura-overlay::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 60% 40% at 30% 0%, rgba(255,213,128,0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 80% 10%, rgba(255,180,120,0.12) 0%, transparent 70%);
+  mix-blend-mode:screen;
+  animation:sakuraSunBeam 8s ease-in-out infinite alternate;
+}
+@keyframes sakuraSunBeam {
+  0%   { transform:translateX(-15px) translateY(-5px); opacity:.7; }
+  100% { transform:translateX(15px) translateY(8px);   opacity:1;  }
+}
+
+.dojo-sakura-petal{
+  position:absolute;top:-40px;
+  width:24px;height:24px;
+  will-change:transform,opacity;
+  animation:sakuraFall linear forwards;
+  filter:drop-shadow(0 1px 2px rgba(60,20,30,0.3));
+}
+.dojo-sakura-petal svg{width:100%;height:100%;display:block;}
+
+@keyframes sakuraFall{
+  0%   { transform:translate3d(0, -40px, 0) rotate(0deg)   scale(1);   opacity:0; }
+  8%   { opacity:1; }
+  25%  { transform:translate3d(80px, 22vh, 0) rotate(120deg) scale(1.05); }
+  50%  { transform:translate3d(40px, 50vh, 0) rotate(220deg) scale(.95); }
+  75%  { transform:translate3d(140px, 75vh, 0) rotate(330deg) scale(1.02); }
+  92%  { opacity:1; }
+  100% { transform:translate3d(220px, 110vh, 0) rotate(440deg) scale(1); opacity:0; }
+}
+
+/* Frase poética central */
+.dojo-sakura-haiku{
+  position:absolute;left:50%;top:38%;
+  transform:translate(-50%, -50%);
+  text-align:center;color:#F8F2E4;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Times New Roman',serif;
+  letter-spacing:0.04em;
+  text-shadow:0 2px 16px rgba(0,0,0,0.7), 0 0 30px rgba(220,150,180,0.2);
+  opacity:0;
+  animation:sakuraHaikuIn 1.2s ease-out 1.0s forwards, sakuraHaikuOut .9s ease-in 4.2s forwards;
+}
+.dojo-sakura-haiku-kanji{
+  font-size:60px;color:rgba(255,213,200,0.9);
+  display:block;margin-bottom:14px;
+  font-weight:300;
+  letter-spacing:0.15em;
+}
+.dojo-sakura-haiku-line{
+  font-size:22px;font-style:italic;font-weight:300;
+  color:rgba(248,242,228,0.92);
+  display:block;line-height:1.6;max-width:520px;margin:0 auto;
+}
+.dojo-sakura-haiku-author{
+  display:block;margin-top:18px;
+  font-size:13px;letter-spacing:0.3em;text-transform:uppercase;
+  color:rgba(212,175,155,0.7);font-style:normal;
+}
+@keyframes sakuraHaikuIn  {
+  from{opacity:0;transform:translate(-50%,-40%) scale(.96);}
+  to  {opacity:1;transform:translate(-50%,-50%) scale(1);}
+}
+@keyframes sakuraHaikuOut {
+  from{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  to  {opacity:0;transform:translate(-50%,-58%) scale(1.04);}
+}
+
+/* Modal Mestre Kan (abre depois da animação) */
+.dojo-kan-modal{
+  position:fixed;inset:0;z-index:9100;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(15,10,8,0.78);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  opacity:0;animation:kanFadeIn .6s ease-out forwards;
+  padding:20px;
+}
+@keyframes kanFadeIn { from{opacity:0;} to{opacity:1;} }
+.dojo-kan-card{
+  background:linear-gradient(140deg, #F8F2E4 0%, #EDE3CD 100%);
+  border:1px solid rgba(60,40,25,0.15);
+  border-radius:14px;
+  max-width:560px;width:100%;
+  padding:38px 44px 32px;
+  position:relative;
+  box-shadow:0 20px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Times New Roman',serif;
+  color:#2A1F14;
+  transform:translateY(20px) scale(.96);
+  animation:kanCardIn .7s cubic-bezier(.2,.7,.3,1.1) .15s forwards;
+}
+@keyframes kanCardIn{
+  to{transform:translateY(0) scale(1);}
+}
+.dojo-kan-card::before{
+  content:'看';position:absolute;
+  top:24px;right:32px;font-size:80px;
+  color:rgba(60,40,25,0.06);
+  font-weight:300;letter-spacing:0;
+  pointer-events:none;line-height:1;
+}
+.dojo-kan-master{
+  display:flex;align-items:center;gap:14px;
+  padding-bottom:18px;border-bottom:1px solid rgba(60,40,25,0.12);
+  margin-bottom:18px;
+}
+.dojo-kan-master-avatar{
+  width:54px;height:54px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #4A3A28 0%, #1F1610 70%);
+  color:#F8F2E4;
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;font-weight:300;
+  box-shadow:0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,200,120,0.15) inset;
+  flex-shrink:0;
+}
+.dojo-kan-master-info h3{
+  margin:0;font-size:18px;font-weight:600;
+  color:#1F1610;letter-spacing:0.02em;
+}
+.dojo-kan-master-info span{
+  display:block;font-size:11.5px;letter-spacing:0.25em;
+  text-transform:uppercase;color:#7A6048;
+  font-family:var(--font-sans);font-weight:500;
+  margin-top:3px;
+}
+.dojo-kan-greeting{
+  font-size:18px;line-height:1.55;color:#2A1F14;
+  margin:0 0 14px;
+}
+.dojo-kan-greeting strong{color:#1F1610;font-weight:600;}
+.dojo-kan-message{
+  font-size:14.5px;line-height:1.65;color:#3D2E1E;
+  margin:0 0 22px;font-style:italic;
+}
+.dojo-kan-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+  padding:14px;border-radius:10px;
+  background:rgba(60,40,25,0.06);
+  margin-bottom:22px;
+  font-family:var(--font-sans);
+}
+.dojo-kan-stat{text-align:center;}
+.dojo-kan-stat-val{
+  display:block;font-size:22px;font-weight:600;
+  color:#1F1610;line-height:1.1;
+  font-variant-numeric:tabular-nums;
+}
+.dojo-kan-stat-lbl{
+  display:block;font-size:10.5px;letter-spacing:0.15em;
+  text-transform:uppercase;color:#7A6048;
+  margin-top:4px;
+}
+.dojo-kan-actions{
+  display:flex;gap:10px;justify-content:flex-end;
+  font-family:var(--font-sans);
+}
+.dojo-kan-btn{
+  padding:10px 22px;border-radius:8px;border:1px solid #1F1610;
+  background:#1F1610;color:#F8F2E4;
+  font-size:13.5px;font-weight:600;letter-spacing:0.04em;
+  cursor:pointer;transition:transform .12s, box-shadow .12s;
+}
+.dojo-kan-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,0.2);}
+.dojo-kan-btn-ghost{
+  background:transparent;color:#3D2E1E;border-color:rgba(60,40,25,0.25);
+}
+.dojo-kan-btn-ghost:hover{background:rgba(60,40,25,0.06);transform:none;box-shadow:none;}
+
+/* Dark mode adjustments */
+:root.dark .dojo-kan-card{
+  background:linear-gradient(140deg, #2A2018 0%, #1F1610 100%);
+  border-color:rgba(212,175,155,0.18);
+  color:#F0E5D2;
+}
+:root.dark .dojo-kan-card::before{color:rgba(212,175,155,0.05);}
+:root.dark .dojo-kan-master-info h3{color:#F8F2E4;}
+:root.dark .dojo-kan-master-info span{color:#A89070;}
+:root.dark .dojo-kan-master{border-bottom-color:rgba(212,175,155,0.15);}
+:root.dark .dojo-kan-greeting{color:#F0E5D2;}
+:root.dark .dojo-kan-greeting strong{color:#F8F2E4;}
+:root.dark .dojo-kan-message{color:#C9B89B;}
+:root.dark .dojo-kan-stats{background:rgba(212,175,155,0.08);}
+:root.dark .dojo-kan-stat-val{color:#F8F2E4;}
+:root.dark .dojo-kan-stat-lbl{color:#A89070;}
+:root.dark .dojo-kan-btn{background:#F0E5D2;color:#1F1610;border-color:#F0E5D2;}
+:root.dark .dojo-kan-btn-ghost{background:transparent;color:#C9B89B;border-color:rgba(212,175,155,0.25);}
+:root.dark .dojo-kan-btn-ghost:hover{background:rgba(212,175,155,0.08);}
+
+@media (prefers-reduced-motion: reduce){
+  .dojo-sakura-petal,
+  .dojo-sakura-overlay::before{animation:none;}
+  .dojo-sakura-haiku{animation-duration:.4s;}
+}
+
+/* ─────────────────────────────────────────────────────────────────────
    DOJO MODULE · mesma linguagem visual da Home (washi/sumi/hinomaru)
    Aplicado via .dojo-themed (escopo no #dojo-root). Preserva o hero
    ilustrado com a montanha, mas reformata seções/cards/missões em papel
@@ -22273,8 +22484,245 @@ function _showMissionToast(q, label) {
 }
 
 // ── Painel Dojo (vitrine) ─────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────
+// DOJO · WELCOME ANIMATION (Sakura + vento, estilo Ghost of Yotei)
+// Dispara só uma vez por dia ao abrir o módulo Dojo.
+// ──────────────────────────────────────────────────────────────────
+const DOJO_WELCOME_KEY = 'kanban_v8_dojo_last_welcome';
+
+// Pool de haikus / aforismos kanban-zen pra rotacionar diariamente
+const DOJO_DAILY_QUOTES = [
+  { kanji:'改善', line:'Pequenas melhorias, todos os dias.<br/>É o caminho do Kaizen.', author:'KAIZEN · 改善' },
+  { kanji:'集中', line:'Faça uma coisa de cada vez.<br/>Faça-a bem feita. Termine.', author:'SHŪCHŪ · 集中' },
+  { kanji:'道',   line:'O caminho não é a destinação.<br/>O caminho é a prática.', author:'DŌ · 道' },
+  { kanji:'忍',   line:'A pressa não termina o trabalho.<br/>A constância termina.', author:'NIN · 忍' },
+  { kanji:'静',   line:'Na quietude da manhã,<br/>o trabalho do dia toma forma.', author:'SEI · 静' },
+  { kanji:'始',   line:'Comece. O primeiro card movido<br/>é metade do dia conquistado.', author:'HAJIME · 始' },
+  { kanji:'流',   line:'Cards param em fila. Cards param em WIP.<br/>O fluxo está em terminar, não em começar.', author:'NAGARE · 流' },
+  { kanji:'軽',   line:'Hoje, energia leve.<br/>Tarefas pequenas, vitórias frequentes.', author:'KARUI · 軽' },
+  { kanji:'重',   line:'Hoje, peso da concentração.<br/>Uma tarefa difícil vale dez fáceis.', author:'OMOI · 重' },
+  { kanji:'桜',   line:'A flor de cerejeira floresce uma vez ao ano.<br/>Hoje é a sua flor.', author:'SAKURA · 桜' },
+  { kanji:'山',   line:'A montanha não pensa em ser alta.<br/>Ela apenas é. Esteja presente no agora.', author:'YAMA · 山' },
+  { kanji:'風',   line:'O vento não vê para onde sopra.<br/>Mas a folha sabe quando partir.', author:'KAZE · 風' },
+];
+
+function _dojoTodayISO() { return new Date().toISOString().slice(0,10); }
+function _dojoShouldShowWelcome() {
+  try { return localStorage.getItem(DOJO_WELCOME_KEY) !== _dojoTodayISO(); }
+  catch(e) { return false; }
+}
+function _dojoMarkWelcomeShown() {
+  try { localStorage.setItem(DOJO_WELCOME_KEY, _dojoTodayISO()); } catch(e){}
+}
+
+// Pega a frase do dia (determinístico — mesmo dia, mesma frase)
+function _dojoGetTodayQuote() {
+  const today = new Date();
+  const dayOfYear = Math.floor((today - new Date(today.getFullYear(),0,0)) / 86400000);
+  return DOJO_DAILY_QUOTES[dayOfYear % DOJO_DAILY_QUOTES.length];
+}
+
+// Saudação contextual (manhã/tarde/noite)
+function _dojoGreeting() {
+  const h = new Date().getHours();
+  const name = (typeof getProfileName === 'function' ? getProfileName() : '') || '';
+  const first = name.split(' ')[0] || '';
+  if (h < 5)  return first ? `Boa madrugada, ${first}.` : 'Boa madrugada.';
+  if (h < 12) return first ? `Bom dia, ${first}.` : 'Bom dia.';
+  if (h < 18) return first ? `Boa tarde, ${first}.` : 'Boa tarde.';
+  return first ? `Boa noite, ${first}.` : 'Boa noite.';
+}
+
+// Stats do dia: streak, tarefas em aberto, deadlines hoje
+function _dojoComputeDayStats() {
+  let streak = 0, openTasks = 0, dueToday = 0;
+  try {
+    streak = (typeof _gamif !== 'undefined' && _gamif && typeof _gamif.streak === 'number') ? _gamif.streak : 0;
+  } catch(e){}
+  try {
+    const today = _dojoTodayISO();
+    Object.values(allBoards || {}).forEach(b => {
+      if (!b || !Array.isArray(b.cards)) return;
+      const terminalIds = new Set((b.COLS||[]).filter(c => c.id === TERMINAL_COL || /done|conclu|encerr|pago|fech/i.test(c.id)).map(c => c.id));
+      b.cards.forEach(c => {
+        if (terminalIds.has(c.col)) return;
+        openTasks++;
+        if (c.deadline && c.deadline === today) dueToday++;
+      });
+    });
+  } catch(e){}
+  return { streak, openTasks, dueToday };
+}
+
+// SVG da pétala de cerejeira (5 lobos, gradiente rosa→branco)
+const _SAKURA_PETAL_SVG = `
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="sg" cx="50%" cy="40%" r="60%">
+      <stop offset="0%"  stop-color="#FFE9F1"/>
+      <stop offset="55%" stop-color="#FFC8DC"/>
+      <stop offset="100%" stop-color="#E690B0"/>
+    </radialGradient>
+  </defs>
+  <g transform="translate(16,16)">
+    <path d="M 0,-13 C 5,-12 6,-6 0,-3 C -6,-6 -5,-12 0,-13 Z"
+          fill="url(#sg)" stroke="rgba(180,80,110,0.35)" stroke-width="0.4"
+          transform="rotate(0)"/>
+    <path d="M 0,-13 C 5,-12 6,-6 0,-3 C -6,-6 -5,-12 0,-13 Z"
+          fill="url(#sg)" stroke="rgba(180,80,110,0.35)" stroke-width="0.4"
+          transform="rotate(72)"/>
+    <path d="M 0,-13 C 5,-12 6,-6 0,-3 C -6,-6 -5,-12 0,-13 Z"
+          fill="url(#sg)" stroke="rgba(180,80,110,0.35)" stroke-width="0.4"
+          transform="rotate(144)"/>
+    <path d="M 0,-13 C 5,-12 6,-6 0,-3 C -6,-6 -5,-12 0,-13 Z"
+          fill="url(#sg)" stroke="rgba(180,80,110,0.35)" stroke-width="0.4"
+          transform="rotate(216)"/>
+    <path d="M 0,-13 C 5,-12 6,-6 0,-3 C -6,-6 -5,-12 0,-13 Z"
+          fill="url(#sg)" stroke="rgba(180,80,110,0.35)" stroke-width="0.4"
+          transform="rotate(288)"/>
+    <circle r="1.4" fill="#C66B91" opacity="0.6"/>
+  </g>
+</svg>`;
+
+function _dojoPlayWelcomeAnimation() {
+  // Evita disparar duas vezes
+  if (document.querySelector('.dojo-sakura-overlay')) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'dojo-sakura-overlay';
+
+  // Cria N pétalas com posições/durações/sizes aleatórios
+  const N = 28;
+  let petalsHTML = '';
+  for (let i = 0; i < N; i++) {
+    const left  = Math.random() * 100;             // % horizontal
+    const dur   = (7 + Math.random() * 7).toFixed(2);  // 7–14s
+    const delay = (Math.random() * 5).toFixed(2);   // 0–5s
+    const size  = (16 + Math.random() * 22).toFixed(0); // 16–38px
+    const hue   = -10 + Math.random() * 20;         // pequena variação tonal
+    const opacity = (0.65 + Math.random() * 0.35).toFixed(2);
+    petalsHTML += `<div class="dojo-sakura-petal"
+      style="left:${left}%;width:${size}px;height:${size}px;
+             animation-duration:${dur}s;animation-delay:${delay}s;
+             filter:hue-rotate(${hue}deg) drop-shadow(0 1px 2px rgba(60,20,30,0.3));
+             opacity:${opacity};">${_SAKURA_PETAL_SVG}</div>`;
+  }
+
+  const q = _dojoGetTodayQuote();
+  overlay.innerHTML = `
+    ${petalsHTML}
+    <div class="dojo-sakura-haiku">
+      <span class="dojo-sakura-haiku-kanji">${q.kanji}</span>
+      <span class="dojo-sakura-haiku-line">${q.line}</span>
+      <span class="dojo-sakura-haiku-author">${q.author}</span>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Marca como visto pra não disparar novamente hoje
+  _dojoMarkWelcomeShown();
+
+  // Permite skip clicando
+  let skipped = false;
+  overlay.addEventListener('click', () => {
+    if (skipped) return;
+    skipped = true;
+    _dojoCloseSakuraOverlay(overlay);
+    _dojoOpenKanWelcomeModal();
+  }, { once:true });
+  overlay.style.pointerEvents = 'auto';
+  overlay.style.cursor = 'pointer';
+
+  // Após 5.5s, fade out e abre modal Kan
+  setTimeout(() => {
+    if (skipped) return;
+    skipped = true;
+    _dojoCloseSakuraOverlay(overlay);
+    _dojoOpenKanWelcomeModal();
+  }, 5500);
+}
+
+function _dojoCloseSakuraOverlay(overlay) {
+  if (!overlay) return;
+  overlay.classList.add('fading');
+  setTimeout(() => { try { overlay.remove(); } catch(e){} }, 1300);
+}
+
+function _dojoOpenKanWelcomeModal() {
+  // Não abre se já tem outro modal Kan
+  if (document.querySelector('.dojo-kan-modal')) return;
+  const stats = _dojoComputeDayStats();
+  const greeting = _dojoGreeting();
+  const q = _dojoGetTodayQuote();
+  const weekday = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][new Date().getDay()];
+  const dateStr = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long'});
+
+  const m = document.createElement('div');
+  m.className = 'dojo-kan-modal';
+  m.innerHTML = `
+    <div class="dojo-kan-card" role="dialog" aria-modal="true">
+      <div class="dojo-kan-master">
+        <div class="dojo-kan-master-avatar">看</div>
+        <div class="dojo-kan-master-info">
+          <h3>Mestre Kan</h3>
+          <span>${weekday} · ${dateStr}</span>
+        </div>
+      </div>
+      <p class="dojo-kan-greeting">${_esc(greeting)} Bem-vindo de volta ao <strong>Dōjō</strong>.</p>
+      <p class="dojo-kan-message">"${q.line.replace(/<br\/?>/g,' ')}"<br/><span style="font-size:11px;letter-spacing:0.25em;color:#7A6048;">— ${q.author}</span></p>
+      <div class="dojo-kan-stats">
+        <div class="dojo-kan-stat">
+          <span class="dojo-kan-stat-val">${stats.streak}</span>
+          <span class="dojo-kan-stat-lbl">Streak</span>
+        </div>
+        <div class="dojo-kan-stat">
+          <span class="dojo-kan-stat-val">${stats.openTasks}</span>
+          <span class="dojo-kan-stat-lbl">Em aberto</span>
+        </div>
+        <div class="dojo-kan-stat">
+          <span class="dojo-kan-stat-val">${stats.dueToday}</span>
+          <span class="dojo-kan-stat-lbl">Vencem hoje</span>
+        </div>
+      </div>
+      <div class="dojo-kan-actions">
+        <button class="dojo-kan-btn dojo-kan-btn-ghost" onclick="_dojoCloseKanModal()">Mais tarde</button>
+        <button class="dojo-kan-btn" onclick="_dojoCloseKanModal();switchTab('home');">Começar o dia</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(m);
+  // Fecha clicando no backdrop (fora do card)
+  m.addEventListener('click', (e) => {
+    if (e.target === m) _dojoCloseKanModal();
+  });
+  // Esc fecha
+  const onKey = (e) => {
+    if (e.key === 'Escape') { _dojoCloseKanModal(); document.removeEventListener('keydown', onKey); }
+  };
+  document.addEventListener('keydown', onKey);
+}
+
+function _dojoCloseKanModal() {
+  const m = document.querySelector('.dojo-kan-modal');
+  if (!m) return;
+  m.style.animation = 'kanFadeIn .3s ease-in reverse forwards';
+  setTimeout(() => { try { m.remove(); } catch(e){} }, 320);
+}
+
+// Helper exposto no console pra forçar a animação (debug):
+//   dojoReplayWelcome()
+window.dojoReplayWelcome = function() {
+  try { localStorage.removeItem(DOJO_WELCOME_KEY); } catch(e){}
+  _dojoPlayWelcomeAnimation();
+};
+
 function renderDojo() {
   const root = document.getElementById('dojo-root'); if (!root) return;
+  // Anima sakura na primeira visita do dia (só se gamif ativo, pra não molestar quem desligou)
+  if (_gamifCfg && _gamifCfg.enabled && _dojoShouldShowWelcome()) {
+    // Pequeno delay pra DOM montar e não competir com a renderização
+    setTimeout(_dojoPlayWelcomeAnimation, 250);
+  }
   if (!_gamifCfg.enabled) {
     root.innerHTML = `<div class="dojo-wrap" style="text-align:center;padding-top:60px;">
       <div style="margin-bottom:12px;display:flex;justify-content:center;color:var(--color-text-tertiary);"><svg width="50" height="50" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.8 Q3 3 4 3.2 L12 3.2 Q13 3 14 3.8"/><path d="M3 5.6 L13 5.6"/><line x1="5" y1="3.2" x2="5" y2="13.8"/><line x1="11" y1="3.2" x2="11" y2="13.8"/><line x1="3.5" y1="13.8" x2="6.5" y2="13.8"/><line x1="9.5" y1="13.8" x2="12.5" y2="13.8"/></svg></div>
