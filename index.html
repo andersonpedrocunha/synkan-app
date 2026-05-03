@@ -1365,6 +1365,31 @@ body.density-compact .card-cf-row{font-size:10px;}
 :root.dark .modal-effort-emoji{color:#F8F2E4;}
 .modal-effort-btn.is-active .modal-effort-emoji{color:#3C3489;}
 
+/* ── OCR de recibos: badge na Gallery + botão no card ──────────── */
+.tpl-tile-ai{position:relative;border:1px solid #BC002D !important;}
+.tpl-tile-ai::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg, #BC002D 0%, #3C3489 100%);border-radius:3px 0 0 3px;
+}
+.tpl-ai-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  background:linear-gradient(135deg, #BC002D 0%, #8E0022 100%);color:#fff;
+  font-size:10px;font-weight:600;letter-spacing:.04em;padding:2px 8px;
+  border-radius:999px;margin-left:8px;font-family:var(--font-sans);
+  vertical-align:middle;white-space:nowrap;
+}
+
+/* Botão OCR no modal do card */
+.ocr-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  background:linear-gradient(135deg, #1A1612 0%, #2A241D 100%);color:#F8F2E4;
+  border:1px solid #3A3225;font-family:var(--font-sans);
+  font-size:13px;font-weight:500;padding:9px 16px;border-radius:8px;cursor:pointer;
+  transition:transform .12s, filter .12s;letter-spacing:.02em;
+}
+.ocr-btn:hover{transform:translateY(-1px);filter:brightness(1.10);}
+.ocr-btn-icon{font-size:15px;}
+
 /* ── Modal de assinatura por desenho (canvas) ─────────────────── */
 .sig-canvas-overlay{
   position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.50);backdrop-filter:blur(4px);
@@ -4004,6 +4029,10 @@ body.density-compact .col{padding:7px;}
         <span>Preenche automaticamente com dados do card e do cadastro vinculado.</span>
       </div>
     </div>
+    <div class="modal-dep-section" id="modal-ocr-section" style="display:none;">
+      <div class="modal-dep-h">📸 IA lê recibos / notas fiscais</div>
+      <div id="modal-ocr-content"></div>
+    </div>
     <div class="modal-dep-section" id="modal-effort-section">
       <div class="modal-dep-h">⚡ Esforço (energia necessária)</div>
       <div id="modal-effort-content"></div>
@@ -5475,6 +5504,28 @@ function clearCardEffort(cardId) {
   if (typeof render === 'function') render();
 }
 
+// Render do botão OCR (só aparece se o board tem flag aiOCR)
+function renderModalOCR(cardId) {
+  const section = document.getElementById('modal-ocr-section');
+  const content = document.getElementById('modal-ocr-content');
+  if (!section || !content) return;
+  const board = allBoards[currentBoardId];
+  const isOCREnabled = !!(board && board.aiOCR);
+  section.style.display = isOCREnabled ? '' : 'none';
+  if (!isOCREnabled) { content.innerHTML = ''; return; }
+  content.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="ocr-btn" onclick="readReceiptForCard(${cardId})">
+        <span class="ocr-btn-icon">📸</span>
+        <span>Ler recibo / nota fiscal</span>
+      </button>
+      <div style="font-size:11.5px;color:var(--color-text-tertiary);line-height:1.45;">
+        Tire foto da nota ou suba a imagem. O Mestre Kan extrai automaticamente <strong>valor, data, fornecedor e número da NF</strong> e preenche os campos. A imagem fica anexada como comprovante.
+      </div>
+    </div>
+  `;
+}
+
 // Renderiza o seletor de effort no modal de edição
 function renderModalEffort(cardId) {
   const el = document.getElementById('modal-effort-content');
@@ -6931,7 +6982,8 @@ const KANBAN_TEMPLATES = [
     accent: '#FCEBEB',
     accentText: '#A32D2D',
     category: 'Financeiro',
-    description: 'Quadro pra acompanhar contas a pagar e fluxo de saída. Marque vencimentos, fornecedores e categoria — ideal pra evitar atrasos e duplicidades.',
+    aiOCR: true,
+    description: 'Quadro pra acompanhar contas a pagar e fluxo de saída. Marque vencimentos, fornecedores e categoria — ideal pra evitar atrasos e duplicidades. Tem botão "Ler recibo/NF" que extrai valor, data, fornecedor e número da nota automaticamente.',
     columns: [
       {id:'previsto',     title:'Previsto'},
       {id:'aprovacao',    title:'Aprovação',    wipLimit:5},
@@ -6948,11 +7000,13 @@ const KANBAN_TEMPLATES = [
       {text:'Reembolso',     colorIdx:7},
     ],
     customFields: [
-      {id:'cf_valor',      label:'Valor',                     type:'currency', showOnCard:true},
-      {id:'cf_categoria',  label:'Categoria',                 type:'select',   options:['Operacional','Marketing','Pessoal','Imposto','Software','Aluguel','Outro'], showOnCard:false},
-      {id:'cf_forma',      label:'Forma de pagamento',        type:'select',   options:['PIX','Boleto','TED','Cartão','Débito automático'], showOnCard:false},
-      {id:'cf_conta',      label:'Conta bancária',            type:'text',     showOnCard:false},
-      {id:'cf_recibo',     label:'Recibo / Comprovante',      type:'text',     showOnCard:false},
+      {id:'cf_valor',       label:'Valor',                     type:'currency', showOnCard:true},
+      {id:'cf_fornecedor',  label:'Fornecedor',                type:'text',     showOnCard:false},
+      {id:'cf_data_emissao',label:'Data de emissão',           type:'date',     showOnCard:false},
+      {id:'cf_categoria',   label:'Categoria',                 type:'select',   options:['Operacional','Marketing','Pessoal','Imposto','Software','Aluguel','Outro'], showOnCard:false},
+      {id:'cf_forma',       label:'Forma de pagamento',        type:'select',   options:['PIX','Boleto','TED','Cartão','Débito automático'], showOnCard:false},
+      {id:'cf_conta',       label:'Conta bancária',            type:'text',     showOnCard:false},
+      {id:'cf_recibo',      label:'Recibo / NF',               type:'text',     showOnCard:false},
     ],
     cards: [
       {name:'Aluguel escritório',     priority:'alta',  col:'previsto',  tagIds:[0,2],   deadlineDays:5,   cfv:{cf_fornecedor:'Imobiliária Central', cf_valor:6500,  cf_categoria:'Aluguel',    cf_forma:'Boleto',           cf_conta:'BB · 1234', cf_recibo:''}},
@@ -7279,7 +7333,8 @@ const KANBAN_TEMPLATES = [
     accent: '#EEF4FB',
     accentText: '#0C447C',
     category: 'Financeiro',
-    description: 'Acompanhe relatórios de despesa de viagens (estilo VExpenses). Cada card é uma despesa: hospedagem, transporte, alimentação. Workflow: lançada → aguardando aprovação → aprovada (com assinatura do gestor) → reembolsada. Aprovação requer assinatura imutável com hash.',
+    aiOCR: true,
+    description: 'Acompanhe relatórios de despesa de viagens (estilo VExpenses). Botão "📸 Ler recibo/NF" extrai valor, data, categoria e fornecedor automaticamente da foto da nota. Aprovação requer assinatura imutável com hash. Workflow: lançada → aguardando → aprovada (com assinatura) → reembolsada.',
     columns: [
       {id:'lancada',    title:'Lançada'},
       {id:'aguardando', title:'Aguardando aprovação', wipLimit:8},
@@ -7409,6 +7464,7 @@ function addTemplateToBoards(templateId, opts) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     sourceTemplateId: tpl.id,
+    aiOCR: !!tpl.aiOCR,
   };
   saveData();
   // Abre o board recém criado no Kanban
@@ -7424,11 +7480,12 @@ function renderGallery() {
 
   function tile(tpl) {
     const used = usedTemplates[tpl.id] || 0;
-    return `<div class="tpl-tile">
+    const aiBadge = tpl.aiOCR ? `<span class="tpl-ai-badge" title="Este template tem botão de IA que lê recibos/notas fiscais e preenche os campos automaticamente">📸 IA lê recibos</span>` : '';
+    return `<div class="tpl-tile${tpl.aiOCR?' tpl-tile-ai':''}">
       <div class="tpl-tile-head">
         <div class="tpl-tile-icon" style="background:${tpl.accent};color:${tpl.accentText};">${tpl.icon}</div>
         <div>
-          <div class="tpl-tile-name">${_esc(tpl.name)}</div>
+          <div class="tpl-tile-name">${_esc(tpl.name)}${aiBadge}</div>
           <div class="tpl-tile-cat">${_esc(tpl.category)}${used?` · ${used} board${used>1?'s':''}`:''}</div>
         </div>
       </div>
@@ -12092,6 +12149,7 @@ function editCard(id) {
   renderModalAI(id);
   if (typeof renderModalDeps === 'function') renderModalDeps(id);
   if (typeof renderModalEffort === 'function') renderModalEffort(id);
+  if (typeof renderModalOCR === 'function') renderModalOCR(id);
   renderSel();renderLib();buildDots();updatePrev();
   fillCol(card.col);
   renderModalThreads(id);
@@ -15216,7 +15274,7 @@ function saveAIQuotaFromUI() {
 }
 
 // ── IA helpers globais (chamada padronizada para o /ai do sync server) ──
-async function callClaudeAPI({ system, instruction, context, max_tokens }) {
+async function callClaudeAPI({ system, instruction, context, max_tokens, images }) {
   // Gating do plano: bloqueia se atingiu limite do plano contratado
   const planCheck = canCreate('ai');
   if (!planCheck.ok) {
@@ -15229,13 +15287,32 @@ async function callClaudeAPI({ system, instruction, context, max_tokens }) {
     return { error: `Você atingiu o limite mensal de ${q.limit} chamadas de IA. O contador zera no dia 1º do próximo mês. Pra mudar o limite, vá em Configurações → Integrações → IA.`, rate_limited: true };
   }
   const userMsg = context ? `${instruction}\n\n${context}` : instruction;
+  // Se tem imagens, monta content multimodal (Anthropic format)
+  let messageContent;
+  if (Array.isArray(images) && images.length > 0) {
+    messageContent = [];
+    images.forEach(img => {
+      // img: { base64: 'data:image/jpeg;base64,...' OR raw base64, mediaType: 'image/jpeg' }
+      let raw = img.base64 || '';
+      let mt = img.mediaType || 'image/jpeg';
+      const m = raw.match(/^data:([^;]+);base64,(.+)$/);
+      if (m) { mt = m[1]; raw = m[2]; }
+      messageContent.push({
+        type: 'image',
+        source: { type: 'base64', media_type: mt, data: raw },
+      });
+    });
+    messageContent.push({ type: 'text', text: userMsg });
+  } else {
+    messageContent = userMsg;
+  }
   try {
     const res = await fetch(KANBAN_SYNC_BASE + '/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         system: system || MESTRE_KAN_SYSTEM,
-        messages: [{ role: 'user', content: userMsg }],
+        messages: [{ role: 'user', content: messageContent }],
         max_tokens: max_tokens || 1024,
       }),
     });
@@ -21887,6 +21964,255 @@ function deleteDocument(id) {
   _saveDocuments();
   audit('document.deleted', { id, number: d.number });
   renderRegistry();
+}
+
+// ── OCR de recibo/NF (Claude Vision) ──────────────────────────
+// Extrai dados estruturados de fotos de notas fiscais e recibos.
+// Usado nos templates Pagamentos e Despesas de Viagem.
+
+// Field mapping: detecta automaticamente quais campos do board podem ser preenchidos
+// Retorna { valor, data, fornecedor, recibo, categoria } baseado nos custom fields existentes.
+function _detectReceiptFieldMap() {
+  // Heurística: mapeia padrões comuns de label/id pra slots conhecidos
+  const map = { valor:null, data:null, fornecedor:null, recibo:null, categoria:null, descricao:null };
+  (customFields || []).forEach(f => {
+    const id = (f.id || '').toLowerCase();
+    const lbl = (f.label || '').toLowerCase();
+    const both = id + ' ' + lbl;
+    if (!map.valor && /val|amount|total|preco|preço/.test(both)) map.valor = f;
+    else if (!map.data && /data|date|emissao|emissão/.test(both) && f.type === 'date') map.data = f;
+    else if (!map.fornecedor && /fornecedor|empresa|loja|vendor|emit|merchant|cliente/.test(both)) map.fornecedor = f;
+    else if (!map.recibo && /recibo|nf|fiscal|nota|invoice|n.+/.test(both)) map.recibo = f;
+    else if (!map.categoria && f.type === 'select' && /categ|tipo|class/.test(both)) map.categoria = f;
+    else if (!map.descricao && f.type === 'text' && /desc|hist|obs/.test(both)) map.descricao = f;
+  });
+  return map;
+}
+
+// Comprime imagem antes de enviar pra IA (max 1600px de largura, qualidade 85)
+function _compressImageForOCR(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\//.test(file.type)) { reject(new Error('Não é imagem')); return; }
+    const fr = new FileReader();
+    fr.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 1600;
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (w > max) { h = Math.round(h * (max / w)); w = max; }
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        try { resolve({ dataUrl: c.toDataURL('image/jpeg', 0.85), mediaType: 'image/jpeg' }); }
+        catch(err) { reject(err); }
+      };
+      img.onerror = () => reject(new Error('Imagem corrompida'));
+      img.src = e.target.result;
+    };
+    fr.onerror = () => reject(new Error('Falha ao ler arquivo'));
+    fr.readAsDataURL(file);
+  });
+}
+
+// Abre file picker e processa o recibo
+function readReceiptForCard(cardId) {
+  const card = cards.find(c => c.id === cardId);
+  if (!card) return;
+  const map = _detectReceiptFieldMap();
+  if (!map.valor && !map.data && !map.fornecedor) {
+    if (typeof appAlert === 'function') {
+      appAlert('Sem campos compatíveis', 'Este board não tem campos personalizados pra Valor, Data ou Fornecedor. Adicione na engrenagem antes de usar OCR.', { icon:'⚠', okLabel:'OK' });
+    }
+    return;
+  }
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+  input.onchange = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    await _processReceiptOCR(card.id, file, map);
+  };
+  input.click();
+}
+
+async function _processReceiptOCR(cardId, file, fieldMap) {
+  const card = cards.find(c => c.id === cardId);
+  if (!card) return;
+  // Mostra modal de processamento (reusa estilo do voice card)
+  let ov = document.getElementById('ocr-progress-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'ocr-progress-overlay';
+    ov.className = 'voice-overlay';
+    ov.innerHTML = `
+      <div class="voice-card is-processing" style="max-width:480px;">
+        <div class="voice-card-icon" style="background:#1A1612;overflow:hidden;padding:0;">
+          <img src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='🥋'"/>
+        </div>
+        <div class="voice-card-title">Mestre Kan está lendo o recibo…</div>
+        <div class="voice-card-sub" id="ocr-status">Processando imagem…</div>
+        <div id="ocr-result" style="text-align:left;"></div>
+        <div class="voice-card-actions" id="ocr-bottom" style="display:none;"></div>
+      </div>
+    `;
+    document.body.appendChild(ov);
+  } else {
+    // Reset estado
+    document.getElementById('ocr-status').textContent = 'Processando imagem…';
+    document.getElementById('ocr-result').innerHTML = '';
+    document.getElementById('ocr-bottom').style.display = 'none';
+    document.getElementById('ocr-bottom').innerHTML = '';
+    ov.querySelector('.voice-card').classList.add('is-processing');
+  }
+  ov.classList.add('is-open');
+
+  try {
+    const compressed = await _compressImageForOCR(file);
+    document.getElementById('ocr-status').textContent = 'Mestre Kan extraindo dados…';
+
+    // Monta prompt baseado nos campos disponíveis
+    const slots = [];
+    if (fieldMap.valor)      slots.push(`"valor": número (apenas o valor total em reais, sem símbolos)`);
+    if (fieldMap.data)       slots.push(`"data": "YYYY-MM-DD" (data de emissão da nota/recibo)`);
+    if (fieldMap.fornecedor) slots.push(`"fornecedor": "nome da empresa/loja/restaurante que emitiu"`);
+    if (fieldMap.recibo)     slots.push(`"recibo": "número da NF ou recibo, se visível"`);
+    if (fieldMap.categoria && fieldMap.categoria.options) {
+      slots.push(`"categoria": uma das: ${fieldMap.categoria.options.map(o=>'"'+o+'"').join(', ')}`);
+    }
+    if (fieldMap.descricao) slots.push(`"descricao": "resumo curto do que foi comprado, max 80 chars"`);
+
+    const system = `Você é um leitor de recibos e notas fiscais brasileiras. Analise a imagem e devolva APENAS um JSON válido (sem markdown, sem explicação) com os campos abaixo. Use null pra campos que não conseguir identificar.
+
+Formato:
+{
+  ${slots.join(',\n  ')}
+}
+
+Regras:
+- Valores em reais brasileiros. Se vier "R$ 1.234,56", retorne 1234.56.
+- Datas no formato ISO (YYYY-MM-DD).
+- Nomes de fornecedores: capitalização normal (Hotel Ibis, Posto Shell, Restaurante X).
+- Se a imagem não for um recibo/NF claro, devolva todos os campos como null.`;
+
+    const r = await callClaudeAPI({
+      system,
+      instruction: 'Extraia os dados desta nota fiscal/recibo.',
+      max_tokens: 800,
+      images: [{ base64: compressed.dataUrl, mediaType: compressed.mediaType }],
+    });
+
+    if (r.error) {
+      _showOCRError(r.error);
+      return;
+    }
+    const parsed = (typeof parseAIJson === 'function') ? parseAIJson(r.text) : null;
+    if (!parsed) { _showOCRError('A IA não retornou JSON válido. Tente uma foto mais nítida.'); return; }
+
+    // Mostra preview pro usuário confirmar antes de aplicar
+    _showOCRPreview(cardId, parsed, fieldMap, compressed.dataUrl);
+  } catch(e) {
+    _showOCRError(e.message || String(e));
+  }
+}
+
+function _showOCRError(msg) {
+  document.querySelector('#ocr-progress-overlay .voice-card')?.classList.remove('is-processing');
+  const status = document.getElementById('ocr-status');
+  if (status) status.textContent = 'Não consegui ler.';
+  const result = document.getElementById('ocr-result');
+  if (result) result.innerHTML = `<div class="voice-card-error" style="display:block;">${_esc(msg)}</div>`;
+  const bottom = document.getElementById('ocr-bottom');
+  if (bottom) {
+    bottom.style.display = 'flex';
+    bottom.innerHTML = `<button class="voice-btn voice-btn-ghost" onclick="_closeOCRModal()">Fechar</button>`;
+  }
+}
+
+function _closeOCRModal() {
+  const ov = document.getElementById('ocr-progress-overlay');
+  if (ov) ov.classList.remove('is-open');
+}
+
+let _ocrPendingApply = null;
+function _showOCRPreview(cardId, parsed, fieldMap, imgDataUrl) {
+  document.querySelector('#ocr-progress-overlay .voice-card')?.classList.remove('is-processing');
+  const status = document.getElementById('ocr-status');
+  if (status) status.textContent = `Identifiquei estes dados — confira e aplique.`;
+  const rows = [];
+  const checks = [];
+  Object.entries(fieldMap).forEach(([slot, field]) => {
+    if (!field) return;
+    const val = parsed[slot];
+    if (val === undefined || val === null || val === '') return;
+    let display = val;
+    if (slot === 'valor' && typeof val === 'number') display = val.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+    if (slot === 'data') {
+      try { display = new Date(val + 'T00:00:00').toLocaleDateString('pt-BR'); } catch(e){}
+    }
+    rows.push(`
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--color-background-secondary);border-radius:7px;margin-bottom:5px;font-family:var(--font-sans);font-size:13px;cursor:pointer;">
+        <input type="checkbox" data-slot="${slot}" checked />
+        <span style="flex:1;color:var(--color-text-tertiary);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">${_esc(field.label)}:</span>
+        <span style="color:var(--color-text-primary);font-weight:500;">${_esc(String(display))}</span>
+      </label>
+    `);
+  });
+  if (rows.length === 0) {
+    _showOCRError('Não identifiquei nenhum dado utilizável. Tente outra foto.');
+    return;
+  }
+  _ocrPendingApply = { cardId, parsed, fieldMap, imgDataUrl };
+  document.getElementById('ocr-result').innerHTML = `
+    <div style="margin-bottom:10px;font-family:var(--font-sans);font-size:11.5px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;">Dados extraídos:</div>
+    ${rows.join('')}
+    <div style="margin-top:8px;font-family:var(--font-sans);font-size:11px;color:var(--color-text-tertiary);">A imagem do recibo será anexada ao card como comprovante.</div>
+  `;
+  const bottom = document.getElementById('ocr-bottom');
+  bottom.style.display = 'flex';
+  bottom.innerHTML = `
+    <button class="voice-btn voice-btn-ghost" onclick="_closeOCRModal()">Cancelar</button>
+    <button class="voice-btn voice-btn-primary" onclick="_applyOCRData()">Aplicar e anexar</button>
+  `;
+}
+
+function _applyOCRData() {
+  const ctx = _ocrPendingApply;
+  if (!ctx) return;
+  const card = cards.find(c => c.id === ctx.cardId);
+  if (!card) return;
+  card.customFieldValues = card.customFieldValues || {};
+  // Aplica só os checados
+  document.querySelectorAll('#ocr-result input[type="checkbox"]:checked').forEach(cb => {
+    const slot = cb.dataset.slot;
+    const field = ctx.fieldMap[slot];
+    const val = ctx.parsed[slot];
+    if (!field || val === undefined || val === null) return;
+    card.customFieldValues[field.id] = val;
+  });
+  // Anexa imagem como anexo (data URL)
+  if (ctx.imgDataUrl) {
+    card.attachments = card.attachments || [];
+    card.attachments.push({
+      id: Date.now() + Math.random(),
+      name: `Recibo · ${new Date().toLocaleDateString('pt-BR')}.jpg`,
+      type: 'image/jpeg',
+      data: ctx.imgDataUrl,
+      addedAt: new Date().toISOString(),
+    });
+  }
+  if (typeof autoThread === 'function') {
+    autoThread(card, '📸 Recibo lido por IA · campos preenchidos automaticamente');
+  }
+  saveData();
+  _closeOCRModal();
+  _ocrPendingApply = null;
+  // Re-render se modal de edição aberto
+  if (typeof editId !== 'undefined' && editId === card.id && typeof editCard === 'function') {
+    editCard(card.id);
+  } else if (typeof render === 'function') render();
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Recibo processado', `Dados extraídos e aplicados ao card. A imagem foi anexada como comprovante.`, 'info');
+  }
 }
 
 // ── Lab: imagens nos editores (Blank, Documento, Plano, Nota) ──
