@@ -16984,12 +16984,13 @@ function _maybeWarnAIQuota() {
 // Pacotes: 100/300/1000 com desconto progressivo.
 // ═══════════════════════════════════════════════════════════════════
 const AI_ADDON_KEY = 'kanban_v8_ai_addons';
-// Pacotes com margem ~115% sobre custo (Haiku 4.5 ~R$ 0,03/chamada).
-// Mesma margem em todos os pacotes — preço por chamada uniforme (~R$ 0,065).
+// Pacotes com margem progressiva sobre custo (Haiku 4.5 ~R$ 0,03/chamada):
+// 100=150% · 300=130% · 1000=115% — pacotes maiores ficam proporcionalmente
+// mais baratos por chamada (incentivo pra volume).
 const AI_ADDON_PACKAGES = [
-  { id:'ai_100',  amount: 100,  priceBRL: 6.45,  label:'100 chamadas',  perCall: '~R$ 0,065' },
-  { id:'ai_300',  amount: 300,  priceBRL: 19.35, label:'300 chamadas',  perCall: '~R$ 0,065', badge: 'popular' },
-  { id:'ai_1000', amount: 1000, priceBRL: 64.50, label:'1000 chamadas', perCall: '~R$ 0,065', badge: 'alto volume' },
+  { id:'ai_100',  amount: 100,  priceBRL: 7.50,  label:'100 chamadas',  perCall: 'R$ 0,075/chamada' },
+  { id:'ai_300',  amount: 300,  priceBRL: 20.70, label:'300 chamadas',  perCall: 'R$ 0,069/chamada', badge: 'popular' },
+  { id:'ai_1000', amount: 1000, priceBRL: 64.50, label:'1000 chamadas', perCall: 'R$ 0,065/chamada', badge: 'melhor valor' },
 ];
 
 function getAIAddons() {
