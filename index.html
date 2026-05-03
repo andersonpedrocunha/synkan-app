@@ -21320,32 +21320,17 @@ function appPrompt(title, opts) {
   });
 }
 
-// ── Override window.alert/confirm/prompt pra usar os modais formatados ──
-// Mantém compatibilidade com código legado: alert("...") agora abre modal Synkan
-// em vez do browser nativo. Sem mais janelas "app.synkan.com.br says".
-(function _installNativeDialogShims(){
+// ── Override de window.alert pra usar modal formatado ────────
+// IMPORTANTE: NÃO sobrescrevemos window.confirm nem window.prompt porque
+// código legado depende do retorno SÍNCRONO bool/string. Substitutos async
+// causaram perda de dados (exitSupabaseMode passou direto, apagando config).
+// Pra novo código, use appConfirm()/appPrompt() diretamente com await.
+(function _installAlertShim(){
   if (typeof window === 'undefined') return;
-  // alert(): só mostra mensagem. Substituível direto, é fire-and-forget.
+  // alert() é fire-and-forget — substituição segura.
   window.alert = function(msg) {
     try { appAlert('Aviso', String(msg||''), { icon:'ℹ️', okLabel:'OK' }); }
     catch(e) { console.warn('[alert]', msg); }
-  };
-  // confirm(): nativo é síncrono e retorna boolean. Substituí-lo por async
-  // quebra `if (confirm(...))`. Solução: bloquear via prompt nativo é feio.
-  // Estratégia: o shim retorna uma Promise<boolean> que SEMPRE é tratada
-  // como truthy (Promise é truthy). Pra código legado que faz `if (confirm)`,
-  // o usuário ainda vai ver o modal e decidir — só perde o early-return.
-  // Pra novo código, usar appConfirm() diretamente.
-  window.confirm = function(msg) {
-    try { appConfirm('Confirmar', String(msg||''), { icon:'❓', okLabel:'Confirmar', cancelLabel:'Cancelar' }); }
-    catch(e) {}
-    return true;   // permite código legado seguir
-  };
-  // prompt(): mesma lógica. Retorna Promise<string|null>, mas código legado
-  // que faz `const x = prompt(...)` não vai esperar — fica null/Promise.
-  window.prompt = function(msg, defaultValue) {
-    try { return appPrompt(String(msg||''), { defaultValue: defaultValue||'', icon:'✏️' }); }
-    catch(e) { return null; }
   };
 })();
 
