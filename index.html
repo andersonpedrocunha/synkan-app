@@ -18266,6 +18266,11 @@ function createCanvas(name, format) {
   _canvases[id] = base;
   _saveCanvases();
   audit('canvas.created', { id, name: base.name, format });
+  // XP só pra Labs "de verdade" (não pra canvases internos do Zai)
+  const ZAI_FORMATS = new Set(['opcost', 'goal-1pct', 'invest']);
+  if (!ZAI_FORMATS.has(format) && typeof _gamifAwardCanvasCreated === 'function') {
+    _gamifAwardCanvasCreated(base.name);
+  }
   return id;
 }
 function deleteCanvas(id) {
@@ -19186,6 +19191,12 @@ function confirmPromote() {
     _saveCanvases();
     saveData();
     audit('canvas.promote.batch', { canvasId: cv.id, count: createdCount, boardId });
+    // XP por cada ação promovida (uma chamada por item)
+    if (typeof _gamifAwardCanvasPromoted === 'function') {
+      for (let i = 0; i < createdCount; i++) {
+        try { _gamifAwardCanvasPromoted(); } catch(e){}
+      }
+    }
     closePromoteModal();
     _promoteContext = null;
     if (cv.format === 'table') renderTableEditor();
@@ -22435,10 +22446,19 @@ const GAMIF_DEFAULTS = {
     contactCreated: 2,
     docGenerated: 6,
     aiCall: 1,
+    // Novas ações (alinhadas com módulos Zai/Dojo/Lab)
+    goalContribution: 6,    // registrar aporte numa meta 1%
+    canvasCreated: 5,        // criar um Lab
+    canvasPromoted: 8,       // promover ação de Lab pra board
+    pomodoroComplete: 12,    // completar um pomodoro
   },
-  // Cap diário de XP por categoria (anti-farm). Cap de cardDone novo limita
-  // ganhos por concluir vários cards num dia só.
-  dailyCaps: { aiCall: 15, contactCreated: 20, docGenerated: 40, cardDone: 60 },
+  // Cap diário de XP por categoria (anti-farm)
+  dailyCaps: {
+    aiCall: 15, contactCreated: 20, docGenerated: 40, cardDone: 60,
+    goalContribution: 30,
+    canvasCreated: 20,
+    pomodoroComplete: 60,
+  },
   // Animações (toast + confete + modal de subida)
   animations: true,
 };
@@ -22543,24 +22563,31 @@ function _settingsDojoSection() {
     <div class="settings-card">
       <div class="settings-card-title">XP por ação</div>
       <div class="settings-card-sub">Defina quantos pontos você ganha por cada tipo de ação. Os bônus de prazo somam ao XP base do card.</div>
-      ${xpRow('cardDoneAlta',  'Card concluído — prioridade alta',   'Padrão: 8')}
-      ${xpRow('cardDoneMedia', 'Card concluído — prioridade média',  'Padrão: 4')}
-      ${xpRow('cardDoneBaixa', 'Card concluído — prioridade baixa',  'Padrão: 2')}
-      ${xpRow('onTimeBonus',   'Bônus: card concluído no prazo',     'Padrão: +4')}
-      ${xpRow('earlyBonus',    'Bônus: card concluído antes do prazo','Padrão: +2')}
-      ${xpRow('leadConverted', 'Lead convertido em cliente',         'Padrão: 20')}
-      ${xpRow('contactCreated','Cadastro novo criado',               'Padrão: 2')}
-      ${xpRow('docGenerated',  'Documento gerado (proposta/contrato)','Padrão: 6')}
-      ${xpRow('aiCall',        'Chamada ao Mestre Kan (IA)',         'Padrão: 1')}
+      ${xpRow('cardDoneAlta',  'Card concluído — prioridade alta',     'Padrão: 8')}
+      ${xpRow('cardDoneMedia', 'Card concluído — prioridade média',    'Padrão: 4')}
+      ${xpRow('cardDoneBaixa', 'Card concluído — prioridade baixa',    'Padrão: 2')}
+      ${xpRow('onTimeBonus',   'Bônus: card concluído no prazo',       'Padrão: +4')}
+      ${xpRow('earlyBonus',    'Bônus: card concluído antes do prazo', 'Padrão: +2')}
+      ${xpRow('goalContribution','Aporte registrado em meta 1%',       'Padrão: 6')}
+      ${xpRow('canvasCreated', 'Lab novo criado',                      'Padrão: 5')}
+      ${xpRow('canvasPromoted','Ação de Lab promovida pra board',      'Padrão: 8')}
+      ${xpRow('pomodoroComplete','Pomodoro de foco completado',        'Padrão: 12')}
+      ${xpRow('leadConverted', 'Lead convertido em cliente',           'Padrão: 20')}
+      ${xpRow('contactCreated','Cadastro novo criado',                 'Padrão: 2')}
+      ${xpRow('docGenerated',  'Documento gerado (proposta/contrato)', 'Padrão: 6')}
+      ${xpRow('aiCall',        'Chamada ao Mestre Kan (IA)',           'Padrão: 1')}
     </div>
 
     <div class="settings-card">
       <div class="settings-card-title">Cap diário (anti-farm)</div>
       <div class="settings-card-sub">Limite de XP que pode ser ganho por categoria em um dia. Evita inflação artificial. Coloque 0 pra remover o limite.</div>
-      ${capRow('cardDone',       'Cap diário · Cards concluídos',    'Padrão: 60 XP/dia')}
-      ${capRow('aiCall',         'Cap diário · IA',                  'Padrão: 15 XP/dia')}
-      ${capRow('contactCreated', 'Cap diário · Cadastros novos',     'Padrão: 20 XP/dia')}
-      ${capRow('docGenerated',   'Cap diário · Documentos gerados',  'Padrão: 40 XP/dia')}
+      ${capRow('cardDone',          'Cap diário · Cards concluídos',     'Padrão: 60 XP/dia')}
+      ${capRow('pomodoroComplete',  'Cap diário · Pomodoros',            'Padrão: 60 XP/dia')}
+      ${capRow('goalContribution',  'Cap diário · Aportes em metas',     'Padrão: 30 XP/dia')}
+      ${capRow('canvasCreated',     'Cap diário · Labs criados',         'Padrão: 20 XP/dia')}
+      ${capRow('aiCall',            'Cap diário · IA',                   'Padrão: 15 XP/dia')}
+      ${capRow('contactCreated',    'Cap diário · Cadastros novos',      'Padrão: 20 XP/dia')}
+      ${capRow('docGenerated',      'Cap diário · Documentos gerados',   'Padrão: 40 XP/dia')}
     </div>
 
     <div class="settings-card">
@@ -22869,6 +22896,42 @@ function _gamifAwardAICall() {
   _gamif.stats.aiCalls = (_gamif.stats.aiCalls||0) + 1;
   _gamif.today.aiCalls = (_gamif.today.aiCalls||0) + 1;
   awardXP(_gamifCfg.xp.aiCall, 'Mestre Kan invocado', 'aiCall');
+}
+
+function _gamifAwardGoalContribution(amount, goalName) {
+  if (!_gamifCfg.enabled) return;
+  _gamifTickDay();
+  _gamif.stats.goalContributions = (_gamif.stats.goalContributions||0) + 1;
+  _gamif.today.goalContributions = (_gamif.today.goalContributions||0) + 1;
+  awardXP(_gamifCfg.xp.goalContribution || 6,
+    `Aporte registrado${goalName ? ' em "' + goalName + '"' : ''}`,
+    'goalContribution');
+}
+
+function _gamifAwardCanvasCreated(canvasName) {
+  if (!_gamifCfg.enabled) return;
+  _gamifTickDay();
+  _gamif.stats.canvasesCreated = (_gamif.stats.canvasesCreated||0) + 1;
+  _gamif.today.canvasesCreated = (_gamif.today.canvasesCreated||0) + 1;
+  awardXP(_gamifCfg.xp.canvasCreated || 5,
+    `Lab novo criado${canvasName ? ': ' + canvasName : ''}`,
+    'canvasCreated');
+}
+
+function _gamifAwardCanvasPromoted() {
+  if (!_gamifCfg.enabled) return;
+  _gamifTickDay();
+  _gamif.stats.canvasesPromoted = (_gamif.stats.canvasesPromoted||0) + 1;
+  awardXP(_gamifCfg.xp.canvasPromoted || 8, 'Ação de Lab promovida pra board');
+}
+
+function _gamifAwardPomodoroComplete() {
+  if (!_gamifCfg.enabled) return;
+  _gamifTickDay();
+  _gamif.stats.pomodorosCompleted = (_gamif.stats.pomodorosCompleted||0) + 1;
+  _gamif.today.pomodorosCompleted = (_gamif.today.pomodorosCompleted||0) + 1;
+  awardXP(_gamifCfg.xp.pomodoroComplete || 12,
+    'Pomodoro de foco completado', 'pomodoroComplete');
 }
 
 // ── Conquistas (badges) ────────────────────────────────────────
@@ -26459,6 +26522,10 @@ async function addGoal1pctContribution(canvasId) {
   });
   cv.updatedAt = new Date().toISOString();
   _saveCanvases();
+  // XP por aporte registrado
+  if (typeof _gamifAwardGoalContribution === 'function') {
+    _gamifAwardGoalContribution(amount, cv.name);
+  }
   // Re-renderiza modal de detalhes + hub
   if (typeof renderZaiHub === 'function') renderZaiHub();
   openGoal1pctDetailsModal(canvasId);  // re-abre com dados atualizados
@@ -27852,8 +27919,8 @@ function _pomoSessionComplete() {
   pomoStop();
   if (wasFocus) {
     _saveDayPomoStat();
-    if (typeof _gamifAwardXP === 'function') {
-      try { _gamifAwardXP(15, 'pomodoro_focus'); } catch(e){}
+    if (typeof _gamifAwardPomodoroComplete === 'function') {
+      try { _gamifAwardPomodoroComplete(); } catch(e){}
     }
   }
   // Som sutil (beep)
