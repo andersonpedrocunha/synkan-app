@@ -17385,6 +17385,8 @@ async function callClaudeAPI({ system, instruction, context, max_tokens, images 
     messageContent = userMsg;
   }
   try {
+    // Timeout de 3 segundos: depois disso, aborta e mostra erro
+    // (o Mestre Kan deve responder rápido — nada de meditação infinita)
     const res = await fetch(KANBAN_SYNC_BASE + '/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -17393,16 +17395,21 @@ async function callClaudeAPI({ system, instruction, context, max_tokens, images 
         messages: [{ role: 'user', content: messageContent }],
         max_tokens: max_tokens || 1024,
       }),
+      signal: AbortSignal.timeout(3000),
     });
     const data = await res.json();
     if (!res.ok) {
-      // Se o servidor rate-limitou (429), ainda assim consumimos 1 da quota local? Não — só consome se a chamada gastou tokens.
       return { error: data.error || `Erro ${res.status}`, rate_limited: !!data.rate_limited };
     }
     bumpAIQuota();
     if (typeof _gamifAwardAICall === 'function') _gamifAwardAICall();
     return { text: data.text || '' };
   } catch (e) {
+    // Distingue timeout (AbortError) de erro de rede genérico
+    const isTimeout = e?.name === 'TimeoutError' || e?.name === 'AbortError';
+    if (isTimeout) {
+      return { error: 'O Mestre Kan demorou demais pra responder (>3s). Tente novamente.', timeout: true };
+    }
     return { error: _isDevHost()
       ? 'Não consegui falar com o servidor local (' + KANBAN_SYNC_BASE + '). Confirme que o kanban_sync_server.py está rodando com ANTHROPIC_API_KEY exportada.'
       : 'Não consegui falar com o Mestre Kan agora. Tente novamente em alguns instantes — se persistir, veja status.synkan.com.br.' };
@@ -17634,6 +17641,7 @@ async function _callAI(instruction) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(3000),  // Mestre Kan medita por máx 3s
     });
     const data = await res.json();
     if (!res.ok) {
@@ -17656,9 +17664,14 @@ async function _callAI(instruction) {
     }
   } catch (e) {
     out.classList.add('error');
-    out.textContent = _isDevHost()
-      ? 'Não consegui falar com o servidor local (' + KANBAN_SYNC_BASE + '). Em dev: kanban_sync_server.py precisa estar rodando.'
-      : 'Não consegui falar com o Mestre Kan agora. Tente novamente em alguns instantes.';
+    const isTimeout = e?.name === 'TimeoutError' || e?.name === 'AbortError';
+    if (isTimeout) {
+      out.textContent = 'O Mestre Kan demorou demais pra responder (>3s). Tente novamente.';
+    } else {
+      out.textContent = _isDevHost()
+        ? 'Não consegui falar com o servidor local (' + KANBAN_SYNC_BASE + '). Em dev: kanban_sync_server.py precisa estar rodando.'
+        : 'Não consegui falar com o Mestre Kan agora. Tente novamente em alguns instantes.';
+    }
   }
   _aiBusy = false; if (sendBtn) sendBtn.disabled = false;
 }
