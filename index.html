@@ -28473,7 +28473,7 @@ function _initVoiceCards() {
   });
 }
 
-function startVoiceCapture() {
+async function startVoiceCapture() {
   if (_voiceIsRecording) return;
   // Verifica se está logado e há board atual
   if (typeof currentBoardId === 'undefined' || !currentBoardId || currentBoardId === UNIFIED_BOARD_ID) {
@@ -28485,6 +28485,41 @@ function startVoiceCapture() {
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return;
+
+  // Pre-check de permissão ANTES de iniciar SpeechRecognition.
+  // Se navegador.permissions API disponível, verifica primeiro (sem prompt).
+  // Se permissão for 'denied', mostra erro com instruções imediatamente.
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      const status = await navigator.permissions.query({ name: 'microphone' });
+      if (status.state === 'denied') {
+        // Mostra modal com instruções pra habilitar — não tenta o SR (que daria erro idêntico)
+        const ov = document.getElementById('voice-overlay');
+        const errBox = document.getElementById('voice-card-error');
+        const title = document.getElementById('voice-card-title');
+        const sub = document.getElementById('voice-card-sub');
+        if (ov) ov.classList.add('is-open');
+        if (title) title.textContent = 'Permissão necessária';
+        if (sub)   sub.textContent = 'Pra usar comando por voz, precisa permitir o microfone.';
+        if (errBox) {
+          const isChrome = /Chrome/i.test(navigator.userAgent) && !/Edg/i.test(navigator.userAgent);
+          const how = isChrome
+            ? '<strong>Chrome:</strong> clica no <strong>cadeado à esquerda da URL</strong> → Microfone: <em>Permitir</em>. Ou cola: <code style="background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:3px;">chrome://settings/content/microphone</code>'
+            : 'Procure nas configurações do navegador a permissão de microfone pra <strong>app.synkan.com.br</strong> e ative.';
+          errBox.innerHTML = `
+            <div style="margin-bottom:8px;font-weight:600;">Permissão de microfone bloqueada</div>
+            <div style="font-size:12px;line-height:1.5;margin-bottom:10px;">${how}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="_voiceRetry()" style="padding:6px 14px;border:1px solid #C2185B;background:#C2185B;color:#fff;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">↻ Tentar novamente</button>
+              <button onclick="_voiceCopyChromeSettings()" style="padding:6px 14px;border:1px solid var(--color-border-tertiary);background:transparent;color:var(--color-text-primary);border-radius:6px;font-size:12px;cursor:pointer;">Copiar URL de configuração</button>
+            </div>
+          `;
+          errBox.style.display = 'block';
+        }
+        return;
+      }
+    }
+  } catch(e) { /* permissions API pode não estar disponível — ignora e segue */ }
 
   _voiceTranscript = '';
   const fab = document.getElementById('voice-fab');
@@ -28596,25 +28631,36 @@ function cancelVoiceCapture() {
   if (fab) fab.classList.remove('is-recording');
 }
 
-// Tenta novamente a captura de áudio. Em vez de só re-iniciar o
-// SpeechRecognition (que volta a falhar se o navegador lembrar do "negar"),
-// usa getUserMedia primeiro pra forçar o prompt de permissão.
+// Tenta novamente a captura de áudio. Quando o usuário acabou de mudar a
+// permissão no navegador, o SpeechRecognition antigo pode estar com o erro
+// cacheado. Forçamos getUserMedia explícito (que lê o estado ATUAL da
+// permissão) e, se OK, reinicia a captura.
 async function _voiceRetry() {
-  const errBox = document.getElementById('voice-err');
-  if (errBox) errBox.style.display = 'none';
+  const errBox = document.getElementById('voice-card-error');
+  if (errBox) { errBox.style.display = 'none'; errBox.innerHTML = ''; }
+  // Para qualquer recognition antigo (pra forçar instância nova)
+  if (_voiceRecognition && _voiceIsRecording) {
+    try { _voiceRecognition.stop(); } catch(e){}
+  }
+  _voiceRecognition = null;
+  _voiceIsRecording = false;
+  // Pede permissão explícita via getUserMedia — leitura ao vivo da permissão
   try {
-    // Pede permissão explícita via getUserMedia — força o prompt
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    // Liberou: para o stream e inicia a captura de fala
+    // Liberou: para o stream imediatamente (só queríamos confirmar permissão)
     stream.getTracks().forEach(t => t.stop());
+    // Pequeno delay pra Chrome processar e iniciar
+    await new Promise(r => setTimeout(r, 100));
     if (typeof startVoiceCapture === 'function') startVoiceCapture();
   } catch (e) {
     if (errBox) {
       errBox.innerHTML = `
         <div style="margin-bottom:6px;font-weight:600;">Permissão ainda bloqueada</div>
         <div style="font-size:12px;line-height:1.5;">
-          O navegador lembra que você negou antes. Você precisa habilitar manualmente:
-          clica no ícone de cadeado à esquerda da URL e ative o microfone.
+          O navegador lembra que você negou antes. Habilita manualmente:
+          clica no <strong>cadeado/info à esquerda da URL</strong> →
+          <em>Configurações do site</em> → Microfone: <em>Permitir</em>.
+          Depois recarrega a página (<kbd>Ctrl/Cmd+R</kbd>).
         </div>
       `;
       errBox.style.display = 'block';
@@ -28626,13 +28672,13 @@ async function _voiceRetry() {
 function _voiceCopyChromeSettings() {
   const url = 'chrome://settings/content/microphone';
   navigator.clipboard?.writeText(url).then(() => {
-    const errBox = document.getElementById('voice-err');
+    const errBox = document.getElementById('voice-card-error');
     if (errBox) {
       const orig = errBox.innerHTML;
       errBox.innerHTML = `
         <div style="font-weight:600;color:#3B6D11;">✓ URL copiada!</div>
         <div style="font-size:12px;margin-top:4px;">
-          Cola na barra de endereço do Chrome (Cmd/Ctrl + L → Cmd/Ctrl + V → Enter).
+          Cola na barra de endereço do Chrome (<kbd>Cmd/Ctrl+L</kbd> → <kbd>Cmd/Ctrl+V</kbd> → Enter).
         </div>
       `;
       setTimeout(() => { if (errBox) errBox.innerHTML = orig; }, 4000);
