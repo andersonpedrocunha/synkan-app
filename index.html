@@ -4865,9 +4865,8 @@ function showPlanLimitModal(resource, used, max) {
       }
     );
   } else {
-    if (confirm(`Você atingiu ${used}/${max} ${l.what} no plano ${planName}. Fazer upgrade pra ${l.upgrade}?`)) {
-      window.open(getUpgradeURL(), '_blank');
-    }
+    // Fallback: appAlert ainda não disponível durante boot. Só loga.
+    console.warn(`[plan] Limite ${used}/${max} ${l.what} no plano ${planName}. Upgrade: ${l.upgrade}`);
   }
 }
 
@@ -5638,6 +5637,13 @@ function deleteUnifiedView(viewId) {
   if (typeof render === 'function') render();
 }
 
+async function confirmDeleteUnifiedView(viewId) {
+  const v = getUnifiedViews().find(x => x.id === viewId);
+  if (!v) return;
+  const ok = await appConfirm('Excluir view', `Apagar "${v.name}"?`, { danger:true, okLabel:'Excluir' });
+  if (ok) deleteUnifiedView(viewId);
+}
+
 function getCurrentViewId() {
   try { return localStorage.getItem(UV_LAST_KEY); } catch(e) { return null; }
 }
@@ -5676,7 +5682,7 @@ function _renderUnifiedViewsBar() {
             <span class="uv-item-name">${_esc(v.name)}</span>
             <span class="uv-item-actions" onclick="event.stopPropagation();">
               <button class="uv-item-act" onclick="renameUnifiedViewPrompt('${v.id}')" title="Renomear">✎</button>
-              <button class="uv-item-act" onclick="if(confirm('Excluir view \\'${_esc(v.name).replace(/'/g,"\\'")}\\'?'))deleteUnifiedView('${v.id}')" title="Excluir">✕</button>
+              <button class="uv-item-act" onclick="confirmDeleteUnifiedView('${v.id}')" title="Excluir">✕</button>
             </span>
           </div>
         `).join('') : '<div class="uv-empty">Nenhuma view salva ainda.</div>'}
@@ -7825,10 +7831,142 @@ const KANBAN_TEMPLATES = [
       {name:'Renovação contrato · Cliente E',    priority:'media', col:'contratado', tagIds:[4],   doneDaysAgo:5,   cfv:{cf_valor:24000, cf_cliente:'Cliente E',     cf_responsavel:'Tainá Dutra',    cf_forma:'Mensal',     cf_validade:'2026-04-30', cf_proposta:'PROP-2026-011'}},
     ],
   },
-  // ── Zai · Gestão Financeira via Kanban ─────────────────────
+
+  // ── Estudos Pessoais ──────────────────────────────────────
+  {
+    id: 'estudos-pessoais',
+    name: 'Estudos pessoais',
+    icon: '📚',
+    accent: '#3D2E5A',
+    accentText: '#F4EDF7',
+    category: 'Pessoal',
+    description: '📚 Plano de estudos pessoal estilo Kaizen. Cards são tópicos / matérias / cursos. Fluxo: Quero estudar → Estudando agora → Revisar → Dominado. Campos pra horas estimadas, recursos (link/livro), notas e nível de domínio.',
+    columns: [
+      {id:'backlog',     title:'Quero estudar'},
+      {id:'doing',       title:'Estudando agora', wipLimit:3},
+      {id:'revisar',     title:'Revisar (spaced repetition)', wipLimit:5},
+      {id:'dominado',    title:'Dominado'},
+    ],
+    tags: [
+      {text:'Linguagem',  colorIdx:0},
+      {text:'Tecnologia', colorIdx:1},
+      {text:'Negócios',   colorIdx:2},
+      {text:'Design',     colorIdx:3},
+      {text:'Hobby',      colorIdx:4},
+    ],
+    customFields: [
+      {id:'cf_horas',     label:'Horas estimadas',     type:'number',  showOnCard:true},
+      {id:'cf_recurso',   label:'Recurso (livro/link)',type:'text',    showOnCard:false},
+      {id:'cf_dominio',   label:'Nível de domínio',    type:'select',  options:['Iniciante','Intermediário','Avançado','Mestre'], showOnCard:true},
+      {id:'cf_notas',     label:'Anotações chave',     type:'text',    showOnCard:false},
+      {id:'cf_proxRev',   label:'Próxima revisão',     type:'date',    showOnCard:false},
+    ],
+    cards: [
+      {name:'Inglês · fluência conversacional',   priority:'alta',  col:'doing',      tagIds:[0], cfv:{cf_horas:120, cf_recurso:'BBC Learning + Cambly', cf_dominio:'Intermediário', cf_proxRev:'2026-05-15'}},
+      {name:'Japonês · básico (N5)',               priority:'media', col:'doing',      tagIds:[0], cfv:{cf_horas:80,  cf_recurso:'Genki I + Anki', cf_dominio:'Iniciante'}},
+      {name:'Postgres · indexação e otimização',   priority:'alta',  col:'doing',      tagIds:[1], cfv:{cf_horas:25,  cf_recurso:'Use The Index, Luke!', cf_dominio:'Intermediário'}},
+      {name:'Kanban Method · Kaizen aplicado',     priority:'media', col:'revisar',    tagIds:[2], cfv:{cf_horas:15,  cf_recurso:'Kanban — David J. Anderson', cf_dominio:'Avançado', cf_proxRev:'2026-05-10'}},
+      {name:'TypeScript avançado · types utilitários', priority:'media',col:'revisar', tagIds:[1], cfv:{cf_horas:18,  cf_recurso:'Total TypeScript · Matt Pocock', cf_dominio:'Avançado'}},
+      {name:'Tipografia para tela',                priority:'baixa', col:'backlog',    tagIds:[3], cfv:{cf_horas:30,  cf_recurso:'Practical Typography', cf_dominio:'Iniciante'}},
+      {name:'Vinhos brasileiros · regiões',        priority:'baixa', col:'backlog',    tagIds:[4], cfv:{cf_horas:12,  cf_dominio:'Iniciante'}},
+      {name:'Pomodoro técnica · base',             priority:'media', col:'dominado',   tagIds:[2], doneDaysAgo:30, cfv:{cf_horas:4, cf_dominio:'Avançado'}},
+    ],
+  },
+
+  // ── Biblioteca Pessoal (livros) ────────────────────────────
+  {
+    id: 'biblioteca-livros',
+    name: 'Biblioteca pessoal',
+    icon: '📖',
+    accent: '#5C3B1E',
+    accentText: '#F8EFE4',
+    category: 'Pessoal',
+    description: '📖 Sua biblioteca pessoal estilo "Goodreads em kanban". Cards são livros com autor, gênero, número de páginas, nota (estrelas) e uma resenha. Fluxo: Quero ler → Lendo → Pausado → Lido. Veja seu ritmo de leitura ao longo do tempo.',
+    columns: [
+      {id:'wishlist',  title:'Quero ler'},
+      {id:'lendo',     title:'Lendo agora', wipLimit:3},
+      {id:'pausado',   title:'Pausado'},
+      {id:'lido',      title:'Lido'},
+    ],
+    tags: [
+      {text:'Ficção',     colorIdx:0},
+      {text:'Não-ficção', colorIdx:1},
+      {text:'Negócios',   colorIdx:2},
+      {text:'Filosofia',  colorIdx:3},
+      {text:'Biografia',  colorIdx:4},
+    ],
+    customFields: [
+      {id:'cf_autor',     label:'Autor',                  type:'text',   showOnCard:true},
+      {id:'cf_paginas',   label:'Páginas',                type:'number', showOnCard:false},
+      {id:'cf_nota',      label:'Nota (1–5)',             type:'select', options:['★','★★','★★★','★★★★','★★★★★'], showOnCard:true},
+      {id:'cf_iniciado',  label:'Iniciado em',            type:'date',   showOnCard:false},
+      {id:'cf_finalizado',label:'Finalizado em',          type:'date',   showOnCard:false},
+      {id:'cf_resenha',   label:'Resenha pessoal',        type:'text',   showOnCard:false},
+      {id:'cf_capa',      label:'Capa (URL ou anexo)',    type:'text',   showOnCard:false},
+    ],
+    cards: [
+      {name:'Atomic Habits',                  priority:'alta',  col:'lendo',    tagIds:[1], cfv:{cf_autor:'James Clear',          cf_paginas:320, cf_iniciado:'2026-04-10'}},
+      {name:'Kanban — David J. Anderson',     priority:'alta',  col:'lendo',    tagIds:[2], cfv:{cf_autor:'David J. Anderson',    cf_paginas:280, cf_iniciado:'2026-04-22'}},
+      {name:'O Andarilho — Hermann Hesse',    priority:'media', col:'wishlist', tagIds:[0], cfv:{cf_autor:'Hermann Hesse',        cf_paginas:160}},
+      {name:'O Mestre e Margarita',           priority:'media', col:'wishlist', tagIds:[0], cfv:{cf_autor:'Mikhail Bulgákov',     cf_paginas:480}},
+      {name:'Meditações',                     priority:'baixa', col:'pausado',  tagIds:[3], cfv:{cf_autor:'Marco Aurélio',        cf_paginas:200, cf_iniciado:'2026-02-01'}},
+      {name:'A Arte da Guerra',               priority:'media', col:'lido',     tagIds:[3], doneDaysAgo:25, cfv:{cf_autor:'Sun Tzu',  cf_paginas:120, cf_nota:'★★★★', cf_finalizado:'2026-04-05', cf_resenha:'Curto, denso, atemporal. Útil pra tomar decisão sob incerteza.'}},
+      {name:'Steve Jobs',                     priority:'media', col:'lido',     tagIds:[4], doneDaysAgo:60, cfv:{cf_autor:'Walter Isaacson', cf_paginas:656, cf_nota:'★★★★★', cf_finalizado:'2026-03-02'}},
+      {name:'O Pequeno Príncipe',             priority:'baixa', col:'lido',     tagIds:[0], doneDaysAgo:120, cfv:{cf_autor:'Saint-Exupéry', cf_paginas:96, cf_nota:'★★★★★', cf_finalizado:'2026-01-04'}},
+    ],
+  },
+
+  // ── Hábitos & Ritual Diário (Kaizen tracker) ──────────────
+  {
+    id: 'habitos-ritual',
+    name: 'Hábitos & ritual diário',
+    icon: '道',
+    accent: '#1F4733',
+    accentText: '#E8F4EC',
+    category: 'Pessoal',
+    description: '道 Seu dōjō de hábitos. Cards são hábitos com frequência (diário/semanal), streak atual e nível de dificuldade. Fluxo: Querendo construir → Em prática → Estabelecido → Em pausa. Cresce devagar, com Kaizen — 1% melhor a cada dia.',
+    columns: [
+      {id:'querendo',     title:'Quero construir'},
+      {id:'pratica',      title:'Em prática (30d)', wipLimit:5},
+      {id:'estabelecido', title:'Estabelecido (90d+)'},
+      {id:'pausa',        title:'Em pausa'},
+    ],
+    tags: [
+      {text:'Saúde',       colorIdx:0},
+      {text:'Mental',      colorIdx:1},
+      {text:'Produtividade',colorIdx:2},
+      {text:'Relacionamento',colorIdx:3},
+      {text:'Criativo',    colorIdx:4},
+    ],
+    customFields: [
+      {id:'cf_frequencia', label:'Frequência',         type:'select',  options:['Diário','3x semana','Semanal','Mensal'], showOnCard:true},
+      {id:'cf_horario',    label:'Horário',            type:'select',  options:['Manhã','Tarde','Noite','Qualquer'], showOnCard:false},
+      {id:'cf_streak',     label:'Streak atual (dias)',type:'number',  showOnCard:true},
+      {id:'cf_dificuldade',label:'Dificuldade',        type:'select',  options:['Fácil','Média','Difícil'], showOnCard:false},
+      {id:'cf_gatilho',    label:'Gatilho (when/then)',type:'text',    showOnCard:false},
+      {id:'cf_recompensa', label:'Recompensa',         type:'text',    showOnCard:false},
+    ],
+    cards: [
+      {name:'Caminhada matinal · 30min',          priority:'alta',  col:'estabelecido', tagIds:[0], cfv:{cf_frequencia:'Diário',     cf_horario:'Manhã', cf_streak:142, cf_dificuldade:'Média',   cf_gatilho:'Quando acordo, antes do café'}},
+      {name:'Meditação · 10min',                  priority:'alta',  col:'pratica',      tagIds:[1], cfv:{cf_frequencia:'Diário',     cf_horario:'Manhã', cf_streak:38,  cf_dificuldade:'Fácil',   cf_gatilho:'Após escovar dentes'}},
+      {name:'Diário (journal) · 3 linhas',        priority:'media', col:'pratica',      tagIds:[1], cfv:{cf_frequencia:'Diário',     cf_horario:'Noite', cf_streak:21,  cf_dificuldade:'Fácil',   cf_gatilho:'Antes de dormir'}},
+      {name:'Sem celular na primeira hora',       priority:'alta',  col:'pratica',      tagIds:[2], cfv:{cf_frequencia:'Diário',     cf_horario:'Manhã', cf_streak:12,  cf_dificuldade:'Difícil', cf_gatilho:'Celular fica em outro cômodo'}},
+      {name:'Treino de força · 3x semana',        priority:'media', col:'pratica',      tagIds:[0], cfv:{cf_frequencia:'3x semana',  cf_horario:'Tarde', cf_streak:8,   cf_dificuldade:'Média',   cf_gatilho:'Seg/Qua/Sex 18h'}},
+      {name:'Ler 20 páginas',                     priority:'media', col:'querendo',     tagIds:[1], cfv:{cf_frequencia:'Diário',     cf_horario:'Noite', cf_streak:0,   cf_dificuldade:'Fácil',   cf_gatilho:'Após meditação'}},
+      {name:'Escrever 200 palavras',              priority:'baixa', col:'querendo',     tagIds:[4], cfv:{cf_frequencia:'Diário',     cf_horario:'Manhã', cf_streak:0,   cf_dificuldade:'Média'}},
+      {name:'Ligar pra um familiar',              priority:'media', col:'querendo',     tagIds:[3], cfv:{cf_frequencia:'Semanal',    cf_horario:'Qualquer', cf_streak:0,cf_dificuldade:'Fácil'}},
+      {name:'Hidratação · 2L água',               priority:'alta',  col:'estabelecido', tagIds:[0], cfv:{cf_frequencia:'Diário',     cf_horario:'Qualquer', cf_streak:210, cf_dificuldade:'Fácil'}},
+      {name:'Açúcar refinado',                    priority:'media', col:'pausa',        tagIds:[0], cfv:{cf_frequencia:'Diário',     cf_streak:0,   cf_dificuldade:'Difícil', cf_gatilho:'Cortar refrigerante'}},
+    ],
+  },
+
+  // ── Zai REMOVIDO da Gallery (fica só no módulo Zai do menu) ────
+  // Definição preservada como ZAI_TEMPLATE (usado por createZaiBoardFromHub).
+  // Pra retornar ao modelo antigo, volte este bloco com id 'zai-financeiro'.
+  /* ZAI_BLOCK_REMOVED_FROM_GALLERY_BEGIN
   {
     id: 'zai-financeiro',
-    name: 'Zai · Gestão Financeira',
+    name: 'Zai · Visão Financeira',
     icon: '財',
     accent: '#1A1612',
     accentText: '#F8F2E4',
@@ -7873,7 +8011,52 @@ const KANBAN_TEMPLATES = [
       {name:'Google Workspace',                   priority:'baixa',col:'pago',       tagIds:[0],   deadlineDays:-12, doneDaysAgo:8, moneyType:'fixed', cfv:{cf_valor:520, cf_categoria:'Software', cf_fornecedor:'Google', cf_data:'2026-04-23'}},
     ],
   },
+  ZAI_BLOCK_REMOVED_FROM_GALLERY_END */
 ];
+
+// ── Zai template (não aparece na Gallery — usado pelo módulo Zai) ──
+const ZAI_TEMPLATE = {
+  id: 'zai-financeiro',
+  name: 'Zai · Visão Financeira',
+  icon: '財',
+  accent: '#1A1612',
+  accentText: '#F8F2E4',
+  category: 'Financeiro',
+  aiOCR: true,
+  zaiEnabled: true,
+  description: 'Gestão financeira via kanban com burn rate e runway calculados automaticamente.',
+  columns: [
+    {id:'planejado',  title:'Planejado'},
+    {id:'doing',      title:'Em execução', wipLimit:8},
+    {id:'aguardando', title:'Aguardando aprovação', wipLimit:6, allowedNext:['aprovado','recusado']},
+    {id:'aprovado',   title:'Aprovado', requiresSignature:'cf_assinatura', lockOnceSigned:true},
+    {id:'pago',       title:'Executado / Pago'},
+    {id:'recusado',   title:'Recusado', requiresSignature:'cf_assinatura', lockOnceSigned:true, requiresReason:true},
+    {id:'done',       title:'Encerrado'},
+  ],
+  tags: [
+    {text:'Operacional',   colorIdx:0},
+    {text:'Marketing',     colorIdx:1},
+    {text:'Pessoal',       colorIdx:2},
+    {text:'Investimento',  colorIdx:4},
+    {text:'Imposto',       colorIdx:3},
+  ],
+  customFields: [
+    {id:'cf_valor',       label:'Valor',                     type:'currency', showOnCard:true},
+    {id:'cf_data',        label:'Data prevista',             type:'date',     showOnCard:false},
+    {id:'cf_fornecedor',  label:'Fornecedor / Origem',       type:'text',     showOnCard:false},
+    {id:'cf_recibo',      label:'NF / Recibo',               type:'text',     showOnCard:false},
+    {id:'cf_categoria',   label:'Categoria',                 type:'select',   options:['Operacional','Marketing','Pessoal','Investimento','Imposto','Software','Outros'], showOnCard:false},
+    {id:'cf_assinatura',  label:'Assinatura do gestor',      type:'signature',showOnCard:false},
+  ],
+  cards: [
+    {name:'Receita: Cliente A · mensalidade',  priority:'alta',  col:'doing',      tagIds:[0], deadlineDays:5, moneyType:'income', cfv:{cf_valor:8500, cf_categoria:'Operacional', cf_fornecedor:'Cliente A'}},
+    {name:'AWS · cloud',                       priority:'alta',  col:'planejado',  tagIds:[0], deadlineDays:8, moneyType:'fixed',  cfv:{cf_valor:1850, cf_categoria:'Software', cf_fornecedor:'Amazon Web Services'}},
+    {name:'Aluguel escritório',                priority:'alta',  col:'aguardando', tagIds:[0], deadlineDays:5, moneyType:'fixed',  cfv:{cf_valor:6500, cf_categoria:'Operacional'}},
+    {name:'Folha · mês corrente',              priority:'alta',  col:'aprovado',   tagIds:[2], deadlineDays:1, moneyType:'fixed',  cfv:{cf_valor:42000, cf_categoria:'Pessoal'}},
+    {name:'Anúncios · campanha',               priority:'media', col:'doing',      tagIds:[1], deadlineDays:0, moneyType:'variable', cfv:{cf_valor:3200, cf_categoria:'Marketing'}},
+  ],
+};
 
 function _instantiateTemplateCards(tpl, startNCard) {
   const today = new Date();
@@ -7905,6 +8088,56 @@ function _instantiateTemplateCards(tpl, startNCard) {
     };
   });
   return { cards: cardsOut, nCard };
+}
+
+// ── Garante prefixo "Zai · " no nome do board ─────────────────
+// Aceita qualquer entrada do user e devolve "Zai · <resto>".
+// Se o user já digitou "Zai", "ZAI", "Zai-", etc, normaliza pra "Zai · ".
+function _ensureZaiPrefix(name) {
+  let n = (name || '').trim();
+  if (!n) return 'Zai · Visão Financeira';
+  // Remove qualquer variação de "Zai" no começo
+  n = n.replace(/^z[aA][iI]\s*[·\-:|]?\s*/i, '').trim();
+  if (!n) n = 'Visão Financeira';
+  return 'Zai · ' + n;
+}
+
+// Cria um board novo a partir do ZAI_TEMPLATE (acessado pelo hub Zai)
+async function createZaiBoardFromHub() {
+  const userName = await appPrompt('Novo board Zai', {
+    icon: '財',
+    message: 'Dê um nome ao board financeiro. O prefixo "Zai ·" entra automático.',
+    defaultValue: 'Visão Financeira',
+    placeholder: 'Ex: Empresa, Pessoal, Família, Projeto X…',
+    okLabel: 'Criar board',
+  });
+  if (userName === null) return;
+  const finalName = _ensureZaiPrefix(userName);
+  // Reusa o template Zai mas com nome customizado
+  const tpl = ZAI_TEMPLATE;
+  const id = _genBoardId();
+  const tagsOut = tpl.tags.map((t,i)=>({ id:'t'+(i+1), text:t.text, color:COLORS[t.colorIdx % COLORS.length] }));
+  const { cards: tplCards, nCard } = _instantiateTemplateCards(tpl, 1);
+  allBoards[id] = {
+    name: finalName,
+    icon: tpl.icon || '財',
+    cards: tplCards,
+    COLS: tpl.columns.map(c=>({...c})),
+    team: [...DEFAULT_TEAM],
+    globalTags: tagsOut,
+    customFields: (tpl.customFields || []).map(f=>({...f, options: f.options ? [...f.options] : undefined})),
+    nCard,
+    nTag: tagsOut.length + 1,
+    kanbanConfig: { ...DEFAULT_CONFIG, cardFields: { ...DEFAULT_CARD_FIELDS } },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    sourceTemplateId: tpl.id,
+    aiOCR: !!tpl.aiOCR,
+    zaiEnabled: true,
+    isZaiBoard: true,  // flag para o rename modal forçar prefixo Zai
+  };
+  saveData();
+  switchBoard(id);
 }
 
 function addTemplateToBoards(templateId, opts) {
@@ -8114,13 +8347,7 @@ function promoteKaizenAction(cardId) {
       `).join('')}
     </div>
   `;
-  if (typeof appAlert === 'function') {
-    appAlert('Promover ação para qual board?', html, { icon:'→', okLabel:'Cancelar', cancelLabel:'' });
-  } else {
-    const choice = prompt('Board destino:\n\n' + targets.map((t,i) => `${i+1}. ${t.name}`).join('\n'));
-    const idx = parseInt(choice) - 1;
-    if (targets[idx]) _doPromoteKaizen(cardId, targets[idx].id);
-  }
+  appAlert('Promover ação para qual board?', html, { icon:'→', okLabel:'Cancelar', cancelLabel:'' });
 }
 
 function _doPromoteKaizen(cardId, targetBoardId) {
@@ -8167,9 +8394,16 @@ function _doPromoteKaizen(cardId, targetBoardId) {
 
 function renameBoard(id, newName) {
   if (!allBoards[id]) return;
-  const v = (newName||'').trim();
+  let v = (newName||'').trim();
   if (!v) return;
-  allBoards[id].name = v;
+  // Boards Zai (criados pelo módulo Zai ou ativados via zaiEnabled) sempre
+  // têm o prefixo "Zai · " no nome — o usuário pode mudar tudo depois do prefixo,
+  // mas não removê-lo. Se ele tentar tirar, o sistema re-adiciona.
+  const b = allBoards[id];
+  if (b.isZaiBoard || b.zaiEnabled) {
+    v = _ensureZaiPrefix(v);
+  }
+  b.name = v;
   saveData();
   refreshSidebarBoardLabel();
   if (currentTab === 'boards') renderBoardsManager();
@@ -9271,8 +9505,9 @@ function _resizeImageNoCrop(file, maxSize, quality) {
     fr.readAsDataURL(file);
   });
 }
-function clearCompanyLogo() {
-  if (!confirm('Remover logo da empresa?')) return;
+async function clearCompanyLogo() {
+  const ok = await appConfirm('Remover logo', 'Remover logo da empresa?', { danger:true, okLabel:'Remover' });
+  if (!ok) return;
   const info = getCompanyInfo();
   delete info.logo;
   setCompanyInfo(info);
@@ -9392,7 +9627,8 @@ function _resizeImageToDataURL(file, maxSize, quality) {
 }
 
 async function clearProfileAvatar() {
-  if (!confirm('Remover foto de perfil?')) return;
+  const ok = await appConfirm('Remover foto', 'Remover foto de perfil?', { danger:true, okLabel:'Remover' });
+  if (!ok) return;
   const local = getLocalProfile(); delete local.avatar; setLocalProfile(local);
   if (getStorageMode()==='supabase' && supaClient && supaUser) {
     try {
@@ -9872,8 +10108,9 @@ async function testWebhookFromUI() {
     setWebhookCfg(prev);
   }
 }
-function clearWebhookFromUI() {
-  if (!confirm('Remover configuração de webhook?')) return;
+async function clearWebhookFromUI() {
+  const ok = await appConfirm('Remover webhook', 'Remover configuração de webhook?', { danger:true, okLabel:'Remover' });
+  if (!ok) return;
   setWebhookCfg({});
   if (currentTab === 'settings') renderSettings();
 }
@@ -13002,8 +13239,9 @@ async function signOut() {
   if (!supaClient) return;
   await supaClient.auth.signOut();
 }
-function exitSupabaseMode() {
-  if (!confirm('Voltar para o modo local? Os dados continuam no Supabase.')) return;
+async function exitSupabaseMode() {
+  const ok = await appConfirm('Sair do modo Cloud?', 'Os dados continuam no Supabase, mas este navegador volta a usar localStorage.', { icon:'⚠️', danger:true, okLabel:'Sair do Cloud' });
+  if (!ok) return;
   setSupabaseConfig(null);
   location.reload();
 }
@@ -13683,7 +13921,8 @@ async function inviteMember() {
 }
 
 async function removeMember(userId) {
-  if (!confirm('Remover essa pessoa do board?')) return;
+  const ok = await appConfirm('Remover do board', 'Remover essa pessoa do board?', { danger:true, okLabel:'Remover' });
+  if (!ok) return;
   await supaRemoveMember(currentBoardId, userId);
   refreshMembersConfig();
 }
@@ -13934,17 +14173,19 @@ function addConfigCol() {
   saveData(); renderConfigCols(); render();
 }
 
-function removeConfigCol(id) {
+async function removeConfigCol(id) {
   if (id === TERMINAL_COL) return;
   const col = COLS.find(c=>c.id===id); if(!col) return;
   const cardsInCol = cards.filter(c=>c.col===id).length;
   // Define destino: primeira coluna não-terminal ≠ id; se não houver, usa terminal
   const fallback = COLS.find(c=>c.id!==id && c.id!==TERMINAL_COL) || COLS.find(c=>c.id===TERMINAL_COL);
   if (cardsInCol > 0) {
-    if (!confirm(`Remover "${col.title}" e mover ${cardsInCol} card(s) para "${fallback.title}"?`)) return;
+    const ok = await appConfirm('Remover coluna', `Remover "${col.title}" e mover ${cardsInCol} card(s) para "${fallback.title}"?`, { danger:true, okLabel:'Remover' });
+    if (!ok) return;
     cards.forEach(c=>{ if(c.col===id){ c.col = fallback.id; autoThread(c, `Coluna "${col.title}" removida — movido para "${fallback.title}"`); } });
   } else {
-    if (!confirm(`Remover a coluna "${col.title}"?`)) return;
+    const ok = await appConfirm('Remover coluna', `Remover a coluna "${col.title}"?`, { danger:true, okLabel:'Remover' });
+    if (!ok) return;
   }
   COLS = COLS.filter(c=>c.id!==id);
   saveData(); renderConfigCols(); render();
@@ -14065,7 +14306,10 @@ async function restoreFromJson(input) {
   const ids = Object.keys(parsed.boards);
   const mode = getStorageMode();
   if (mode === 'supabase' && supaUser) {
-    if (!confirm(`Restaurar ${ids.length} board(s) do arquivo direto na sua conta Supabase?`)) return;
+    {
+      const ok = await appConfirm('Restaurar do arquivo', `Restaurar ${ids.length} board(s) do arquivo direto na sua conta Supabase?`, { okLabel:'Restaurar' });
+      if (!ok) return;
+    }
     const status = document.getElementById('cfg-supa-status');
     if (status) status.innerHTML = '<strong>⏳</strong> Restaurando…';
     const c = _ensureSupaClient();
@@ -14108,7 +14352,10 @@ async function restoreFromJson(input) {
     setTimeout(() => location.reload(), 1800);
   } else {
     // Modo local: substitui localStorage
-    if (!confirm(`Substituir os boards locais por ${ids.length} board(s) do arquivo? Esta ação sobrescreve o estado local.`)) return;
+    {
+      const ok = await appConfirm('Substituir local', `Substituir os boards locais por ${ids.length} board(s) do arquivo? Esta ação sobrescreve o estado local.`, { danger:true, okLabel:'Substituir' });
+      if (!ok) return;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
     alert('Restaurado. Recarregando…');
     location.reload();
@@ -14124,7 +14371,10 @@ async function importLocalDataToSupabase() {
     return alert('Sem dados locais para importar.');
   }
   const ids = Object.keys(localBoards);
-  if (!confirm(`Importar ${ids.length} board(s) locais para o Supabase? Eles serão criados como novos boards na sua conta.\n\nNotas, anexos, subtarefas, custom fields, tags e thread history vêm junto.`)) return;
+  {
+    const ok = await appConfirm('Importar para o Cloud', `Importar ${ids.length} board(s) locais para o Supabase? Eles serão criados como novos boards na sua conta. Notas, anexos, subtarefas, custom fields, tags e thread history vêm junto.`, { okLabel:'Importar' });
+    if (!ok) return;
+  }
 
   const c = _ensureSupaClient(); if(!c) return;
   const status = document.getElementById('cfg-supa-status');
@@ -14172,23 +14422,24 @@ async function importLocalDataToSupabase() {
   setTimeout(() => location.reload(), 1800);
 }
 
-function saveSupabaseConfigFromModal() {
+async function saveSupabaseConfigFromModal() {
   const url = (document.getElementById('cfg-supa-url').value || '').trim();
   const key = (document.getElementById('cfg-supa-key').value || '').trim();
-  if (!url || !key) { alert('Informe Project URL e Anon key.'); return; }
-  if (!/^https?:\/\//.test(url)) { alert('URL inválida — deve começar com https://'); return; }
+  if (!url || !key) { await appAlert('Falta dado', 'Informe Project URL e Anon key.', { icon:'⚠️' }); return; }
+  if (!/^https?:\/\//.test(url)) { await appAlert('URL inválida', 'A URL precisa começar com https://', { icon:'⚠️' }); return; }
   setSupabaseConfig({ url, anonKey: key });
   refreshSupabaseConfigFields();
-  if (confirm('Configuração salva. Recarregar a página agora para ativar o modo Supabase?')) {
-    location.reload();
-  }
+  const ok = await appConfirm('Configuração salva', 'Recarregar a página agora para ativar o modo Supabase?', { icon:'☁️', okLabel:'Recarregar' });
+  if (ok) location.reload();
 }
 
-function clearSupabaseConfig() {
-  if (!confirm('Voltar para o modo local? Os dados continuam no Supabase, mas este navegador volta a usar localStorage.')) return;
+async function clearSupabaseConfig() {
+  const ok = await appConfirm('Sair do modo Cloud?', 'Os dados continuam no Supabase, mas este navegador volta a usar localStorage.', { icon:'⚠️', okLabel:'Sair do modo Cloud', danger:true });
+  if (!ok) return;
   setSupabaseConfig(null);
   refreshSupabaseConfigFields();
-  if (confirm('Recarregar a página para sair do modo Supabase?')) location.reload();
+  const reload = await appConfirm('Recarregar?', 'Recarregar a página para sair do modo Supabase?', { icon:'↻', okLabel:'Recarregar' });
+  if (reload) location.reload();
 }
 
 function setAutoArchiveDays(v) {
@@ -14310,12 +14561,14 @@ function toggleCustomFieldOnCard(id) {
   render();
 }
 
-function removeCustomField(id) {
+async function removeCustomField(id) {
   const f = customFields.find(x=>x.id===id); if(!f) return;
   const usages = cards.filter(c => c.customFieldValues && c.customFieldValues[id] !== undefined && c.customFieldValues[id] !== '').length;
-  let msg = `Remover o campo "${f.label}"?`;
-  if (usages > 0) msg += `\n${usages} card(s) tem valor preenchido nele — os valores serão apagados.`;
-  if (!confirm(msg)) return;
+  const msg = usages > 0
+    ? `${usages} card(s) tem valor preenchido nele — os valores serão apagados.`
+    : 'Esta ação não pode ser desfeita.';
+  const ok = await appConfirm(`Remover campo "${f.label}"?`, msg, { danger:true, okLabel:'Remover' });
+  if (!ok) return;
   // limpa valores nos cards
   cards.forEach(c => {
     if (c.customFieldValues && c.customFieldValues[id] !== undefined) {
@@ -14412,8 +14665,10 @@ function bulkPriority(p) {
   });
   saveData(); render(); clearSelection();
 }
-function bulkDelete() {
-  if (!confirm(`Excluir ${selectedCardIds.size} card(s)? Não dá pra desfazer.`)) return;
+async function bulkDelete() {
+  const n = selectedCardIds.size;
+  const ok = await appConfirm(`Excluir ${n} card(s)?`, 'Não dá pra desfazer.', { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
   const numIds = new Set([...selectedCardIds].filter(s => !s.includes || !s.includes('::')).map(s => parseInt(s)));
   cards = cards.filter(c => !numIds.has(c.id));
   if (allBoards[currentBoardId]) allBoards[currentBoardId].cards = cards;
@@ -14551,8 +14806,10 @@ function exportAuditLogCSV() {
   URL.revokeObjectURL(url);
 }
 
-function clearAuditLog() {
-  if (!confirm(`Limpar ${auditLog.length} registro(s) de auditoria?`)) return;
+async function clearAuditLog() {
+  const n = auditLog.length;
+  const ok = await appConfirm('Limpar auditoria', `Limpar ${n} registro(s) de auditoria?`, { danger:true, okLabel:'Limpar' });
+  if (!ok) return;
   auditLog = [];
   _saveAudit();
   if (currentTab === 'settings') renderSettings();
@@ -14583,8 +14840,13 @@ function exportAllUserData() {
 }
 
 async function deleteAllUserData() {
-  const word = prompt('Esta ação é PERMANENTE e não pode ser desfeita.\nVai apagar:\n• Todos os boards e cards\n• Histórico, anexos, subtarefas\n• Notificações e audit log\n• Configurações do app\n\nDigite EXCLUIR pra confirmar:');
-  if (word !== 'EXCLUIR') { alert('Cancelado.'); return; }
+  const word = await appPrompt('Apagar TODOS os seus dados', {
+    icon: '⚠️',
+    message: 'Esta ação é PERMANENTE e não pode ser desfeita. Vai apagar todos os boards, cards, histórico, anexos, notificações, audit log e configurações. Digite EXCLUIR para confirmar.',
+    placeholder: 'Digite EXCLUIR',
+    okLabel: 'Apagar tudo',
+  });
+  if (word !== 'EXCLUIR') { await appAlert('Cancelado', 'Nada foi apagado.', { icon:'ℹ️' }); return; }
   // Em modo Supabase: deleta também na nuvem
   if (getStorageMode()==='supabase' && supaUser && supaClient) {
     try {
@@ -14675,7 +14937,8 @@ async function verify2FACode() {
 
 async function disable2FA() {
   const c = _ensureSupaClient(); if (!c) return;
-  if (!confirm('Desativar 2FA? Você poderá entrar só com senha.')) return;
+  const ok = await appConfirm('Desativar 2FA?', 'Você poderá entrar só com senha.', { danger:true, okLabel:'Desativar' });
+  if (!ok) return;
   try {
     const { data, error } = await c.auth.mfa.listFactors();
     if (error) throw error;
@@ -14758,8 +15021,9 @@ function markAllNotifsRead() {
   renderNotifPopover();
 }
 
-function clearNotifs() {
-  if (!confirm('Limpar todas as notificações?')) return;
+async function clearNotifs() {
+  const ok = await appConfirm('Limpar notificações', 'Limpar todas as notificações?', { danger:true, okLabel:'Limpar' });
+  if (!ok) return;
   notifications = [];
   _saveNotifs();
   refreshNotifBadge();
@@ -15400,9 +15664,10 @@ function stopTimer(cardId) {
   renderModalTime(cardId);
   render();
 }
-function clearTimer(cardId) {
+async function clearTimer(cardId) {
   const card = cards.find(c=>c.id===cardId); if(!card) return;
-  if (!confirm('Limpar todos os registros de tempo deste card?')) return;
+  const ok = await appConfirm('Limpar registros de tempo', 'Limpar todos os registros de tempo deste card?', { danger:true, okLabel:'Limpar' });
+  if (!ok) return;
   card.timeEntries = [];
   saveData();
   renderModalTime(cardId);
@@ -16643,11 +16908,13 @@ function addTeamMember() {
   renderConfigTeam();
 }
 
-function removeTeamMember(name) {
+async function removeTeamMember(name) {
   const usages = cards.filter(c=>c.responsavel===name).length;
-  let msg = `Remover "${name}" da equipe?`;
-  if (usages > 0) msg += `\n${usages} card(s) atualmente atribuído(s) a essa pessoa serão mantidos como "fora da equipe (legado)".`;
-  if (!confirm(msg)) return;
+  const msg = usages > 0
+    ? `${usages} card(s) atualmente atribuído(s) a essa pessoa serão mantidos como "fora da equipe (legado)".`
+    : 'Esta pessoa será removida da equipe.';
+  const ok = await appConfirm(`Remover "${name}"?`, msg, { danger:true, okLabel:'Remover' });
+  if (!ok) return;
   team = team.filter(n => n !== name);
   saveData();
   renderConfigTeam();
@@ -19892,14 +20159,15 @@ function saveContact(id, isEdit) {
   renderRegistry();
 }
 
-function deleteContact(id) {
+async function deleteContact(id) {
   const c = _contacts.find(x=>x.id===id); if (!c) return;
   // Verifica se algum documento referencia este contato
   const linkedDocs = _documents.filter(d=>d.contactId===id).length;
   const msg = linkedDocs
-    ? `Excluir "${c.name}"? ${linkedDocs} contrato(s)/documento(s) vinculado(s) ficarão sem cliente/fornecedor associado.`
-    : `Excluir "${c.name}"?`;
-  if (!confirm(msg)) return;
+    ? `${linkedDocs} contrato(s)/documento(s) vinculado(s) ficarão sem cliente/fornecedor associado.`
+    : 'Esta ação não pode ser desfeita.';
+  const ok = await appConfirm(`Excluir "${c.name}"?`, msg, { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
   _contacts = _contacts.filter(x=>x.id!==id);
   _saveContacts();
   audit('contact.deleted', { id, name: c.name });
@@ -20505,9 +20773,10 @@ function saveChecklistTemplate(id) {
   _tplEditingId = null;
   _renderChecklistTemplatesModal();
 }
-function deleteChecklistTemplate(id) {
+async function deleteChecklistTemplate(id) {
   const t = _checklistTemplates.find(x=>x.id===id); if (!t) return;
-  if (!confirm(`Excluir o template "${t.name}"?`)) return;
+  const ok = await appConfirm(`Excluir template "${t.name}"?`, 'Esta ação não pode ser desfeita.', { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
   _checklistTemplates = _checklistTemplates.filter(x=>x.id!==id);
   _saveChecklistTemplates();
   _renderChecklistTemplatesModal();
@@ -20771,9 +21040,10 @@ function saveDocTemplate(id) {
   _docTplEditingId = null;
   _renderDocModal();
 }
-function deleteDocTemplate(id) {
+async function deleteDocTemplate(id) {
   const t = _docTemplates.find(x=>x.id===id); if (!t) return;
-  if (!confirm(`Excluir o template "${t.name}"?`)) return;
+  const ok = await appConfirm(`Excluir template "${t.name}"?`, 'Esta ação não pode ser desfeita.', { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
   _docTemplates = _docTemplates.filter(x=>x.id!==id);
   _saveDocTemplates();
   _docTplEditingId = null;
@@ -21196,9 +21466,10 @@ function saveOKR() {
   closeRegistryModal();
   if (currentTab === 'okrs') renderOKRs();
 }
-function deleteOKR(okrId) {
+async function deleteOKR(okrId) {
   const o = _okrs.find(x => x.id === okrId); if (!o) return;
-  if (!confirm(`Excluir o objetivo "${o.title}"?`)) return;
+  const ok = await appConfirm(`Excluir objetivo "${o.title}"?`, 'Esta ação não pode ser desfeita.', { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
   _okrs = _okrs.filter(x => x.id !== okrId);
   _saveOKRs();
   _okrEditing = null;
@@ -21410,6 +21681,12 @@ function gamifResetDefaults() {
   if (currentTab === 'settings') renderSettings();
   if (typeof refreshAccountUI === 'function') refreshAccountUI();
 }
+async function confirmDojoReset() {
+  const ok = await appConfirm('Restaurar padrões', 'Restaurar todos os padrões do Dojo?', { okLabel:'Restaurar' });
+  if (!ok) return;
+  gamifResetDefaults();
+  if (typeof renderSettings === 'function') renderSettings();
+}
 function gamifSetEnabled(on) {
   _gamifCfg.enabled = !!on;
   _saveGamifCfg();
@@ -21508,7 +21785,7 @@ function _settingsDojoSection() {
       <div class="settings-card-title">Restaurar padrões</div>
       <div class="settings-card-sub">Volta todos os valores acima pros padrões originais.</div>
       <div style="margin-top:10px;">
-        <button class="btn-c" onclick="if(confirm('Restaurar todos os padrões do Dojo?')){gamifResetDefaults();renderSettings();}">↻ Restaurar padrões</button>
+        <button class="btn-c" onclick="confirmDojoReset()">↻ Restaurar padrões</button>
       </div>
     </div>
   `;
@@ -22358,7 +22635,8 @@ async function capDiagnose() {
 }
 
 async function capResetAuth() {
-  if (!confirm('Vai limpar a sessão do Supabase (mantém suas configurações e dados locais) e recarregar a página. Continua?')) return;
+  const ok = await appConfirm('Limpar sessão Supabase', 'Vai limpar a sessão (mantém suas configurações e dados locais) e recarregar a página.', { okLabel:'Continuar' });
+  if (!ok) return;
   // 1) Tenta signOut com timeout curto (não bloqueia se falhar)
   try {
     const c = _ensureSupaClient();
@@ -22660,7 +22938,8 @@ async function saveForm() {
 
 async function deleteForm(formId) {
   const f = _capForms.find(x=>x.id===formId); if (!f) return;
-  if (!confirm(`Excluir o formulário "${f.name}"? Os leads recebidos por ele também serão removidos.`)) return;
+  const ok = await appConfirm(`Excluir formulário "${f.name}"?`, 'Os leads recebidos por ele também serão removidos.', { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
   try {
     await _capRESTCall(`forms?id=eq.${encodeURIComponent(formId)}`, { method: 'DELETE' });
   } catch(e) {
@@ -22683,7 +22962,8 @@ async function markLead(leadId, status) {
   _renderCaptureBody();
 }
 async function deleteLead(leadId) {
-  if (!confirm('Excluir este lead da inbox?')) return;
+  const ok = await appConfirm('Excluir lead', 'Excluir este lead da inbox?', { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
   try {
     await _capRESTCall(`leads_inbox?id=eq.${encodeURIComponent(leadId)}`, { method: 'DELETE' });
   } catch(e) {
@@ -22974,9 +23254,10 @@ function saveDocument(id, isEdit) {
   renderRegistry();
 }
 
-function deleteDocument(id) {
+async function deleteDocument(id) {
   const d = _documents.find(x=>x.id===id); if (!d) return;
-  if (!confirm(`Excluir documento ${d.number}?`)) return;
+  const ok = await appConfirm(`Excluir documento ${d.number}?`, 'Esta ação não pode ser desfeita.', { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
   _documents = _documents.filter(x=>x.id!==id);
   _saveDocuments();
   audit('document.deleted', { id, number: d.number });
@@ -23147,14 +23428,14 @@ function renderZaiHub() {
     root.innerHTML = `
       <div class="zai-hub">
         <div class="zai-hub-hero">
-          <h1>財 Zai · Gestão Financeira</h1>
+          <h1>財 Zai · Visão Financeira</h1>
           <p>Sem fluxo de caixa complicado. Cards têm tipo (Receita / Custo Fixo / Custo Variável) e o sistema calcula automaticamente seu <strong>burn rate</strong> e <strong>runway</strong>. A barra "vida do dinheiro" no topo do board mostra quantos meses de fôlego restam.</p>
         </div>
         <div class="zai-hub-empty">
           <span class="zai-hub-empty-icon">財</span>
           <h3>Você ainda não tem nenhum board financeiro</h3>
-          <p>Ative um template "Zai · Gestão Financeira" da Gallery,<br/>ou ative Zai num board que já existe.</p>
-          <button onclick="switchTab('gallery');setTimeout(()=>{const t=document.querySelector('.tpl-tile-name');if(t&&t.textContent.includes('Zai'))t.scrollIntoView({behavior:'smooth',block:'center'});},200);">+ Ativar template Zai</button>
+          <p>Crie um board novo aqui pelo Zai — você dá o nome que quiser, o prefixo "Zai" entra automático.</p>
+          <button onclick="createZaiBoardFromHub()">+ Novo board Zai</button>
         </div>
       </div>
     `;
@@ -23204,8 +23485,11 @@ function renderZaiHub() {
   root.innerHTML = `
     <div class="zai-hub">
       <div class="zai-hub-hero">
-        <h1>財 Zai · Gestão Financeira</h1>
+        <h1>財 Zai · Visão Financeira</h1>
         <p>Visão consolidada de <strong>${zaiBoards.length} board${zaiBoards.length>1?'s':''} financeiro${zaiBoards.length>1?'s':''}</strong>. Acompanhe receitas, custos e runway em um único lugar. Clique em qualquer board pra abrir.</p>
+        <div style="margin-top:14px;">
+          <button class="zai-hub-new-btn" onclick="createZaiBoardFromHub()" style="padding:8px 16px;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.08);color:#d4af37;border-radius:8px;cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:600;letter-spacing:0.3px;">+ Novo board Zai</button>
+        </div>
       </div>
 
       <div class="zai-hub-stats">
