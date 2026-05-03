@@ -1553,7 +1553,7 @@ body.density-compact .card-cf-row{font-size:10px;}
 }
 :root.dark .daily-brief::after{color:#F8F2E4;opacity:.05;}
 .daily-brief-head{
-  display:flex;align-items:center;gap:11px;margin-bottom:6px;position:relative;z-index:1;
+  display:flex;align-items:center;gap:11px;margin-bottom:14px;position:relative;z-index:1;
 }
 .daily-brief-avatar{
   width:38px;height:38px;border-radius:50%;
@@ -5144,13 +5144,9 @@ function _renderDailyBrief() {
     <div class="daily-brief" id="daily-brief" data-kanji="改">
       <div class="daily-brief-head">
         ${avatar}
-        <div>
-          <div class="daily-brief-title">Carta do Dojo</div>
-          <div class="daily-brief-sub">${_esc(dateLabel)}</div>
-        </div>
+        <div class="daily-brief-title">Carta do Dojo</div>
         <button class="daily-brief-close" onclick="_briefDismissToday()" title="Dispensar até amanhã" aria-label="Dispensar">×</button>
       </div>
-      <div class="daily-brief-greet">${greetLine}</div>
       <ul class="daily-brief-bullets">${bulletsHTML}</ul>
       <div class="daily-brief-quote">${_esc(quote)}</div>
     </div>
