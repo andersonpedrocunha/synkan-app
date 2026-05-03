@@ -1183,6 +1183,82 @@ body.density-compact .card-cf-row{font-size:10px;}
 .col-n.wip-warn{background:#FCEBEB;color:#A32D2D;border-color:#F09595;font-weight:600;}
 .col-archived{font-size:11px;color:var(--color-text-tertiary);text-align:center;padding:6px 4px;background:transparent;border:0.5px dashed var(--color-border-tertiary);border-radius:6px;margin-top:6px;cursor:default;}
 
+/* ── Views salvas no Board Unificado ────────────────────────── */
+.unified-views-bar{
+  display:inline-flex;align-items:center;gap:8px;
+  position:relative;font-family:var(--font-sans);
+}
+.uv-chip{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);
+  border-radius:999px;padding:5px 13px;
+  font-size:12px;color:var(--color-text-primary);cursor:pointer;
+  transition:border-color .15s, background .15s;
+}
+.uv-chip:hover{border-color:var(--color-text-primary);}
+.uv-chip.is-active{
+  background:linear-gradient(135deg, rgba(60,52,137,.10) 0%, rgba(60,52,137,.04) 100%);
+  border-color:#3C3489;font-weight:500;
+}
+.uv-chip-icon{font-size:13px;line-height:1;color:#3C3489;}
+.uv-chip-arrow{font-size:9px;opacity:.5;}
+.uv-chip-edited::after{
+  content:'';width:6px;height:6px;border-radius:50%;background:#D9A227;display:inline-block;
+}
+
+.uv-popover{
+  position:absolute;top:calc(100% + 6px);right:0;
+  background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);
+  border-radius:10px;padding:6px;min-width:280px;max-width:340px;z-index:60;
+  box-shadow:0 8px 24px rgba(0,0,0,.10);
+  display:none;
+}
+.uv-popover.is-open{display:block;}
+.uv-section{padding:6px 10px;font-size:10.5px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;}
+.uv-item{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;cursor:pointer;
+  transition:background .12s;
+}
+.uv-item:hover{background:var(--color-background-secondary);}
+.uv-item.is-active{background:rgba(60,52,137,.08);}
+.uv-item-icon{font-size:14px;color:#3C3489;flex-shrink:0;}
+.uv-item-name{flex:1;min-width:0;font-size:13px;color:var(--color-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.uv-item-actions{display:none;gap:2px;}
+.uv-item:hover .uv-item-actions{display:inline-flex;}
+.uv-item-act{
+  background:transparent;border:none;cursor:pointer;color:var(--color-text-tertiary);
+  font-size:13px;padding:2px 5px;border-radius:4px;line-height:1;
+}
+.uv-item-act:hover{color:var(--color-text-primary);background:rgba(0,0,0,.05);}
+.uv-divider{height:0.5px;background:var(--color-border-tertiary);margin:4px 0;}
+.uv-action{
+  display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:7px;cursor:pointer;
+  font-size:13px;color:var(--color-text-secondary);transition:background .12s, color .12s;
+}
+.uv-action:hover{background:var(--color-background-secondary);color:var(--color-text-primary);}
+.uv-action-icon{font-size:14px;}
+.uv-action.primary{color:#3C3489;font-weight:500;}
+.uv-empty{padding:14px 12px;font-size:12px;color:var(--color-text-tertiary);font-style:italic;text-align:center;}
+
+/* Modal de salvar/renomear view */
+.uv-save-modal{
+  position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.50);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;
+}
+.uv-save-modal.is-open{display:flex;}
+.uv-save-card{
+  background:var(--color-background-primary);border-radius:14px;padding:22px 24px;max-width:420px;width:90%;
+  font-family:var(--font-sans);box-shadow:0 12px 48px rgba(0,0,0,.3);
+}
+.uv-save-h{font-size:15px;font-weight:600;color:var(--color-text-primary);margin-bottom:12px;}
+.uv-save-input{
+  width:100%;padding:9px 12px;border:1px solid var(--color-border-secondary);border-radius:8px;
+  font-size:14px;background:var(--color-background-primary);color:var(--color-text-primary);
+  outline:none;font-family:var(--font-sans);margin-bottom:14px;
+}
+.uv-save-input:focus{border-color:var(--color-text-primary);}
+.uv-save-actions{display:flex;justify-content:flex-end;gap:8px;}
+
 /* ── Focus Mode (Gestão de Energia) ─────────────────────────── */
 .energy-bar{
   display:inline-flex;align-items:center;gap:8px;
@@ -4882,6 +4958,233 @@ function removeCardBlocker(targetCardId, blockerCardId) {
   saveData();
   if (typeof render === 'function') render();
   if (typeof renderModalDeps === 'function') renderModalDeps(targetCardId);
+}
+
+// ── Views salvas no Board Unificado ────────────────────────────
+// Cada usuário pode salvar conjuntos de filtros + visualização como uma "view"
+// reutilizável. Persiste no localStorage.
+
+const UV_KEY = 'kanban_v8_unified_views';
+const UV_LAST_KEY = 'kanban_v8_unified_view_last';
+
+function getUnifiedViews() {
+  try {
+    return JSON.parse(localStorage.getItem(UV_KEY) || '[]') || [];
+  } catch(e) { return []; }
+}
+function _saveUnifiedViews(arr) {
+  try { localStorage.setItem(UV_KEY, JSON.stringify(arr || [])); } catch(e){}
+}
+
+// Captura o estado atual dos filtros/view pra salvar como uma view
+function _captureCurrentUnifiedView() {
+  const v = {
+    boards: (typeof activeBoardFilter !== 'undefined' && activeBoardFilter && activeBoardFilter.size > 0)
+      ? [...activeBoardFilter] : null,
+    tag:      (typeof activeFilter !== 'undefined') ? activeFilter : null,
+    priority: (typeof activePriFilter !== 'undefined') ? activePriFilter : null,
+    date:     (typeof activeDateFilter !== 'undefined') ? activeDateFilter : null,
+    dateFrom: (typeof dateFrom !== 'undefined') ? dateFrom : null,
+    dateTo:   (typeof dateTo !== 'undefined') ? dateTo : null,
+    energy:   (typeof getFocusEnergy === 'function') ? getFocusEnergy() : 0,
+    tab:      currentTab,
+  };
+  return v;
+}
+
+// Aplica uma view salva (configura filtros e re-renderiza)
+function applyUnifiedView(viewId) {
+  const views = getUnifiedViews();
+  const v = views.find(x => x.id === viewId);
+  if (!v) return;
+  // Aplica filtros
+  try {
+    if (v.filters.boards && v.filters.boards.length) {
+      activeBoardFilter = new Set(v.filters.boards);
+    } else {
+      activeBoardFilter = new Set();
+    }
+    activeFilter    = v.filters.tag || null;
+    activePriFilter = v.filters.priority || null;
+    activeDateFilter= v.filters.date || null;
+    dateFrom = v.filters.dateFrom || null;
+    dateTo   = v.filters.dateTo || null;
+    if (typeof setFocusEnergy === 'function' && Number.isFinite(v.filters.energy)) {
+      try { localStorage.setItem(FOCUS_ENERGY_KEY, String(v.filters.energy)); } catch(e){}
+    }
+    if (v.filters.tab && typeof switchTab === 'function' && v.filters.tab !== currentTab) {
+      switchTab(v.filters.tab);
+    }
+    // Lembra a última view aplicada
+    try { localStorage.setItem(UV_LAST_KEY, viewId); } catch(e){}
+    if (typeof render === 'function') render();
+    closeUVPopover();
+  } catch(e) { console.warn('[uv] applyUnifiedView falhou:', e); }
+}
+
+function saveUnifiedView(name, opts) {
+  opts = opts || {};
+  const views = getUnifiedViews();
+  const id = opts.id || ('uv_' + Date.now());
+  const filters = _captureCurrentUnifiedView();
+  const existing = views.findIndex(v => v.id === id);
+  const v = { id, name: (name||'View sem nome').trim(), filters };
+  if (existing >= 0) views[existing] = v;
+  else views.push(v);
+  _saveUnifiedViews(views);
+  try { localStorage.setItem(UV_LAST_KEY, id); } catch(e){}
+  if (typeof render === 'function') render();
+}
+
+function deleteUnifiedView(viewId) {
+  const views = getUnifiedViews().filter(v => v.id !== viewId);
+  _saveUnifiedViews(views);
+  // Se a view deletada era a ativa, limpa
+  try {
+    if (localStorage.getItem(UV_LAST_KEY) === viewId) localStorage.removeItem(UV_LAST_KEY);
+  } catch(e){}
+  if (typeof render === 'function') render();
+}
+
+function getCurrentViewId() {
+  try { return localStorage.getItem(UV_LAST_KEY); } catch(e) { return null; }
+}
+
+// Detecta se a view atual está "modificada" em relação à salva
+function _viewIsDirty() {
+  const id = getCurrentViewId();
+  if (!id) return false;
+  const v = getUnifiedViews().find(x => x.id === id);
+  if (!v) return false;
+  const cur = _captureCurrentUnifiedView();
+  // Simple JSON compare, ignorando ordem do array de boards
+  const norm = o => ({ ...o, boards: o.boards ? [...o.boards].sort() : null });
+  return JSON.stringify(norm(cur)) !== JSON.stringify(norm(v.filters));
+}
+
+// UI: dropdown de views
+function _renderUnifiedViewsBar() {
+  if (!isUnifiedMode()) return '';
+  const views = getUnifiedViews();
+  const curId = getCurrentViewId();
+  const cur = views.find(v => v.id === curId);
+  const isDirty = _viewIsDirty();
+  return `
+    <span class="unified-views-bar" id="uv-bar">
+      <span class="uv-chip${cur?' is-active':''}${isDirty?' uv-chip-edited':''}" onclick="toggleUVPopover()" title="${cur?'View atual: '+_esc(cur.name)+(isDirty?' (modificada)':''):'Selecionar uma view salva'}">
+        <span class="uv-chip-icon">▤</span>
+        <span>${cur ? _esc(cur.name) + (isDirty ? ' • editada' : '') : 'Padrão'}</span>
+        <span class="uv-chip-arrow">▾</span>
+      </span>
+      <div class="uv-popover" id="uv-popover">
+        ${views.length ? `<div class="uv-section">Suas views</div>` : ''}
+        ${views.length ? views.map(v => `
+          <div class="uv-item${v.id===curId?' is-active':''}" onclick="applyUnifiedView('${v.id}')">
+            <span class="uv-item-icon">${v.id===curId?'✓':'▤'}</span>
+            <span class="uv-item-name">${_esc(v.name)}</span>
+            <span class="uv-item-actions" onclick="event.stopPropagation();">
+              <button class="uv-item-act" onclick="renameUnifiedViewPrompt('${v.id}')" title="Renomear">✎</button>
+              <button class="uv-item-act" onclick="if(confirm('Excluir view \\'${_esc(v.name).replace(/'/g,"\\'")}\\'?'))deleteUnifiedView('${v.id}')" title="Excluir">✕</button>
+            </span>
+          </div>
+        `).join('') : '<div class="uv-empty">Nenhuma view salva ainda.</div>'}
+        <div class="uv-divider"></div>
+        ${cur && isDirty ? `<div class="uv-action primary" onclick="saveUnifiedView('${_esc(cur.name).replace(/'/g,"\\'")}',{id:'${cur.id}'});closeUVPopover();">
+          <span class="uv-action-icon">↻</span>
+          <span>Atualizar "${_esc(cur.name)}"</span>
+        </div>` : ''}
+        <div class="uv-action primary" onclick="openSaveUVModal()">
+          <span class="uv-action-icon">+</span>
+          <span>Salvar view atual…</span>
+        </div>
+        ${cur ? `<div class="uv-action" onclick="resetToDefault()">
+          <span class="uv-action-icon">⟲</span>
+          <span>Limpar filtros (padrão)</span>
+        </div>` : ''}
+      </div>
+    </span>
+  `;
+}
+
+function toggleUVPopover() {
+  const pop = document.getElementById('uv-popover'); if (!pop) return;
+  pop.classList.toggle('is-open');
+  if (pop.classList.contains('is-open')) {
+    setTimeout(() => {
+      const close = (e) => {
+        if (!pop.contains(e.target) && !e.target.closest('.uv-chip')) {
+          pop.classList.remove('is-open');
+          document.removeEventListener('mousedown', close);
+        }
+      };
+      document.addEventListener('mousedown', close);
+    }, 50);
+  }
+}
+function closeUVPopover() {
+  const pop = document.getElementById('uv-popover'); if (pop) pop.classList.remove('is-open');
+}
+
+function openSaveUVModal(prefillName) {
+  let ov = document.getElementById('uv-save-modal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'uv-save-modal';
+    ov.className = 'uv-save-modal';
+    ov.innerHTML = `
+      <div class="uv-save-card">
+        <div class="uv-save-h">Salvar view atual</div>
+        <input id="uv-save-input" class="uv-save-input" type="text" placeholder="Nome da view (ex: 'Minhas tarefas urgentes')" maxlength="60" />
+        <div class="uv-save-actions">
+          <button class="voice-btn voice-btn-ghost" onclick="closeSaveUVModal()">Cancelar</button>
+          <button class="voice-btn voice-btn-primary" onclick="confirmSaveUV()">Salvar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(ov);
+    document.getElementById('uv-save-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') confirmSaveUV();
+      if (e.key === 'Escape') closeSaveUVModal();
+    });
+  }
+  const input = document.getElementById('uv-save-input');
+  if (input) { input.value = prefillName || ''; }
+  ov.classList.add('is-open');
+  closeUVPopover();
+  setTimeout(() => { if (input) input.focus(); }, 50);
+}
+function closeSaveUVModal() {
+  const ov = document.getElementById('uv-save-modal'); if (ov) ov.classList.remove('is-open');
+}
+function confirmSaveUV() {
+  const input = document.getElementById('uv-save-input');
+  const name = (input ? input.value : '').trim();
+  if (!name) return;
+  saveUnifiedView(name);
+  closeSaveUVModal();
+}
+
+function renameUnifiedViewPrompt(viewId) {
+  const v = getUnifiedViews().find(x => x.id === viewId);
+  if (!v) return;
+  const newName = prompt('Novo nome:', v.name);
+  if (!newName) return;
+  v.name = newName.trim().slice(0, 60);
+  _saveUnifiedViews(getUnifiedViews().map(x => x.id === viewId ? v : x));
+  if (typeof render === 'function') render();
+}
+
+function resetToDefault() {
+  if (typeof activeBoardFilter !== 'undefined') activeBoardFilter = new Set();
+  if (typeof activeFilter    !== 'undefined') activeFilter    = null;
+  if (typeof activePriFilter !== 'undefined') activePriFilter = null;
+  if (typeof activeDateFilter!== 'undefined') activeDateFilter= null;
+  if (typeof dateFrom !== 'undefined') dateFrom = null;
+  if (typeof dateTo   !== 'undefined') dateTo   = null;
+  try { localStorage.removeItem(FOCUS_ENERGY_KEY); } catch(e){}
+  try { localStorage.removeItem(UV_LAST_KEY); } catch(e){}
+  if (typeof render === 'function') render();
+  closeUVPopover();
 }
 
 // ── Focus Mode (Gestão de Energia) ─────────────────────────────
@@ -10846,7 +11149,10 @@ function _renderEnergyToolbar() {
   const wrap = document.createElement('div');
   wrap.className = 'energy-toolbar-wrap';
   wrap.style.cssText = 'display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px;position:relative;';
+  // Inclui o dropdown de Views salvas se for Unified Board
+  const viewsBarHTML = (typeof _renderUnifiedViewsBar === 'function') ? _renderUnifiedViewsBar() : '';
   wrap.innerHTML = `
+    ${viewsBarHTML}
     <span class="energy-bar${isActive?' is-active':''}" onclick="toggleEnergyPopover()" id="energy-bar"
           title="Modo Foco · ${isActive ? 'mostre só tarefas que cabem na sua energia hoje' : 'desligado — mostrando tudo'}">
       <span class="energy-icon">${cur ? cur.emoji : '⚡'}</span>
