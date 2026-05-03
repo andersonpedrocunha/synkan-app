@@ -10315,6 +10315,12 @@ function renderSettings() {
 function setSettingsTab(t) {
   _settingsTab = t;
   renderSettings();
+  // Quando entra na aba Sincronização, carrega tokens de calendário (assíncrono)
+  if (t === 'sync' && typeof _calLoadTokens === 'function') {
+    _calLoadTokens().then(() => {
+      if (_settingsTab === 'sync') renderSettings();
+    });
+  }
 }
 
 // ── Empresa / Marca do usuário (aparece nos relatórios) ──────────
@@ -10992,19 +10998,183 @@ function _settingsWebhooksSection() {
 
 function _settingsCalendarSection() {
   const total = _allCardsAcrossBoards().filter(c => c.deadline).length;
+  const tokens = (typeof _calendarTokens !== 'undefined' && Array.isArray(_calendarTokens)) ? _calendarTokens : [];
+  const activeTokens = tokens.filter(t => !t.revoked_at);
+  const tokensListHTML = activeTokens.length === 0
+    ? `<div class="settings-card-sub" style="margin-top:10px;font-style:italic;color:var(--color-text-tertiary);">Nenhuma URL de calendário ainda. Crie uma pra Google Calendar e Outlook se atualizarem sozinhos.</div>`
+    : activeTokens.map(t => {
+        const url = `${KANBAN_SYNC_BASE}/calendar/sub/${encodeURIComponent(t.token)}.ics`;
+        const webcalUrl = url.replace(/^https?:\/\//, 'webcal://');
+        const googleAdd = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`;
+        const boardCount = Array.isArray(t.board_ids) ? t.board_ids.length : 0;
+        const boardLabel = boardCount === 0
+          ? 'Todos os boards'
+          : (boardCount === 1
+              ? (allBoards[t.board_ids[0]]?.name || '1 board')
+              : `${boardCount} boards`);
+        return `
+          <div style="border:1px solid var(--color-border-secondary);border-radius:10px;padding:12px;margin-top:10px;background:var(--color-background-primary);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+              <strong style="font-size:13px;">${_esc(t.name||'Calendário')}</strong>
+              <span style="font-size:11px;color:var(--color-text-tertiary);">${_esc(boardLabel)}${t.include_completed?' · inclui concluídos':''}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+              <input type="text" value="${_esc(url)}" readonly onclick="this.select()" style="flex:1;font-size:11.5px;font-family:monospace;padding:6px 8px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);"/>
+              <button class="btn-c" style="padding:6px 10px;font-size:11px;" onclick="_calCopyUrl(this,'${_esc(url)}')">Copiar</button>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <a class="btn-c" style="padding:6px 10px;font-size:11px;text-decoration:none;display:inline-block;" href="${_esc(googleAdd)}" target="_blank" rel="noopener">📅 Abrir no Google</a>
+              <a class="btn-c" style="padding:6px 10px;font-size:11px;text-decoration:none;display:inline-block;" href="${_esc(webcalUrl)}">🍎 Apple/Outlook</a>
+              <button class="btn-c" style="padding:6px 10px;font-size:11px;color:var(--color-error);border-color:var(--color-error);" onclick="_calRevokeToken('${_esc(t.id)}')">Revogar</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
   return `
     <div class="settings-card">
       <div class="settings-card-h">
-        <span class="settings-card-title">Sincronizar com Google Calendar / Outlook (.ics)</span>
+        <span class="settings-card-title">Sincronizar com Google Calendar / Outlook</span>
         <span class="settings-status-pill ${total?'on':'off'}">${total} card${total===1?'':'s'} com deadline</span>
       </div>
-      <div class="settings-card-sub">Exporta todos os deadlines como um arquivo iCalendar (<code>.ics</code>) que você pode importar no Google Calendar, Outlook, Apple Calendar ou qualquer ferramenta compatível. Cada card vira um evento de dia inteiro com Board e prioridade na descrição.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-c" onclick="exportCalendarICS()">Baixar .ics</button>
+      <div class="settings-card-sub">Crie uma URL de calendário com os boards que você escolher. Cole essa URL no Google Calendar (Adicionar calendário → A partir de URL) ou no Outlook (Inscrever-se em um calendário) — eles atualizam sozinhos a cada poucas horas. Cada card com deadline vira um evento de dia inteiro.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
+        <button class="btn-c" style="background:#111;color:#fff;border-color:#111;" onclick="_calOpenCreateModal()">+ Nova URL de calendário</button>
+        <button class="btn-c" onclick="exportCalendarICS()" title="Alternativa antiga: baixa o arquivo .ics estático.">Baixar .ics (avulso)</button>
       </div>
-      <div class="settings-card-sub" style="font-size:12px;margin-top:6px;">No Google Calendar: <em>Configurações → Importar e exportar → Importar</em> e selecione o arquivo. No Outlook: <em>Arquivo → Abrir e Exportar → Importar/Exportar</em>.</div>
+      ${tokensListHTML}
     </div>
   `;
+}
+
+// ── Calendar tokens (webcal subscription) ────────────────────────────
+let _calendarTokens = [];
+async function _calLoadTokens() {
+  if (typeof supaUser === 'undefined' || !supaUser) { _calendarTokens = []; return; }
+  try {
+    const rows = await _capRESTCall(
+      `calendar_tokens?user_id=eq.${encodeURIComponent(supaUser.id)}&order=created_at.desc&select=*`,
+      { timeoutMs: 6000 }
+    );
+    _calendarTokens = Array.isArray(rows) ? rows : [];
+  } catch(e) {
+    console.warn('[calendar] não consegui carregar tokens:', e?.message || e);
+    _calendarTokens = [];
+  }
+}
+
+function _calRandomToken(len = 28) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const arr = new Uint8Array(len);
+  (window.crypto || {}).getRandomValues?.(arr);
+  let out = '';
+  for (let i = 0; i < len; i++) out += chars[(arr[i] || Math.floor(Math.random()*256)) % chars.length];
+  return out;
+}
+
+function _calOpenCreateModal() {
+  if (typeof supaUser === 'undefined' || !supaUser) {
+    appAlert('Login necessário', 'Você precisa estar logado pra criar URLs de calendário.', { icon:'⚠️' });
+    return;
+  }
+  const realBoards = Object.entries(allBoards||{})
+    .filter(([id,b]) => id !== (typeof UNIFIED_BOARD_ID !== 'undefined' ? UNIFIED_BOARD_ID : '__unified__'))
+    .map(([id,b]) => ({ id, name: b.name || '(sem nome)' }));
+  if (realBoards.length === 0) {
+    appAlert('Nenhum board disponível', 'Crie pelo menos um board antes de gerar uma URL de calendário.', { icon:'⚠️' });
+    return;
+  }
+  const boardChecksHTML = realBoards.map(b => `
+    <label style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--color-border-secondary);border-radius:8px;cursor:pointer;background:var(--color-background-primary);">
+      <input type="checkbox" class="cal-board-check" value="${_esc(b.id)}" checked />
+      <span>${_esc(b.name)}</span>
+    </label>
+  `).join('');
+  const html = `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Nome da URL</label>
+        <input id="cal-new-name" type="text" placeholder="Ex: Calendário Trabalho" value="Calendário Synkan" style="width:100%;padding:9px 11px;border:1px solid var(--color-border-secondary);border-radius:8px;background:var(--color-background-primary);color:var(--color-text-primary);font-size:14px;" />
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Boards inclusos (deselect = não vão pro calendário)</label>
+        <div style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;">${boardChecksHTML}</div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+        <input id="cal-new-include-done" type="checkbox" />
+        Incluir cards já concluídos no calendário
+      </label>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+        <button class="btn-c" onclick="_appModalClose && _appModalClose()">Cancelar</button>
+        <button class="btn-c" style="background:#111;color:#fff;border-color:#111;" onclick="_calCreateToken()">Criar URL</button>
+      </div>
+    </div>
+  `;
+  if (typeof appModal === 'function') {
+    appModal('Nova URL de calendário', html, { size:'md' });
+  } else {
+    // Fallback: window.alert simples
+    alert('UI de modal indisponível.');
+  }
+}
+
+async function _calCreateToken() {
+  const nameInput = document.getElementById('cal-new-name');
+  const incInput = document.getElementById('cal-new-include-done');
+  const checks = Array.from(document.querySelectorAll('.cal-board-check'));
+  const name = (nameInput?.value || 'Calendário Synkan').trim() || 'Calendário Synkan';
+  const board_ids = checks.filter(c => c.checked).map(c => c.value);
+  const include_completed = !!incInput?.checked;
+  if (board_ids.length === 0) {
+    appAlert('Escolha ao menos um board', 'Selecione os boards que vão aparecer no calendário.', { icon:'⚠️' });
+    return;
+  }
+  const token = _calRandomToken(28);
+  try {
+    await _capRESTCall('calendar_tokens', {
+      method: 'POST',
+      body: { user_id: supaUser.id, token, name, board_ids, include_completed },
+      headers: { 'Prefer': 'return=minimal' },
+      timeoutMs: 6000,
+    });
+    if (typeof _appModalClose === 'function') _appModalClose();
+    await _calLoadTokens();
+    if (typeof renderSettings === 'function') renderSettings();
+    showToastMsg('URL de calendário criada · cole no Google ou Outlook');
+  } catch(e) {
+    appAlert('Não consegui criar a URL', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
+}
+
+async function _calRevokeToken(tokenId) {
+  const ok = await appConfirm('Revogar URL de calendário?',
+    'O Google/Outlook que usam essa URL vão perder os deadlines na próxima atualização. Você pode criar uma nova URL depois.',
+    { danger:true, okLabel:'Revogar' });
+  if (!ok) return;
+  try {
+    await _capRESTCall(`calendar_tokens?id=eq.${encodeURIComponent(tokenId)}`, {
+      method: 'PATCH',
+      body: { revoked_at: new Date().toISOString() },
+      headers: { 'Prefer': 'return=minimal' },
+      timeoutMs: 6000,
+    });
+    await _calLoadTokens();
+    if (typeof renderSettings === 'function') renderSettings();
+    showToastMsg('URL revogada');
+  } catch(e) {
+    appAlert('Não consegui revogar', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
+}
+
+function _calCopyUrl(btn, url) {
+  try {
+    navigator.clipboard.writeText(url);
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓ Copiado';
+    setTimeout(() => { btn.innerHTML = orig; }, 1800);
+  } catch(e) {
+    appAlert('Não consegui copiar', 'Selecione manualmente o texto e copie.', { icon:'⚠️' });
+  }
 }
 
 function _settingsEmailToCardSection() {
