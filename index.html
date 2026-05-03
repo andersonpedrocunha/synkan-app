@@ -1336,6 +1336,53 @@ body.density-compact .card-cf-row{font-size:10px;}
 :root.dark .modal-effort-emoji{color:#F8F2E4;}
 .modal-effort-btn.is-active .modal-effort-emoji{color:#3C3489;}
 
+/* ── Campo Assinatura (signature) ─────────────────────────────── */
+.sig-display{
+  background:linear-gradient(135deg, #FBF7EE 0%, #F8F2E4 100%);
+  border:1px solid #C9B380;border-radius:10px;padding:12px 14px;
+  font-family:var(--font-sans);
+  position:relative;overflow:hidden;
+}
+:root.dark .sig-display{background:linear-gradient(135deg, #1F1A14 0%, #1A1612 100%);border-color:#5A4F3A;}
+.sig-display::before{
+  content:'印';position:absolute;right:6px;bottom:-14px;
+  font-size:60px;color:#BC002D;opacity:.10;font-family:'Hiragino Mincho ProN',serif;
+  pointer-events:none;line-height:1;
+}
+.sig-line{font-size:14px;color:#1A1612;display:flex;align-items:center;gap:6px;}
+:root.dark .sig-line{color:#F8F2E4;}
+.sig-check{color:#3B6D11;font-weight:700;font-size:16px;}
+.sig-meta{color:#6B5B43;font-size:12px;font-weight:400;}
+:root.dark .sig-meta{color:#A99876;}
+.sig-hash{font-size:11px;color:#6B5B43;margin-top:6px;font-family:monospace;}
+:root.dark .sig-hash{color:#A99876;}
+.sig-hash code{background:rgba(0,0,0,.05);padding:1px 5px;border-radius:3px;font-size:10.5px;}
+:root.dark .sig-hash code{background:rgba(255,255,255,.05);}
+.sig-verify{font-size:11.5px;margin-top:6px;}
+.sig-valid{color:#3B6D11;font-weight:500;}
+.sig-invalid{color:#A32D2D;font-weight:600;animation:sigBlink 2s ease-in-out infinite;}
+@keyframes sigBlink{0%,100%{opacity:1;}50%{opacity:.6;}}
+.sig-revoke{
+  background:transparent;border:1px solid rgba(163,45,45,.3);color:#A32D2D;
+  font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;
+  margin-top:8px;font-family:var(--font-sans);transition:background .12s;
+}
+.sig-revoke:hover{background:rgba(163,45,45,.08);}
+
+.sig-empty{
+  background:rgba(60,52,137,.04);border:1px dashed rgba(60,52,137,.25);
+  border-radius:10px;padding:14px;text-align:center;font-family:var(--font-sans);
+}
+.sig-sign-btn{
+  background:linear-gradient(135deg,#1A1612,#2A241D);color:#F8F2E4;
+  border:none;font-family:'Hiragino Mincho ProN','Yu Mincho',Georgia,serif;
+  font-size:14px;padding:10px 22px;border-radius:8px;cursor:pointer;
+  letter-spacing:.04em;transition:transform .12s,filter .12s;
+}
+.sig-sign-btn:hover{transform:translateY(-1px);filter:brightness(1.10);}
+.sig-hint{font-size:11.5px;color:#6B5B43;margin-top:8px;}
+:root.dark .sig-hint{color:#A99876;}
+
 /* ── Smart Dependencies: banner de atraso em cascata ──────────── */
 .cascade-banner{
   background:linear-gradient(90deg, #FCEBEB 0%, #FBE5DA 100%);
@@ -4466,11 +4513,12 @@ function showToast() {
 
 // Defaults para um board novo
 const FIELD_TYPES = [
-  {id:'text',     label:'Texto'},
-  {id:'number',   label:'Número'},
-  {id:'currency', label:'Moeda (R$)'},
-  {id:'date',     label:'Data'},
-  {id:'select',   label:'Seleção'},
+  {id:'text',      label:'Texto'},
+  {id:'number',    label:'Número'},
+  {id:'currency',  label:'Moeda (R$)'},
+  {id:'date',      label:'Data'},
+  {id:'select',    label:'Seleção'},
+  {id:'signature', label:'Assinatura (hash)'},
 ];
 
 function _genFieldId() { return 'cf_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
@@ -7099,6 +7147,90 @@ const KANBAN_TEMPLATES = [
       {name:'Pedido de export Excel',   priority:'media', col:'triagem',  tagIds:[2,5],   cfv:{cf_ticket:'#1041', cf_cliente:'Gamma Inc',cf_severidade:'P2 — Médio',  cf_canal:'Form'}},
       {name:'Senha não chega',          priority:'alta',  col:'aguardando',tagIds:[0,5],  cfv:{cf_ticket:'#1040', cf_cliente:'Delta SA', cf_severidade:'P1 — Alto',   cf_canal:'Email'}},
       {name:'Bug visual no mobile',     priority:'media', col:'done',     tagIds:[0,5],   doneDaysAgo:2, cfv:{cf_ticket:'#1038', cf_cliente:'Epsilon',  cf_severidade:'P2 — Médio',  cf_canal:'Email'}},
+    ],
+  },
+  // ── Despesas de Viagem (estilo VExpenses) ─────────────────────
+  {
+    id: 'despesas-viagem',
+    name: 'Despesas de Viagem',
+    icon: '✈️',
+    accent: '#EEF4FB',
+    accentText: '#0C447C',
+    category: 'Financeiro',
+    description: 'Acompanhe relatórios de despesa de viagens (estilo VExpenses). Cada card é uma despesa: hospedagem, transporte, alimentação. Workflow: lançada → aguardando aprovação → aprovada (com assinatura do gestor) → reembolsada. Aprovação requer assinatura imutável com hash.',
+    columns: [
+      {id:'lancada',    title:'Lançada'},
+      {id:'aguardando', title:'Aguardando aprovação', wipLimit:8},
+      {id:'aprovada',   title:'Aprovada'},
+      {id:'reembolsada',title:'Reembolsada'},
+      {id:'recusada',   title:'Recusada'},
+      {id:'done',       title:'Encerrada'},
+    ],
+    tags: [
+      {text:'Hospedagem', colorIdx:0},
+      {text:'Transporte', colorIdx:2},
+      {text:'Alimentação',colorIdx:3},
+      {text:'Cliente',    colorIdx:1},
+      {text:'Treinamento',colorIdx:4},
+    ],
+    customFields: [
+      {id:'cf_valor',      label:'Valor',              type:'currency',  showOnCard:true},
+      {id:'cf_data_gasto', label:'Data do gasto',      type:'date',      showOnCard:false},
+      {id:'cf_solicitante',label:'Solicitante',        type:'text',      showOnCard:false},
+      {id:'cf_categoria',  label:'Categoria',          type:'select',    options:['Hospedagem','Aérea','Táxi/App','Combustível','Refeição','Material','Outros'], showOnCard:false},
+      {id:'cf_projeto',    label:'Projeto/Cliente',    type:'text',      showOnCard:false},
+      {id:'cf_recibo',     label:'Nº do recibo/NF',    type:'text',      showOnCard:false},
+      {id:'cf_assinatura', label:'Assinatura do gestor (aprovação)', type:'signature', showOnCard:false},
+    ],
+    cards: [
+      {name:'Hotel · São Paulo (3 diárias)',   priority:'media', col:'lancada',     tagIds:[0,3], deadlineDays:5,  cfv:{cf_valor:1450, cf_data_gasto:'2026-04-28', cf_solicitante:'Anderson Cunha', cf_categoria:'Hospedagem', cf_projeto:'Cliente A', cf_recibo:'NF-2218'}},
+      {name:'Passagem aérea SP→RJ',             priority:'alta',  col:'aguardando',  tagIds:[1],   deadlineDays:2,  cfv:{cf_valor:890,  cf_data_gasto:'2026-04-29', cf_solicitante:'Liz',            cf_categoria:'Aérea',      cf_projeto:'Cliente B', cf_recibo:'BIL-9981'}},
+      {name:'Refeições · 5 dias',                priority:'baixa', col:'aguardando',  tagIds:[2],   deadlineDays:3,  cfv:{cf_valor:620,  cf_data_gasto:'2026-04-25', cf_solicitante:'Rafael Caceres', cf_categoria:'Refeição',   cf_projeto:'Cliente A', cf_recibo:''}},
+      {name:'Uber 4 corridas · cliente C',       priority:'baixa', col:'aprovada',    tagIds:[1,3], deadlineDays:8,  cfv:{cf_valor:185,  cf_data_gasto:'2026-04-22', cf_solicitante:'Tainá Dutra',    cf_categoria:'Táxi/App',   cf_projeto:'Cliente C', cf_recibo:'UB-7733'}},
+      {name:'Material de treinamento',           priority:'media', col:'reembolsada', tagIds:[4],   doneDaysAgo:6,   cfv:{cf_valor:340,  cf_data_gasto:'2026-04-15', cf_solicitante:'Anderson Cunha', cf_categoria:'Material',   cf_projeto:'Treinamento Q2', cf_recibo:'NF-2189'}},
+      {name:'Combustível · viagem cliente D',    priority:'baixa', col:'recusada',    tagIds:[1],   cfv:{cf_valor:280,  cf_data_gasto:'2026-04-18', cf_solicitante:'Liz',            cf_categoria:'Combustível',cf_projeto:'Cliente D', cf_recibo:''}},
+    ],
+  },
+  // ── Controle de Orçamento ─────────────────────────────────────
+  {
+    id: 'orcamento',
+    name: 'Controle de Orçamento',
+    icon: '📑',
+    accent: '#EEEDFE',
+    accentText: '#3C3489',
+    category: 'Financeiro',
+    description: 'Pipeline de propostas e orçamentos: rascunho → enviado → em negociação → aprovado (com assinatura do cliente/gestor) → contratado. Aprovação requer assinatura imutável com hash. Ideal pra vendas B2B, consultorias, agências.',
+    columns: [
+      {id:'rascunho',    title:'Rascunho'},
+      {id:'enviado',     title:'Enviado ao cliente', wipLimit:10},
+      {id:'negociacao',  title:'Em negociação',      wipLimit:6},
+      {id:'aprovado',    title:'Aprovado'},
+      {id:'contratado',  title:'Contratado'},
+      {id:'done',        title:'Encerrado'},
+    ],
+    tags: [
+      {text:'Consultoria',  colorIdx:0},
+      {text:'Mensalidade',  colorIdx:1},
+      {text:'Projeto',      colorIdx:2},
+      {text:'Pacote',       colorIdx:3},
+      {text:'Renovação',    colorIdx:4},
+    ],
+    customFields: [
+      {id:'cf_valor',         label:'Valor total',           type:'currency', showOnCard:true},
+      {id:'cf_validade',      label:'Validade da proposta',  type:'date',     showOnCard:false},
+      {id:'cf_cliente',       label:'Cliente',                type:'text',     showOnCard:true},
+      {id:'cf_responsavel',   label:'Responsável comercial', type:'text',     showOnCard:false},
+      {id:'cf_forma',         label:'Forma de pagamento',    type:'select',   options:['À vista','Parcelado','Mensal','Por entrega'], showOnCard:false},
+      {id:'cf_proposta',      label:'Nº da proposta',         type:'text',     showOnCard:false},
+      {id:'cf_assinatura_gst',label:'Assinatura do gestor',  type:'signature',showOnCard:false},
+      {id:'cf_assinatura_cli',label:'Assinatura do cliente', type:'signature',showOnCard:false},
+    ],
+    cards: [
+      {name:'Implementação Synkan · Cliente A',  priority:'alta',  col:'enviado',    tagIds:[2,3], deadlineDays:7,  cfv:{cf_valor:48000, cf_cliente:'Cliente A',     cf_responsavel:'Anderson Cunha', cf_forma:'Parcelado',   cf_validade:'2026-05-15', cf_proposta:'PROP-2026-018'}},
+      {name:'Consultoria mensal · Cliente B',    priority:'media', col:'negociacao', tagIds:[0,1], deadlineDays:10, cfv:{cf_valor:8500,  cf_cliente:'Cliente B',     cf_responsavel:'Liz',            cf_forma:'Mensal',     cf_validade:'2026-05-22', cf_proposta:'PROP-2026-021'}},
+      {name:'Treinamento equipe · Cliente C',    priority:'media', col:'rascunho',   tagIds:[0],   cfv:{cf_valor:12500, cf_cliente:'Cliente C',     cf_responsavel:'Rafael Caceres', cf_forma:'À vista',    cf_validade:'2026-06-01', cf_proposta:'PROP-2026-022'}},
+      {name:'Pacote anual de suporte',            priority:'alta',  col:'aprovado',   tagIds:[3,4], deadlineDays:3,  cfv:{cf_valor:36000, cf_cliente:'Cliente D Ltda',cf_responsavel:'Anderson Cunha', cf_forma:'Mensal',     cf_validade:'2026-05-10', cf_proposta:'PROP-2026-015'}},
+      {name:'Renovação contrato · Cliente E',    priority:'media', col:'contratado', tagIds:[4],   doneDaysAgo:5,   cfv:{cf_valor:24000, cf_cliente:'Cliente E',     cf_responsavel:'Tainá Dutra',    cf_forma:'Mensal',     cf_validade:'2026-04-30', cf_proposta:'PROP-2026-011'}},
     ],
   },
 ];
@@ -11586,6 +11718,10 @@ function fillCol(sel) {
 function renderModalCustomFields() {
   const panel = document.getElementById('modal-customfields'); if(!panel) return;
   if (!customFields.length) { panel.innerHTML = ''; return; }
+  // Pra campos signature, ler do card atual (não do cCustomValues), pois sig é
+  // committed na hora (não draft).
+  const editingCard = (typeof editId !== 'undefined' && editId)
+    ? cards.find(c => c.id === editId) : null;
   panel.innerHTML = customFields.map(f=>{
     const v = cCustomValues[f.id];
     let inp = '';
@@ -11599,12 +11735,51 @@ function renderModalCustomFields() {
       inp = `<input type="date" value="${_esc(v||'')}" oninput="setCCustomValue('${f.id}', this.value)" />`;
     } else if (f.type === 'number' || f.type === 'currency') {
       inp = `<input type="number" step="${f.type==='currency'?'0.01':'1'}" value="${_esc(v??'')}" oninput="setCCustomValue('${f.id}', this.value===''?null:Number(this.value))" />`;
+    } else if (f.type === 'signature') {
+      // Lê do card real (não do draft) — assinatura é committed na hora
+      const sigRaw = editingCard?.customFieldValues?.[f.id];
+      let sig = null;
+      if (sigRaw) {
+        try { sig = (typeof sigRaw === 'object') ? sigRaw : JSON.parse(sigRaw); } catch(e){}
+      }
+      if (sig && sig.by) {
+        const dt = sig.at ? new Date(sig.at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+        const shortHash = (sig.hash || '').slice(0, 12);
+        inp = `<div class="sig-display">
+          <div class="sig-line"><span class="sig-check">✓</span><strong>${_esc(sig.by)}</strong> <span class="sig-meta">· ${_esc(dt)}</span></div>
+          <div class="sig-hash" title="Hash SHA-256 da assinatura">hash: <code>${shortHash}…</code></div>
+          <div class="sig-verify" id="sig-verify-${f.id}">verificando…</div>
+          <button type="button" class="sig-revoke" onclick="_revokeCardSignature(${editingCard.id}, '${f.id}')">Revogar assinatura</button>
+        </div>`;
+      } else {
+        inp = `<div class="sig-empty">
+          <button type="button" class="sig-sign-btn" onclick="_signCardField(${editingCard ? editingCard.id : 'null'}, '${f.id}')">
+            ✍ Assinar agora
+          </button>
+          <div class="sig-hint">Assinatura imutável com SHA-256 do conteúdo do card neste momento. Mudanças posteriores invalidam o hash.</div>
+        </div>`;
+      }
     } else { // text
       inp = `<input type="text" value="${_esc(v||'')}" oninput="setCCustomValue('${f.id}', this.value)" />`;
     }
     const typeLabel = (FIELD_TYPES.find(t=>t.id===f.type)||{}).label || '';
     return `<div class="field"><label>${_esc(f.label)} <span class="lbl-hint">(${typeLabel})</span></label>${inp}</div>`;
   }).join('');
+  // Verificação assíncrona dos hashes de signature
+  if (editingCard) {
+    customFields.forEach(async f => {
+      if (f.type !== 'signature') return;
+      if (!editingCard.customFieldValues?.[f.id]) return;
+      const result = await _verifyCardSignature(editingCard, f.id);
+      const el = document.getElementById('sig-verify-' + f.id);
+      if (!el) return;
+      if (result.valid) {
+        el.innerHTML = '<span class="sig-valid">✓ Hash válido — card íntegro desde a assinatura</span>';
+      } else {
+        el.innerHTML = '<span class="sig-invalid">⚠ Hash inválido — card foi alterado após a assinatura</span>';
+      }
+    });
+  }
 }
 
 function setCCustomValue(fieldId, value) {
@@ -15121,7 +15296,109 @@ function _formatCFValue(field, value) {
   if (field.type === 'date') {
     try { return new Date(value+'T00:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}); } catch(e) { return String(value); }
   }
+  if (field.type === 'signature') {
+    // value vem como objeto serializado JSON pra signature: {by, at, hash}
+    let sig = null;
+    try { sig = (typeof value === 'object') ? value : JSON.parse(value); } catch(e){}
+    if (!sig || !sig.by) return '';
+    const dt = sig.at ? new Date(sig.at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '';
+    return `✓ ${sig.by}${dt?' · '+dt:''}`;
+  }
   return String(value);
+}
+
+// ── Assinatura (hash imutável) ─────────────────────────────────
+// Gera SHA-256 do conteúdo + assinante + timestamp pra criar
+// uma trilha de auditoria. Quando o card é editado depois da assinatura,
+// o hash não confere mais e mostramos "alterado após assinatura".
+
+async function _sha256Hex(str) {
+  // Web Crypto API (HTTPS only — em dev local pode falhar, fallback simples abaixo)
+  if (window.crypto && window.crypto.subtle) {
+    try {
+      const buf = new TextEncoder().encode(str);
+      const hashBuf = await window.crypto.subtle.digest('SHA-256', buf);
+      return [...new Uint8Array(hashBuf)].map(b => b.toString(16).padStart(2,'0')).join('');
+    } catch(e){}
+  }
+  // Fallback: hash simples (não-criptográfico — só pra dev)
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1>>>16), 2246822507);
+  h2 = Math.imul(h2 ^ (h2>>>13), 3266489909);
+  return (h1 >>> 0).toString(16).padStart(8,'0') + (h2 >>> 0).toString(16).padStart(8,'0');
+}
+
+// Conteúdo a ser hasheado: snapshot do card no momento da assinatura
+function _signatureCardSnapshot(card) {
+  if (!card) return '';
+  return JSON.stringify({
+    name: card.name || '',
+    priority: card.priority || '',
+    deadline: card.deadline || '',
+    responsavel: card.responsavel || '',
+    customFieldValues: { ...(card.customFieldValues||{}) },
+    subtasks: (card.subtasks || []).map(s => ({ text: s.text, done: !!s.done })),
+  });
+}
+
+async function _signCardField(cardId, fieldId) {
+  const c = cards.find(x => x.id === cardId);
+  if (!c) return;
+  const me = (typeof supaUser !== 'undefined' && supaUser && supaUser.user_metadata?.full_name)
+    ? supaUser.user_metadata.full_name
+    : (typeof team !== 'undefined' && team[0]) || 'Você';
+  const at = new Date().toISOString();
+  // Cria snapshot ANTES de gravar a assinatura (pra hash não incluir a própria assinatura)
+  const cv = { ...(c.customFieldValues || {}) };
+  delete cv[fieldId];
+  const snap = JSON.stringify({
+    name: c.name || '', priority: c.priority || '', deadline: c.deadline || '',
+    responsavel: c.responsavel || '', customFieldValues: cv,
+    subtasks: (c.subtasks || []).map(s => ({ text: s.text, done: !!s.done })),
+  });
+  const hash = await _sha256Hex(snap + '|' + me + '|' + at);
+  c.customFieldValues = c.customFieldValues || {};
+  c.customFieldValues[fieldId] = JSON.stringify({ by: me, at, hash, snap });
+  if (typeof autoThread === 'function') autoThread(c, `✍ Assinado por ${me}`);
+  saveData();
+  if (typeof renderModalCustomFields === 'function') renderModalCustomFields(cardId);
+  if (typeof render === 'function') render();
+}
+
+async function _revokeCardSignature(cardId, fieldId) {
+  if (!confirm('Revogar a assinatura? Isso apaga o hash atual.')) return;
+  const c = cards.find(x => x.id === cardId);
+  if (!c || !c.customFieldValues) return;
+  delete c.customFieldValues[fieldId];
+  if (typeof autoThread === 'function') autoThread(c, '✗ Assinatura revogada');
+  saveData();
+  if (typeof renderModalCustomFields === 'function') renderModalCustomFields(cardId);
+  if (typeof render === 'function') render();
+}
+
+// Verifica se o hash atual ainda confere — retorna {valid, sig}
+async function _verifyCardSignature(card, fieldId) {
+  if (!card || !card.customFieldValues) return { valid: false, sig: null };
+  const raw = card.customFieldValues[fieldId];
+  if (!raw) return { valid: false, sig: null };
+  let sig = null;
+  try { sig = (typeof raw === 'object') ? raw : JSON.parse(raw); } catch(e){ return { valid:false, sig:null }; }
+  if (!sig.snap || !sig.hash || !sig.by || !sig.at) return { valid:false, sig };
+  // Recalcula snapshot ATUAL e compara com o que foi assinado
+  const cv = { ...(card.customFieldValues || {}) };
+  delete cv[fieldId];
+  const currentSnap = JSON.stringify({
+    name: card.name || '', priority: card.priority || '', deadline: card.deadline || '',
+    responsavel: card.responsavel || '', customFieldValues: cv,
+    subtasks: (card.subtasks || []).map(s => ({ text: s.text, done: !!s.done })),
+  });
+  const recomputedHash = await _sha256Hex(currentSnap + '|' + sig.by + '|' + sig.at);
+  return { valid: recomputedHash === sig.hash, sig };
 }
 
 // — Equipe —
