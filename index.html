@@ -1680,6 +1680,111 @@ body.density-compact .card-cf-row{font-size:10px;}
 }
 .opcost-narrative p{margin:0;font-size:13px;line-height:1.55;color:var(--color-text-primary);font-style:italic;}
 
+/* Goal 1% · Modal de detalhes */
+.goal-detail-progress{
+  text-align:center;margin:8px 0 16px;
+  font-family:var(--font-sans);
+}
+.goal-detail-pct{
+  font-size:42px;font-weight:600;
+  color:#3D2E5A;line-height:1;
+  font-variant-numeric:tabular-nums;
+  font-family:'Hiragino Mincho ProN',serif;
+}
+.goal-detail-bar{
+  height:10px;border-radius:99px;
+  background:rgba(60,40,90,0.08);
+  overflow:hidden;
+  margin:14px 0 8px;
+}
+.goal-detail-bar-fill{
+  height:100%;border-radius:99px;
+  background:linear-gradient(90deg,#3D2E5A 0%,#5A4980 50%,#7B6BA8 100%);
+  transition:width .4s ease-out;
+  box-shadow:0 0 8px rgba(91,73,128,0.4);
+}
+.goal-detail-numbers{
+  display:flex;justify-content:space-between;
+  font-size:13px;color:var(--color-text-secondary);
+  font-variant-numeric:tabular-nums;
+}
+.goal-detail-numbers strong{color:var(--color-text-primary);font-weight:600;}
+.goal-detail-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  padding:14px;border-radius:9px;
+  background:rgba(60,40,90,0.05);
+  border:1px solid rgba(60,40,90,0.1);
+  font-family:var(--font-sans);
+  margin-bottom:14px;
+}
+.goal-detail-stat{text-align:center;}
+.goal-detail-stat-lbl{
+  display:block;font-size:10.5px;letter-spacing:0.15em;
+  text-transform:uppercase;color:var(--color-text-tertiary);
+  margin-bottom:4px;
+}
+.goal-detail-stat-val{
+  display:block;font-size:16px;font-weight:600;
+  color:var(--color-text-primary);
+  font-variant-numeric:tabular-nums;
+}
+.goal-contrib-section{
+  margin-top:8px;padding-top:14px;
+  border-top:1px solid var(--color-border-tertiary);
+  font-family:var(--font-sans);text-align:left;
+}
+.goal-contrib-h{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:11.5px;letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--color-text-tertiary);font-weight:600;
+  margin-bottom:10px;
+}
+.goal-contrib-add{
+  padding:6px 14px;border:1px solid #3D2E5A;
+  background:rgba(60,40,90,0.08);color:#3D2E5A;
+  border-radius:7px;font-size:12px;font-weight:600;letter-spacing:0.04em;
+  cursor:pointer;text-transform:none;
+  font-family:var(--font-sans);
+}
+.goal-contrib-add:hover{background:#3D2E5A;color:#fff;}
+.goal-contrib-list{
+  display:flex;flex-direction:column;gap:4px;
+  max-height:240px;overflow-y:auto;
+  margin:0 -4px;
+}
+.goal-contrib-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:7px;
+  background:var(--color-background-secondary);
+  border:1px solid var(--color-border-tertiary);
+}
+.goal-contrib-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.goal-contrib-amount{
+  font-size:14px;font-weight:600;color:var(--color-text-primary);
+  font-variant-numeric:tabular-nums;
+}
+.goal-contrib-note{
+  font-size:11.5px;color:var(--color-text-secondary);font-style:italic;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.goal-contrib-date{
+  font-size:11.5px;color:var(--color-text-tertiary);
+  letter-spacing:0.04em;flex-shrink:0;
+}
+.goal-contrib-rm{
+  width:24px;height:24px;border:none;background:transparent;
+  color:var(--color-text-tertiary);cursor:pointer;border-radius:5px;
+  font-size:12px;flex-shrink:0;
+}
+.goal-contrib-rm:hover{background:rgba(163,45,45,0.1);color:#A32D2D;}
+.goal-contrib-empty{
+  padding:20px;text-align:center;font-size:13px;
+  color:var(--color-text-secondary);
+  background:var(--color-background-secondary);
+  border:1px dashed var(--color-border-tertiary);
+  border-radius:8px;
+}
+
 /* Ícone inline do Mestre Kan (avatar circular pequeno com SVG do personagem) */
 .kan-icon-inline{
   display:inline-flex;align-items:center;justify-content:center;
@@ -25271,6 +25376,179 @@ async function deleteGoal1pctCanvas(id) {
   if (typeof renderZaiHub === 'function') renderZaiHub();
 }
 
+// ── Aportes manuais com histórico (controle vivo da meta 1%) ──────
+
+// Total atual = base inicial (goalCurrent quando criou) + soma dos aportes
+function _goal1pctComputeProgress(cv) {
+  if (!cv) return 0;
+  const base = Number(cv.goalCurrent) || 0;
+  const contribs = Array.isArray(cv.goalContributions) ? cv.goalContributions : [];
+  const sum = contribs.reduce((a, c) => a + (Number(c.amount) || 0), 0);
+  return base + sum;
+}
+
+// Recalcula prazo restante baseado no progresso atual + aporte mensal previsto
+function _goal1pctRemainingMonths(cv) {
+  if (!cv) return Infinity;
+  const current = _goal1pctComputeProgress(cv);
+  const target = Number(cv.goalTarget) || 0;
+  if (current >= target) return 0;
+  const monthly = Number(cv.goalMonthlyRequired) || 0;
+  if (monthly <= 0) return Infinity;
+  return _calcMonthsToReach(target, current, monthly, Number(cv.goalReturnPct) || 0);
+}
+
+// Mensagem motivacional do Mestre Kan baseada no % de progresso
+function _goal1pctKanMessage(cv) {
+  const target = Number(cv.goalTarget) || 0;
+  const current = _goal1pctComputeProgress(cv);
+  const pct = target > 0 ? (current / target) * 100 : 0;
+  if (pct === 0)        return 'Cada passo começa com um aporte. Registre o primeiro hoje.';
+  if (pct < 10)         return 'O começo é a parte mais difícil — e você já está nela. Continue.';
+  if (pct < 25)         return 'O hábito está nascendo. A constância vale mais que o tamanho de cada aporte.';
+  if (pct < 50)         return 'Você está a meio caminho do meio. A montanha já parece menor.';
+  if (pct < 75)         return 'Mais do que a metade. A meta agora é uma questão de tempo, não de dúvida.';
+  if (pct < 100)        return 'A linha de chegada está visível. Mantenha o ritmo, não acelere desnecessariamente.';
+  return 'Conquistado. Defina a próxima meta — o Kaizen não para.';
+}
+
+async function addGoal1pctContribution(canvasId) {
+  const cv = _canvases[canvasId]; if (!cv || cv.format !== 'goal-1pct') return;
+  const valStr = await appPrompt('Registrar aporte', {
+    icon: '+',
+    message: `Quanto você aportou na meta "${cv.name}"?`,
+    defaultValue: String(cv.goalMonthlyRequired ? Math.round(cv.goalMonthlyRequired) : ''),
+    placeholder: 'Valor em R$',
+    okLabel: 'Registrar',
+    type: 'number',
+  });
+  if (valStr === null) return;
+  const amount = Number(valStr);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    await appAlert('Valor inválido', 'Informe um valor maior que zero.', { icon:'⚠️' });
+    return;
+  }
+  const note = await appPrompt('Anotação (opcional)', {
+    icon: '✎',
+    message: 'Quer adicionar uma anotação sobre esse aporte? Ex: "Bônus", "13º", "Receita do cliente A".',
+    defaultValue: '',
+    placeholder: 'Anotação (opcional)',
+    okLabel: 'Salvar aporte',
+  });
+  // Se cancelar a nota, ainda registra (só sem nota)
+  cv.goalContributions = Array.isArray(cv.goalContributions) ? cv.goalContributions : [];
+  cv.goalContributions.unshift({
+    id: 'g1c_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+    amount,
+    date: new Date().toISOString(),
+    note: (note || '').trim() || null,
+  });
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  // Re-renderiza modal de detalhes + hub
+  if (typeof renderZaiHub === 'function') renderZaiHub();
+  openGoal1pctDetailsModal(canvasId);  // re-abre com dados atualizados
+}
+
+async function removeGoal1pctContribution(canvasId, contribId) {
+  const cv = _canvases[canvasId]; if (!cv) return;
+  const c = (cv.goalContributions || []).find(x => x.id === contribId);
+  if (!c) return;
+  const fmt = n => n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:2 });
+  const ok = await appConfirm('Remover aporte', `Apagar aporte de ${fmt(c.amount)} de ${new Date(c.date).toLocaleDateString('pt-BR')}?`, { danger:true, okLabel:'Remover' });
+  if (!ok) return;
+  cv.goalContributions = (cv.goalContributions || []).filter(x => x.id !== contribId);
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  if (typeof renderZaiHub === 'function') renderZaiHub();
+  openGoal1pctDetailsModal(canvasId);
+}
+
+function openGoal1pctDetailsModal(canvasId) {
+  const cv = _canvases[canvasId];
+  if (!cv || cv.format !== 'goal-1pct') return;
+  const fmt = n => n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 });
+  const fmtFull = n => n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:2 });
+
+  const target = Number(cv.goalTarget) || 0;
+  const current = _goal1pctComputeProgress(cv);
+  const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+  const remaining = Math.max(0, target - current);
+  const monthsLeft = _goal1pctRemainingMonths(cv);
+  const fmtMo = m => {
+    if (!Number.isFinite(m)) return '∞';
+    if (m === 0) return 'conquistado';
+    if (m < 1) return Math.round(m*30) + ' dias';
+    if (m < 12) return Math.round(m) + ' meses';
+    const y = Math.floor(m/12), rem = Math.round(m % 12);
+    return y + (y>1?' anos':' ano') + (rem>0 ? ' e ' + rem + ' meses' : '');
+  };
+
+  const contribs = (cv.goalContributions || []);
+  const contribsHTML = contribs.length ? contribs.map(c => `
+    <div class="goal-contrib-item">
+      <div class="goal-contrib-info">
+        <span class="goal-contrib-amount">${fmtFull(c.amount)}</span>
+        ${c.note ? `<span class="goal-contrib-note">${_esc(c.note)}</span>` : ''}
+      </div>
+      <span class="goal-contrib-date">${new Date(c.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'2-digit'})}</span>
+      <button class="goal-contrib-rm" onclick="removeGoal1pctContribution('${canvasId}','${c.id}')" title="Remover">✕</button>
+    </div>
+  `).join('') : `
+    <div class="goal-contrib-empty">
+      Nenhum aporte registrado ainda. Clica em <strong>+ Aporte</strong> pra começar.
+    </div>
+  `;
+
+  const message = _goal1pctKanMessage(cv);
+
+  _appDialogShow(`
+    <div class="app-dialog-icon" style="background:linear-gradient(135deg,#3D2E5A,#5A4980);color:#fff;">志</div>
+    <h3 class="app-dialog-title">${_esc(cv.name)}</h3>
+    <div class="goal-detail-progress">
+      <div class="goal-detail-pct">${pct.toFixed(1)}%</div>
+      <div class="goal-detail-bar">
+        <div class="goal-detail-bar-fill" style="width:${pct}%;"></div>
+      </div>
+      <div class="goal-detail-numbers">
+        <span><strong>${fmt(current)}</strong> de ${fmt(target)}</span>
+        <span style="opacity:.7;">faltam <strong>${fmt(remaining)}</strong></span>
+      </div>
+    </div>
+    <div class="goal-detail-stats">
+      <div class="goal-detail-stat">
+        <span class="goal-detail-stat-lbl">Aporte mensal</span>
+        <span class="goal-detail-stat-val">${fmt(cv.goalMonthlyRequired||0)}</span>
+      </div>
+      <div class="goal-detail-stat">
+        <span class="goal-detail-stat-lbl">Tempo restante</span>
+        <span class="goal-detail-stat-val">${fmtMo(monthsLeft)}</span>
+      </div>
+      <div class="goal-detail-stat">
+        <span class="goal-detail-stat-lbl">Aportes registrados</span>
+        <span class="goal-detail-stat-val">${contribs.length}</span>
+      </div>
+    </div>
+    <div class="opcost-narrative" style="margin:14px 0;">
+      <div class="opcost-narrative-h"><span class="kan-icon-inline">${_MESTRE_KAN_SVG}</span> Mestre Kan diz</div>
+      <p>${_esc(message)}</p>
+    </div>
+    <div class="goal-contrib-section">
+      <div class="goal-contrib-h">
+        <span>Histórico de aportes</span>
+        <button class="goal-contrib-add" onclick="addGoal1pctContribution('${canvasId}')">+ Aporte</button>
+      </div>
+      <div class="goal-contrib-list">${contribsHTML}</div>
+    </div>
+    <div class="app-dialog-actions">
+      <button class="app-dialog-btn" onclick="_appDialogClose(false)">Fechar</button>
+      <button class="app-dialog-btn is-primary" onclick="_appDialogClose(false);openGoal1pctModal('${canvasId}')">Editar parâmetros</button>
+    </div>
+  `, (card) => {
+    if (card) card.classList.add('is-wide');
+  });
+}
+
 function _renderGoal1pctListHTML() {
   const list = Object.values(_canvases || {}).filter(cv => cv.format === 'goal-1pct').sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
   if (!list.length) {
@@ -25291,11 +25569,11 @@ function _renderGoal1pctListHTML() {
     const pct = cv.goalCurrent && cv.goalTarget ? Math.min(100, (cv.goalCurrent / cv.goalTarget) * 100) : 0;
     const monthly = cv.goalMonthlyRequired || 0;
     return `
-      <div class="zai-hub-board-tile">
+      <div class="zai-hub-board-tile" onclick="openGoal1pctDetailsModal('${cv.id}')">
         <div class="zai-hub-board-tile-h">
           <span class="zai-hub-board-tile-icon" style="background:linear-gradient(135deg,#3D2E5A,#5A4980);">志</span>
           <span class="zai-hub-board-tile-name">${_esc(cv.name)}</span>
-          <button class="zai-hub-tile-edit" title="Editar" onclick="event.stopPropagation();openGoal1pctModal('${cv.id}')">✎</button>
+          <button class="zai-hub-tile-edit" title="Editar parâmetros" onclick="event.stopPropagation();openGoal1pctModal('${cv.id}')">✎</button>
           <button class="zai-hub-tile-edit" title="Excluir" onclick="event.stopPropagation();deleteGoal1pctCanvas('${cv.id}')" style="color:#A32D2D;">✕</button>
         </div>
         <div class="zai-hub-board-tile-runway">
