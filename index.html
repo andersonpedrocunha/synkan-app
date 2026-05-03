@@ -17467,8 +17467,8 @@ async function callClaudeAPI({ system, instruction, context, max_tokens, images 
     messageContent = userMsg;
   }
   try {
-    // Timeout de 3 segundos: depois disso, aborta e mostra erro
-    // (o Mestre Kan deve responder rápido — nada de meditação infinita)
+    // Timeout de 15s: dá folga pro Mestre Kan responder sem erro em uso normal.
+    // (Em rede/servidor saudável, a resposta volta em 1–4s.)
     const res = await fetch(KANBAN_SYNC_BASE + '/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -17477,7 +17477,7 @@ async function callClaudeAPI({ system, instruction, context, max_tokens, images 
         messages: [{ role: 'user', content: messageContent }],
         max_tokens: max_tokens || 1024,
       }),
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(15000),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -17490,7 +17490,7 @@ async function callClaudeAPI({ system, instruction, context, max_tokens, images 
     // Distingue timeout (AbortError) de erro de rede genérico
     const isTimeout = e?.name === 'TimeoutError' || e?.name === 'AbortError';
     if (isTimeout) {
-      return { error: 'O Mestre Kan demorou demais pra responder (>3s). Tente novamente.', timeout: true };
+      return { error: 'O Mestre Kan está demorando mais do que o normal. Tente novamente em alguns segundos.', timeout: true };
     }
     return { error: _isDevHost()
       ? 'Não consegui falar com o servidor local (' + KANBAN_SYNC_BASE + '). Confirme que o kanban_sync_server.py está rodando com ANTHROPIC_API_KEY exportada.'
@@ -17723,7 +17723,7 @@ async function _callAI(instruction) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(3000),  // Mestre Kan medita por máx 3s
+      signal: AbortSignal.timeout(15000),  // 15s — folga pro Mestre Kan responder sem dar erro
     });
     const data = await res.json();
     if (!res.ok) {
@@ -17748,7 +17748,7 @@ async function _callAI(instruction) {
     out.classList.add('error');
     const isTimeout = e?.name === 'TimeoutError' || e?.name === 'AbortError';
     if (isTimeout) {
-      out.textContent = 'O Mestre Kan demorou demais pra responder (>3s). Tente novamente.';
+      out.textContent = 'O Mestre Kan está demorando mais do que o normal. Tente novamente em alguns segundos.';
     } else {
       out.textContent = _isDevHost()
         ? 'Não consegui falar com o servidor local (' + KANBAN_SYNC_BASE + '). Em dev: kanban_sync_server.py precisa estar rodando.'
@@ -25638,6 +25638,23 @@ async function saveForm() {
       { icon:'⚠️' });
     return;
   }
+  // Garante que o board destino EXISTE no Supabase (FK forms_target_board_id_fkey).
+  // Se o board está só no localStorage (criado antes de logar / nunca sincronizado),
+  // o Postgres rejeita o save com 409 Conflict. Por isso fazemos upsert preventivo.
+  try {
+    const c = _ensureSupaClient && _ensureSupaClient();
+    if (c && f.target_board_id && allBoards[f.target_board_id]) {
+      const _b = allBoards[f.target_board_id];
+      const _row = (typeof _boardToRow === 'function') ? _boardToRow({ ..._b, id: f.target_board_id }) : null;
+      if (_row) {
+        if (!_row.owner_id) _row.owner_id = supaUser.id;
+        const { error: _bErr } = await c.from('boards').upsert(_row);
+        if (_bErr) console.warn('[saveForm] upsert do board destino falhou:', _bErr.message);
+      }
+    }
+  } catch(e) {
+    console.warn('[saveForm] não consegui garantir o board destino:', e?.message || e);
+  }
   const isEdit = _capEditingFormId !== '__new__' && _capEditingFormId;
   // ── Branding: copia logo + nome da empresa do dono pro form (renderizado
   //    no topo do formulário público, estilo PDF exportado).
@@ -25671,13 +25688,44 @@ async function saveForm() {
       });
     }
   } catch(e) {
-    alert('Erro ao salvar: ' + (e.message || e));
+    const friendly = _translateSupabaseError(e);
+    await appAlert('Não consegui salvar', friendly, { icon:'⚠️' });
     return;
   }
   closeRegistryModal();
   _capEditingForm = null; _capEditingFormId = null;
   await _capLoadAll();
   _renderCaptureBody();
+}
+
+// Converte mensagens crípticas do Postgres/Supabase em texto que faz sentido
+// pro usuário final. Cobre os erros mais comuns; cai pro raw em casos exóticos.
+function _translateSupabaseError(e) {
+  const raw = (e && (e.message || e.body?.message)) || String(e || '');
+  const status = e?.status || 0;
+  const msg = raw.toLowerCase();
+  if (status === 401 || msg.includes('jwt') || msg.includes('unauthorized')) {
+    return 'Sua sessão expirou. Clique em Sair na barra lateral, faça login novamente e tente outra vez.';
+  }
+  if (msg.includes('row-level security') || msg.includes('rls')) {
+    return 'Sua conta não tem permissão pra esta ação. Se acabou de criar este recurso, recarregue a página e tente novamente.';
+  }
+  if (msg.includes('forms_target_board_id_fkey') || (msg.includes('foreign key') && msg.includes('target_board_id'))) {
+    return 'O board destino selecionado ainda não foi sincronizado com o servidor. Abra o board pelo menu lateral, espere carregar (alguns segundos) e tente salvar o formulário de novo.';
+  }
+  if (msg.includes('foreign key')) {
+    return 'Um item referenciado por este formulário não existe mais no servidor. Recarregue a página e tente novamente.';
+  }
+  if (msg.includes('duplicate') || status === 409) {
+    return 'Já existe um item com esse identificador. Tente um nome diferente, ou recarregue a página.';
+  }
+  if (msg.includes('timeout') || msg.includes('aborted')) {
+    return 'A conexão com o servidor demorou muito. Verifique sua internet e tente de novo.';
+  }
+  if (msg.includes('failed to fetch') || msg.includes('network')) {
+    return 'Sem conexão com o servidor. Verifique sua internet e tente de novo.';
+  }
+  return 'Ocorreu um erro inesperado. Detalhe técnico: ' + raw;
 }
 
 async function deleteForm(formId) {
