@@ -4414,26 +4414,64 @@ body.density-compact .col{padding:7px;}
   100% { transform:translate3d(1000px, 112vh, 0) rotate(680deg) scale(1); opacity:0; }
 }
 
-/* Wind streaks — linhas horizontais sutis simulando rajada de vento */
-.dojo-wind-streak{
-  position:absolute;height:1.5px;
-  background:linear-gradient(90deg, transparent, rgba(255,220,160,0.35), transparent);
+/* Mist gusts — rajadas de névoa volumétrica atravessando (estilo Yotei).
+   Faixas amplas com gradient suave, blur pesado e parallax. Sensação de
+   "ar correndo" sem virar linha mecânica. */
+.dojo-wind-mist{
+  position:absolute;left:-40vw;
+  width:80vw;height:140px;
+  background:radial-gradient(ellipse 50% 100% at 50% 50%,
+    rgba(255,220,160,0.18) 0%,
+    rgba(255,200,130,0.10) 35%,
+    transparent 75%);
+  filter:blur(20px);
   pointer-events:none;
   will-change:transform,opacity;
+  opacity:0;
+  mix-blend-mode:screen;
 }
-.dojo-wind-streak.from-left{ animation:windStreakLeftRight linear forwards; }
-.dojo-wind-streak.from-right{ animation:windStreakRightLeft linear forwards; }
-@keyframes windStreakLeftRight{
-  0%   { transform:translateX(-30vw); opacity:0; }
-  10%  { opacity:.7; }
-  90%  { opacity:.7; }
-  100% { transform:translateX(130vw); opacity:0; }
+.dojo-wind-mist.from-left{  animation:mistDriftLR linear forwards; }
+.dojo-wind-mist.from-right{ animation:mistDriftRL linear forwards; }
+@keyframes mistDriftLR{
+  0%   { transform:translateX(0)     scaleY(1);    opacity:0; }
+  15%  { opacity:.85; }
+  50%  { transform:translateX(80vw)  scaleY(1.05); }
+  85%  { opacity:.85; }
+  100% { transform:translateX(160vw) scaleY(1);    opacity:0; }
 }
-@keyframes windStreakRightLeft{
-  0%   { transform:translateX(30vw); opacity:0; }
-  10%  { opacity:.7; }
-  90%  { opacity:.7; }
-  100% { transform:translateX(-130vw); opacity:0; }
+@keyframes mistDriftRL{
+  0%   { transform:translateX(0)     scaleY(1);    opacity:0; }
+  15%  { opacity:.85; }
+  50%  { transform:translateX(-80vw) scaleY(1.05); }
+  85%  { opacity:.85; }
+  100% { transform:translateX(-160vw) scaleY(1);   opacity:0; }
+}
+
+/* Dust particles — partículas minúsculas de poeira flutuando no ar */
+.dojo-wind-dust{
+  position:absolute;
+  width:3px;height:3px;border-radius:50%;
+  background:radial-gradient(circle, rgba(255,230,180,0.95) 0%, rgba(255,200,140,0) 70%);
+  pointer-events:none;
+  will-change:transform,opacity;
+  opacity:0;
+  filter:blur(0.5px);
+}
+.dojo-wind-dust.dust-lr{ animation:dustDriftLR linear forwards; }
+.dojo-wind-dust.dust-rl{ animation:dustDriftRL linear forwards; }
+@keyframes dustDriftLR{
+  0%   { transform:translate3d(0,0,0)              scale(1);   opacity:0; }
+  10%  { opacity:.9; }
+  50%  { transform:translate3d(45vw,-12px,0)       scale(1.1); }
+  90%  { opacity:.9; }
+  100% { transform:translate3d(110vw,8px,0)        scale(1);   opacity:0; }
+}
+@keyframes dustDriftRL{
+  0%   { transform:translate3d(0,0,0)              scale(1);   opacity:0; }
+  10%  { opacity:.9; }
+  50%  { transform:translate3d(-45vw,-10px,0)      scale(1.1); }
+  90%  { opacity:.9; }
+  100% { transform:translate3d(-110vw,6px,0)       scale(1);   opacity:0; }
 }
 
 /* Frase poética central */
@@ -23323,17 +23361,38 @@ function _dojoPlayWelcomeAnimation() {
              filter:hue-rotate(${hue}deg) saturate(${sat}%) brightness(${bright}%) drop-shadow(0 2px 4px rgba(60,30,10,0.4));">${uniqueSvg}</div>`;
   }
 
-  // Wind streaks — rajadas horizontais visíveis (simulam ar correndo)
+  // Wind effects — mist gusts (volumétrica) + dust particles (poeira flutuando)
+  // Mist: 5 faixas amplas com blur passando lentamente.
+  // Dust: ~40 partículas minúsculas seguindo o vento dominante.
   let streaksHTML = '';
-  for (let i = 0; i < 8; i++) {
+  // Mist gusts (rajadas de névoa)
+  for (let i = 0; i < 5; i++) {
     const fromRight = Math.random() < 0.5;
-    const top = (5 + Math.random() * 85).toFixed(0);  // 5–90% vh
-    const dur = (1.4 + Math.random() * 1.6).toFixed(2);
-    const delay = (Math.random() * 5).toFixed(2);
-    const w = (180 + Math.random() * 280).toFixed(0);
-    streaksHTML += `<div class="dojo-wind-streak ${fromRight?'from-right':'from-left'}"
-      style="top:${top}%;width:${w}px;
-             animation-duration:${dur}s;animation-delay:${delay}s;"></div>`;
+    const top = (10 + Math.random() * 70).toFixed(0);  // 10–80% vh
+    const dur = (4.5 + Math.random() * 3.5).toFixed(2); // 4.5–8s (lento)
+    const delay = (Math.random() * 6).toFixed(2);
+    const heightVar = (90 + Math.random() * 120).toFixed(0); // altura variável
+    const opacityMod = (0.6 + Math.random() * 0.5).toFixed(2);
+    streaksHTML += `<div class="dojo-wind-mist ${fromRight?'from-right':'from-left'}"
+      style="top:${top}%;height:${heightVar}px;
+             animation-duration:${dur}s;animation-delay:${delay}s;
+             ${fromRight?'left:auto;right:-40vw;':''}
+             --mist-opacity:${opacityMod};"></div>`;
+  }
+  // Dust particles (poeira fina flutuando no ar)
+  for (let i = 0; i < 40; i++) {
+    const fromRight = Math.random() < 0.5;
+    const top = (Math.random() * 95).toFixed(0);
+    const left = fromRight ? (60 + Math.random() * 40) : (-5 + Math.random() * 65);
+    const dur = (3 + Math.random() * 4).toFixed(2);
+    const delay = (Math.random() * 8).toFixed(2);
+    const size = (1.5 + Math.random() * 3).toFixed(1);
+    const opacity = (0.4 + Math.random() * 0.5).toFixed(2);
+    streaksHTML += `<div class="dojo-wind-dust ${fromRight?'dust-rl':'dust-lr'}"
+      style="top:${top}%;left:${left}%;
+             width:${size}px;height:${size}px;
+             animation-duration:${dur}s;animation-delay:${delay}s;
+             --dust-opacity:${opacity};"></div>`;
   }
 
   const q = _dojoGetTodayQuote();
