@@ -23702,37 +23702,84 @@ function _dojoBuildSnowGroundSVG(W, H) {
                       stroke="rgba(30,42,20,0.5)" stroke-width="0.6"/>`;
     }
 
-    // Folhas no topo — formato lanceolado com nervura
-    const leafColor1 = 'rgba(115,145,85,0.92)';
-    const leafColor2 = 'rgba(95,125,72,0.92)';
-    const veinColor = 'rgba(55,75,40,0.55)';
-    const leafAngles = flipFolhas
-      ? [-70, -45, -22, 0, 22, 48]
-      : [-48, -22, 0, 22, 45, 70];
-    let leaves = '';
-    leafAngles.forEach((angle, i) => {
-      const len = (28 + (i % 3) * 8) * scale;
+    // Folhas em CLUSTERS espalhados ao longo do caule (não só no topo).
+    // Cada cluster tem 4-6 folhas saindo do mesmo nó, alternando lados,
+    // como bambu real (estilo da referência) — não coqueiro.
+    const leafColor1 = 'rgba(125,155,90,0.92)';
+    const leafColor2 = 'rgba(100,130,75,0.92)';
+    const leafColor3 = 'rgba(85,115,65,0.92)';
+    const veinColor = 'rgba(50,70,35,0.45)';
+
+    // Função pra desenhar uma folha lanceolada
+    function makeLeaf(originX, originY, angle, len, fillColor) {
       const a = (angle * Math.PI) / 180;
-      const ex = topX + Math.sin(a) * len;
-      const ey = topY - Math.cos(a) * len;
-      // Pontos de controle pro shape lanceolado
-      const midX = topX + Math.sin(a) * len * 0.5;
-      const midY = topY - Math.cos(a) * len * 0.5;
-      const perpX = Math.cos(a) * (3.5 + (i % 2) * 1.5);
-      const perpY = Math.sin(a) * (3.5 + (i % 2) * 1.5);
-      const isLight = i % 2 === 0;
-      const fillColor = isLight ? leafColor1 : leafColor2;
-      // Folha = path fechado em formato de lança
-      const leafPath = `M ${topX.toFixed(1)} ${topY.toFixed(1)}
+      const ex = originX + Math.sin(a) * len;
+      const ey = originY - Math.cos(a) * len;
+      const midX = originX + Math.sin(a) * len * 0.45;
+      const midY = originY - Math.cos(a) * len * 0.45;
+      const perpX = Math.cos(a) * (len * 0.13);
+      const perpY = Math.sin(a) * (len * 0.13);
+      const leafPath = `M ${originX.toFixed(1)} ${originY.toFixed(1)}
                         Q ${(midX + perpX).toFixed(1)} ${(midY + perpY).toFixed(1)}
                           ${ex.toFixed(1)} ${ey.toFixed(1)}
                         Q ${(midX - perpX).toFixed(1)} ${(midY - perpY).toFixed(1)}
-                          ${topX.toFixed(1)} ${topY.toFixed(1)} Z`;
-      leaves += `<path d="${leafPath}" fill="${fillColor}"/>`;
-      // Nervura central
-      leaves += `<line x1="${topX.toFixed(1)}" y1="${topY.toFixed(1)}"
-                       x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"
-                       stroke="${veinColor}" stroke-width="0.8"/>`;
+                          ${originX.toFixed(1)} ${originY.toFixed(1)} Z`;
+      return `<path d="${leafPath}" fill="${fillColor}"/>` +
+             `<line x1="${originX.toFixed(1)}" y1="${originY.toFixed(1)}"
+                    x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"
+                    stroke="${veinColor}" stroke-width="0.7"/>`;
+    }
+
+    // Clusters de folhas em pontos ao longo do caule (ramificações naturais)
+    // Cada cluster tem 4-6 folhas em leque
+    const clusterTs = scale > 0.85
+      ? [0.42, 0.68, 0.88, 1.0]   // bambu grande: 4 clusters
+      : [0.55, 0.85, 1.0];          // bambu pequeno: 3 clusters
+
+    let leaves = '';
+    clusterTs.forEach((t, ci) => {
+      // Posição do cluster (interpola na curva do caule)
+      const tEased = t * t * (3 - 2 * t);
+      const cx = x + (topX - x) * tEased + sway * 0.3 * Math.sin(t * Math.PI);
+      const cy = snowY - height * t;
+      // Direção do cluster — alterna lado a lado, exceto o do topo (vai pra cima)
+      const isTop = ci === clusterTs.length - 1;
+      const goesLeft = flipFolhas ? (ci % 2 === 0) : (ci % 2 === 1);
+      // Ângulos das folhas no cluster
+      let angles;
+      if (isTop) {
+        // Cluster do topo: leque mais aberto, vai pra cima
+        angles = flipFolhas
+          ? [-65, -38, -12, 14, 40, 62]
+          : [-62, -38, -14, 12, 38, 65];
+      } else {
+        // Cluster lateral: vai pra um lado, abre em leque de 4-5 folhas
+        if (goesLeft) {
+          angles = [-95, -75, -55, -35, -15];
+        } else {
+          angles = [95, 75, 55, 35, 15];
+        }
+      }
+      // Tamanho diminui um pouco em clusters mais altos
+      const baseLen = (24 + (1 - t) * 12) * scale;
+      angles.forEach((angle, li) => {
+        const len = baseLen * (0.85 + (li % 3) * 0.1);
+        const colors = [leafColor1, leafColor2, leafColor3];
+        const fillColor = colors[(ci + li) % 3];
+        leaves += makeLeaf(cx, cy, angle, len, fillColor);
+      });
+      // Pequena haste/galho do cluster (caule fininho saindo do nó principal)
+      if (!isTop) {
+        const branchLen = baseLen * 0.5;
+        const baseAngle = goesLeft ? -55 : 55;
+        const ba = (baseAngle * Math.PI) / 180;
+        const bx = cx + Math.sin(ba) * branchLen * 0.3;
+        const by = cy - Math.cos(ba) * branchLen * 0.3;
+        leaves += `<line x1="${cx.toFixed(1)}" y1="${cy.toFixed(1)}"
+                          x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}"
+                          stroke="rgba(70,90,40,0.7)" stroke-width="1.2"
+                          stroke-linecap="round"/>`;
+      }
     });
 
     return `<g class="bambu">${segments}${knots}${leaves}</g>`;
@@ -23868,46 +23915,74 @@ function _dojoBuildSnowGroundSVG(W, H) {
     .map(s => zenStone(s.xRel * W, gy(s.xRel * W), s.w, s.h, s.seed, s.style))
     .join('');
 
-  // ── Pagoda silhueta no horizonte (canto direito) — maior e mais visível ──
-  const pagodaXRel = 0.80;
-  const pagodaX = pagodaXRel * W;
-  // Posicionada um pouco acima da neve, abaixo da linha das montanhas
-  const pagodaBaseY = baseY - 18;
-  const pagodaFill = 'rgba(20,15,12,0.92)';
-  const pagodaHTML = `
-    <g>
-      <!-- Telhado base (mais largo) -->
-      <path d="M ${(pagodaX-32).toFixed(0)} ${pagodaBaseY}
-               L ${(pagodaX-26).toFixed(0)} ${(pagodaBaseY-5).toFixed(0)}
-               L ${(pagodaX+26).toFixed(0)} ${(pagodaBaseY-5).toFixed(0)}
-               L ${(pagodaX+32).toFixed(0)} ${pagodaBaseY} Z"
-        fill="${pagodaFill}"/>
-      <!-- Andar 1 -->
-      <rect x="${(pagodaX-17).toFixed(0)}" y="${(pagodaBaseY-19).toFixed(0)}"
-            width="34" height="14" fill="${pagodaFill}"/>
-      <!-- Telhado 2 -->
-      <path d="M ${(pagodaX-25).toFixed(0)} ${(pagodaBaseY-19).toFixed(0)}
-               L ${(pagodaX-20).toFixed(0)} ${(pagodaBaseY-23).toFixed(0)}
-               L ${(pagodaX+20).toFixed(0)} ${(pagodaBaseY-23).toFixed(0)}
-               L ${(pagodaX+25).toFixed(0)} ${(pagodaBaseY-19).toFixed(0)} Z"
-        fill="${pagodaFill}"/>
-      <!-- Andar 2 -->
-      <rect x="${(pagodaX-12).toFixed(0)}" y="${(pagodaBaseY-34).toFixed(0)}"
-            width="24" height="11" fill="${pagodaFill}"/>
-      <!-- Telhado 3 (topo) -->
-      <path d="M ${(pagodaX-19).toFixed(0)} ${(pagodaBaseY-34).toFixed(0)}
-               L ${(pagodaX-15).toFixed(0)} ${(pagodaBaseY-37).toFixed(0)}
-               L ${(pagodaX+15).toFixed(0)} ${(pagodaBaseY-37).toFixed(0)}
-               L ${(pagodaX+19).toFixed(0)} ${(pagodaBaseY-34).toFixed(0)} Z"
-        fill="${pagodaFill}"/>
-      <!-- Mastro / sōrin -->
-      <line x1="${pagodaX.toFixed(0)}" y1="${(pagodaBaseY-37).toFixed(0)}"
-            x2="${pagodaX.toFixed(0)}" y2="${(pagodaBaseY-46).toFixed(0)}"
-            stroke="${pagodaFill}" stroke-width="1.5"/>
-      <!-- Esfera no topo -->
-      <circle cx="${pagodaX.toFixed(0)}" cy="${(pagodaBaseY-47).toFixed(0)}" r="2" fill="${pagodaFill}"/>
+  // ── Torii (portal de dojo) silhueta no horizonte ──
+  // Estrutura clássica: 2 colunas verticais + 2 traves horizontais.
+  // Kasagi (trave superior) tem extremidades curvadas pra cima — clássico.
+  // Nuki (trave inferior) é retangular simples.
+  const toriiXRel = 0.78;
+  const toriiX = toriiXRel * W;
+  const toriiBaseY = baseY + 4;     // base ao nível da neve
+  const toriiHeight = 95;
+  const toriiTopY = toriiBaseY - toriiHeight;
+  const toriiHalfW = 38;             // semi-largura entre colunas
+  const toriiOverhang = 14;          // quanto a kasagi se estende além das colunas
+  const poleW = 5;                   // espessura das colunas
+  const kasagiH = 7;                 // altura da trave superior
+  const nukiH = 5;                   // altura da trave inferior
+  const gapBetween = 8;              // espaço entre as 2 traves (onde fica o gakuzuka)
+  const fill = 'rgba(15,10,8,0.95)';
+  const fillSecondary = 'rgba(35,20,15,0.92)';
+
+  const toriiHTML = `
+    <g class="torii">
+      <!-- Coluna esquerda (com leve afilamento pra cima) -->
+      <path d="M ${(toriiX - toriiHalfW - poleW*0.6).toFixed(1)} ${toriiBaseY.toFixed(1)}
+               L ${(toriiX - toriiHalfW - poleW*0.45).toFixed(1)} ${(toriiTopY + kasagiH + nukiH + gapBetween + 2).toFixed(1)}
+               L ${(toriiX - toriiHalfW + poleW*0.45).toFixed(1)} ${(toriiTopY + kasagiH + nukiH + gapBetween + 2).toFixed(1)}
+               L ${(toriiX - toriiHalfW + poleW*0.6).toFixed(1)} ${toriiBaseY.toFixed(1)} Z"
+            fill="${fill}"/>
+      <!-- Coluna direita (mirror) -->
+      <path d="M ${(toriiX + toriiHalfW - poleW*0.6).toFixed(1)} ${toriiBaseY.toFixed(1)}
+               L ${(toriiX + toriiHalfW - poleW*0.45).toFixed(1)} ${(toriiTopY + kasagiH + nukiH + gapBetween + 2).toFixed(1)}
+               L ${(toriiX + toriiHalfW + poleW*0.45).toFixed(1)} ${(toriiTopY + kasagiH + nukiH + gapBetween + 2).toFixed(1)}
+               L ${(toriiX + toriiHalfW + poleW*0.6).toFixed(1)} ${toriiBaseY.toFixed(1)} Z"
+            fill="${fill}"/>
+      <!-- Pequena base de pedra em cada coluna -->
+      <ellipse cx="${(toriiX - toriiHalfW).toFixed(1)}" cy="${(toriiBaseY - 1).toFixed(1)}"
+               rx="${(poleW * 1.5).toFixed(1)}" ry="2" fill="rgba(60,50,45,0.7)"/>
+      <ellipse cx="${(toriiX + toriiHalfW).toFixed(1)}" cy="${(toriiBaseY - 1).toFixed(1)}"
+               rx="${(poleW * 1.5).toFixed(1)}" ry="2" fill="rgba(60,50,45,0.7)"/>
+
+      <!-- Nuki (trave inferior — retangular simples, atravessa as colunas) -->
+      <rect x="${(toriiX - toriiHalfW - poleW*0.4).toFixed(1)}"
+            y="${(toriiTopY + kasagiH + gapBetween).toFixed(1)}"
+            width="${(toriiHalfW * 2 + poleW * 0.8).toFixed(1)}"
+            height="${nukiH}" fill="${fill}"/>
+
+      <!-- Gakuzuka (suporte central pequeno entre as traves) -->
+      <rect x="${(toriiX - 2).toFixed(1)}"
+            y="${(toriiTopY + kasagiH).toFixed(1)}"
+            width="4" height="${gapBetween}" fill="${fillSecondary}"/>
+
+      <!-- Kasagi (trave superior — extremidades curvadas pra cima, clássico torii) -->
+      <path d="M ${(toriiX - toriiHalfW - toriiOverhang).toFixed(1)} ${(toriiTopY + 4).toFixed(1)}
+               Q ${(toriiX - toriiHalfW - toriiOverhang*0.5).toFixed(1)} ${toriiTopY.toFixed(1)}
+                 ${(toriiX - toriiHalfW + 4).toFixed(1)} ${(toriiTopY + 1).toFixed(1)}
+               L ${(toriiX + toriiHalfW - 4).toFixed(1)} ${(toriiTopY + 1).toFixed(1)}
+               Q ${(toriiX + toriiHalfW + toriiOverhang*0.5).toFixed(1)} ${toriiTopY.toFixed(1)}
+                 ${(toriiX + toriiHalfW + toriiOverhang).toFixed(1)} ${(toriiTopY + 4).toFixed(1)}
+               L ${(toriiX + toriiHalfW + toriiOverhang*0.95).toFixed(1)} ${(toriiTopY + kasagiH + 1).toFixed(1)}
+               L ${(toriiX - toriiHalfW - toriiOverhang*0.95).toFixed(1)} ${(toriiTopY + kasagiH + 1).toFixed(1)} Z"
+            fill="${fill}"/>
+
+      <!-- Pequeno destaque dourado no topo (efeito de bordo iluminado pelo entardecer) -->
+      <path d="M ${(toriiX - toriiHalfW + 6).toFixed(1)} ${(toriiTopY + 1.5).toFixed(1)}
+               L ${(toriiX + toriiHalfW - 6).toFixed(1)} ${(toriiTopY + 1.5).toFixed(1)}"
+            stroke="rgba(180,120,60,0.35)" stroke-width="0.8" stroke-linecap="round"/>
     </g>
   `;
+  // Mantém variável pra compatibilidade com a renderização existente
+  const pagodaHTML = toriiHTML;
 
   return `
     <svg class="dojo-snow-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
