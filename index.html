@@ -4438,14 +4438,14 @@ body.density-compact .col{padding:7px;}
 
 /* Frase poética central */
 .dojo-sakura-haiku{
-  position:absolute;left:50%;top:38%;
+  position:absolute;left:50%;top:42%;
   transform:translate(-50%, -50%);
   text-align:center;color:#F8F2E4;
   font-family:'Hiragino Mincho ProN','Yu Mincho','Times New Roman',serif;
   letter-spacing:0.04em;
   text-shadow:0 2px 16px rgba(0,0,0,0.8), 0 0 40px rgba(255,180,80,0.3);
   opacity:0;z-index:2;
-  animation:sakuraHaikuIn 1.2s ease-out 1.0s forwards, sakuraHaikuOut .9s ease-in 4.2s forwards;
+  animation:sakuraHaikuIn 1.2s ease-out 1.0s forwards;
 }
 .dojo-sakura-haiku-kanji{
   font-size:64px;color:rgba(255,210,140,0.95);
@@ -4471,6 +4471,42 @@ body.density-compact .col{padding:7px;}
 @keyframes sakuraHaikuOut {
   from{opacity:1;transform:translate(-50%,-50%) scale(1);}
   to  {opacity:0;transform:translate(-50%,-58%) scale(1.04);}
+}
+
+/* Botão "Entrar no Dōjō" — aparece após o haiku, abaixo dele */
+.dojo-sakura-enter-btn{
+  display:block;margin:32px auto 0;
+  padding:14px 38px;
+  background:rgba(20,12,6,0.6);
+  border:1px solid rgba(255,213,128,0.55);
+  color:#FFE0B0;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Times New Roman',serif;
+  font-size:15.5px;letter-spacing:0.2em;
+  border-radius:99px;cursor:pointer;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  box-shadow:
+    0 4px 20px rgba(0,0,0,0.4),
+    0 0 30px rgba(255,180,80,0.15),
+    inset 0 1px 0 rgba(255,213,128,0.2);
+  transition:transform .25s cubic-bezier(.16,1.2,.3,1), box-shadow .25s, background .25s, border-color .25s;
+  pointer-events:auto;
+  opacity:0;
+  animation:dojoEnterBtnIn 1s cubic-bezier(.2,.7,.3,1.05) 2.6s forwards;
+}
+.dojo-sakura-enter-btn:hover{
+  background:rgba(255,180,80,0.15);
+  border-color:rgba(255,213,128,0.9);
+  color:#FFF2D5;
+  transform:translateY(-2px) scale(1.02);
+  box-shadow:
+    0 8px 30px rgba(0,0,0,0.5),
+    0 0 50px rgba(255,180,80,0.4),
+    inset 0 1px 0 rgba(255,213,128,0.4);
+}
+.dojo-sakura-enter-btn:active{ transform:translateY(0) scale(.99); }
+@keyframes dojoEnterBtnIn {
+  from{opacity:0;transform:translateY(20px);}
+  to  {opacity:1;transform:translateY(0);}
 }
 
 /* Modal Mestre Kan (abre depois da animação) */
@@ -23245,6 +23281,7 @@ function _dojoPlayWelcomeAnimation() {
       <span class="dojo-sakura-haiku-kanji">${q.kanji}</span>
       <span class="dojo-sakura-haiku-line">${q.line}</span>
       <span class="dojo-sakura-haiku-author">${q.author}</span>
+      <button class="dojo-sakura-enter-btn" type="button">Entrar no Dōjō</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -23252,24 +23289,22 @@ function _dojoPlayWelcomeAnimation() {
   // Marca como visto pra não disparar novamente hoje
   _dojoMarkWelcomeShown();
 
-  // Permite skip clicando
-  let skipped = false;
-  overlay.addEventListener('click', () => {
-    if (skipped) return;
-    skipped = true;
-    _dojoCloseSakuraOverlay(overlay);
-    _dojoOpenKanWelcomeModal();
-  }, { once:true });
+  // Click fora do botão fecha (skip)
   overlay.style.pointerEvents = 'auto';
-  overlay.style.cursor = 'pointer';
-
-  // Após 5.5s, fade out e abre modal Kan
-  setTimeout(() => {
-    if (skipped) return;
-    skipped = true;
+  overlay.addEventListener('click', (e) => {
+    // Ignora clique no botão (ele tem seu próprio handler)
+    if (e.target.closest('.dojo-sakura-enter-btn')) return;
     _dojoCloseSakuraOverlay(overlay);
-    _dojoOpenKanWelcomeModal();
-  }, 5500);
+  });
+
+  // Botão "Entrar no Dōjō" tem handler próprio
+  const enterBtn = overlay.querySelector('.dojo-sakura-enter-btn');
+  if (enterBtn) {
+    enterBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _dojoCloseSakuraOverlay(overlay);
+    });
+  }
 }
 
 function _dojoCloseSakuraOverlay(overlay) {
