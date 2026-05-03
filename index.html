@@ -2609,6 +2609,26 @@ body.zai-financial-view .card .card-desc{
   background:rgba(0,0,0,.25);color:#E8DEC9;border-color:#5A4F3A;
 }
 .voice-card-transcript:empty::before{content:'Diga algo… (ex: "criar card de revisão da proposta cliente X até quinta de manhã, prioridade alta")';color:#A99876;font-style:italic;}
+.voice-card-board-row{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:14px;font-family:var(--font-sans);
+}
+.voice-card-board-label{
+  font-size:12px;color:#7A6B4F;font-weight:600;
+  letter-spacing:0.04em;text-transform:uppercase;
+  flex-shrink:0;
+}
+:root.dark .voice-card-board-label{color:#A99876;}
+.voice-card-board-select{
+  flex:1;padding:8px 11px;border:1px solid #C9B380;border-radius:8px;
+  background:rgba(255,255,255,.7);color:#2A241D;
+  font-size:13px;font-family:var(--font-sans);
+  cursor:pointer;
+}
+:root.dark .voice-card-board-select{
+  background:rgba(0,0,0,.25);color:#E8DEC9;border-color:#5A4F3A;
+}
+.voice-card-board-select:focus{outline:none;border-color:#7A4F2D;box-shadow:0 0 0 3px rgba(122,79,45,0.15);}
 .voice-card-actions{
   display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
   font-family:var(--font-sans);
@@ -28454,6 +28474,10 @@ function _initVoiceCards() {
       <div class="voice-card-sub" id="voice-card-sub">Diga o que precisa ser feito. O Mestre Kan vai estruturar.</div>
       <div class="voice-card-error" id="voice-card-error" style="display:none;"></div>
       <div class="voice-card-transcript" id="voice-card-transcript"></div>
+      <div class="voice-card-board-row" id="voice-card-board-row">
+        <label class="voice-card-board-label" for="voice-card-board">Criar em:</label>
+        <select class="voice-card-board-select" id="voice-card-board"></select>
+      </div>
       <div class="voice-card-actions">
         <button class="voice-btn voice-btn-ghost" onclick="cancelVoiceCapture()">Cancelar</button>
         <button class="voice-btn voice-btn-primary" id="voice-btn-confirm" onclick="confirmVoiceCapture()">Criar card</button>
@@ -28475,10 +28499,13 @@ function _initVoiceCards() {
 
 async function startVoiceCapture() {
   if (_voiceIsRecording) return;
-  // Verifica se está logado e há board atual
-  if (typeof currentBoardId === 'undefined' || !currentBoardId || currentBoardId === UNIFIED_BOARD_ID) {
+  // Confere que existe pelo menos um board pra criar
+  const realBoards = (typeof allBoards === 'object' && allBoards)
+    ? Object.entries(allBoards).filter(([id]) => id !== UNIFIED_BOARD_ID)
+    : [];
+  if (realBoards.length === 0) {
     if (typeof appAlert === 'function') {
-      appAlert('Selecione um board primeiro', 'Voice Cards cria cards no board que você está visualizando. Abra um board específico (não o Unificado) e tente de novo.', { icon:'📋', okLabel:'OK' });
+      appAlert('Crie um board primeiro', 'Voice Cards precisa de pelo menos um board pra criar cards.', { icon:'📋', okLabel:'OK' });
     }
     return;
   }
@@ -28542,6 +28569,18 @@ async function startVoiceCapture() {
   if (title) title.textContent = 'Ouvindo…';
   if (sub)   sub.textContent   = 'Diga o que precisa ser feito. O Mestre Kan vai estruturar.';
   if (card) card.classList.remove('is-processing');
+
+  // Popula o select de board (se ainda não foi populado nesta sessão)
+  const boardSelect = document.getElementById('voice-card-board');
+  if (boardSelect) {
+    const boards = (typeof allBoards === 'object' && allBoards)
+      ? Object.entries(allBoards).filter(([id]) => id !== UNIFIED_BOARD_ID)
+      : [];
+    const currentValid = (typeof currentBoardId !== 'undefined' && currentBoardId && currentBoardId !== UNIFIED_BOARD_ID) ? currentBoardId : (boards[0] && boards[0][0]);
+    boardSelect.innerHTML = boards.map(([id, b]) =>
+      `<option value="${_esc(id)}" ${id===currentValid?'selected':''}>${_esc(b.name || 'Sem nome')}</option>`
+    ).join('');
+  }
   if (btnConfirm) btnConfirm.style.display = 'none';
   if (fab) fab.classList.add('is-recording');
   ov.classList.add('is-open');
@@ -28723,8 +28762,12 @@ async function confirmVoiceCapture() {
     parsed = { name: transcript, priority: 'media' };
   }
 
-  // Cria o card no board atual
-  _createCardFromParsedVoice(parsed);
+  // Lê o board destino selecionado no modal
+  const boardSelect = document.getElementById('voice-card-board');
+  const targetBoardId = boardSelect?.value || (currentBoardId !== UNIFIED_BOARD_ID ? currentBoardId : null);
+
+  // Cria o card no board escolhido
+  _createCardFromParsedVoice(parsed, targetBoardId);
 
   // Fecha overlay
   setTimeout(() => {
@@ -28774,10 +28817,22 @@ Exemplos:
   try { return JSON.parse(r.text); } catch(e) { return null; }
 }
 
-function _createCardFromParsedVoice(parsed) {
+function _createCardFromParsedVoice(parsed, targetBoardId) {
   if (!parsed || !parsed.name) return;
-  // Encontra primeira coluna não-terminal
-  const firstCol = (COLS || []).find(c => c.id !== TERMINAL_COL) || { id: 'todo' };
+  // Decide em qual board criar:
+  // - Se passou targetBoardId explícito → usa ele
+  // - Senão, usa o currentBoardId (compatibilidade com chamadas antigas)
+  targetBoardId = targetBoardId || (currentBoardId !== UNIFIED_BOARD_ID ? currentBoardId : null);
+  if (!targetBoardId || !allBoards[targetBoardId]) {
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Sem board válido', 'Não consegui criar o card — board destino não encontrado.', 'danger');
+    }
+    return;
+  }
+  const targetBoard = allBoards[targetBoardId];
+  const targetCols = targetBoard.COLS || COLS || [];
+  const targetTeam = Array.isArray(targetBoard.team) ? targetBoard.team : (Array.isArray(team) ? team : []);
+  const firstCol = targetCols.find(c => c.id !== TERMINAL_COL) || targetCols[0] || { id: 'todo' };
   const newCard = {
     id: Date.now() + Math.random(),
     name: parsed.name,
@@ -28793,18 +28848,26 @@ function _createCardFromParsedVoice(parsed) {
     createdAt: new Date().toISOString(),
     colChangedAt: new Date().toISOString(),
     doneAt: null,
-    responsavel: parsed.responsavel && team.includes(parsed.responsavel) ? parsed.responsavel : null,
+    responsavel: parsed.responsavel && targetTeam.includes(parsed.responsavel) ? parsed.responsavel : null,
     customFieldValues: {},
   };
-  cards.push(newCard);
+  // Se for o board atual, push em `cards` (e saveData/render funcionam direto)
+  // Se for outro board, push em allBoards[id].cards
+  if (targetBoardId === currentBoardId) {
+    cards.push(newCard);
+  } else {
+    if (!Array.isArray(targetBoard.cards)) targetBoard.cards = [];
+    targetBoard.cards.push(newCard);
+  }
   saveData();
   if (typeof render === 'function') render();
-  // Toast de sucesso pelo Mestre Kan
+  // Toast de sucesso
   if (typeof _showKanWarning === 'function') {
     const details = [];
     if (newCard.priority !== 'media') details.push('prioridade ' + newCard.priority);
     if (newCard.deadline) details.push('deadline ' + newCard.deadline);
     if (newCard.responsavel) details.push('responsável ' + newCard.responsavel);
+    if (targetBoardId !== currentBoardId) details.push('em "' + (targetBoard.name||'') + '"');
     const detailsStr = details.length ? ' · ' + details.join(' · ') : '';
     _showKanWarning('Card criado por voz', `<strong>"${_esc(newCard.name)}"</strong>${detailsStr}`, 'info');
   }
