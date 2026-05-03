@@ -1396,6 +1396,130 @@ body.density-compact .card-cf-row{font-size:10px;}
 :root.dark .modal-effort-emoji{color:#F8F2E4;}
 .modal-effort-btn.is-active .modal-effort-emoji{color:#3C3489;}
 
+/* ── Zai Sprint 2: Playbook de regras ────────────────────────── */
+.zai-playbook-card{
+  background:linear-gradient(135deg, #FBF7EE 0%, #F8F2E4 100%);
+  border:1px solid #C9B380;border-radius:12px;padding:14px 18px;
+  margin-bottom:12px;font-family:var(--font-sans);position:relative;overflow:hidden;
+}
+:root.dark .zai-playbook-card{background:linear-gradient(135deg, #1F1A14 0%, #1A1612 100%);border-color:#3A3225;}
+.zai-playbook-card::before{
+  content:'規';position:absolute;right:12px;bottom:-10px;
+  font-size:80px;line-height:1;color:#1A1612;opacity:.05;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC','Times New Roman',Georgia,serif;
+  pointer-events:none;
+}
+:root.dark .zai-playbook-card::before{color:#F8F2E4;}
+.zai-playbook-h{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;
+  font-size:15px;font-weight:600;color:#1A1612;letter-spacing:.005em;
+  position:relative;z-index:1;
+}
+:root.dark .zai-playbook-h{color:#F8F2E4;}
+.zai-playbook-h .pb-add{
+  background:#1A1612;color:#F8F2E4;border:none;border-radius:7px;padding:6px 12px;cursor:pointer;
+  font-size:11.5px;font-family:var(--font-sans);font-weight:500;letter-spacing:.02em;
+}
+.zai-playbook-h .pb-add:hover{filter:brightness(1.10);}
+.zai-playbook-rules{display:flex;flex-direction:column;gap:6px;position:relative;z-index:1;}
+.zai-pb-rule{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;
+  background:rgba(248,242,228,.5);border:0.5px solid rgba(201,179,128,.4);
+  font-family:var(--font-sans);font-size:12.5px;color:#1A1612;
+}
+:root.dark .zai-pb-rule{background:rgba(0,0,0,.20);border-color:rgba(248,242,228,.10);color:#F8F2E4;}
+.zai-pb-rule-icon{font-size:14px;line-height:1;}
+.zai-pb-rule-icon.ok{color:#3B6D11;}
+.zai-pb-rule-icon.warn{color:#D9A227;}
+.zai-pb-rule-icon.danger{color:#A32D2D;}
+.zai-pb-rule-text{flex:1;min-width:0;}
+.zai-pb-rule-text strong{font-weight:600;}
+.zai-pb-rule-meta{font-size:11px;color:#6B5B43;font-variant-numeric:tabular-nums;}
+:root.dark .zai-pb-rule-meta{color:#A99876;}
+.zai-pb-rule-actions{display:flex;gap:4px;}
+.zai-pb-rule-act{
+  background:transparent;border:none;color:#6B5B43;cursor:pointer;font-size:13px;
+  padding:2px 6px;border-radius:4px;line-height:1;
+}
+.zai-pb-rule-act:hover{color:#A32D2D;background:rgba(0,0,0,.05);}
+
+/* Modal pra adicionar regra */
+.pb-rule-form{display:flex;flex-direction:column;gap:10px;text-align:left;}
+.pb-rule-form label{font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;}
+.pb-rule-form select, .pb-rule-form input{
+  padding:8px 11px;border:1px solid var(--color-border-secondary);border-radius:7px;
+  font-size:13px;font-family:var(--font-sans);
+  background:var(--color-background-primary);color:var(--color-text-primary);
+}
+
+/* Card visual quando segue regra de boost (verde) ou viola alerta (vermelho) */
+.card.zai-pb-boost{box-shadow:inset 0 0 0 1.5px #3B6D11;}
+.card.zai-pb-violate{box-shadow:inset 0 0 0 1.5px #DC2626;animation:zaiPbViolatePulse 3s ease-in-out infinite;}
+@keyframes zaiPbViolatePulse{0%,100%{box-shadow:inset 0 0 0 1.5px #DC2626;}50%{box-shadow:inset 0 0 0 2px #DC2626, 0 0 0 2px rgba(220,38,38,.15);}}
+
+/* Invest-Lab */
+.invest-lab-wrap{
+  display:grid;grid-template-columns:1fr 320px;gap:20px;
+}
+@media(max-width:900px){.invest-lab-wrap{grid-template-columns:1fr;}}
+.invest-lab-stage{
+  background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);
+  border-radius:12px;padding:18px;
+}
+.invest-lab-summary{
+  background:linear-gradient(135deg, #1A1612 0%, #2A241D 100%);color:#F8F2E4;
+  border-radius:12px;padding:18px;font-family:var(--font-sans);position:sticky;top:90px;
+  align-self:flex-start;
+}
+.invest-lab-summary h3{
+  font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;
+  font-size:15px;font-weight:600;margin-bottom:10px;color:#F8F2E4;letter-spacing:.005em;
+}
+.invest-lab-summary .il-stat{
+  display:flex;justify-content:space-between;font-size:13px;padding:6px 0;
+  border-bottom:0.5px solid rgba(248,242,228,.10);font-variant-numeric:tabular-nums;
+}
+.invest-lab-summary .il-stat:last-child{border-bottom:none;}
+.invest-lab-summary .il-stat-lbl{color:#A99876;}
+.invest-lab-summary .il-stat-val{font-weight:600;}
+.invest-lab-summary .il-stat-val.up{color:#A8D87A;}
+.invest-lab-summary .il-stat-val.down{color:#F09595;}
+.invest-lab-summary .il-stat-val.neutral{color:#F8F2E4;}
+.invest-lab-summary .il-impact{
+  margin:14px 0;padding:14px 0;border-top:1px dashed #5A4F3A;border-bottom:1px dashed #5A4F3A;
+  text-align:center;
+}
+.invest-lab-summary .il-impact-lbl{font-size:11px;color:#A99876;letter-spacing:.06em;text-transform:uppercase;font-weight:600;}
+.invest-lab-summary .il-impact-val{font-size:26px;font-weight:600;margin-top:4px;color:#F8F2E4;font-variant-numeric:tabular-nums;}
+.invest-lab-summary .il-apply{
+  width:100%;background:linear-gradient(135deg, #BC002D 0%, #8E0022 100%);color:#F8F2E4;
+  border:none;border-radius:8px;padding:11px;font-family:var(--font-sans);font-size:13px;font-weight:500;
+  cursor:pointer;letter-spacing:.02em;margin-top:6px;
+}
+.invest-lab-summary .il-apply:hover{filter:brightness(1.10);}
+.invest-lab-summary .il-apply:disabled{background:#3A3225;cursor:not-allowed;}
+
+.il-scenario-card{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);
+  border-radius:8px;margin-bottom:6px;font-family:var(--font-sans);font-size:13px;
+}
+.il-scenario-card.is-removed{opacity:.4;text-decoration:line-through;}
+.il-scenario-card.is-modified{box-shadow:inset 3px 0 0 #D9A227;}
+.il-scenario-card.is-added{box-shadow:inset 3px 0 0 #3B6D11;}
+.il-scenario-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.il-scenario-meta{font-size:11px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;}
+.il-scenario-act{background:transparent;border:none;cursor:pointer;color:var(--color-text-tertiary);font-size:14px;padding:2px 6px;border-radius:4px;}
+.il-scenario-act:hover{color:var(--color-text-primary);background:rgba(0,0,0,.05);}
+
+.il-toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.il-toolbar button{
+  background:#1A1612;color:#F8F2E4;border:none;border-radius:7px;padding:7px 14px;
+  font-family:var(--font-sans);font-size:12px;cursor:pointer;letter-spacing:.02em;
+}
+.il-toolbar button.ghost{background:transparent;color:var(--color-text-secondary);border:1px solid var(--color-border-secondary);}
+
 /* ── Module Zai · Gestão Financeira via Kanban ───────────────── */
 .zai-runway-bar{
   background:linear-gradient(135deg, #1A1612 0%, #2A241D 100%);
@@ -11954,6 +12078,8 @@ function render() {
   if (typeof _renderCascadeBanner === 'function') _renderCascadeBanner();
   // Runway Bar do Zai (se board é financeiro)
   if (typeof _renderZaiRunwayBar === 'function') _renderZaiRunwayBar();
+  // Playbook de regras
+  if (typeof _renderZaiPlaybook === 'function') _renderZaiPlaybook();
   // Aplica classe de view financeira no body
   document.body.classList.toggle('zai-financial-view', isBoardZaiEnabled() && getZaiView() === 'financial');
   // Toolbar de Focus Mode (energia)
@@ -12073,8 +12199,15 @@ function render() {
             const valFmt = _zaiVal ? Math.abs(_zaiVal).toLocaleString('pt-BR', { style:'currency', currency:'BRL', minimumFractionDigits:0, maximumFractionDigits:0 }) : '';
             return `<span class="card-zai-badge ${_zaiType}" title="${meta.label}${valFmt?' · '+valFmt:''}">${meta.emoji}${valFmt?' '+valFmt:''}</span>`;
           })() : '';
+          // Playbook: verifica se este card viola alguma regra
+          let zaiPbCls = '';
+          if (typeof getBoardPlaybook === 'function' && isBoardZaiEnabled() && !isDone) {
+            const rules = getBoardPlaybook();
+            if (rules.some(r => _cardViolatesRule(c, r))) zaiPbCls = ' zai-pb-violate';
+            else if (rules.some(r => _cardBoostsRule(c, r))) zaiPbCls = ' zai-pb-boost';
+          }
           return `<div class="card-wrap">
-            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}${lockedCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
+            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}${lockedCls}${zaiPbCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
               ${sourceLine}
               ${F.tags && tags.length?`<div class="card-tags">${tags.map(t=>`<span class="ctag" style="background:${t.color.bg};color:${t.color.text};">${t.text}</span>`).join('')}</div>`:''}
               <div class="card-desc">${c.name}</div>
@@ -16938,6 +17071,7 @@ const CANVAS_FORMAT_META = {
   document: { label: 'Documento',     icon: '📝', desc: 'Editor com formatação completa. Bullets viram cards, H2 viram colunas.' },
   table:    { label: 'Tabela',        icon: '📊', desc: 'Linhas com prioridade e responsável. Cada linha vira card.' },
   plan:     { label: 'Plano de Ação', icon: '🎯', desc: 'Pré-preenchido com objetivo, etapas, responsáveis e riscos.' },
+  invest:   { label: 'Invest-Lab',    icon: '財', desc: 'Simule cenários financeiros antes de aplicar. Adicione, remova ou modifique custos/receitas — veja o impacto no runway antes de mexer no board real. Quando aprovar, o cenário vira realidade.' },
 };
 
 const PLAN_TEMPLATE = `<h1>Plano de Ação</h1>
@@ -16976,6 +17110,10 @@ function createCanvas(name, format) {
   if (format === 'note')     base.docContent = '<p>Comece a escrever pensamentos, ideias, o que precisa ser feito… O Mestre Kan extrai ações depois.</p>';
   if (format === 'blank')    base.blankContent = '';
   if (format === 'plan')     base.docContent = PLAN_TEMPLATE;
+  if (format === 'invest') {
+    base.investBoardId = currentBoardId;  // referencia o board atual
+    base.investScenario = [];             // operações a aplicar
+  }
   if (format === 'table')    base.tableRows = [
     { id: _genNodeId(), name: '', priority: 'media', responsavel: '', deadline: '' },
   ];
@@ -17007,6 +17145,7 @@ function renderCanvasView() {
     if (fmt === 'blank') renderBlankEditor();
     else if (fmt === 'document' || fmt === 'plan' || fmt === 'note') renderDocumentEditor();
     else if (fmt === 'table') renderTableEditor();
+    else if (fmt === 'invest') renderInvestLabEditor();
     else renderCanvasEditor();
   } else {
     _canvasView = 'list';
@@ -17015,6 +17154,347 @@ function renderCanvasView() {
 }
 
 // ── Editor: Em branco (puro contenteditable, sem toolbar) ─────────
+// ── Invest-Lab Editor ──────────────────────────────────────
+// Simula mudanças num board financeiro antes de aplicar.
+// O cenário (cv.investScenario) é uma lista de operações:
+//   { op:'remove', cardId }
+//   { op:'modify', cardId, newValue }
+//   { op:'add', name, moneyType, value }
+
+function _investGetSourceBoard(cv) {
+  if (!cv) return null;
+  const bid = cv.investBoardId;
+  if (!bid || !allBoards[bid]) return null;
+  return allBoards[bid];
+}
+
+// Calcula o estado simulado: pega cards do board original + aplica ops do scenario
+function _investComputeSimulated(cv) {
+  const board = _investGetSourceBoard(cv);
+  if (!board) return null;
+  const ops = cv.investScenario || [];
+  const removed = new Set();
+  const modified = {};
+  const added = [];
+  ops.forEach(o => {
+    if (o.op === 'remove') removed.add(o.cardId);
+    if (o.op === 'modify') modified[o.cardId] = o;
+    if (o.op === 'add') added.push(o);
+  });
+  // Estado base: clona cards
+  const list = (board.cards || []).map(c => ({ ...c, customFieldValues: { ...(c.customFieldValues||{}) } }));
+  const final = [];
+  list.forEach(c => {
+    if (removed.has(c.id)) return;
+    if (modified[c.id]) {
+      const cf = (board.customFields || []).find(f => f.type === 'currency');
+      if (cf) c.customFieldValues[cf.id] = modified[c.id].newValue;
+    }
+    final.push(c);
+  });
+  // Adiciona simulados (sem id real, só pra cálculo)
+  added.forEach((a, i) => {
+    final.push({
+      id: 'sim_' + i,
+      name: a.name,
+      moneyType: a.moneyType,
+      col: 'planejado',  // assume primeira coluna
+      customFieldValues: (() => {
+        const cf = (board.customFields || []).find(f => f.type === 'currency');
+        return cf ? { [cf.id]: a.value } : {};
+      })(),
+    });
+  });
+  return final;
+}
+
+// Cálculos no estado simulado
+function _investCalcStats(cards, board) {
+  let inc = 0, fix = 0, varc = 0;
+  cards.forEach(c => {
+    if (c.col === TERMINAL_COL) return;
+    const t = c.moneyType;
+    if (!t) return;
+    const cf = (board.customFields || []).find(f => f.type === 'currency');
+    const v = cf ? Math.abs(Number((c.customFieldValues||{})[cf.id]) || 0) : 0;
+    if (t === 'income') inc += v;
+    else if (t === 'fixed') fix += v;
+    else if (t === 'variable') varc += v;
+  });
+  const burn = fix + varc;
+  const net = inc - burn;
+  const balance = Number(board.shadowBalance) || 0;
+  let runway = Infinity;
+  if (net < 0) runway = balance / -net;
+  return { inc, burn, net, runway };
+}
+
+function renderInvestLabEditor() {
+  const root = document.getElementById('canvas-root');
+  const cv = _curCanvas(); if (!cv) { closeCanvas(); return; }
+  const board = _investGetSourceBoard(cv);
+  if (!board) {
+    root.innerHTML = `
+      <div class="canvas-editor">
+        <div class="canvas-toolbar">
+          <button class="ct-back" onclick="closeCanvas()">← Lab</button>
+          <span style="font-size:18px;line-height:1;">財</span>
+          <span style="color:var(--color-text-tertiary);">Invest-Lab</span>
+        </div>
+        <div style="padding:40px;text-align:center;color:var(--color-text-tertiary);">
+          O board referenciado por este Invest-Lab não existe mais. Crie um novo a partir de um board financeiro (Zai).
+        </div>
+      </div>`;
+    return;
+  }
+
+  const baseCards = (board.cards || []);
+  const simulated = _investComputeSimulated(cv) || [];
+  const baseStats = _investCalcStats(baseCards, board);
+  const simStats  = _investCalcStats(simulated, board);
+  const ops = cv.investScenario || [];
+
+  const fmt = n => n.toLocaleString('pt-BR', { style:'currency', currency:'BRL', minimumFractionDigits:0, maximumFractionDigits:0 });
+  const fmtMonths = m => {
+    if (!Number.isFinite(m)) return '∞';
+    if (m < 1) return Math.round(m * 30) + 'd';
+    if (m < 12) return m.toFixed(1) + 'm';
+    return (m / 12).toFixed(1) + 'a';
+  };
+  const diff = simStats.runway - baseStats.runway;
+  const diffStr = !Number.isFinite(diff) ? '∞' :
+    (diff >= 0 ? '+' : '') + diff.toFixed(1) + 'm';
+  const diffCls = diff >= 0 ? 'up' : 'down';
+
+  // Renderiza scenario operations
+  const opsHTML = ops.length === 0 ? `
+    <div style="padding:30px;text-align:center;color:var(--color-text-tertiary);font-style:italic;">
+      Nenhuma alteração ainda. Use os botões acima pra simular.
+    </div>` : ops.map((o, i) => {
+    if (o.op === 'remove') {
+      const c = baseCards.find(x => x.id === o.cardId);
+      return `<div class="il-scenario-card is-removed">
+        <span class="il-scenario-name">✕ Remover: ${_esc(c?.name || '?')}</span>
+        <button class="il-scenario-act" onclick="_investRemoveOp(${i})" title="Cancelar">↺</button>
+      </div>`;
+    }
+    if (o.op === 'modify') {
+      const c = baseCards.find(x => x.id === o.cardId);
+      const cf = (board.customFields || []).find(f => f.type === 'currency');
+      const old = cf ? Number((c?.customFieldValues||{})[cf.id]) || 0 : 0;
+      return `<div class="il-scenario-card is-modified">
+        <span class="il-scenario-name">~ Mudar: ${_esc(c?.name || '?')}</span>
+        <span class="il-scenario-meta">${fmt(old)} → ${fmt(o.newValue)}</span>
+        <button class="il-scenario-act" onclick="_investRemoveOp(${i})">↺</button>
+      </div>`;
+    }
+    if (o.op === 'add') {
+      const meta = ZAI_TYPES[o.moneyType] || { label:'Card', emoji:'?' };
+      return `<div class="il-scenario-card is-added">
+        <span class="il-scenario-name">+ Adicionar: ${_esc(o.name)} <span class="il-scenario-meta">(${meta.label})</span></span>
+        <span class="il-scenario-meta">${fmt(o.value)}</span>
+        <button class="il-scenario-act" onclick="_investRemoveOp(${i})">↺</button>
+      </div>`;
+    }
+    return '';
+  }).join('');
+
+  root.innerHTML = `
+    <div class="canvas-editor">
+      <div class="canvas-toolbar">
+        <button class="ct-back" onclick="closeCanvas()">← Lab</button>
+        <span style="font-size:18px;line-height:1;">財</span>
+        <input class="ct-name" id="canvas-name-input" value="${_esc(cv.name)}" oninput="onCanvasNameInput(this.value)" />
+        <span class="ct-spacer"></span>
+        <span style="font-size:11px;color:var(--color-text-tertiary);">Simulando: <strong>${_esc(board.name)}</strong></span>
+      </div>
+      <div class="invest-lab-wrap">
+        <div class="invest-lab-stage">
+          <div class="il-toolbar">
+            <button onclick="_investAddRemove()">✕ Remover card existente</button>
+            <button onclick="_investAddModify()">~ Modificar valor</button>
+            <button onclick="_investAddNew()">+ Adicionar simulado</button>
+            ${ops.length > 0 ? `<button class="ghost" onclick="_investClearScenario()">Limpar tudo</button>` : ''}
+          </div>
+          <div style="font-family:var(--font-sans);font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:8px;">Cenário simulado (${ops.length} alteração${ops.length!==1?'es':''}):</div>
+          ${opsHTML}
+        </div>
+        <div class="invest-lab-summary">
+          <h3>財 Impacto simulado</h3>
+          <div class="il-stat"><span class="il-stat-lbl">Receita atual</span><span class="il-stat-val neutral">${fmt(baseStats.inc)}</span></div>
+          <div class="il-stat"><span class="il-stat-lbl">Receita simulada</span><span class="il-stat-val ${simStats.inc>=baseStats.inc?'up':'down'}">${fmt(simStats.inc)}</span></div>
+          <div class="il-stat"><span class="il-stat-lbl">Custos atuais</span><span class="il-stat-val neutral">${fmt(baseStats.burn)}</span></div>
+          <div class="il-stat"><span class="il-stat-lbl">Custos simulados</span><span class="il-stat-val ${simStats.burn<=baseStats.burn?'up':'down'}">${fmt(simStats.burn)}</span></div>
+          <div class="il-impact">
+            <div class="il-impact-lbl">Δ Runway</div>
+            <div class="il-impact-val ${diffCls}">${diffStr}</div>
+            <div style="font-size:11px;color:#A99876;margin-top:4px;">${fmtMonths(baseStats.runway)} → ${fmtMonths(simStats.runway)}</div>
+          </div>
+          <button class="il-apply" onclick="_investApplyScenario()" ${ops.length===0?'disabled':''}>
+            ${ops.length===0 ? 'Adicione alterações pra aplicar' : `Aplicar ${ops.length} alteração${ops.length!==1?'es':''} no board`}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function _investRemoveOp(idx) {
+  const cv = _curCanvas(); if (!cv) return;
+  cv.investScenario.splice(idx, 1);
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  renderInvestLabEditor();
+}
+
+function _investClearScenario() {
+  const cv = _curCanvas(); if (!cv) return;
+  cv.investScenario = [];
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  renderInvestLabEditor();
+}
+
+async function _investAddRemove() {
+  const cv = _curCanvas(); if (!cv) return;
+  const board = _investGetSourceBoard(cv); if (!board) return;
+  // Lista cards do board pra escolher
+  const choices = (board.cards || [])
+    .filter(c => c.col !== TERMINAL_COL && c.moneyType)
+    .map(c => {
+      const cf = (board.customFields || []).find(f => f.type === 'currency');
+      const v = cf ? Number((c.customFieldValues||{})[cf.id]) || 0 : 0;
+      const meta = ZAI_TYPES[c.moneyType];
+      return { id: c.id, label: c.name, meta: `${meta.emoji} ${v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0})}` };
+    });
+  if (!choices.length) {
+    appAlert('Sem cards', 'Não há cards financeiros (com tipo Receita/Custo) ativos no board pra remover.', { icon:'⚠', okLabel:'OK' });
+    return;
+  }
+  const cardId = await appChoice('Qual card simular remover?', choices, { icon:'✕' });
+  if (!cardId) return;
+  cv.investScenario.push({ op: 'remove', cardId });
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  renderInvestLabEditor();
+}
+
+async function _investAddModify() {
+  const cv = _curCanvas(); if (!cv) return;
+  const board = _investGetSourceBoard(cv); if (!board) return;
+  const choices = (board.cards || [])
+    .filter(c => c.col !== TERMINAL_COL && c.moneyType)
+    .map(c => {
+      const cf = (board.customFields || []).find(f => f.type === 'currency');
+      const v = cf ? Number((c.customFieldValues||{})[cf.id]) || 0 : 0;
+      const meta = ZAI_TYPES[c.moneyType];
+      return { id: c.id, label: c.name, meta: `${meta.emoji} ${v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0})}` };
+    });
+  if (!choices.length) {
+    appAlert('Sem cards', 'Não há cards financeiros pra modificar.', { icon:'⚠', okLabel:'OK' });
+    return;
+  }
+  const cardId = await appChoice('Qual card modificar valor?', choices, { icon:'~' });
+  if (!cardId) return;
+  const novoValor = await appPrompt('Novo valor', {
+    icon: '財', message: 'Quanto este card vai valer no cenário simulado?',
+    type: 'number', placeholder: '0',
+  });
+  const v = Number(novoValor);
+  if (!Number.isFinite(v) || v < 0) return;
+  cv.investScenario.push({ op: 'modify', cardId, newValue: v });
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  renderInvestLabEditor();
+}
+
+async function _investAddNew() {
+  const cv = _curCanvas(); if (!cv) return;
+  const name = await appPrompt('Nome do card simulado', {
+    icon:'+', placeholder:'Ex: Aporte mensal CDB',
+  });
+  if (!name || !name.trim()) return;
+  const typeId = await appChoice('Tipo financeiro', [
+    { id:'income',   label:'💰 Receita',        meta:'entrada' },
+    { id:'fixed',    label:'🔁 Custo fixo',     meta:'recorrente' },
+    { id:'variable', label:'⚡ Custo variável', meta:'one-shot' },
+  ], { icon:'財' });
+  if (!typeId) return;
+  const value = await appPrompt('Valor', {
+    icon:'財', message:'Valor mensal estimado (R$)',
+    type:'number', placeholder:'0',
+  });
+  const v = Number(value);
+  if (!Number.isFinite(v) || v <= 0) return;
+  cv.investScenario.push({ op:'add', name: name.trim(), moneyType: typeId, value: v });
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  renderInvestLabEditor();
+}
+
+async function _investApplyScenario() {
+  const cv = _curCanvas(); if (!cv) return;
+  const board = _investGetSourceBoard(cv); if (!board) return;
+  const ops = cv.investScenario || [];
+  if (!ops.length) return;
+  const ok = await appConfirm(
+    'Aplicar cenário no board?',
+    `Isso vai aplicar ${ops.length} alteração(ões) no board "${board.name}". O cenário fica registrado neste Lab pra histórico.`,
+    { icon:'財', okLabel:'Aplicar agora', cancelLabel:'Cancelar' }
+  );
+  if (!ok) return;
+  // Aplica
+  let nextId = (board.cards || []).reduce((m,c) => Math.max(m, c.id||0), 0) + 1;
+  ops.forEach(o => {
+    if (o.op === 'remove') {
+      board.cards = (board.cards || []).filter(c => c.id !== o.cardId);
+    }
+    if (o.op === 'modify') {
+      const c = (board.cards || []).find(x => x.id === o.cardId);
+      const cf = (board.customFields || []).find(f => f.type === 'currency');
+      if (c && cf) {
+        c.customFieldValues = c.customFieldValues || {};
+        c.customFieldValues[cf.id] = o.newValue;
+        c.threads = c.threads || [];
+        c.threads.push({ id: Date.now()+Math.random(), text: `財 Valor ajustado via Invest-Lab: R$ ${o.newValue.toLocaleString('pt-BR')}`, date: new Date().toISOString(), type:'auto' });
+      }
+    }
+    if (o.op === 'add') {
+      const cf = (board.customFields || []).find(f => f.type === 'currency');
+      const newCard = {
+        id: nextId++,
+        name: o.name,
+        priority: 'media',
+        col: (board.COLS||[]).find(c => c.id !== TERMINAL_COL)?.id || 'planejado',
+        tagIds: [],
+        moneyType: o.moneyType,
+        threads: [{ id: Date.now()+Math.random(), text: `財 Criado via Invest-Lab "${cv.name}"`, date: new Date().toISOString(), type:'auto' }],
+        attachments: [],
+        subtasks: [],
+        deadline: null,
+        createdAt: new Date().toISOString(),
+        colChangedAt: new Date().toISOString(),
+        doneAt: null,
+        responsavel: null,
+        customFieldValues: cf ? { [cf.id]: o.value } : {},
+      };
+      board.cards = board.cards || [];
+      board.cards.push(newCard);
+    }
+  });
+  // Limpa scenario após aplicar (e marca como aplicado)
+  cv.investApplied = cv.investApplied || [];
+  cv.investApplied.push({ at: new Date().toISOString(), ops: [...ops], by: (typeof supaUser !== 'undefined' && supaUser?.user_metadata?.full_name) || 'Você' });
+  cv.investScenario = [];
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  saveData();
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Cenário aplicado', `${ops.length} alteração(ões) aplicada(s) em <strong>"${_esc(board.name)}"</strong>. O futuro virou presente.`, 'info');
+  }
+  renderInvestLabEditor();
+}
+
 function renderBlankEditor() {
   const root = document.getElementById('canvas-root');
   const cv = _curCanvas(); if (!cv) { closeCanvas(); return; }
@@ -22501,6 +22981,283 @@ function calcBoardRunwayMonths() {
   if (net >= 0) return Infinity;
   // net é negativo. Saldo divide pelo "outflow real" = -net
   return balance / (-net);
+}
+
+// ── Playbook de regras (Zai Sprint 2) ──────────────────────
+// Cada regra tem: id, kind ('max-category', 'min-runway', 'tag-required'),
+// params específicos do kind, e severity ('warn'|'block').
+//
+// Ex: { kind:'max-category', category:'Marketing', max: 5000 }
+//     "Não gastar mais de R$5.000/mês em Marketing"
+
+function getBoardPlaybook() {
+  const b = allBoards[currentBoardId];
+  return Array.isArray(b?.playbook) ? b.playbook : [];
+}
+
+function setBoardPlaybook(rules) {
+  const b = allBoards[currentBoardId];
+  if (!b) return;
+  b.playbook = Array.isArray(rules) ? rules : [];
+  saveData();
+  if (typeof render === 'function') render();
+}
+
+function addBoardRule(rule) {
+  const cur = getBoardPlaybook();
+  const id = 'r_' + Date.now().toString(36);
+  setBoardPlaybook([...cur, { id, ...rule }]);
+}
+
+function removeBoardRule(ruleId) {
+  setBoardPlaybook(getBoardPlaybook().filter(r => r.id !== ruleId));
+}
+
+// Avalia uma regra contra o estado atual do board
+// Retorna: { ok:bool, used:number?, max:number?, label:string }
+function evaluateRule(rule) {
+  if (!rule || !rule.kind) return { ok: true, label: '?' };
+  const kind = rule.kind;
+
+  if (kind === 'max-category') {
+    // Limite de gasto mensal numa categoria
+    const cf = (customFields || []).find(f => f.id === 'cf_categoria') ||
+               (customFields || []).find(f => f.type === 'select');
+    let used = 0;
+    (cards || []).forEach(c => {
+      if (c.col === TERMINAL_COL) return;
+      const t = getCardMoneyType(c);
+      if (!t || t === 'income') return;
+      const cat = (c.customFieldValues || {})[cf?.id];
+      if (cat !== rule.category) return;
+      used += Math.abs(getCardMoneyValue(c));
+    });
+    return {
+      ok: used <= rule.max,
+      used, max: rule.max,
+      label: `Gasto em <strong>${rule.category}</strong> ≤ R$ ${rule.max.toLocaleString('pt-BR')}/mês`,
+    };
+  }
+
+  if (kind === 'min-runway') {
+    const months = calcBoardRunwayMonths();
+    return {
+      ok: !Number.isFinite(months) || months >= rule.minMonths,
+      used: months, max: rule.minMonths,
+      label: `Runway ≥ <strong>${rule.minMonths} meses</strong>`,
+    };
+  }
+
+  if (kind === 'min-income') {
+    const inc = calcBoardIncomeRate();
+    return {
+      ok: inc >= rule.min,
+      used: inc, max: rule.min,
+      label: `Receita mensal ≥ <strong>R$ ${rule.min.toLocaleString('pt-BR')}</strong>`,
+    };
+  }
+
+  if (kind === 'tag-required') {
+    // Cards de custo ACIMA de X devem ter a tag required
+    const tagId = (globalTags.find(t => t.text === rule.tagText) || {}).id;
+    let violations = 0;
+    (cards || []).forEach(c => {
+      if (c.col === TERMINAL_COL) return;
+      const t = getCardMoneyType(c);
+      if (!t || t === 'income') return;
+      const v = Math.abs(getCardMoneyValue(c));
+      if (v < rule.minValue) return;
+      if (!(c.tagIds || []).includes(tagId)) violations++;
+    });
+    return {
+      ok: violations === 0,
+      used: violations, max: 0,
+      label: `Cards de custo > R$ ${rule.minValue.toLocaleString('pt-BR')} devem ter tag <strong>${rule.tagText}</strong>`,
+    };
+  }
+
+  return { ok: true, label: '?' };
+}
+
+// Detecta cards que VIOLAM uma regra específica (pra destacar)
+function _cardViolatesRule(card, rule) {
+  if (!card || !rule) return false;
+  if (card.col === TERMINAL_COL) return false;
+  if (rule.kind === 'max-category') {
+    const cf = (customFields || []).find(f => f.id === 'cf_categoria') ||
+               (customFields || []).find(f => f.type === 'select');
+    const cat = (card.customFieldValues || {})[cf?.id];
+    if (cat !== rule.category) return false;
+    // Se a regra está sendo violada (used > max), todos os cards dessa categoria contribuem
+    const result = evaluateRule(rule);
+    return !result.ok;
+  }
+  if (rule.kind === 'tag-required') {
+    const t = getCardMoneyType(card);
+    if (!t || t === 'income') return false;
+    const v = Math.abs(getCardMoneyValue(card));
+    if (v < rule.minValue) return false;
+    const tagId = (globalTags.find(t => t.text === rule.tagText) || {}).id;
+    return !(card.tagIds || []).includes(tagId);
+  }
+  return false;
+}
+
+function _cardBoostsRule(card, rule) {
+  // Cards que CONTRIBUEM positivamente: receita pra min-income
+  if (!card || !rule) return false;
+  if (card.col === TERMINAL_COL) return false;
+  if (rule.kind === 'min-income') {
+    return getCardMoneyType(card) === 'income';
+  }
+  return false;
+}
+
+// Render do Playbook no topo do board (depois da Runway Bar)
+function _renderZaiPlaybook() {
+  const view = document.getElementById('view-kanban');
+  if (!view) return;
+  view.querySelectorAll('.zai-playbook-card').forEach(el => el.remove());
+  if (!isBoardZaiEnabled()) return;
+  const rules = getBoardPlaybook();
+  if (rules.length === 0) {
+    // Mostra card vazio convidando a criar primeira regra
+    const empty = document.createElement('div');
+    empty.className = 'zai-playbook-card';
+    empty.innerHTML = `
+      <div class="zai-playbook-h">
+        <span>規 · Playbook · regras de ouro</span>
+        <button class="pb-add" onclick="openAddRuleModal()">+ Adicionar regra</button>
+      </div>
+      <div style="font-size:12px;color:var(--color-text-tertiary);position:relative;z-index:1;">
+        Defina regras de ouro pro board (ex: <em>"max R$ 5k em Marketing/mês"</em> ou <em>"runway ≥ 6 meses"</em>). Cards que violam ficam com borda vermelha.
+      </div>
+    `;
+    const runway = view.querySelector('.zai-runway-bar');
+    if (runway) runway.after(empty);
+    else view.insertBefore(empty, view.firstChild);
+    return;
+  }
+  const card = document.createElement('div');
+  card.className = 'zai-playbook-card';
+  card.innerHTML = `
+    <div class="zai-playbook-h">
+      <span>規 · Playbook · regras de ouro</span>
+      <button class="pb-add" onclick="openAddRuleModal()">+ Regra</button>
+    </div>
+    <div class="zai-playbook-rules">
+      ${rules.map(r => {
+        const ev = evaluateRule(r);
+        const iconCls = ev.ok ? 'ok' : 'danger';
+        const icon = ev.ok ? '✓' : '⚠';
+        let metaHtml = '';
+        if (r.kind === 'max-category' || r.kind === 'min-income') {
+          metaHtml = `R$ ${(ev.used||0).toLocaleString('pt-BR',{maximumFractionDigits:0})} / R$ ${ev.max.toLocaleString('pt-BR')}`;
+        } else if (r.kind === 'min-runway') {
+          metaHtml = `${Number.isFinite(ev.used)?ev.used.toFixed(1):'∞'}m / ${ev.max}m`;
+        } else if (r.kind === 'tag-required') {
+          metaHtml = `${ev.used} violação${ev.used!==1?'es':''}`;
+        }
+        return `<div class="zai-pb-rule">
+          <span class="zai-pb-rule-icon ${iconCls}">${icon}</span>
+          <span class="zai-pb-rule-text">${ev.label}</span>
+          <span class="zai-pb-rule-meta">${metaHtml}</span>
+          <span class="zai-pb-rule-actions">
+            <button class="zai-pb-rule-act" onclick="removeBoardRule('${r.id}')" title="Remover regra">✕</button>
+          </span>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+  const runway = view.querySelector('.zai-runway-bar');
+  if (runway) runway.after(card);
+  else view.insertBefore(card, view.firstChild);
+}
+
+// Modal pra adicionar uma regra nova
+async function openAddRuleModal() {
+  const cats = (() => {
+    const cf = (customFields || []).find(f => f.id === 'cf_categoria') ||
+               (customFields || []).find(f => f.type === 'select');
+    return (cf?.options) || [];
+  })();
+  const tags = (globalTags || []).map(t => t.text);
+
+  // Modal customizado: usa o sistema de dialog existente
+  const html = `
+    <div class="app-dialog-icon">規</div>
+    <h3 class="app-dialog-title">Nova regra do Playbook</h3>
+    <div class="pb-rule-form">
+      <label>Tipo de regra</label>
+      <select id="pb-rule-kind">
+        <option value="max-category">Limite por categoria (R$/mês)</option>
+        <option value="min-runway">Runway mínimo (meses)</option>
+        <option value="min-income">Receita mínima (R$/mês)</option>
+        ${tags.length ? '<option value="tag-required">Tag obrigatória pra custos altos</option>' : ''}
+      </select>
+      <div id="pb-rule-fields"></div>
+    </div>
+    <div class="app-dialog-actions">
+      <button class="app-dialog-btn" id="app-dlg-cancel">Cancelar</button>
+      <button class="app-dialog-btn is-primary" id="app-dlg-ok">Adicionar regra</button>
+    </div>
+  `;
+  _appDialogShow(html, dialog => {
+    const kindSel = dialog.querySelector('#pb-rule-kind');
+    const fieldsBox = dialog.querySelector('#pb-rule-fields');
+
+    function renderFields() {
+      const k = kindSel.value;
+      if (k === 'max-category') {
+        fieldsBox.innerHTML = `
+          <label>Categoria</label>
+          <select id="pb-cat">${cats.map(c => `<option value="${_esc(c)}">${_esc(c)}</option>`).join('')}</select>
+          <label>Limite mensal (R$)</label>
+          <input type="number" id="pb-max" min="0" step="100" placeholder="Ex: 5000" />
+        `;
+      } else if (k === 'min-runway') {
+        fieldsBox.innerHTML = `
+          <label>Mínimo de meses de runway</label>
+          <input type="number" id="pb-min" min="1" max="36" step="1" placeholder="Ex: 6" />
+        `;
+      } else if (k === 'min-income') {
+        fieldsBox.innerHTML = `
+          <label>Receita mínima mensal (R$)</label>
+          <input type="number" id="pb-min" min="0" step="500" placeholder="Ex: 20000" />
+        `;
+      } else if (k === 'tag-required') {
+        fieldsBox.innerHTML = `
+          <label>Tag obrigatória</label>
+          <select id="pb-tag">${tags.map(t => `<option value="${_esc(t)}">${_esc(t)}</option>`).join('')}</select>
+          <label>Pra cards com valor acima de (R$)</label>
+          <input type="number" id="pb-min-val" min="0" step="100" placeholder="Ex: 1000" />
+        `;
+      }
+    }
+    kindSel.onchange = renderFields;
+    renderFields();
+    dialog.querySelector('#app-dlg-cancel').onclick = () => _appDialogClose(null);
+    dialog.querySelector('#app-dlg-ok').onclick = () => {
+      const k = kindSel.value;
+      let rule = { kind: k };
+      if (k === 'max-category') {
+        rule.category = dialog.querySelector('#pb-cat').value;
+        rule.max = Number(dialog.querySelector('#pb-max').value) || 0;
+        if (!rule.max) return;
+      } else if (k === 'min-runway') {
+        rule.minMonths = Number(dialog.querySelector('#pb-min').value) || 0;
+        if (!rule.minMonths) return;
+      } else if (k === 'min-income') {
+        rule.min = Number(dialog.querySelector('#pb-min').value) || 0;
+        if (!rule.min) return;
+      } else if (k === 'tag-required') {
+        rule.tagText = dialog.querySelector('#pb-tag').value;
+        rule.minValue = Number(dialog.querySelector('#pb-min-val').value) || 0;
+      }
+      addBoardRule(rule);
+      _appDialogClose(true);
+    };
+  });
 }
 
 // ── Toggle View Executiva ↔ Financeira ─────────────────────
