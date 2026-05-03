@@ -4271,31 +4271,12 @@ body.density-compact .col{padding:7px;}
 @keyframes sakuraFadeIn  { from{opacity:0;} to{opacity:1;} }
 @keyframes sakuraFadeOut { from{opacity:1;} to{opacity:0;} }
 
-/* Sun beams + golden hour glow (efeito Yotei) */
+/* Tom dourado sutil estático no horizonte (sem animação) — apenas atmosfera */
 .dojo-sakura-overlay::before{
   content:'';position:absolute;inset:0;
   background:
-    radial-gradient(ellipse 80% 50% at 35% -10%, rgba(255,180,80,0.28) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 85% 5%,   rgba(255,140,60,0.18) 0%, transparent 65%),
-    radial-gradient(ellipse 100% 30% at 50% 100%, rgba(120,60,20,0.25) 0%, transparent 70%);
-  mix-blend-mode:screen;
-  animation:sakuraSunBeam 9s ease-in-out infinite alternate;
-}
-@keyframes sakuraSunBeam {
-  0%   { transform:translateX(-25px) translateY(-8px); opacity:.75; }
-  100% { transform:translateX(25px)  translateY(10px); opacity:1;   }
-}
-
-/* Camada de "luz dourada" pulsante (efeito ar tremulando) */
-.dojo-sakura-overlay::after{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(circle at 50% 30%, rgba(255,200,120,0.08) 0%, transparent 50%);
-  animation:sakuraLightPulse 4s ease-in-out infinite alternate;
+    radial-gradient(ellipse 100% 25% at 50% 100%, rgba(120,60,20,0.18) 0%, transparent 75%);
   pointer-events:none;
-}
-@keyframes sakuraLightPulse {
-  0%   { opacity:.5; }
-  100% { opacity:1; }
 }
 
 .dojo-sakura-petal{
@@ -23351,8 +23332,18 @@ function _dojoStartWindEngine(overlay) {
     return el;
   }
 
-  // Linha do chão (px do topo). Folhas pousam ligeiramente acima do bottom.
-  const GROUND_Y = H - 30;
+  // Chão irregular (não uma linha reta). Definido por ondulação senoidal +
+  // variação por folha pra dar acúmulo natural. Nível médio mais alto que
+  // o bottom (chão sobe pra ~75% da altura → folhas se acumulam visíveis).
+  const GROUND_BASE_Y = H * 0.72;        // ~72% da altura (mais pra cima)
+  const GROUND_AMPLITUDE = 28;            // ondulação ±28px
+  const GROUND_AMPLITUDE_2 = 12;          // segunda onda mais curta
+  // Função do chão por X — duas senoides sobrepostas + offset estável por X
+  function _groundYAt(x) {
+    const w1 = Math.sin(x / 220) * GROUND_AMPLITUDE;
+    const w2 = Math.sin(x / 75 + 1.7) * GROUND_AMPLITUDE_2;
+    return GROUND_BASE_Y + w1 + w2;
+  }
   const MAX_LEAVES = 180;  // Limite total (caindo + pousadas)
   let _leafIdSeed = 0;
 
@@ -23416,46 +23407,10 @@ function _dojoStartWindEngine(overlay) {
     const dur = opts?.dur ?? rand(1.2, 2.4);
     const gust = { dir, cy, radius, force, dur, elapsed: 0 };
     gusts.push(gust);
-    // Visual associado: mist gust + burst de poeira
-    spawnMistGust(dir, cy, dur, radius);
+    // Visual associado: APENAS burst de poeira (mist removido — dava efeito
+    // de "luz percorrendo a tela" indesejado).
     spawnDustBurst(dir, cy, radius);
     return gust;
-  }
-
-  function spawnMistGust(dir, cy, dur, radius) {
-    const m = document.createElement('div');
-    m.className = 'dojo-wind-mist-js';
-    const startX = dir > 0 ? -W*0.4 : W*1.4;
-    const endX   = dir > 0 ? W*1.4  : -W*0.4;
-    const height = radius * 1.6;
-    m.style.cssText = `
-      position:absolute;
-      width:${(W*0.7).toFixed(0)}px;height:${height.toFixed(0)}px;
-      left:0;top:${(cy - height/2).toFixed(0)}px;
-      background:radial-gradient(ellipse 50% 60% at 50% 50%,
-        rgba(255,225,170,0.22) 0%,
-        rgba(255,200,130,0.12) 35%,
-        transparent 75%);
-      filter:blur(24px);mix-blend-mode:screen;
-      pointer-events:none;will-change:transform,opacity;
-      transform:translate3d(${startX.toFixed(0)}px,0,0);
-      opacity:0;
-    `;
-    overlay.appendChild(m);
-    // Anima via requestAnimationFrame manual (síncrono com física)
-    const t0 = performance.now();
-    function animateMist(now) {
-      const t = (now - t0) / 1000;
-      if (t > dur + 0.4) { try { m.remove(); } catch(e){} return; }
-      const p = Math.min(1, t / dur);
-      // Easing: rampa de saída suave
-      const x = startX + (endX - startX) * p;
-      const op = (p < 0.15) ? (p / 0.15) : (p > 0.85 ? (1 - p) / 0.15 : 1);
-      m.style.transform = `translate3d(${x.toFixed(0)}px,0,0)`;
-      m.style.opacity = String(op.toFixed(2));
-      requestAnimationFrame(animateMist);
-    }
-    requestAnimationFrame(animateMist);
   }
 
   function spawnDustBurst(dir, cy, radius) {
@@ -23567,13 +23522,13 @@ function _dojoStartWindEngine(overlay) {
         lf.rot += lf.vx * 0.3 * dt;
         // Tendência a voltar pra rotação de descanso
         const rotDelta = lf.restRot - lf.rot;
-        // Normaliza pra menor caminho (entre -180 e 180)
         const wrapped = ((rotDelta + 180) % 360 + 360) % 360 - 180;
         lf.rot += wrapped * 0.5 * dt;
         lf.x += lf.vx * dt;
-        // Mantém no chão
-        lf.y = GROUND_Y - lf.size * 0.2;
-        // Wrap horizontal nas bordas (folhas do canto reaparecem do lado oposto)
+        // Acompanha o chão irregular: se folha rola horizontalmente,
+        // vai seguindo o relevo. _restY é offset persistente da folha.
+        lf.y = _groundYAt(lf.x) + lf._yOffset;
+        // Wrap horizontal nas bordas
         if (lf.x < -lf.size) lf.x = W + lf.size;
         else if (lf.x > W + lf.size) lf.x = -lf.size;
       } else {
@@ -23600,22 +23555,26 @@ function _dojoStartWindEngine(overlay) {
         if (lf.x < -W*0.15) lf.x = W * 1.05;
         else if (lf.x > W*1.15) lf.x = -W * 0.05;
 
-        // Detecta pouso: chegou ao chão
-        if (lf.y >= GROUND_Y - lf.size * 0.2) {
+        // Detecta pouso: chegou ao chão (irregular). Cada folha tem _yOffset
+        // próprio pra desalinhar o tapete (algumas mais altas/baixas).
+        const groundLine = _groundYAt(lf.x);
+        if (lf.y >= groundLine - lf.size * 0.15) {
           lf.landed = true;
           lf.landedTime = elapsed;
-          lf.y = GROUND_Y - lf.size * 0.2;
+          // Offset Y individual: folha pode pousar acima ou abaixo da linha
+          // do chão (-22..+8) — empilhamento natural com sobreposição.
+          lf._yOffset = rand(-22, 8) - lf.size * 0.15;
+          lf.y = groundLine + lf._yOffset;
           lf.vy = 0;
-          // Velocidade horizontal residual, mas reduzida (impacto)
           lf.vx *= 0.3;
-          // Rotação final: aleatória (folha tomba pra um lado)
-          lf.restRot = rand(-25, 25) + (lf.vx > 0 ? 8 : -8);
-          // Empurrão visual leve nas folhas vizinhas pousadas (efeito acumulação)
+          // Rotação final desalinhada: -50° a +50° (chão irregular = ângulos variados)
+          lf.restRot = rand(-50, 50);
+          // Empurrão visual leve nas folhas vizinhas pousadas
           for (const other of leaves) {
             if (other === lf || !other.landed) continue;
             const dist = Math.abs(other.x - lf.x);
             if (dist < lf.size * 1.2) {
-              other.vx += (other.x - lf.x) * 0.4;
+              other.vx += (other.x - lf.x) * 0.3;
             }
           }
         }
