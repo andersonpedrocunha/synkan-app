@@ -10651,25 +10651,55 @@ function _settingsIASection() {
       ${devActivationBlock}
     </div>
 
+    ${(() => {
+      // Calcula o limite EFETIVO: o menor entre o plano e o pessoal.
+      // Plano com ai = -1 significa ilimitado.
+      const planLimits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : { ai: -1, name: '—' };
+      const planMax = planLimits.ai;
+      const planName = planLimits.name || '';
+      const planUnlimited = planMax === -1;
+      const personalLimit = q.limit;
+      const effectiveLimit = planUnlimited
+        ? personalLimit
+        : Math.min(personalLimit, planMax);
+      const pctEff = Math.min(100, Math.round((q.used / Math.max(1, effectiveLimit)) * 100));
+      const personalAbovePlan = !planUnlimited && personalLimit > planMax;
+      return `
     <div class="settings-card">
       <div class="settings-card-h">
         <span class="settings-card-title">Limite de chamadas de IA por mês</span>
-        <span class="settings-status-pill ${q.remaining===0?'off':'on'}">${q.used}/${q.limit} este mês</span>
+        <span class="settings-status-pill ${q.used >= effectiveLimit ? 'off' : 'on'}">${q.used}/${effectiveLimit} este mês</span>
       </div>
-      <div class="settings-card-sub">Pra evitar consumo acidental de tokens (loops, cliques duplos, scripts), você define um teto mensal de chamadas. O contador zera no dia 1º do mês seguinte.</div>
+      <div class="settings-card-sub">
+        Seu plano <strong>${_esc(planName)}</strong> permite
+        ${planUnlimited
+          ? '<strong>chamadas ilimitadas</strong> de IA por mês.'
+          : `até <strong>${planMax}</strong> chamadas de IA por mês.`}
+        ${planUnlimited ? '' : 'Você pode definir um limite <em>menor</em> aqui pra evitar consumo acidental (loops, cliques duplos, scripts). O contador zera no dia 1º do mês seguinte.'}
+      </div>
       <div style="background:var(--color-background-secondary);border-radius:8px;height:8px;overflow:hidden;margin:4px 0 8px;">
-        <div style="background:${tone};height:100%;width:${pct}%;transition:width .3s;"></div>
+        <div style="background:${tone};height:100%;width:${pctEff}%;transition:width .3s;"></div>
       </div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px;">
-        <div class="settings-row-label">Limite mensal (chamadas)</div>
+        <div class="settings-row-label">Limite pessoal mensal ${planUnlimited ? '(plano ilimitado)' : `(máx ${planMax})`}</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <input id="ai-quota-input" type="number" min="1" max="100000" value="${q.limit}" style="flex:0 0 140px;padding:8px 11px;border:0.5px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font-size:13px;" />
+          <input id="ai-quota-input" type="number"
+                 min="1" max="${planUnlimited ? 100000 : planMax}"
+                 value="${q.limit}"
+                 style="flex:0 0 140px;padding:8px 11px;border:0.5px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font-size:13px;" />
           <button class="btn-c" onclick="saveAIQuotaFromUI()">Salvar</button>
           <button class="btn-g" onclick="resetAIQuotaToday();renderSettings();">Zerar contador deste mês</button>
         </div>
-        <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-top:4px;">O Mestre Kan avisa quando você atinge 50%, 80% e 95% do limite mensal.</div>
+        ${personalAbovePlan ? `
+          <div style="font-size:12px;color:#A88224;margin-top:4px;">
+            ⚠ Seu limite pessoal está acima do limite do plano (${planMax}). Vale o que for menor — efetivo: <strong>${effectiveLimit}/mês</strong>.
+            ${planMax < 1000 ? ' <a onclick="if(typeof switchTab===\\'function\\')switchTab(\\'plan\\')" style="color:var(--color-text-primary);cursor:pointer;text-decoration:underline;">Ver planos</a>' : ''}
+          </div>
+        ` : ''}
+        <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-top:4px;">O Mestre Kan avisa quando você atinge 50%, 80% e 95% do limite efetivo.</div>
       </div>
-    </div>
+    </div>`;
+    })()}
 
     ${_settingsVoiceCardsSection()}
     ${_settingsPomoSection()}
@@ -16960,11 +16990,22 @@ function refreshAIQuotaPill() {
     if (tmp.firstElementChild) badge.replaceWith(tmp.firstElementChild);
   });
 }
-function saveAIQuotaFromUI() {
+async function saveAIQuotaFromUI() {
   const v = parseInt(document.getElementById('ai-quota-input')?.value);
-  if (!v || v < 1) { alert('Informe um número maior que zero.'); return; }
-  setAIQuotaLimit(v);
-  audit('ai.quota', { limit: v });
+  if (!v || v < 1) { await appAlert('Valor inválido', 'Informe um número maior que zero.', { icon:'⚠️' }); return; }
+  // Clamp pelo limite do plano (se não for ilimitado).
+  const planLimits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : { ai: -1 };
+  const planMax = planLimits.ai;
+  let finalV = v;
+  if (planMax !== -1 && v > planMax) {
+    const ok = await appConfirm('Acima do limite do plano',
+      `Seu plano permite até ${planMax} chamadas/mês. Vou salvar como ${planMax} (o limite efetivo). Continuar?`,
+      { okLabel: `Salvar como ${planMax}` });
+    if (!ok) return;
+    finalV = planMax;
+  }
+  setAIQuotaLimit(finalV);
+  audit('ai.quota', { limit: finalV });
   if (currentTab === 'settings') renderSettings();
 }
 
