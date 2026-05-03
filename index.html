@@ -1183,6 +1183,21 @@ body.density-compact .card-cf-row{font-size:10px;}
 .col-n.wip-warn{background:#FCEBEB;color:#A32D2D;border-color:#F09595;font-weight:600;}
 .col-archived{font-size:11px;color:var(--color-text-tertiary);text-align:center;padding:6px 4px;background:transparent;border:0.5px dashed var(--color-border-tertiary);border-radius:6px;margin-top:6px;cursor:default;}
 
+/* ── Aging WIP no card: borda lateral muda de cor com a idade do card na coluna ── */
+.card{position:relative;}
+.card.aging-warn{box-shadow:inset 3px 0 0 #D9A227;}
+.card.aging-stale{box-shadow:inset 3px 0 0 #C2410C;}
+.card.aging-critical{box-shadow:inset 3px 0 0 #DC2626;animation:agingPulse 2.4s ease-in-out infinite;}
+@keyframes agingPulse{
+  0%,100%{box-shadow:inset 3px 0 0 #DC2626, 0 0 0 0 rgba(220,38,38,0);}
+  50%{box-shadow:inset 3px 0 0 #DC2626, 0 0 0 3px rgba(220,38,38,.10);}
+}
+/* Tooltip de aging via título nativo (não precisa de CSS extra) */
+
+/* Coluna excedida em WIP — destaque sutil no fundo da coluna inteira */
+.col.wip-exceeded{background:linear-gradient(180deg, rgba(252,235,235,.45) 0%, transparent 50px);}
+.col.wip-exceeded .col-h{color:#A32D2D;}
+
 /* ── Densidade compact ── */
 body.density-compact .card{padding:6px 8px;margin-bottom:5px;}
 body.density-compact .card-desc{font-size:12px;margin-bottom:4px;line-height:1.3;}
@@ -4009,6 +4024,45 @@ function timeToDone(card) {
   }
   // card em aberto — usa formatDuration para mostrar horas/dias sem "hoje"
   return { type:'open', duration: formatDuration(new Date() - createdAt), createdAt, doneAt: null };
+}
+
+// ── Aging WIP ─────────────────────────────────────────────────────
+// Quanto tempo o card está parado na coluna atual.
+// Usa colChangedAt (preenchido a cada mudança de coluna). Fallback: createdAt.
+function getCardAgeInColumnMs(card) {
+  if (!card) return 0;
+  const ref = card.colChangedAt || card.createdAt;
+  if (!ref) return 0;
+  return Date.now() - new Date(ref).getTime();
+}
+
+// Retorna 'fresh' | 'warn' | 'stale' | 'critical' baseado em dias úteis na coluna.
+// Só faz sentido em colunas NÃO-terminais (Done não envelhece).
+// Limites configuráveis por board no kanbanConfig.aging (em dias úteis):
+//   warn (default 3) | stale (default 7) | critical (default 14)
+function getCardAgingLevel(card) {
+  if (!card || card.col === TERMINAL_COL) return null;
+  const ageMs = getCardAgeInColumnMs(card);
+  if (ageMs <= 0) return 'fresh';
+  const days = ageMs / 86400000;
+  // Limites configuráveis (dias corridos por simplicidade)
+  const cfg = (kanbanConfig && kanbanConfig.aging) || {};
+  const wWarn     = Number.isFinite(cfg.warn)     ? cfg.warn     : 3;
+  const wStale    = Number.isFinite(cfg.stale)    ? cfg.stale    : 7;
+  const wCritical = Number.isFinite(cfg.critical) ? cfg.critical : 14;
+  if (days >= wCritical) return 'critical';
+  if (days >= wStale)    return 'stale';
+  if (days >= wWarn)     return 'warn';
+  return 'fresh';
+}
+
+// Tooltip humanizado pra mostrar no hover do card
+function getCardAgingTooltip(card) {
+  if (!card) return '';
+  const ageMs = getCardAgeInColumnMs(card);
+  if (ageMs <= 0) return '';
+  const colTitle = (COLS.find(c=>c.id===card.col) || {}).title || card.col;
+  return `Há ${formatDuration(ageMs)} em "${colTitle}"`;
 }
 
 // ── Attachments ──
@@ -8825,6 +8879,7 @@ function tblSetCol(id, newCol) {
   const oldTitle = COLS.find(x=>x.id===card.col)?.title || card.col;
   const newTitle = COLS.find(x=>x.id===newCol)?.title || newCol;
   card.col = newCol;
+  card.colChangedAt = new Date().toISOString();   // aging WIP tracking
   if (movedToDone) card.doneAt = new Date().toISOString();
   else if (movedFromDone) card.doneAt = null;
   if (typeof autoThread === 'function') autoThread(card, `Movido de "${oldTitle}" para "${newTitle}"`);
@@ -8934,6 +8989,7 @@ function toggleDone(id) {
   const movedToDone = card.col !== TERMINAL_COL && next === TERMINAL_COL;
   autoThread(card, `Movido para "${COLS.find(x=>x.id===next)?.title}"`);
   card.col = next;
+  card.colChangedAt = new Date().toISOString();   // aging WIP tracking
   card.doneAt = next==='done' ? new Date().toISOString() : null;
   if (next === TERMINAL_COL) {
     if (card.recurrence) _spawnRecurrence(card);
@@ -9051,11 +9107,11 @@ function render() {
     const wipExceeded = col.wipLimit && totalInCol > col.wipLimit;
     const countLabel = col.wipLimit ? `${totalInCol}/${col.wipLimit}` : totalInCol;
     const div=document.createElement('div');
-    div.className='col'+(col.id==='blocked'?' col-blocked':col.id===TERMINAL_COL?' col-done':'');
+    div.className='col'+(col.id==='blocked'?' col-blocked':col.id===TERMINAL_COL?' col-done':'')+(wipExceeded?' wip-exceeded':'');
     div.innerHTML=`
-      <div class="col-head">
+      <div class="col-head${wipExceeded?' col-h':''}">
         <span class="col-name">${col.title}</span>
-        <span class="col-n${wipExceeded?' wip-warn':''}" title="${col.wipLimit?`WIP ${totalInCol} de ${col.wipLimit}`:''}">${countLabel}</span>
+        <span class="col-n${wipExceeded?' wip-warn':''}" title="${col.wipLimit?(wipExceeded?'⚠ WIP excedido: '+totalInCol+' de '+col.wipLimit+' (foco no fluxo, mestre)':'WIP '+totalInCol+' de '+col.wipLimit):''}">${countLabel}</span>
       </div>
       <div class="dz" data-col="${col.id}">
         ${cc.map(c=>{
@@ -9104,8 +9160,11 @@ function render() {
           const showFoot = showFootLeft || showAttach || showThread;
           // No modo unificado o id já é string "boardId::localId"; passamos com aspas
           const cidArg = (typeof c.id === 'string') ? `'${c.id}'` : c.id;
+          const _aging = isDone ? null : getCardAgingLevel(c);
+          const agingCls = _aging && _aging !== 'fresh' ? ` aging-${_aging}` : '';
+          const agingTitle = _aging && _aging !== 'fresh' ? ` title="${_esc(getCardAgingTooltip(c))}"` : '';
           return `<div class="card-wrap">
-            <div class="card${isDone?' is-done':''}${sourceCls}" ${sourceStyle} draggable="true" data-id="${c.id}" onclick="editCard(${cidArg})">
+            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
               ${sourceLine}
               ${F.tags && tags.length?`<div class="card-tags">${tags.map(t=>`<span class="ctag" style="background:${t.color.bg};color:${t.color.text};">${t.text}</span>`).join('')}</div>`:''}
               <div class="card-desc">${c.name}</div>
@@ -9158,8 +9217,19 @@ function bindDrag() {
         if(card.col!==newCol){
           const movedToDone = newCol === TERMINAL_COL && card.col !== TERMINAL_COL;
           const movedFromDone = card.col === TERMINAL_COL && newCol !== TERMINAL_COL;
+          // ── Aviso de WIP excedido (não bloqueia, só avisa) ──────────
+          try {
+            const targetCol = COLS.find(x => x.id === newCol);
+            if (targetCol && targetCol.wipLimit && newCol !== TERMINAL_COL) {
+              const inColAfter = cards.filter(c => c.col === newCol && c.id !== card.id).length + 1;
+              if (inColAfter > targetCol.wipLimit) {
+                _showKanWIPWarning(targetCol.title, inColAfter, targetCol.wipLimit);
+              }
+            }
+          } catch(e){}
           autoThread(card,`Movido para "${COLS.find(x=>x.id===newCol)?.title}"`);
           card.col=newCol;
+          card.colChangedAt = new Date().toISOString();   // aging WIP tracking
           // Atualiza doneAt + concede XP quando vai pra coluna terminal
           if (movedToDone) {
             card.doneAt = new Date().toISOString();
@@ -9175,6 +9245,17 @@ function bindDrag() {
       }
     });
   });
+}
+
+// Toast estilo Mestre Kan pra avisar WIP excedido (usa _showKanWarning se existir)
+function _showKanWIPWarning(colTitle, atual, limite) {
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning(
+      'Foco no fluxo, mestre',
+      `A coluna <strong>"${colTitle}"</strong> agora tem ${atual} cards (limite ${limite}). Conclua o que está em andamento antes de iniciar novos — esta é a essência do Kanban.`,
+      'warn'
+    );
+  }
 }
 
 function fillCol(sel) {
