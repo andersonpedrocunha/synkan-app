@@ -11091,6 +11091,7 @@ function _calOpenCreateModal() {
     </label>
   `).join('');
   const html = `
+    <h3 style="margin:0 0 14px;font-size:18px;font-weight:600;letter-spacing:-0.01em;">Nova URL de calendário</h3>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div>
         <label style="display:block;font-size:12px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Nome da URL</label>
@@ -11104,16 +11105,15 @@ function _calOpenCreateModal() {
         <input id="cal-new-include-done" type="checkbox" />
         Incluir cards já concluídos no calendário
       </label>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
-        <button class="btn-c" onclick="_appModalClose && _appModalClose()">Cancelar</button>
-        <button class="btn-c" style="background:#111;color:#fff;border-color:#111;" onclick="_calCreateToken()">Criar URL</button>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+        <button class="app-dialog-btn" onclick="_appDialogClose(null)">Cancelar</button>
+        <button class="app-dialog-btn primary" onclick="_calCreateToken()">Criar URL</button>
       </div>
     </div>
   `;
-  if (typeof appModal === 'function') {
-    appModal('Nova URL de calendário', html, { size:'md' });
+  if (typeof _appDialogShow === 'function') {
+    _appDialogShow(html);
   } else {
-    // Fallback: window.alert simples
     alert('UI de modal indisponível.');
   }
 }
@@ -11137,7 +11137,7 @@ async function _calCreateToken() {
       headers: { 'Prefer': 'return=minimal' },
       timeoutMs: 6000,
     });
-    if (typeof _appModalClose === 'function') _appModalClose();
+    if (typeof _appDialogClose === 'function') _appDialogClose(true);
     await _calLoadTokens();
     if (typeof renderSettings === 'function') renderSettings();
     showToastMsg('URL de calendário criada · cole no Google ou Outlook');
