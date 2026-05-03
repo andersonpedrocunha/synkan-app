@@ -7380,7 +7380,7 @@ function _doPromoteKaizen(cardId, targetBoardId) {
   if (typeof closeAppAlert === 'function') closeAppAlert();
   // Feedback
   if (typeof _showKanWarning === 'function') {
-    _showKanWarning('Ação promovida', `Card movido para <strong>"${target.name}"</strong>. A semente plantada na retrospectiva agora vira prática.`, 'info');
+    _showKanWarning('Ação promovida', `Card movido para <strong>"${_esc(target.name)}"</strong>. A semente plantada na retrospectiva agora vira prática.`, 'info');
   }
   render();
 }
@@ -14637,11 +14637,14 @@ function _showKanWarning(title, body, style) {
   }[style||'info'];
   const div = document.createElement('div');
   div.style.cssText = `background:${colors.bg};color:${colors.fg};border-left:4px solid ${colors.edge};border-radius:10px;padding:14px 16px 14px 14px;box-shadow:0 8px 28px rgba(0,0,0,.18);font-size:13px;line-height:1.5;animation:kan-toast-in .3s ease;display:flex;gap:10px;align-items:flex-start;`;
+  // body pode conter HTML simples (<strong>, <em>, <br/>). Os chamadores
+  // são responsáveis por escapar dados de usuário com _esc() se interpolarem
+  // string. title é sempre escapado (texto puro).
   div.innerHTML = `
     <img class="kan-avatar md" src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" onerror="this.outerHTML='<span style=\\'font-size:22px;line-height:1;flex-shrink:0;\\'>🥋</span>'"/>
     <div style="flex:1;">
       <div style="font-weight:700;font-size:14px;margin-bottom:3px;">${_esc(title)}</div>
-      <div style="opacity:.9;">${_esc(body)}</div>
+      <div style="opacity:.9;">${body}</div>
     </div>
     <button style="background:transparent;border:none;color:${colors.fg};opacity:.6;cursor:pointer;font-size:18px;line-height:1;padding:0;" onclick="this.parentElement.remove()">×</button>
   `;
@@ -21919,7 +21922,7 @@ function _createCardFromParsedVoice(parsed) {
     if (newCard.deadline) details.push('deadline ' + newCard.deadline);
     if (newCard.responsavel) details.push('responsável ' + newCard.responsavel);
     const detailsStr = details.length ? ' · ' + details.join(' · ') : '';
-    _showKanWarning('Card criado por voz', `<strong>"${newCard.name}"</strong>${detailsStr}`, 'info');
+    _showKanWarning('Card criado por voz', `<strong>"${_esc(newCard.name)}"</strong>${detailsStr}`, 'info');
   }
 }
 
