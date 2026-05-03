@@ -1183,6 +1183,82 @@ body.density-compact .card-cf-row{font-size:10px;}
 .col-n.wip-warn{background:#FCEBEB;color:#A32D2D;border-color:#F09595;font-weight:600;}
 .col-archived{font-size:11px;color:var(--color-text-tertiary);text-align:center;padding:6px 4px;background:transparent;border:0.5px dashed var(--color-border-tertiary);border-radius:6px;margin-top:6px;cursor:default;}
 
+/* ── Card Dependencies (bloqueado por / bloqueia) ─────────────── */
+.card-dep-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;font-weight:600;letter-spacing:.02em;
+  padding:2px 7px;border-radius:999px;font-variant-numeric:tabular-nums;
+  font-family:var(--font-sans);margin-top:5px;
+}
+.card-dep-badge.blocked{background:#FCEBEB;color:#A32D2D;}
+.card-dep-badge.blocker{background:#EEF4FB;color:#0C447C;}
+.card-dep-badge.released{background:#EAF3DE;color:#3B6D11;animation:depReleasedPulse 2s ease-out 1;}
+@keyframes depReleasedPulse{0%{transform:scale(.95);}50%{transform:scale(1.08);}100%{transform:scale(1);}}
+.card.is-blocked-dep{position:relative;}
+.card.is-blocked-dep::after{
+  content:'';position:absolute;left:0;right:0;top:0;bottom:0;
+  border:1px dashed #E24B4A;border-radius:6px;
+  pointer-events:none;opacity:.32;
+}
+
+/* Modal: seção de dependências */
+.modal-dep-section{margin-top:14px;padding-top:12px;border-top:0.5px solid var(--color-border-tertiary);}
+.modal-dep-h{font-size:12px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+.modal-dep-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.modal-dep-row{
+  display:flex;align-items:center;gap:8px;
+  background:var(--color-background-secondary);border-radius:8px;
+  padding:7px 11px;font-size:13px;
+}
+.modal-dep-row.is-done{opacity:.5;text-decoration:line-through;}
+.modal-dep-row-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--color-text-primary);}
+.modal-dep-row-name:hover{color:var(--accent,#3C3489);text-decoration:underline;}
+.modal-dep-row-status{font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:600;padding:2px 7px;border-radius:999px;flex-shrink:0;}
+.modal-dep-row-status.open{background:#FCEBEB;color:#A32D2D;}
+.modal-dep-row-status.done{background:#EAF3DE;color:#3B6D11;}
+.modal-dep-rm{background:transparent;border:none;cursor:pointer;color:var(--color-text-tertiary);font-size:14px;padding:0 4px;line-height:1;}
+.modal-dep-rm:hover{color:#A32D2D;}
+.modal-dep-add{
+  display:flex;align-items:center;gap:6px;font-size:12px;
+  background:transparent;border:1px dashed var(--color-border-secondary);
+  color:var(--color-text-secondary);padding:7px 11px;border-radius:8px;cursor:pointer;
+  font-family:var(--font-sans);transition:border-color .15s,color .15s;
+}
+.modal-dep-add:hover{border-color:var(--color-text-primary);color:var(--color-text-primary);}
+
+/* Picker de cards (modal pra escolher bloqueador) */
+.dep-picker-overlay{
+  position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,.50);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;
+}
+.dep-picker-overlay.is-open{display:flex;}
+.dep-picker{
+  background:var(--color-background-primary);border-radius:14px;
+  padding:18px 20px;max-width:520px;width:90%;max-height:70vh;
+  display:flex;flex-direction:column;gap:10px;
+  box-shadow:0 12px 48px rgba(0,0,0,.3);
+}
+.dep-picker-h{font-size:15px;font-weight:600;color:var(--color-text-primary);margin-bottom:4px;}
+.dep-picker-search{
+  border:1px solid var(--color-border-secondary);border-radius:8px;
+  padding:9px 12px;font-size:13px;font-family:var(--font-sans);
+  background:var(--color-background-primary);color:var(--color-text-primary);
+  outline:none;
+}
+.dep-picker-search:focus{border-color:var(--color-text-primary);}
+.dep-picker-list{flex:1;overflow:auto;display:flex;flex-direction:column;gap:4px;min-height:60px;}
+.dep-picker-item{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;
+  background:var(--color-background-secondary);transition:background .12s;
+}
+.dep-picker-item:hover{background:var(--color-background-tertiary,rgba(0,0,0,.04));}
+.dep-picker-item.is-done{opacity:.45;}
+.dep-picker-item-name{flex:1;font-size:13.5px;color:var(--color-text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dep-picker-item-col{font-size:10px;color:var(--color-text-tertiary);background:var(--color-background-primary);padding:2px 7px;border-radius:999px;flex-shrink:0;}
+.dep-picker-empty{font-size:12.5px;color:var(--color-text-tertiary);text-align:center;padding:18px 0;}
+.dep-picker-actions{display:flex;justify-content:flex-end;gap:8px;}
+
 /* ── Voice Cards (FAB de microfone + overlay) ────────────────── */
 .voice-fab{
   position:fixed;right:24px;bottom:24px;z-index:80;
@@ -3360,6 +3436,10 @@ body.density-compact .col{padding:7px;}
         <span>Preenche automaticamente com dados do card e do cadastro vinculado.</span>
       </div>
     </div>
+    <div class="modal-dep-section" id="modal-dep-section">
+      <div class="modal-dep-h">⛓ Dependências</div>
+      <div id="modal-dep-content"></div>
+    </div>
     <div class="field" id="ai-field" style="display:none;">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;justify-content:space-between;flex-wrap:wrap;">
         <span style="display:inline-flex;align-items:center;gap:8px;"><img class="kan-avatar md" src="mestre_kan_avatar.png?v=6" alt=""/>Mestre Kan — assistente do card</span>
@@ -4439,6 +4519,172 @@ function getCardAgingTooltip(card) {
   if (ageMs <= 0) return '';
   const colTitle = (COLS.find(c=>c.id===card.col) || {}).title || card.col;
   return `Há ${formatDuration(ageMs)} em "${colTitle}"`;
+}
+
+// ── Card Dependencies (blockedBy / blocks) ──────────────────────
+// Cada card pode ter card.blockedBy = [cardId, ...] (ids do MESMO board).
+// Quando todos os bloqueadores estão em "Done", o card fica "released".
+
+function getCardBlockers(card) {
+  if (!card || !Array.isArray(card.blockedBy) || !card.blockedBy.length) return [];
+  return card.blockedBy
+    .map(id => cards.find(c => c.id === id))
+    .filter(Boolean);
+}
+
+function isCardBlocked(card) {
+  const blockers = getCardBlockers(card);
+  return blockers.some(b => b.col !== TERMINAL_COL);
+}
+
+function getOpenBlockers(card) {
+  return getCardBlockers(card).filter(b => b.col !== TERMINAL_COL);
+}
+
+// Cards que ESTE card bloqueia (lookup reverso)
+function getCardBlocks(card) {
+  if (!card) return [];
+  return cards.filter(c => Array.isArray(c.blockedBy) && c.blockedBy.includes(card.id));
+}
+
+function addCardBlocker(targetCardId, blockerCardId) {
+  const target = cards.find(c => c.id === targetCardId);
+  if (!target || targetCardId === blockerCardId) return;
+  target.blockedBy = target.blockedBy || [];
+  if (!target.blockedBy.includes(blockerCardId)) {
+    target.blockedBy.push(blockerCardId);
+    if (typeof autoThread === 'function') {
+      const blocker = cards.find(c => c.id === blockerCardId);
+      autoThread(target, `Bloqueado por: "${blocker ? blocker.name : '?'}"`);
+    }
+    saveData();
+    if (typeof render === 'function') render();
+    if (typeof renderModalDeps === 'function') renderModalDeps(targetCardId);
+  }
+}
+
+function removeCardBlocker(targetCardId, blockerCardId) {
+  const target = cards.find(c => c.id === targetCardId);
+  if (!target || !Array.isArray(target.blockedBy)) return;
+  target.blockedBy = target.blockedBy.filter(id => id !== blockerCardId);
+  saveData();
+  if (typeof render === 'function') render();
+  if (typeof renderModalDeps === 'function') renderModalDeps(targetCardId);
+}
+
+// Disparado quando um card vai pra Done — checa se algum dependente foi liberado
+function _checkReleasedDependents(blockerCardId) {
+  const blocked = cards.filter(c => Array.isArray(c.blockedBy) && c.blockedBy.includes(blockerCardId));
+  blocked.forEach(c => {
+    if (!isCardBlocked(c)) {
+      // Foi totalmente liberado!
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning(
+          'Card liberado',
+          `<strong>"${_esc(c.name)}"</strong> não tem mais bloqueios. O caminho está aberto, mestre.`,
+          'info'
+        );
+      }
+    }
+  });
+}
+
+// Renderiza a seção de Dependências dentro do modal de edição do card.
+function renderModalDeps(cardId) {
+  const el = document.getElementById('modal-dep-content');
+  if (!el) return;
+  const c = cards.find(x => x.id === cardId);
+  if (!c) { el.innerHTML = ''; return; }
+  const blockers = getCardBlockers(c);
+  const blocks   = getCardBlocks(c);
+  const blockerHTML = blockers.length ? blockers.map(b => {
+    const isDone = b.col === TERMINAL_COL;
+    const colTitle = (COLS.find(x=>x.id===b.col)||{}).title || b.col;
+    return `<div class="modal-dep-row${isDone?' is-done':''}">
+      <span class="modal-dep-row-name" onclick="closeModal();setTimeout(()=>editCard(${b.id}),100);" title="Abrir card">${_esc(b.name)}</span>
+      <span class="modal-dep-row-status ${isDone?'done':'open'}">${isDone?'concluído':_esc(colTitle)}</span>
+      <button class="modal-dep-rm" onclick="removeCardBlocker(${cardId}, ${b.id})" title="Remover dependência">✕</button>
+    </div>`;
+  }).join('') : '<div style="font-size:12px;color:var(--color-text-tertiary);font-style:italic;">Sem bloqueadores. Este card não depende de nenhum outro.</div>';
+
+  const blocksHTML = blocks.length ? `
+    <div class="modal-dep-h" style="margin-top:14px;">↓ Este card bloqueia</div>
+    <div class="modal-dep-list">${blocks.map(b => {
+      const isDone = b.col === TERMINAL_COL;
+      const colTitle = (COLS.find(x=>x.id===b.col)||{}).title || b.col;
+      return `<div class="modal-dep-row${isDone?' is-done':''}">
+        <span class="modal-dep-row-name" onclick="closeModal();setTimeout(()=>editCard(${b.id}),100);">${_esc(b.name)}</span>
+        <span class="modal-dep-row-status ${isDone?'done':'open'}">${isDone?'concluído':_esc(colTitle)}</span>
+      </div>`;
+    }).join('')}</div>
+  ` : '';
+
+  el.innerHTML = `
+    <div class="modal-dep-h" style="margin-top:0;">↑ Bloqueado por</div>
+    <div class="modal-dep-list">${blockerHTML}</div>
+    <button class="modal-dep-add" onclick="openDepPicker(${cardId})">+ adicionar bloqueador</button>
+    ${blocksHTML}
+  `;
+}
+
+// Picker pra escolher um card bloqueador
+let _depPickerTargetId = null;
+function openDepPicker(targetCardId) {
+  _depPickerTargetId = targetCardId;
+  let ov = document.getElementById('dep-picker-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'dep-picker-overlay';
+    ov.className = 'dep-picker-overlay';
+    ov.innerHTML = `
+      <div class="dep-picker">
+        <div class="dep-picker-h">Qual card bloqueia este?</div>
+        <input type="text" id="dep-picker-search" class="dep-picker-search" placeholder="Buscar card..." oninput="_filterDepPicker(this.value)" />
+        <div class="dep-picker-list" id="dep-picker-list"></div>
+        <div class="dep-picker-actions">
+          <button class="voice-btn voice-btn-ghost" onclick="closeDepPicker()">Cancelar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(ov);
+  }
+  ov.classList.add('is-open');
+  _filterDepPicker('');
+  setTimeout(() => { const i = document.getElementById('dep-picker-search'); if (i) { i.value=''; i.focus(); } }, 50);
+}
+function closeDepPicker() {
+  const ov = document.getElementById('dep-picker-overlay');
+  if (ov) ov.classList.remove('is-open');
+  _depPickerTargetId = null;
+}
+function _filterDepPicker(query) {
+  const list = document.getElementById('dep-picker-list');
+  if (!list) return;
+  const target = cards.find(c => c.id === _depPickerTargetId);
+  const existingBlockers = new Set((target && target.blockedBy) || []);
+  const q = (query||'').toLowerCase().trim();
+  const candidates = cards
+    .filter(c => c.id !== _depPickerTargetId)
+    .filter(c => !existingBlockers.has(c.id))
+    .filter(c => !q || (c.name||'').toLowerCase().includes(q))
+    .slice(0, 30);
+  if (!candidates.length) {
+    list.innerHTML = '<div class="dep-picker-empty">Nenhum card encontrado.</div>';
+    return;
+  }
+  list.innerHTML = candidates.map(c => {
+    const colTitle = (COLS.find(x=>x.id===c.col)||{}).title || c.col;
+    const isDone = c.col === TERMINAL_COL;
+    return `<div class="dep-picker-item${isDone?' is-done':''}" onclick="_pickDepBlocker(${c.id})">
+      <span class="dep-picker-item-name">${_esc(c.name)}</span>
+      <span class="dep-picker-item-col">${_esc(colTitle)}</span>
+    </div>`;
+  }).join('');
+}
+function _pickDepBlocker(blockerId) {
+  if (!_depPickerTargetId) return;
+  addCardBlocker(_depPickerTargetId, blockerId);
+  closeDepPicker();
 }
 
 // ── Métricas de Fluxo Kanban (Cycle Time + Lead Time + Forecast) ──
@@ -9840,6 +10086,7 @@ function tblSetCol(id, newCol) {
   else if (movedFromDone) card.doneAt = null;
   if (typeof autoThread === 'function') autoThread(card, `Movido de "${oldTitle}" para "${newTitle}"`);
   if (typeof _gamifTrigger === 'function' && movedToDone) _gamifTrigger('card_done', { cardId: id });
+  if (movedToDone && typeof _checkReleasedDependents === 'function') _checkReleasedDependents(id);
   saveData();
   if (typeof _bindCurrentBoard === 'function') _bindCurrentBoard();
   render();
@@ -9951,6 +10198,7 @@ function toggleDone(id) {
     if (card.recurrence) _spawnRecurrence(card);
     // XP por concluir
     if (movedToDone && typeof _gamifAwardCardDone === 'function') _gamifAwardCardDone(card);
+    if (movedToDone && typeof _checkReleasedDependents === 'function') _checkReleasedDependents(card.id);
     // Confete na posição do clique se possível
     const ev = window.event;
     const x = ev?.clientX || window.innerWidth/2;
@@ -10143,8 +10391,21 @@ function render() {
           const _aging = isDone ? null : getCardAgingLevel(c);
           const agingCls = _aging && _aging !== 'fresh' ? ` aging-${_aging}` : '';
           const agingTitle = _aging && _aging !== 'fresh' ? ` title="${_esc(getCardAgingTooltip(c))}"` : '';
+          // Dependências
+          const _isBlocked = !isDone && typeof isCardBlocked === 'function' && isCardBlocked(c);
+          const _blocksList = (typeof getCardBlocks === 'function') ? getCardBlocks(c) : [];
+          const _blocksOpen = _blocksList.filter(x => x.col !== TERMINAL_COL);
+          const blockedCls  = _isBlocked ? ' is-blocked-dep' : '';
+          let depBadge = '';
+          if (_isBlocked) {
+            const openBlockers = (typeof getOpenBlockers === 'function') ? getOpenBlockers(c) : [];
+            const blockerNames = openBlockers.slice(0,2).map(b=>b.name).join(', ');
+            depBadge = `<span class="card-dep-badge blocked" title="Bloqueado por: ${_esc(openBlockers.map(b=>b.name).join(', '))}">🔒 bloqueado por ${openBlockers.length}</span>`;
+          } else if (_blocksOpen.length > 0 && !isDone) {
+            depBadge = `<span class="card-dep-badge blocker" title="Este card bloqueia: ${_esc(_blocksOpen.map(b=>b.name).join(', '))}">⛓ bloqueia ${_blocksOpen.length}</span>`;
+          }
           return `<div class="card-wrap">
-            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
+            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
               ${sourceLine}
               ${F.tags && tags.length?`<div class="card-tags">${tags.map(t=>`<span class="ctag" style="background:${t.color.bg};color:${t.color.text};">${t.text}</span>`).join('')}</div>`:''}
               <div class="card-desc">${c.name}</div>
@@ -10164,6 +10425,7 @@ function render() {
                   </button>`:''}
                 </div>
               </div>`:''}
+              ${depBadge}
               ${(allBoards[currentBoardId]?.isKaizen && c.col === 'kaizen_acao' && !isDone) ? `<button class="kaizen-promote-btn" onclick="event.stopPropagation();promoteKaizenAction(${cidArg})" title="Transformar esta ação em card real em outro board"><span class="kaizen-promote-icon">→</span> Promover pra board</button>` : ''}
             </div>
             ${!isDone?`<button class="card-done-btn" onclick="event.stopPropagation();toggleDone(${cidArg})">✓ done</button>`:''}
@@ -10216,6 +10478,7 @@ function bindDrag() {
             card.doneAt = new Date().toISOString();
             if (typeof _gamifAwardCardDone === 'function') _gamifAwardCardDone(card);
             if (card.recurrence) _spawnRecurrence(card);
+            if (typeof _checkReleasedDependents === 'function') _checkReleasedDependents(card.id);
             audit('card.completed', { cardId: card.id, name: card.name });
             fireWebhook('card.completed', { cardId: card.id, name: card.name });
           } else if (movedFromDone) {
@@ -10395,6 +10658,7 @@ function editCard(id) {
   document.getElementById('doc-field').style.display='block';
   document.getElementById('ai-field').style.display='block';
   renderModalAI(id);
+  if (typeof renderModalDeps === 'function') renderModalDeps(id);
   renderSel();renderLib();buildDots();updatePrev();
   fillCol(card.col);
   renderModalThreads(id);
