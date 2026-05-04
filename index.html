@@ -11253,6 +11253,15 @@ async function _slackOpenDestinationModal(existing) {
     return `<option value="${_esc(c.id)}" data-name="${_esc(c.name)}"${sel}>${icon} ${_esc(c.name)}</option>`;
   }).join('');
 
+  const dailyEnabled = !!e.daily_summary;
+  const weeklyEnabled = !!e.weekly_summary;
+  const dailyTime = e.daily_summary_time || '09:00';
+  const weeklyDay = e.weekly_summary_day || 'monday';
+  const weeklyTime = e.weekly_summary_time || '09:00';
+  const dayOptions = [
+    ['monday','Segunda'],['tuesday','Terça'],['wednesday','Quarta'],
+    ['thursday','Quinta'],['friday','Sexta'],['saturday','Sábado'],['sunday','Domingo'],
+  ].map(([v,l])=>`<option value="${v}" ${weeklyDay===v?'selected':''}>${l}</option>`).join('');
   const html = `
     <h3 style="margin:0 0 14px;font-size:18px;font-weight:600;">${isEdit?'Editar canal':'Novo canal Slack'}</h3>
     <div style="display:flex;flex-direction:column;gap:12px;">
@@ -11278,6 +11287,28 @@ async function _slackOpenDestinationModal(existing) {
                 <input type="checkbox" class="slack-d-board" value="${_esc(b.id)}" ${boardSet.has(b.id)?'checked':''}/> ${_esc(b.name)}
               </label>`).join('')}</div>`}
       </div>
+      <div style="border-top:1px solid var(--color-border-secondary);padding-top:12px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px;">
+          <input id="slack-d-daily" type="checkbox" ${dailyEnabled?'checked':''}/>
+          ☀️ Resumo diário (cards vencidos + do dia)
+        </label>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-text-secondary);margin-left:24px;">
+          Horário (BRT):
+          <input id="slack-d-daily-time" type="time" value="${_esc(dailyTime)}" style="padding:4px 8px;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:12px;"/>
+        </div>
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px;">
+          <input id="slack-d-weekly" type="checkbox" ${weeklyEnabled?'checked':''}/>
+          📅 Resumo semanal (próximos 7 dias + concluídos)
+        </label>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-text-secondary);margin-left:24px;flex-wrap:wrap;">
+          Dia:
+          <select id="slack-d-weekly-day" style="padding:4px 8px;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:12px;">${dayOptions}</select>
+          Horário (BRT):
+          <input id="slack-d-weekly-time" type="time" value="${_esc(weeklyTime)}" style="padding:4px 8px;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:12px;"/>
+        </div>
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
         <button class="app-dialog-btn" onclick="_appDialogClose(null)">Cancelar</button>
         <button class="app-dialog-btn primary" onclick="_slackSaveDestination(${isEdit?`'${_esc(existing.id)}'`:'null'})">Salvar canal</button>
@@ -11294,19 +11325,26 @@ async function _slackSaveDestination(editId) {
   const channel_name = sel?.options?.[sel.selectedIndex]?.dataset?.name || '';
   const events = Array.from(document.querySelectorAll('.slack-d-evt:checked')).map(c => c.value);
   const board_ids = Array.from(document.querySelectorAll('.slack-d-board:checked')).map(c => c.value);
+  const daily_summary = !!document.getElementById('slack-d-daily')?.checked;
+  const daily_summary_time = document.getElementById('slack-d-daily-time')?.value || '09:00';
+  const weekly_summary = !!document.getElementById('slack-d-weekly')?.checked;
+  const weekly_summary_day = document.getElementById('slack-d-weekly-day')?.value || 'monday';
+  const weekly_summary_time = document.getElementById('slack-d-weekly-time')?.value || '09:00';
   if (!channel_id) { appAlert('Escolha um canal', '', { icon:'⚠️' }); return; }
-  if (events.length === 0) { appAlert('Escolha pelo menos um evento', '', { icon:'⚠️' }); return; }
+  if (events.length === 0 && !daily_summary && !weekly_summary) { appAlert('Configure ao menos um evento ou resumo', '', { icon:'⚠️' }); return; }
+  const body = { channel_id, channel_name, events, board_ids,
+    daily_summary, daily_summary_time, weekly_summary, weekly_summary_day, weekly_summary_time };
   try {
     if (editId && editId !== 'null') {
       await _capRESTCall(`slack_destinations?id=eq.${encodeURIComponent(editId)}`, {
         method: 'PATCH',
-        body: { channel_id, channel_name, events, board_ids },
+        body,
         headers: { 'Prefer': 'return=minimal' },
       });
     } else {
       await _capRESTCall('slack_destinations', {
         method: 'POST',
-        body: { user_id: supaUser.id, channel_id, channel_name, events, board_ids },
+        body: { user_id: supaUser.id, ...body },
         headers: { 'Prefer': 'return=minimal' },
       });
     }
@@ -11913,6 +11951,30 @@ function _waOpenDestinationModal(existing) {
                 <input type="checkbox" class="wa-d-board" value="${_esc(b.id)}" ${boardSet.has(b.id)?'checked':''}/> ${_esc(b.name)}
               </label>`).join('')}</div>`}
       </div>
+      <div style="border-top:1px solid var(--color-border-secondary);padding-top:12px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px;">
+          <input id="wa-d-daily" type="checkbox" ${(e.daily_summary?'checked':'')}/>
+          ☀️ Resumo diário
+        </label>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-text-secondary);margin-left:24px;">
+          Horário (BRT):
+          <input id="wa-d-daily-time" type="time" value="${_esc(e.daily_summary_time||'09:00')}" style="padding:4px 8px;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:12px;"/>
+        </div>
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px;">
+          <input id="wa-d-weekly" type="checkbox" ${(e.weekly_summary?'checked':'')}/>
+          📅 Resumo semanal
+        </label>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-text-secondary);margin-left:24px;flex-wrap:wrap;">
+          Dia:
+          <select id="wa-d-weekly-day" style="padding:4px 8px;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:12px;">
+            ${[['monday','Segunda'],['tuesday','Terça'],['wednesday','Quarta'],['thursday','Quinta'],['friday','Sexta'],['saturday','Sábado'],['sunday','Domingo']].map(([v,l])=>`<option value="${v}" ${(e.weekly_summary_day||'monday')===v?'selected':''}>${l}</option>`).join('')}
+          </select>
+          Horário (BRT):
+          <input id="wa-d-weekly-time" type="time" value="${_esc(e.weekly_summary_time||'09:00')}" style="padding:4px 8px;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:12px;"/>
+        </div>
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
         <button class="app-dialog-btn" onclick="_appDialogClose(null)">Cancelar</button>
         <button class="app-dialog-btn primary" onclick="_waSaveDestination(${isEdit?`'${_esc(existing.id)}'`:'null'})">Salvar destino</button>
@@ -11929,21 +11991,28 @@ async function _waSaveDestination(editId) {
   const label = (document.getElementById('wa-d-label')?.value || '').trim();
   const events = Array.from(document.querySelectorAll('.wa-d-evt:checked')).map(c => c.value);
   const board_ids = Array.from(document.querySelectorAll('.wa-d-board:checked')).map(c => c.value);
+  const daily_summary = !!document.getElementById('wa-d-daily')?.checked;
+  const daily_summary_time = document.getElementById('wa-d-daily-time')?.value || '09:00';
+  const weekly_summary = !!document.getElementById('wa-d-weekly')?.checked;
+  const weekly_summary_day = document.getElementById('wa-d-weekly-day')?.value || 'monday';
+  const weekly_summary_time = document.getElementById('wa-d-weekly-time')?.value || '09:00';
   if (!value) { appAlert('Faltou o destino', 'Preencha o número (5511...) ou groupId.', { icon:'⚠️' }); return; }
-  if (events.length === 0) { appAlert('Escolha ao menos um evento', 'Marque pelo menos um tipo de notificação.', { icon:'⚠️' }); return; }
+  if (events.length === 0 && !daily_summary && !weekly_summary) { appAlert('Configure ao menos um evento ou resumo', '', { icon:'⚠️' }); return; }
   // Limpa número (se for tipo phone): tira caracteres não-numéricos
   const cleanValue = (type === 'phone') ? value.replace(/\D/g, '') : value;
+  const body = { type, value: cleanValue, label, events, board_ids,
+    daily_summary, daily_summary_time, weekly_summary, weekly_summary_day, weekly_summary_time };
   try {
     if (editId && editId !== 'null') {
       await _capRESTCall(`whatsapp_destinations?id=eq.${encodeURIComponent(editId)}`, {
         method: 'PATCH',
-        body: { type, value: cleanValue, label, events, board_ids },
+        body,
         headers: { 'Prefer': 'return=minimal' },
       });
     } else {
       await _capRESTCall('whatsapp_destinations', {
         method: 'POST',
-        body: { user_id: supaUser.id, type, value: cleanValue, label, events, board_ids },
+        body: { user_id: supaUser.id, ...body },
         headers: { 'Prefer': 'return=minimal' },
       });
     }
