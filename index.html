@@ -5328,7 +5328,7 @@ body.density-compact .col{padding:7px;}
 
     <div class="cfg-section">
       <div class="cfg-section-title">Equipe</div>
-      <div class="cfg-section-hint">Pessoas com acesso ao board — disponíveis no campo "Responsável" de cada card. Lista inicial sincronizada do workspace do Notion.</div>
+      <div class="cfg-section-hint">Pessoas com acesso ao board — disponíveis no campo "Responsável" de cada card.</div>
       <div id="cfg-team"></div>
       <div class="cfg-team-add">
         <input id="cfg-team-input" type="text" placeholder="Nome da pessoa..." maxlength="40"
@@ -10821,14 +10821,15 @@ const OB_STEPS = [
     target: '#sb-boards',
     placement: 'right',
     title: '▤ My boards — 6 visões do mesmo dado',
-    body: 'Cada board é um espaço de trabalho independente. O mesmo board pode ser visto em <strong>6 ângulos</strong>:<br/><br/>• <strong>Kanban</strong> · fluxo visual<br/>• <strong>Table</strong> · planilha tipo Notion<br/>• <strong>Checklist</strong> · lista limpa<br/>• <strong>Gantt</strong> · linha do tempo<br/>• <strong>Calendar</strong> · agenda<br/>• <strong>Dashboard</strong> · KPIs e gráficos',
+    body: 'Cada board é um espaço de trabalho independente. O mesmo board pode ser visto em <strong>6 ângulos</strong>:<br/><br/>• <strong>Kanban</strong> · fluxo visual<br/>• <strong>Table</strong> · linha por card, edição inline<br/>• <strong>Checklist</strong> · lista limpa<br/>• <strong>Gantt</strong> · linha do tempo<br/>• <strong>Calendar</strong> · agenda<br/>• <strong>Dashboard</strong> · KPIs e gráficos',
     primary: 'Próximo',
   },
   {
     target: '#sb-canvas',
     placement: 'right',
-    title: '⚗ Lab — sandbox criativo',
-    body: 'Espaço pra pensar antes de virar tarefa. Inclui <strong>mindmap</strong>, <strong>planilha</strong> tipo Excel/Notion, <strong>documentos colaborativos</strong>, <strong>fluxograma</strong>, <strong>OKR canvas</strong> e <strong>simulador de oportunidade</strong>.<br/><br/>Qualquer Lab pode virar board com um clique — ideias saem da cabeça e entram no fluxo.',
+    hero: '<svg width="56" height="56" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto;"><path d="M6.4 1.8h3.2"/><path d="M6.8 1.8v4.4L3.4 12.6a1.4 1.4 0 0 0 1.2 2H11.4a1.4 1.4 0 0 0 1.2-2L9.2 6.2V1.8"/><path d="M5.4 9.4h5.2"/><circle cx="6.5" cy="11.4" r="0.55" fill="currentColor"/><circle cx="9.2" cy="12.2" r="0.45" fill="currentColor"/></svg>',
+    title: 'Lab — sandbox criativo',
+    body: 'Espaço pra pensar antes de virar tarefa. Inclui <strong>mindmap</strong>, <strong>planilha</strong> com fórmulas, <strong>documentos colaborativos</strong>, <strong>fluxograma</strong>, <strong>OKR canvas</strong> e <strong>simulador de oportunidade</strong>.<br/><br/>Qualquer Lab pode virar board com um clique — ideias saem da cabeça e entram no fluxo.',
     primary: 'Próximo',
   },
   {
@@ -10847,8 +10848,9 @@ const OB_STEPS = [
   },
   {
     type: 'centered',
-    title: '🥋 Mestre Kan · IA embarcada',
-    body: 'Em qualquer card, peça pro Mestre Kan: <strong>quebrar em subtarefas</strong>, <strong>redigir e-mail de cobrança</strong>, <strong>resumir thread longa</strong>, <strong>extrair ações de OCR de NF/recibo</strong>, ou pedir um <strong>Daily Brief</strong> com prioridades do dia.<br/><br/>Roda em Claude Haiku 4.5 — chave da API no servidor, você não paga API extra.',
+    hero: '<img src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;box-shadow:0 4px 14px rgba(0,0,0,.12);" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{textContent:\'🥋\',style:\'font-size:72px;display:block;text-align:center\'}))" />',
+    title: 'Mestre Kan · IA embarcada',
+    body: 'Em qualquer card, peça pro Mestre Kan: <strong>quebrar em subtarefas</strong>, <strong>redigir e-mail de cobrança</strong>, <strong>resumir thread longa</strong>, <strong>extrair ações de OCR de NF/recibo</strong>, ou pedir um <strong>Daily Brief</strong> com prioridades do dia.<br/><br/>Sábio, conciso, direto ao ponto — sua chave de API está no servidor, sem custo extra pra você.',
     primary: 'Próximo',
   },
   {
@@ -10901,12 +10903,18 @@ function renderOnboardingStep(){
   const isFirst = _obState.idx === 0;
   const isLast  = _obState.idx === total - 1;
 
-  // Cabeçalho visual: bars no welcome, contador nos demais
+  // Cabeçalho visual: bars no welcome, contador + hero opcional nos demais
   let topVisual = '';
   if (step.type === 'welcome') {
     topVisual = `<div class="ob-welcome-bars" aria-hidden="true"><span></span><span></span><span></span></div>`;
   } else {
-    topVisual = `<span class="ob-step-counter">Passo ${_obState.idx + 1} de ${total}</span>`;
+    const counter = `<span class="ob-step-counter">Passo ${_obState.idx + 1} de ${total}</span>`;
+    if (step.hero) {
+      // Hero (SVG/img grande) acima do contador, centralizado
+      topVisual = `<div class="ob-hero" style="margin:6px 0 14px;text-align:center;color:var(--color-text-primary);">${step.hero}</div>${counter}`;
+    } else {
+      topVisual = counter;
+    }
   }
 
   // Barras de progresso
