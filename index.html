@@ -21142,17 +21142,193 @@ function renderSheetEditor() {
         <span id="sheet-cell-ref" style="font-family:monospace;font-size:12px;font-weight:600;min-width:50px;color:var(--color-text-secondary);">A1</span>
         <input id="sheet-formula" type="text" placeholder="Digite valor ou =FÓRMULA(...) — pode clicar em outras células pra adicionar referências" onfocus="sheetOnFormulaFocus()" oninput="sheetOnFormulaInput(event)" onkeydown="sheetOnFormulaKey(event)" onblur="sheetOnFormulaBlur()" style="flex:1;padding:6px 10px;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:13px;font-family:monospace;background:var(--color-background-primary);"/>
       </div>
-      <div class="sheet-stage" id="sheet-stage" style="overflow:auto;flex:1;background:var(--color-background-primary);"></div>
+      <div class="sheet-stage" id="sheet-stage" style="overflow:auto;flex:1;background:var(--color-background-primary);" tabindex="0"></div>
+      <div class="sheet-statusbar" id="sheet-statusbar" style="display:none;padding:6px 14px;background:var(--color-background-secondary);border-top:0.5px solid var(--color-border-secondary);font-size:11.5px;color:var(--color-text-secondary);font-family:monospace;">
+        <span style="opacity:.7;">Selecione um range pra ver estatísticas</span>
+      </div>
     </div>
   `;
   _sheetActiveCell = null;
+  _sheetSelection = null;
+  _sheetHistory = [];
+  _sheetRedoStack = [];
   _renderSheetGrid();
+  _sheetWireKeyboard();
+}
+
+// Listeners de teclado (atalhos: Ctrl+Z, Ctrl+Y, Delete, Arrow keys, etc)
+function _sheetWireKeyboard() {
+  const stage = document.getElementById('sheet-stage');
+  if (!stage) return;
+  // Já tem listener? remove pra evitar duplicação ao re-render
+  if (stage._sheetKeyHandler) {
+    stage.removeEventListener('keydown', stage._sheetKeyHandler);
+  }
+  stage._sheetKeyHandler = (e) => {
+    if (!_sheetActiveCell) return;
+    // Se está editando célula (input ativo), só trata Esc/Enter/Tab dentro do input
+    if (_sheetEditing && _sheetEditing.input && document.activeElement === _sheetEditing.input) return;
+    const cmd = e.metaKey || e.ctrlKey;
+    // Undo/redo
+    if (cmd && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); sheetUndo(); return; }
+    if (cmd && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); sheetRedo(); return; }
+    // Delete / Backspace: limpa células selecionadas
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); _sheetClearSelection(); return; }
+    // Arrow keys: move (Shift+Arrow extend, sem shift = move)
+    if (e.key.startsWith('Arrow')) {
+      e.preventDefault();
+      const dr = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0;
+      const dc = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+      if (e.shiftKey) _sheetExtendSelection(dr, dc);
+      else _sheetMoveActive(dr, dc);
+      return;
+    }
+    if (e.key === 'Enter') { e.preventDefault(); _sheetMoveActive(1, 0); return; }
+    if (e.key === 'Tab')   { e.preventDefault(); _sheetMoveActive(0, e.shiftKey ? -1 : 1); return; }
+    // Esc: limpa seleção
+    if (e.key === 'Escape') { _sheetSelection = null; _renderSheetGrid(); _sheetUpdateStatusBar(); return; }
+    // Qualquer letra/número: começa a editar
+    if (e.key.length === 1 && !cmd) {
+      sheetEditCell(_sheetActiveCell.row, _sheetActiveCell.col);
+      // Substitui valor pela tecla pressionada
+      if (_sheetEditing && _sheetEditing.input) {
+        _sheetEditing.input.value = e.key;
+        _sheetEditing.input.setSelectionRange(1, 1);
+      }
+    }
+  };
+  stage.addEventListener('keydown', stage._sheetKeyHandler);
+  stage.focus();
+}
+
+// Limpa o conteúdo das células selecionadas (Delete/Backspace)
+function _sheetClearSelection() {
+  const cv = _curCanvas(); if (!cv) return;
+  _sheetPushHistory();
+  const sel = _sheetSelection || (_sheetActiveCell ? {
+    startRow: _sheetActiveCell.row, startCol: _sheetActiveCell.col,
+    endRow: _sheetActiveCell.row, endCol: _sheetActiveCell.col,
+  } : null);
+  if (!sel) return;
+  const r1 = Math.min(sel.startRow, sel.endRow), r2 = Math.max(sel.startRow, sel.endRow);
+  const c1 = Math.min(sel.startCol, sel.endCol), c2 = Math.max(sel.startCol, sel.endCol);
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      if (cv.sheetData.rows[r]) cv.sheetData.rows[r][c] = '';
+    }
+  }
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  _renderSheetGrid();
+  _sheetUpdateStatusBar();
+}
+
+// Extend ou move seleção
+function _sheetExtendSelection(dr, dc) {
+  if (!_sheetActiveCell) return;
+  const cv = _curCanvas(); if (!cv) return;
+  if (!_sheetSelection) {
+    _sheetSelection = {
+      startRow: _sheetActiveCell.row, startCol: _sheetActiveCell.col,
+      endRow: _sheetActiveCell.row, endCol: _sheetActiveCell.col,
+    };
+  }
+  _sheetSelection.endRow = Math.max(0, Math.min(cv.sheetData.rows.length-1, _sheetSelection.endRow + dr));
+  _sheetSelection.endCol = Math.max(0, Math.min(cv.sheetData.columns.length-1, _sheetSelection.endCol + dc));
+  _renderSheetGrid();
+  _sheetUpdateStatusBar();
+}
+
+// Atualiza status bar com stats das células selecionadas
+function _sheetUpdateStatusBar() {
+  const sb = document.getElementById('sheet-statusbar');
+  if (!sb) return;
+  const cv = _curCanvas(); if (!cv) { sb.style.display='none'; return; }
+  if (!_sheetSelection) {
+    sb.style.display = 'none';
+    return;
+  }
+  const r1 = Math.min(_sheetSelection.startRow, _sheetSelection.endRow);
+  const r2 = Math.max(_sheetSelection.startRow, _sheetSelection.endRow);
+  const c1 = Math.min(_sheetSelection.startCol, _sheetSelection.endCol);
+  const c2 = Math.max(_sheetSelection.startCol, _sheetSelection.endCol);
+  const totalCells = (r2-r1+1) * (c2-c1+1);
+  if (totalCells <= 1) { sb.style.display = 'none'; return; }
+  // Coleta valores numéricos no range
+  const vals = [];
+  let nonEmpty = 0;
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      const v = _sheetCellValue(cv.sheetData, r, c, new Set());
+      if (v !== '' && v != null) {
+        nonEmpty++;
+        const n = typeof v === 'number' ? v : parseFloat(v);
+        if (!isNaN(n)) vals.push(n);
+      }
+    }
+  }
+  const fmt = n => Number.isFinite(n) ? (Math.round(n*100)/100).toLocaleString('pt-BR') : '—';
+  const sum = vals.reduce((s,v)=>s+v, 0);
+  const avg = vals.length ? sum / vals.length : 0;
+  const min = vals.length ? Math.min(...vals) : 0;
+  const max = vals.length ? Math.max(...vals) : 0;
+  const rangeRef = _colToLetter(c1) + (r1+1) + ':' + _colToLetter(c2) + (r2+1);
+  sb.style.display = '';
+  sb.innerHTML = `
+    <span style="opacity:.7;">${_esc(rangeRef)}</span> ·
+    <strong>${totalCells}</strong> células
+    ${nonEmpty ? ` · <strong>${nonEmpty}</strong> preenchidas` : ''}
+    ${vals.length ? `
+      · <strong>Soma:</strong> ${fmt(sum)}
+      · <strong>Média:</strong> ${fmt(avg)}
+      · <strong>Min:</strong> ${fmt(min)}
+      · <strong>Max:</strong> ${fmt(max)}
+      · <strong>Contagem (n):</strong> ${vals.length}
+    ` : ''}
+  `;
 }
 
 let _sheetActiveCell = null;  // {row, col}
 // Estado de edição: quando user está digitando uma fórmula, click em outra célula
 // insere a referência (A1, B2, etc) no input em vez de trocar de célula.
 let _sheetEditing = null;  // { row, col, input, isFormulaBar }
+// Range selection: { startRow, startCol, endRow, endCol }. Quando null, só active cell.
+let _sheetSelection = null;
+let _sheetSelDragAnchor = null;  // {row, col} durante drag
+// Undo/redo: stack de snapshots JSON do sheetData (últimos 50)
+let _sheetHistory = [];
+let _sheetRedoStack = [];
+const SHEET_HISTORY_MAX = 50;
+function _sheetPushHistory() {
+  const cv = _curCanvas(); if (!cv || !cv.sheetData) return;
+  try {
+    _sheetHistory.push(JSON.stringify(cv.sheetData));
+    if (_sheetHistory.length > SHEET_HISTORY_MAX) _sheetHistory.shift();
+    _sheetRedoStack = [];  // reseta redo após nova ação
+  } catch(e){}
+}
+function sheetUndo() {
+  const cv = _curCanvas(); if (!cv || !_sheetHistory.length) return;
+  try {
+    _sheetRedoStack.push(JSON.stringify(cv.sheetData));
+    cv.sheetData = JSON.parse(_sheetHistory.pop());
+    cv.updatedAt = new Date().toISOString();
+    _saveCanvases();
+    _renderSheetGrid();
+    _sheetUpdateStatusBar();
+  } catch(e){ console.warn('[sheet] undo error:', e); }
+}
+function sheetRedo() {
+  const cv = _curCanvas(); if (!cv || !_sheetRedoStack.length) return;
+  try {
+    _sheetHistory.push(JSON.stringify(cv.sheetData));
+    cv.sheetData = JSON.parse(_sheetRedoStack.pop());
+    cv.updatedAt = new Date().toISOString();
+    _saveCanvases();
+    _renderSheetGrid();
+    _sheetUpdateStatusBar();
+  } catch(e){ console.warn('[sheet] redo error:', e); }
+}
 
 function _renderSheetGrid() {
   const cv = _curCanvas(); if (!cv) return;
@@ -21199,7 +21375,17 @@ function _renderSheetGrid() {
       const cellStyle = cssParts.join(';');
       const isError = String(display).startsWith('#');
       const errMsg = (evalRes.error ? `Erro: ${evalRes.error}\nFórmula: ${cell}` : '');
-      html += `<td class="sheet-cell" data-row="${ri}" data-col="${ci}" onclick="sheetClickCell(${ri},${ci})" ondblclick="sheetEditCell(${ri},${ci})" ${errMsg ? `title="${_esc(errMsg)}"` : ''} style="border:1px solid var(--color-border-secondary);padding:4px 8px;cursor:cell;height:26px;${cellStyle};${isError?'color:#A32D2D;font-style:italic;':''}">${_esc(String(display))}</td>`;
+      // Está dentro do range selecionado?
+      let inRange = false;
+      if (_sheetSelection) {
+        const r1 = Math.min(_sheetSelection.startRow, _sheetSelection.endRow);
+        const r2 = Math.max(_sheetSelection.startRow, _sheetSelection.endRow);
+        const c1 = Math.min(_sheetSelection.startCol, _sheetSelection.endCol);
+        const c2 = Math.max(_sheetSelection.startCol, _sheetSelection.endCol);
+        inRange = (ri >= r1 && ri <= r2 && ci >= c1 && ci <= c2);
+      }
+      const rangeBg = inRange ? 'background:rgba(45,108,223,0.10);' : '';
+      html += `<td class="sheet-cell${inRange?' sheet-cell-in-range':''}" data-row="${ri}" data-col="${ci}" onmousedown="sheetCellMouseDown(event, ${ri},${ci})" onmousemove="sheetCellMouseMove(event, ${ri},${ci})" onmouseup="sheetCellMouseUp(event, ${ri},${ci})" ondblclick="sheetEditCell(${ri},${ci})" ${errMsg ? `title="${_esc(errMsg)}"` : ''} style="border:1px solid var(--color-border-secondary);padding:4px 8px;cursor:cell;height:26px;${rangeBg}${cellStyle};${isError?'color:#A32D2D;font-style:italic;':''}">${_esc(String(display))}</td>`;
     });
     html += `</tr>`;
   });
@@ -21237,6 +21423,59 @@ function _attachSheetResizers() {
       document.addEventListener('mouseup', onUp);
     });
   });
+}
+
+// Handlers de mouse: implementam click-to-reference (modo fórmula) E range selection (drag)
+function sheetCellMouseDown(e, row, col) {
+  // Se está em modo fórmula: previne blur do input e insere referência
+  if (_sheetInFormulaMode()) {
+    e.preventDefault();
+    if (_sheetEditing) _sheetEditing._absorbingClick = true;
+    _sheetInsertRefInInput(row, col);
+    setTimeout(() => { if (_sheetEditing) _sheetEditing._absorbingClick = false; }, 100);
+    return;
+  }
+  // Senão: click normal + começa drag pra range selection
+  if (e.shiftKey && _sheetActiveCell) {
+    // Shift+click: estende seleção
+    _sheetSelection = {
+      startRow: _sheetActiveCell.row, startCol: _sheetActiveCell.col,
+      endRow: row, endCol: col,
+    };
+    _renderSheetGrid();
+    _sheetUpdateStatusBar();
+    return;
+  }
+  // Click sem shift: troca célula ativa, prepara drag
+  sheetClickCell(row, col);
+  _sheetSelDragAnchor = { row, col };
+}
+function sheetCellMouseMove(e, row, col) {
+  if (!_sheetSelDragAnchor) return;
+  if (_sheetInFormulaMode()) return;
+  // Drag pra criar range
+  const sel = {
+    startRow: _sheetSelDragAnchor.row, startCol: _sheetSelDragAnchor.col,
+    endRow: row, endCol: col,
+  };
+  // Só re-renderiza se mudou
+  const same = _sheetSelection
+    && _sheetSelection.startRow === sel.startRow && _sheetSelection.startCol === sel.startCol
+    && _sheetSelection.endRow === sel.endRow && _sheetSelection.endCol === sel.endCol;
+  if (!same) {
+    _sheetSelection = sel;
+    _renderSheetGrid();
+    _sheetUpdateStatusBar();
+  }
+}
+function sheetCellMouseUp(e, row, col) {
+  _sheetSelDragAnchor = null;
+  // Se end == start, foi click puro (não drag) → limpa seleção range
+  if (_sheetSelection && _sheetSelection.startRow === _sheetSelection.endRow && _sheetSelection.startCol === _sheetSelection.endCol) {
+    _sheetSelection = null;
+    _renderSheetGrid();
+    _sheetUpdateStatusBar();
+  }
 }
 
 function sheetClickCell(row, col) {
@@ -21379,10 +21618,16 @@ function _sheetUpdateRefHighlights(value) {
 function _sheetCommitEdit(row, col, value) {
   const cv = _curCanvas(); if (!cv) return;
   while (cv.sheetData.rows.length <= row) cv.sheetData.rows.push(Array(cv.sheetData.columns.length).fill(''));
-  cv.sheetData.rows[row][col] = value;
+  // Só pushHistory se valor realmente mudou
+  if (cv.sheetData.rows[row][col] !== value) {
+    _sheetPushHistory();
+    cv.sheetData.rows[row][col] = value;
+  }
   cv.updatedAt = new Date().toISOString();
   _scheduleSaveCanvases();
   _renderSheetGrid();
+  // Mantém foco no stage pra teclado funcionar
+  setTimeout(() => { const s = document.getElementById('sheet-stage'); if (s) s.focus(); }, 0);
 }
 
 function _sheetMoveActive(dr, dc) {
