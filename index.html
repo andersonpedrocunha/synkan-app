@@ -15441,8 +15441,9 @@ function _renderEnergyToolbar() {
   wrap.style.cssText = 'display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:10px;position:relative;';
   // Inclui o dropdown de Views salvas se for Unified Board
   const viewsBarHTML = (typeof _renderUnifiedViewsBar === 'function') ? _renderUnifiedViewsBar() : '';
-  // Toggle de view do Zai (Executiva ↔ Financeira), só se board é Zai
-  const zaiViewHTML = isBoardZaiEnabled() ? `
+  // Toggle de view do Zai (Executiva ↔ Financeira), só pra boards Zai não-Granatum
+  // (boards Granatum já têm visão executiva específica, não precisa de toggle)
+  const zaiViewHTML = (isBoardZaiEnabled() && !allBoards[currentBoardId]?.granatum_linked) ? `
     <span class="zai-view-toggle">
       <button class="${getZaiView()==='executive'?'is-active':''}" onclick="setZaiView('executive')">Executiva</button>
       <button class="${getZaiView()==='financial'?'is-active':''}" onclick="setZaiView('financial')">Financeira 財</button>
@@ -25144,6 +25145,22 @@ function _renderCustomer360() {
   if (!ct) { closeCustomer360(); return; }
   const cards = _cardsByContact(_c360ContactId);
   const docs = _docsByContact(_c360ContactId);
+  // Granatum: cards com Nº Documento (NF) também contam como documentos rastreados
+  const granatumDocs = cards.filter(({card}) => {
+    const num = (card.customFieldValues?.cf_documento_numero || '').trim();
+    return !!num;
+  }).map(({card, board}) => ({
+    id: 'gran_' + card.id,
+    title: 'NF ' + (card.customFieldValues?.cf_documento_numero || '').trim(),
+    type: 'nf',
+    contactId: _c360ContactId,
+    cardId: card.id,
+    boardId: board?.id,
+    sourceLabel: 'Granatum',
+    valor: card.customFieldValues?.cf_valor || '',
+    date: card.deadline || card.createdAt,
+  }));
+  const allDocs = [...docs, ...granatumDocs];
   const value = _totalValueByContact(_c360ContactId);
   const last = _lastInteractionAt(_c360ContactId);
   const score = _computeLeadScore(_c360ContactId);
@@ -25194,13 +25211,13 @@ function _renderCustomer360() {
       </div>
       <div class="c360-stat">
         <div class="c360-stat-label">Documentos</div>
-        <div class="c360-stat-value">${docs.length}</div>
-        <div class="c360-stat-sub">NFs, boletos, contratos</div>
+        <div class="c360-stat-value">${allDocs.length}</div>
+        <div class="c360-stat-sub">${docs.length} cadastrados${granatumDocs.length ? ' + '+granatumDocs.length+' do Granatum' : ''}</div>
       </div>
     </div>
     <div class="c360-tabs">
       ${tabBtn('cards','📋 Cards', cards.length)}
-      ${tabBtn('docs','📄 Documentos', docs.length)}
+      ${tabBtn('docs','📄 Documentos', allDocs.length)}
       ${tabBtn('timeline','🕒 Timeline', threadCount)}
       ${tabBtn('ai','🤖 Mestre Kan', '')}
     </div>
@@ -25257,24 +25274,37 @@ function _renderCustomer360Body(cards, docs) {
     return;
   }
   if (_c360Tab === 'docs') {
-    if (!docs.length) {
+    if (!allDocs.length) {
       body.innerHTML = `<div class="c360-empty"><strong>Nenhum documento vinculado</strong>Crie notas fiscais, boletos, contratos em Cadastros → Contratos & Documentos vinculando a este cadastro.</div>`;
       return;
     }
     const typeLabel = (id) => (DOC_TYPES.find(t=>t.id===id)||{}).label || id;
     const statusLabel = (id) => (DOC_STATUSES.find(s=>s.id===id)||{}).label || id;
+    // Mistura docs cadastrados + docs do Granatum, ordenados pela data
+    const rowsManual = docs.map(d => `
+      <tr>
+        <td><span class="reg-pill ${d.type||'outro'}">${_esc(typeLabel(d.type))}</span></td>
+        <td><strong>${_esc(d.number||'—')}</strong></td>
+        <td>${d.issueDate?new Date(d.issueDate+'T00:00:00').toLocaleDateString('pt-BR'):'—'}</td>
+        <td>${d.dueDate?new Date(d.dueDate+'T00:00:00').toLocaleDateString('pt-BR'):'—'}</td>
+        <td style="font-variant-numeric:tabular-nums;">${d.value?_formatBRL(Number(d.value)):'—'}</td>
+        <td><span class="reg-pill s-${d.status||'emitido'}">${_esc(statusLabel(d.status))}</span></td>
+      </tr>`).join('');
+    const rowsGran = granatumDocs.map(d => {
+      const dateStr = d.date ? new Date(String(d.date).slice(0,10)+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+      const valNum = Number(String(d.valor||'').replace(',','.')) || 0;
+      return `<tr style="background:rgba(16,185,129,.04);" onclick="closeCustomer360();switchBoard('${d.boardId}');" title="Abrir card no board Granatum" style="cursor:pointer;">
+        <td><span class="reg-pill nf" style="background:rgba(16,185,129,.12);color:#059669;">NF</span></td>
+        <td><strong>${_esc(d.title)}</strong></td>
+        <td>—</td>
+        <td>${dateStr}</td>
+        <td style="font-variant-numeric:tabular-nums;">${valNum?_formatBRL(valNum):'—'}</td>
+        <td><span class="reg-pill" style="background:rgba(16,185,129,.12);color:#059669;font-size:10px;">Granatum</span></td>
+      </tr>`;
+    }).join('');
     body.innerHTML = `<table class="reg-table" style="border:0.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden;">
       <thead><tr><th>Tipo</th><th>Número</th><th>Emissão</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead>
-      <tbody>${docs.sort((a,b)=>String(b.issueDate||'').localeCompare(String(a.issueDate||''))).map(d => `
-        <tr>
-          <td><span class="reg-pill ${d.type||'outro'}">${_esc(typeLabel(d.type))}</span></td>
-          <td><strong>${_esc(d.number||'—')}</strong></td>
-          <td>${d.issueDate?new Date(d.issueDate+'T00:00:00').toLocaleDateString('pt-BR'):'—'}</td>
-          <td>${d.dueDate?new Date(d.dueDate+'T00:00:00').toLocaleDateString('pt-BR'):'—'}</td>
-          <td style="font-variant-numeric:tabular-nums;">${d.value?_formatBRL(Number(d.value)):'—'}</td>
-          <td><span class="reg-pill s-${d.status||'emitido'}">${_esc(statusLabel(d.status))}</span></td>
-        </tr>`).join('')}
-      </tbody></table>`;
+      <tbody>${rowsManual}${rowsGran}</tbody></table>`;
     return;
   }
   if (_c360Tab === 'ai') {
@@ -31308,6 +31338,16 @@ function _renderZaiPlaybook() {
 // Modal pra adicionar uma regra nova
 async function openAddRuleModal() {
   const cats = (() => {
+    // Em boards Granatum, coleta categorias únicas dos próprios cards (cf_categoria preenchido pela API)
+    if (allBoards[currentBoardId]?.granatum_linked) {
+      const set = new Set();
+      (cards || []).forEach(c => {
+        const v = (c.customFieldValues?.cf_categoria || '').trim();
+        if (v) set.add(v);
+      });
+      const arr = Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      if (arr.length) return arr;
+    }
     const cf = (customFields || []).find(f => f.id === 'cf_categoria') ||
                (customFields || []).find(f => f.type === 'select');
     return (cf?.options) || [];
