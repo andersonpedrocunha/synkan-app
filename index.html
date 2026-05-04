@@ -7607,8 +7607,314 @@ function _weeklyBuckets(N){
   return buckets;
 }
 
+// ── Dashboard Financeiro ────────────────────────────────
+function _renderFinancialDashboard(el) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const horizon30 = new Date(today); horizon30.setDate(horizon30.getDate() + 30);
+  const isGran = !!allBoards[currentBoardId]?.granatum_linked;
+
+  const cardVal = c => {
+    const v = c?.customFieldValues?.cf_valor;
+    if (v == null || v === '') return 0;
+    const n = Number(String(v).replace(',','.'));
+    return Number.isFinite(n) ? Math.abs(n) : 0;
+  };
+  const isReceber = c => {
+    if (isGran) {
+      const t = (c?.customFieldValues?.cf_tipo || '').toLowerCase();
+      return t === 'receber' || t === 'receita';
+    }
+    return c?.moneyType === 'income';
+  };
+  const isPagar = c => {
+    if (isGran) {
+      const t = (c?.customFieldValues?.cf_tipo || '').toLowerCase();
+      return t === 'pagar' || t === 'despesa';
+    }
+    return c?.moneyType === 'fixed' || c?.moneyType === 'variable';
+  };
+  const isPaid = c => {
+    if (isGran) return c.col === 'pago_hoje' || c.col === 'historico';
+    return c.col === TERMINAL_COL;
+  };
+
+  let aReceber30 = 0, aPagar30 = 0;
+  let atrasadoReceber = 0, atrasadoPagar = 0;
+  let recebidoMes = 0, pagoMes = 0;
+  let countReceber30 = 0, countPagar30 = 0, countAtrasado = 0;
+  const categoriaSum = {};   // { categoria: { entrada, saida, count } }
+  const pessoaSum = {};      // { contactId: { nome, entrada, saida, count } }
+
+  (cards || []).forEach(c => {
+    const v = cardVal(c);
+    const cat = (c.customFieldValues?.cf_categoria || '').trim() || '— sem categoria —';
+    if (!categoriaSum[cat]) categoriaSum[cat] = { entrada:0, saida:0, count:0 };
+    categoriaSum[cat].count++;
+    if (isReceber(c)) categoriaSum[cat].entrada += v;
+    if (isPagar(c)) categoriaSum[cat].saida += v;
+
+    if (c.contactId) {
+      const ct = (Array.isArray(_contacts) ? _contacts : []).find(x => x.id === c.contactId);
+      const nome = ct?.name || c.contactId;
+      if (!pessoaSum[c.contactId]) pessoaSum[c.contactId] = { nome, taxId: ct?.taxId||'', entrada:0, saida:0, count:0 };
+      pessoaSum[c.contactId].count++;
+      if (isReceber(c)) pessoaSum[c.contactId].entrada += v;
+      if (isPagar(c)) pessoaSum[c.contactId].saida += v;
+    }
+
+    // Estado atual (a vencer / atrasado / pago)
+    const isOpen = !isPaid(c);
+    if (isOpen) {
+      const dl = c.deadline ? new Date(c.deadline+'T00:00:00') : null;
+      if (dl && dl < today) {
+        countAtrasado++;
+        if (isReceber(c)) atrasadoReceber += v;
+        if (isPagar(c)) atrasadoPagar += v;
+      } else if (dl && dl <= horizon30) {
+        if (isReceber(c)) { aReceber30 += v; countReceber30++; }
+        if (isPagar(c)) { aPagar30 += v; countPagar30++; }
+      }
+    } else {
+      // Pago/concluído no mês corrente
+      const paidAt = c.doneAt ? new Date(c.doneAt) : null;
+      if (paidAt && paidAt >= monthStart && paidAt <= today) {
+        if (isReceber(c)) recebidoMes += v;
+        if (isPagar(c)) pagoMes += v;
+      } else if (c.col === 'pago_hoje') {
+        // Granatum: pago_hoje sem doneAt → conta como recebido/pago hoje
+        if (isReceber(c)) recebidoMes += v;
+        if (isPagar(c)) pagoMes += v;
+      }
+    }
+  });
+
+  const saldoMes = recebidoMes - pagoMes;
+  const netPrev = aReceber30 - aPagar30;
+  const fmt = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+  const fmtSigned = n => (n >= 0 ? '+' : '−') + fmt(Math.abs(n)).replace('R$ ','R$ ');
+
+  // Throughput financeiro: entradas + saídas pagas por semana (12 semanas)
+  const buckets12 = (typeof _weeklyBuckets === 'function') ? _weeklyBuckets(12) : [];
+  const flowWeekly = buckets12.map(b => {
+    let inv = 0, outv = 0;
+    (cards || []).forEach(c => {
+      if (!c.doneAt && c.col !== 'pago_hoje') return;
+      const t = c.doneAt ? new Date(c.doneAt) : today;
+      if (t >= b.start && t < b.end) {
+        const v = cardVal(c);
+        if (isReceber(c)) inv += v;
+        if (isPagar(c)) outv += v;
+      }
+    });
+    return { ...b, inv, outv };
+  });
+  const maxFlow = Math.max(1, ...flowWeekly.map(b => Math.max(b.inv, b.outv)));
+
+  // Score de saúde financeira (0-100)
+  let healthScore = 100;
+  const totalAtrasado = atrasadoReceber + atrasadoPagar;
+  if (totalAtrasado > 0) healthScore -= Math.min(40, Math.round(40 * totalAtrasado / Math.max(1, aPagar30 + aReceber30 + totalAtrasado)));
+  if (saldoMes < 0) healthScore -= 20;
+  if (netPrev < 0) healthScore -= 20;
+  if (recebidoMes === 0 && pagoMes > 0) healthScore -= 10;
+  healthScore = Math.max(0, Math.min(100, healthScore));
+  const healthColor = healthScore >= 70 ? '#3B6D11' : (healthScore >= 40 ? '#A99876' : '#A32D2D');
+  const healthRing = `
+    <svg viewBox="0 0 100 100" width="64" height="64" style="transform:rotate(-90deg);">
+      <circle cx="50" cy="50" r="44" stroke="#E5E5E5" stroke-width="8" fill="none"/>
+      <circle cx="50" cy="50" r="44" stroke="${healthColor}" stroke-width="8" fill="none"
+              stroke-dasharray="${(healthScore/100)*276} 276" stroke-linecap="round"/>
+    </svg>`;
+
+  // Top 5 categorias de saída e entrada
+  const catEntries = Object.entries(categoriaSum);
+  const topSaida = catEntries.filter(([,v]) => v.saida > 0).sort((a,b) => b[1].saida - a[1].saida).slice(0,5);
+  const topEntrada = catEntries.filter(([,v]) => v.entrada > 0).sort((a,b) => b[1].entrada - a[1].entrada).slice(0,5);
+  const maxCatSaida = topSaida.length ? topSaida[0][1].saida : 1;
+  const maxCatEntrada = topEntrada.length ? topEntrada[0][1].entrada : 1;
+
+  // Top 5 clientes (entrada) e top 5 fornecedores (saída)
+  const pessoaEntries = Object.values(pessoaSum);
+  const topClientes = pessoaEntries.filter(p => p.entrada > 0).sort((a,b) => b.entrada - a.entrada).slice(0,5);
+  const topFornec = pessoaEntries.filter(p => p.saida > 0).sort((a,b) => b.saida - a.saida).slice(0,5);
+
+  const _co = (typeof getCompanyInfo === 'function') ? (getCompanyInfo() || {}) : {};
+  const _coName = _co.name || (typeof getProfileName === 'function' ? getProfileName() : '') || 'Sua empresa';
+  const _coSub  = _co.subtitle || '';
+  const _boardName = (allBoards[currentBoardId]?.name) || '';
+  const _genAt = new Date().toLocaleString('pt-BR');
+
+  el.innerHTML = `
+    <div class="dash-print-header">
+      ${_co.logo ? `<img class="dash-print-logo" src="${_esc(_co.logo)}" alt="logo"/>` : ''}
+      <div class="dash-print-company-text">
+        <div class="dash-print-company-name">${_esc(_coName)}</div>
+        ${_coSub ? `<div class="dash-print-company-sub">${_esc(_coSub)}</div>` : ''}
+        <div class="dash-print-meta">${_boardName ? `<strong>${_esc(_boardName)}</strong> · ` : ''}Dashboard financeiro · ${_esc(_genAt)}</div>
+      </div>
+    </div>
+    <div class="dash-export-bar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+      <span class="zai-view-toggle" style="background:var(--color-background-secondary);padding:3px;border-radius:999px;border:0.5px solid var(--color-border-tertiary);">
+        <button onclick="setDashboardTab('operation')" style="padding:6px 14px;font-size:12px;border:none;background:transparent;border-radius:999px;cursor:pointer;font-weight:500;color:var(--color-text-tertiary);">📊 Operação</button>
+        <button onclick="setDashboardTab('financial')" style="padding:6px 14px;font-size:12px;border:none;background:var(--color-background-primary);border-radius:999px;cursor:pointer;font-weight:600;color:var(--color-text-primary);">財 Financeiro</button>
+      </span>
+      <button class="dash-export-btn" onclick="exportDashboardPDF()">📄 Exportar PDF</button>
+    </div>
+
+    <div class="dash-section-title">Visão geral</div>
+    <div class="dash-kpis">
+      <div class="kpi-card kpi-accent" style="--accent:#3B6D11;">
+        <div class="kpi-head"><span class="kpi-label">Recebido / mês</span></div>
+        <div class="kpi-row"><span class="kpi-value sm" style="color:#3B6D11;">${fmt(recebidoMes)}</span></div>
+        <div class="kpi-sub">desde ${monthStart.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
+      </div>
+      <div class="kpi-card kpi-accent" style="--accent:#A32D2D;">
+        <div class="kpi-head"><span class="kpi-label">Pago / mês</span></div>
+        <div class="kpi-row"><span class="kpi-value sm" style="color:#A32D2D;">${fmt(pagoMes)}</span></div>
+        <div class="kpi-sub">desde ${monthStart.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
+      </div>
+      <div class="kpi-card kpi-accent" style="--accent:${saldoMes>=0?'#3B6D11':'#A32D2D'};">
+        <div class="kpi-head"><span class="kpi-label">Saldo do mês</span></div>
+        <div class="kpi-row"><span class="kpi-value sm" style="color:${saldoMes>=0?'#3B6D11':'#A32D2D'};">${fmtSigned(saldoMes)}</span></div>
+        <div class="kpi-sub">recebido − pago</div>
+      </div>
+      <div class="kpi-card kpi-accent" style="--accent:#0C447C;">
+        <div class="kpi-head"><span class="kpi-label">A receber (30d)</span></div>
+        <div class="kpi-row"><span class="kpi-value sm" style="color:#3B6D11;">${fmt(aReceber30)}</span></div>
+        <div class="kpi-sub">${countReceber30} lançamento${countReceber30!==1?'s':''}</div>
+      </div>
+      <div class="kpi-card kpi-accent" style="--accent:#854F0B;">
+        <div class="kpi-head"><span class="kpi-label">A pagar (30d)</span></div>
+        <div class="kpi-row"><span class="kpi-value sm" style="color:#A32D2D;">${fmt(aPagar30)}</span></div>
+        <div class="kpi-sub">${countPagar30} lançamento${countPagar30!==1?'s':''}</div>
+      </div>
+    </div>
+
+    <div class="dash-row">
+      <div class="dash-panel" style="flex:2;">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title">Fluxo financeiro — 12 semanas</span>
+          <span class="dash-panel-sub">entradas vs saídas pagas</span>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:6px;height:140px;padding:12px 0;border-bottom:1px solid var(--color-border-tertiary);">
+          ${flowWeekly.map(b => {
+            const hIn = (b.inv / maxFlow) * 100;
+            const hOut = (b.outv / maxFlow) * 100;
+            const lbl = b.start.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;" title="${lbl}: +${fmt(b.inv)} / −${fmt(b.outv)}">
+              <div style="display:flex;gap:1px;align-items:flex-end;width:100%;justify-content:center;height:120px;">
+                <div style="background:#3B6D11;width:38%;height:${hIn}%;min-height:${b.inv?2:0}px;border-radius:2px 2px 0 0;"></div>
+                <div style="background:#A32D2D;width:38%;height:${hOut}%;min-height:${b.outv?2:0}px;border-radius:2px 2px 0 0;"></div>
+              </div>
+              <span style="font-size:9px;color:var(--color-text-tertiary);">${lbl}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--color-text-secondary);">
+          <span><span style="display:inline-block;width:10px;height:10px;background:#3B6D11;border-radius:2px;vertical-align:-1px;"></span> Entradas</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:#A32D2D;border-radius:2px;vertical-align:-1px;"></span> Saídas</span>
+        </div>
+      </div>
+      <div class="dash-panel" style="flex:1;">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title">Saúde financeira</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;padding:10px 0;">
+          <div style="position:relative;width:64px;height:64px;flex:none;">
+            ${healthRing}
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:${healthColor};">${healthScore}</div>
+          </div>
+          <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.7;">
+            ${countAtrasado ? `<div>● <strong>${countAtrasado}</strong> atrasados (${fmt(totalAtrasado)})</div>` : '<div style="color:#3B6D11;">● Nada atrasado</div>'}
+            ${saldoMes < 0 ? `<div style="color:#A32D2D;">● Saldo do mês negativo</div>` : `<div style="color:#3B6D11;">● Saldo positivo</div>`}
+            ${netPrev < 0 ? `<div style="color:#A32D2D;">● Net previsto negativo</div>` : `<div style="color:#3B6D11;">● Net previsto positivo</div>`}
+            <div style="color:var(--color-text-tertiary);">Net 30d: <strong style="color:${netPrev>=0?'#3B6D11':'#A32D2D'};">${fmtSigned(netPrev)}</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-section-title">Distribuição</div>
+    <div class="dash-row">
+      <div class="dash-panel" style="flex:1;">
+        <div class="dash-panel-head"><span class="dash-panel-title">Top categorias · saídas</span></div>
+        ${topSaida.length ? topSaida.map(([cat, v]) => `
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;">
+            <span style="flex:1;color:var(--color-text-secondary);">${_esc(cat)}</span>
+            <div style="width:120px;height:6px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden;">
+              <div style="width:${(v.saida/maxCatSaida)*100}%;height:100%;background:#A32D2D;"></div>
+            </div>
+            <strong style="min-width:80px;text-align:right;font-variant-numeric:tabular-nums;">${fmt(v.saida)}</strong>
+          </div>`).join('') : '<div class="dash-empty">Sem saídas registradas.</div>'}
+      </div>
+      <div class="dash-panel" style="flex:1;">
+        <div class="dash-panel-head"><span class="dash-panel-title">Top categorias · entradas</span></div>
+        ${topEntrada.length ? topEntrada.map(([cat, v]) => `
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;">
+            <span style="flex:1;color:var(--color-text-secondary);">${_esc(cat)}</span>
+            <div style="width:120px;height:6px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden;">
+              <div style="width:${(v.entrada/maxCatEntrada)*100}%;height:100%;background:#3B6D11;"></div>
+            </div>
+            <strong style="min-width:80px;text-align:right;font-variant-numeric:tabular-nums;">${fmt(v.entrada)}</strong>
+          </div>`).join('') : '<div class="dash-empty">Sem entradas registradas.</div>'}
+      </div>
+    </div>
+
+    <div class="dash-section-title">Pessoas</div>
+    <div class="dash-row">
+      <div class="dash-panel" style="flex:1;">
+        <div class="dash-panel-head"><span class="dash-panel-title">Top clientes · receita</span></div>
+        ${topClientes.length ? `<table class="reg-table" style="border:0;">
+          <thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th style="text-align:right;">Recebido</th><th style="text-align:right;">Cards</th></tr></thead>
+          <tbody>${topClientes.map(p => `<tr>
+            <td><strong>${_esc(p.nome)}</strong></td>
+            <td style="color:var(--color-text-tertiary);">${_esc(p.taxId||'—')}</td>
+            <td style="text-align:right;font-variant-numeric:tabular-nums;color:#3B6D11;font-weight:600;">${fmt(p.entrada)}</td>
+            <td style="text-align:right;color:var(--color-text-tertiary);">${p.count}</td>
+          </tr>`).join('')}</tbody>
+        </table>` : '<div class="dash-empty">Nenhum cliente vinculado.</div>'}
+      </div>
+      <div class="dash-panel" style="flex:1;">
+        <div class="dash-panel-head"><span class="dash-panel-title">Top fornecedores · custo</span></div>
+        ${topFornec.length ? `<table class="reg-table" style="border:0;">
+          <thead><tr><th>Fornecedor</th><th>CPF/CNPJ</th><th style="text-align:right;">Pago</th><th style="text-align:right;">Cards</th></tr></thead>
+          <tbody>${topFornec.map(p => `<tr>
+            <td><strong>${_esc(p.nome)}</strong></td>
+            <td style="color:var(--color-text-tertiary);">${_esc(p.taxId||'—')}</td>
+            <td style="text-align:right;font-variant-numeric:tabular-nums;color:#A32D2D;font-weight:600;">${fmt(p.saida)}</td>
+            <td style="text-align:right;color:var(--color-text-tertiary);">${p.count}</td>
+          </tr>`).join('')}</tbody>
+        </table>` : '<div class="dash-empty">Nenhum fornecedor vinculado.</div>'}
+      </div>
+    </div>
+
+    <div class="dash-print-footer">
+      <span>Gerado por</span>
+      <strong>Synkan Management Lab</strong>
+    </div>
+  `;
+}
+
+var _dashboardTab = 'operation'; // 'operation' | 'financial'
+function setDashboardTab(t) { _dashboardTab = t; renderDashboard(); }
+function _hasFinancialData() {
+  const b = allBoards[currentBoardId];
+  if (b?.granatum_linked) return true;
+  // Tem cf_valor preenchido em algum card?
+  return (cards || []).some(c => {
+    const v = c?.customFieldValues?.cf_valor;
+    return v != null && v !== '' && Number(String(v).replace(',','.')) !== 0;
+  });
+}
+
 function renderDashboard() {
   const el = document.getElementById('dashboard'); if(!el) return;
+  const _hasFin = _hasFinancialData();
+  // Se aba financeira está ativa, renderiza apenas o dashboard financeiro
+  if (_dashboardTab === 'financial' && _hasFin) {
+    return _renderFinancialDashboard(el);
+  }
   const now   = new Date();
   const today = new Date(); today.setHours(0,0,0,0);
   const todayStr = today.toISOString().slice(0,10);
@@ -7825,7 +8131,13 @@ function renderDashboard() {
 
   el.innerHTML = `
     ${_printHeader}
-    <div class="dash-export-bar">
+    <div class="dash-export-bar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+      ${_hasFin ? `
+        <span class="zai-view-toggle" style="background:var(--color-background-secondary);padding:3px;border-radius:999px;border:0.5px solid var(--color-border-tertiary);">
+          <button class="${_dashboardTab==='operation'?'is-active':''}" onclick="setDashboardTab('operation')" style="padding:6px 14px;font-size:12px;border:none;background:${_dashboardTab==='operation'?'var(--color-background-primary)':'transparent'};border-radius:999px;cursor:pointer;font-weight:${_dashboardTab==='operation'?'600':'500'};color:${_dashboardTab==='operation'?'var(--color-text-primary)':'var(--color-text-tertiary)'};">📊 Operação</button>
+          <button class="${_dashboardTab==='financial'?'is-active':''}" onclick="setDashboardTab('financial')" style="padding:6px 14px;font-size:12px;border:none;background:${_dashboardTab==='financial'?'var(--color-background-primary)':'transparent'};border-radius:999px;cursor:pointer;font-weight:${_dashboardTab==='financial'?'600':'500'};color:${_dashboardTab==='financial'?'var(--color-text-primary)':'var(--color-text-tertiary)'};">財 Financeiro</button>
+        </span>
+      ` : '<div></div>'}
       <button class="dash-export-btn" onclick="exportDashboardPDF()" title="Salvar como PDF">📄 Exportar PDF</button>
     </div>
     <div class="dash-section-title">Visão geral</div>
