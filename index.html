@@ -15272,9 +15272,26 @@ function _dismissCascadeBanner(sourceId) {
 }
 
 // ── Kanban render ──
+// Toggle de exibição do histórico em boards Granatum (default: oculto pra performance)
+function _granatumShowHistorico() {
+  try { return localStorage.getItem('synkan_granatum_show_hist_' + currentBoardId) === '1'; }
+  catch(e) { return false; }
+}
+function _granatumToggleHistorico() {
+  try {
+    const cur = _granatumShowHistorico();
+    localStorage.setItem('synkan_granatum_show_hist_' + currentBoardId, cur ? '0' : '1');
+  } catch(e) {}
+  if (typeof render === 'function') render();
+}
+
 function render() {
   const ct=document.getElementById('cols'); ct.innerHTML='';
-  ct.style.gridTemplateColumns = `repeat(${COLS.length}, minmax(0, 1fr))`;
+  // Em boards Granatum, esconde 'historico' por padrão (geralmente concentra 90%+ dos cards)
+  const _isGranBoard = !!allBoards[currentBoardId]?.granatum_linked;
+  const _hideHist = _isGranBoard && !_granatumShowHistorico();
+  const _renderCols = _hideHist ? COLS.filter(c => c.id !== 'historico') : COLS;
+  ct.style.gridTemplateColumns = `repeat(${_renderCols.length}, minmax(0, 1fr))`;
   // Aplica visual de retrospectiva quando o board for kaizen
   const _kanbanView = document.getElementById('view-kanban');
   const _isKaizen = !!(allBoards[currentBoardId] && allBoards[currentBoardId].isKaizen);
@@ -15309,7 +15326,28 @@ function render() {
   const visible = filteredCards();
   // pré-calcula auto-archive somente sobre cards "done" que sobreviveram aos filtros
   const archive = computeArchive(visible.filter(c=>c.col===TERMINAL_COL));
-  COLS.forEach(col=>{
+  // Granatum: insere toggle "mostrar histórico" no header do kanban
+  if (_isGranBoard) {
+    const _kview = document.getElementById('view-kanban');
+    if (_kview && !_kview.querySelector('.granatum-hist-toggle')) {
+      const _histCount = (cards||[]).filter(c => c.col === 'historico').length;
+      const _btn = document.createElement('button');
+      _btn.className = 'granatum-hist-toggle';
+      _btn.style.cssText = 'position:absolute;top:8px;right:140px;background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:999px;padding:5px 12px;font-size:11px;color:var(--color-text-secondary);cursor:pointer;z-index:5;';
+      _btn.textContent = _hideHist ? `📁 Mostrar histórico (${_histCount})` : `📂 Ocultar histórico`;
+      _btn.onclick = _granatumToggleHistorico;
+      _kview.style.position = _kview.style.position || 'relative';
+      _kview.appendChild(_btn);
+    } else if (_kview) {
+      const _btn = _kview.querySelector('.granatum-hist-toggle');
+      const _histCount = (cards||[]).filter(c => c.col === 'historico').length;
+      if (_btn) _btn.textContent = _hideHist ? `📁 Mostrar histórico (${_histCount})` : `📂 Ocultar histórico`;
+    }
+  } else {
+    // remove botão se mudou pra board não-Granatum
+    document.querySelectorAll('.granatum-hist-toggle').forEach(b => b.remove());
+  }
+  _renderCols.forEach(col=>{
     let cc = visible.filter(c=>c.col===col.id);
     let archivedCount = 0;
     if (col.id === TERMINAL_COL) {
@@ -29388,11 +29426,36 @@ function getCardMoneyValue(card) {
 
 // Burn rate mensal = soma de custos fixos (recorrentes) + variáveis ativos.
 // Cards em coluna terminal (Done/Pago/etc) NÃO contam (já saíram).
+// Helper: card é "fechado" (não conta pra previsão futura)?
+function _isCardClosed(c) {
+  if (!c) return true;
+  if (c.col === TERMINAL_COL) return true;
+  // Granatum: pago_hoje e historico são lançamentos já pagos → não contam pra runway
+  if (allBoards[currentBoardId]?.granatum_linked) {
+    if (c.col === 'pago_hoje' || c.col === 'historico') return true;
+    if (c.doneAt) return true;
+  }
+  return false;
+}
+
+// Em boards Granatum, restringe a janela "do mês" pra cards com deadline nos próximos 30 dias
+function _isInGranatumMonthWindow(c) {
+  if (!allBoards[currentBoardId]?.granatum_linked) return true;
+  if (!c?.deadline) return false;
+  try {
+    const dl = new Date(c.deadline + 'T00:00:00');
+    const now = new Date(); now.setHours(0,0,0,0);
+    const horizon = new Date(now); horizon.setDate(horizon.getDate() + 30);
+    return dl >= now && dl <= horizon;
+  } catch(e) { return false; }
+}
+
 function calcBoardBurnRate() {
   if (typeof ZAI_TYPES === 'undefined' || !ZAI_TYPES) return 0;
   let burn = 0;
   (cards || []).forEach(c => {
-    if (c.col === TERMINAL_COL) return;
+    if (_isCardClosed(c)) return;
+    if (!_isInGranatumMonthWindow(c)) return;
     const t = getCardMoneyType(c);
     if (!t || t === 'income') return;
     const v = getCardMoneyValue(c);
@@ -29406,7 +29469,8 @@ function calcBoardIncomeRate() {
   if (typeof ZAI_TYPES === 'undefined' || !ZAI_TYPES) return 0;
   let inc = 0;
   (cards || []).forEach(c => {
-    if (c.col === TERMINAL_COL) return;
+    if (_isCardClosed(c)) return;
+    if (!_isInGranatumMonthWindow(c)) return;
     const t = getCardMoneyType(c);
     if (t !== 'income') return;
     inc += Math.abs(getCardMoneyValue(c));
