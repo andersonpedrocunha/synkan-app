@@ -11344,17 +11344,34 @@ function _settingsContaSection() {
       </div>
     </div>
 
+    ${(() => {
+      const _auditPlanCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+      const _isPretaAudit = _auditPlanCode === 'faixa_preta';
+      // Janela limitada por plano: trial/azul = 7d, roxa = 30d, preta = ilimitado
+      const _auditWindowDays = _isPretaAudit ? -1 : (_auditPlanCode === 'faixa_roxa' ? 30 : 7);
+      const _cutoff = _auditWindowDays > 0 ? (Date.now() - _auditWindowDays*86400000) : 0;
+      const _visibleAudit = _auditWindowDays > 0
+        ? auditLog.filter(e => { try { return new Date(e.t || e.timestamp || 0).getTime() >= _cutoff; } catch(_) { return false; } })
+        : auditLog;
+      const _hiddenCount = auditLog.length - _visibleAudit.length;
+      return `
     <div class="settings-card">
       <div class="settings-card-h">
-        <span class="settings-card-title">Audit log</span>
-        <span class="settings-status-pill ${auditLog.length?'ok':'off'}">${auditLog.length} registro${auditLog.length!==1?'s':''}</span>
+        <span class="settings-card-title">Audit log${_isPretaAudit ? ' · completo' : ' · janela limitada'}</span>
+        <span class="settings-status-pill ${_visibleAudit.length?'ok':'off'}">${_visibleAudit.length} registro${_visibleAudit.length!==1?'s':''}${_auditWindowDays>0?` · últimos ${_auditWindowDays}d`:''}</span>
       </div>
       <div class="settings-card-sub">Histórico de ações: criar/editar/mover/concluir/excluir cards, criar/arquivar/excluir boards, ativar 2FA, etc. Mantido localmente (últimos ${AUDIT_MAX}).</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-c" onclick="exportAuditLogCSV()">📊 Exportar CSV</button>
+      ${!_isPretaAudit ? `<div style="margin-top:10px;padding:10px 12px;background:#fafafa;border:1px solid var(--color-border-tertiary);border-radius:8px;font-size:12px;color:var(--color-text-secondary);">
+        <strong>Audit log completo (sem janela)</strong> é exclusivo da <strong>Faixa Preta</strong>.
+        ${_hiddenCount > 0 ? `<br/><span style="color:var(--color-text-tertiary);">${_hiddenCount} registro${_hiddenCount!==1?'s':''} além de ${_auditWindowDays}d ocult${_hiddenCount!==1?'os':'o'}.</span>` : ''}
+        <button class="btn-c" style="margin-top:6px;background:#1f2937;color:#f9fafb;border-color:#1f2937;font-size:11px;font-weight:600;padding:5px 11px;" onclick="window.open(getUpgradeURL(),'_blank')">⬆ Upgrade</button>
+      </div>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button class="btn-c" onclick="exportAuditLogCSV()">📊 Exportar CSV${_isPretaAudit ? '' : ' (janela limitada)'}</button>
         <button class="btn-c" onclick="clearAuditLog()">Limpar log</button>
       </div>
-    </div>
+    </div>`;
+    })()}
 
     <div class="settings-card">
       <div class="settings-card-h">
@@ -11692,7 +11709,7 @@ function _settingsSlackAppSection() {
     return `
       <div class="settings-card" style="border:1px solid #4A154B;background:linear-gradient(135deg,#fefefe 0%,#f9f5fa 100%);">
         <div class="settings-card-h">
-          <span class="settings-card-title">💼 Slack App Nativo · Beta</span>
+          <span class="settings-card-title">💼 Slack App Nativo</span>
           <span class="settings-status-pill off">não conectado</span>
         </div>
         <div class="settings-card-sub">Notificações via bot oficial do Synkan no Slack — com avatar, branding e canais selecionáveis. Inclui slash commands (<code>/synkan novo</code>, <code>/synkan listar</code>) e botões interativos (Concluir, Atribuir) direto na mensagem.</div>
@@ -12035,6 +12052,34 @@ async function _granatumLoadConfig() {
 
 var _granatumConfigLoaded = false;
 function _settingsGranatumSection() {
+  // GATE: Granatum só pra Faixa Preta
+  const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+  const isPreta = planCode === 'faixa_preta';
+  if (!isPreta) {
+    return `
+      <div class="settings-card" style="border:1px solid #1f2937;background:linear-gradient(135deg,#fefefe 0%,#f5f5f7 100%);">
+        <div class="settings-card-h">
+          <span class="settings-card-title">財 Granatum · Sincronização financeira <span style="font-size:10px;font-weight:600;background:#1f2937;color:#f9fafb;padding:2px 8px;border-radius:999px;letter-spacing:.04em;text-transform:uppercase;margin-left:6px;">Faixa Preta</span></span>
+          <span class="settings-status-pill off">requer upgrade</span>
+        </div>
+        <div class="settings-card-sub">Sincroniza lançamentos do <a href="https://www.granatum.com.br" target="_blank" rel="noopener" style="text-decoration:underline;">Granatum</a> com seus boards Zai. Cards refletem contas a pagar/receber. Drag-drop atualiza status no Granatum automaticamente.</div>
+        <div style="margin-top:14px;padding:14px;background:#fafafa;border-radius:10px;font-size:12.5px;color:var(--color-text-secondary);border:1px solid var(--color-border-tertiary);">
+          <strong style="color:var(--color-text-primary);">Disponível na Faixa Preta · Empresarial:</strong>
+          <ul style="margin:6px 0 0 18px;padding:0;line-height:1.7;">
+            <li>Pull automático de lançamentos do Granatum (a cada 5 min)</li>
+            <li>Push bidirecional: drag no Synkan marca pago no Granatum</li>
+            <li>708+ contatos importados automaticamente (clientes/fornecedores + CPF/CNPJ)</li>
+            <li>Dashboard executivo: receita, custos, runway, Net previsto 30/60/90d</li>
+            <li>Análise IA Mestre Kan focada em finanças (riscos, cobrança, categorias)</li>
+            <li>Aging de inadimplência, DSO/DPO, concentração de risco</li>
+          </ul>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+          <button class="btn-c" style="background:#1f2937;color:#f9fafb;border-color:#1f2937;font-weight:600;" onclick="_goToPlanTab()">⬆ Fazer upgrade pra Faixa Preta</button>
+        </div>
+      </div>
+    `;
+  }
   // Se ainda não carregou e supaUser existe, dispara load e mostra "verificando"
   if (!_granatumConfigLoaded && supaUser && typeof _granatumLoadConfig === 'function') {
     _granatumLoadConfig().finally(() => { _granatumConfigLoaded = true; if (typeof renderSettings === 'function') renderSettings(); });
@@ -14143,6 +14188,21 @@ function _computeFollowupContacts() {
 }
 
 function _renderFollowupRulerPanel() {
+  // GATE: Régua de follow-up automática é exclusiva da Faixa Preta
+  if (typeof getCurrentPlanCode === 'function' && getCurrentPlanCode() !== 'faixa_preta') {
+    return `
+      <div class="dash-panel" style="border:1px dashed var(--color-border-tertiary);background:linear-gradient(135deg,#fafafa,#f5f5f7);">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title" style="color:var(--color-text-tertiary);">🎯 Régua de follow-up <span style="font-size:9px;font-weight:700;background:#1f2937;color:#f9fafb;padding:2px 8px;border-radius:999px;letter-spacing:.05em;text-transform:uppercase;margin-left:6px;">Faixa Preta</span></span>
+        </div>
+        <div style="padding:14px 0;font-size:12.5px;color:var(--color-text-secondary);line-height:1.6;">
+          Alerta automático quando leads ou clientes ficam sem contato por X dias. Detecta contatos esfriando antes que você perca a oportunidade. <strong>Exclusivo da Faixa Preta · Empresarial.</strong>
+          <div style="margin-top:10px;">
+            <button class="btn-c" style="background:#1f2937;color:#f9fafb;border-color:#1f2937;font-size:12px;font-weight:600;" onclick="window.open(getUpgradeURL(),'_blank')">⬆ Fazer upgrade</button>
+          </div>
+        </div>
+      </div>`;
+  }
   const cfg = _getFollowupCfg();
   const items = _computeFollowupContacts();
   const top = items.slice(0, 10);
@@ -17428,13 +17488,18 @@ async function _onSignedIn(session) {
   applyDensity();
   renderFilterBar();
   render();
-  switchTab('home');
+  // Só vai pra Home na primeira sign-in (não em token refresh ou re-auth periódico)
+  if (!window._didInitialSignIn) {
+    switchTab('home');
+    window._didInitialSignIn = true;
+  }
   supaSubscribeRealtime();
 }
 
 async function _onSignedOut() {
   supaUser = null;
   _lastSignedInUserId = null;
+  window._didInitialSignIn = false; // permite switchTab('home') no próximo login real
   try { _capInvalidateJWTCache && _capInvalidateJWTCache(); } catch(e){}
   if (supaRealtimeCh && supaClient) { supaClient.removeChannel(supaRealtimeCh); supaRealtimeCh = null; }
   showAuthOverlay(true);
@@ -17912,6 +17977,16 @@ async function refreshMembersConfig() {
 }
 
 async function inviteMember() {
+  // GATE: Convidar membros externos no board é exclusivo da Faixa Preta
+  if (typeof getCurrentPlanCode === 'function' && getCurrentPlanCode() !== 'faixa_preta') {
+    if (typeof appAlert === 'function') {
+      appAlert('Convidados · Faixa Preta',
+        'Convidar pessoas externas (clientes, parceiros, fornecedores) para colaborar no board é exclusivo da <strong>Faixa Preta · Empresarial</strong>. Faça upgrade pra liberar convidados ilimitados com permissões granulares.',
+        { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não',
+          onOk: () => window.open(getUpgradeURL(), '_blank') });
+    }
+    return;
+  }
   const inp = document.getElementById('cfg-invite-email');
   const role = document.getElementById('cfg-invite-role')?.value || 'editor';
   const email = (inp?.value||'').trim();
@@ -29714,6 +29789,16 @@ function _capShareUrl(formId) {
 
 function openFormEditor(formId) {
   const isEdit = !!formId;
+  // GATE: Captação (formulários públicos) é exclusivo da Faixa Preta
+  if (!isEdit && typeof getCurrentPlanCode === 'function' && getCurrentPlanCode() !== 'faixa_preta') {
+    if (typeof appAlert === 'function') {
+      appAlert('Captação · Faixa Preta',
+        'Formulários públicos pra captura de leads são exclusivos da <strong>Faixa Preta · Empresarial</strong>. Faça upgrade pra liberar formulários ilimitados, régua de follow-up e mais.',
+        { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não',
+          onOk: () => window.open(getUpgradeURL(), '_blank') });
+    }
+    return;
+  }
   const f = isEdit
     ? JSON.parse(JSON.stringify(_capForms.find(x=>x.id===formId) || {}))
     : { id:null, name:'Captura de leads', description:'', fields:_DEFAULT_FORM_FIELDS.map(x=>({...x})), target_board_id:'', target_col:'lead', success_message:'Recebido! Em breve entraremos em contato.', is_active:true };
