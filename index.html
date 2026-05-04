@@ -11641,7 +11641,7 @@ function _settingsIASection() {
                  value="${q.limit}"
                  style="flex:0 0 140px;padding:8px 11px;border:0.5px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font-size:13px;" />
           <button class="btn-c" onclick="saveAIQuotaFromUI()">Salvar</button>
-          <button class="btn-g" onclick="resetAIQuotaToday();renderSettings();">Zerar contador deste mês</button>
+          ${(typeof _isDevHost === 'function' && _isDevHost()) ? `<button class="btn-g" onclick="resetAIQuotaToday();renderSettings();" title="Apenas dev: zera contador local (não afeta Supabase)">Zerar contador (dev)</button>` : ''}
         </div>
         ${personalAbovePlan ? `
           <div style="font-size:12px;color:#A88224;margin-top:4px;">
