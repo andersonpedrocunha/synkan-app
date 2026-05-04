@@ -17237,9 +17237,36 @@ async function submitAuth() {
   btn.disabled = false;
 }
 async function signOut() {
-  if (!supaClient) return;
   try { _capInvalidateJWTCache(); } catch(e){}
-  await supaClient.auth.signOut();
+  // 1) signOut do Supabase com timeout curto (não bloqueia se a rede/API falhar)
+  try {
+    if (supaClient && supaClient.auth) {
+      await Promise.race([
+        supaClient.auth.signOut(),
+        new Promise(res => setTimeout(res, 1500)),
+      ]);
+    }
+  } catch(e) { console.warn('[signOut] supabase signOut falhou:', e?.message || e); }
+  // 2) Limpa localStorage de auth (mesmo se signOut falhou — garante logout local)
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('sb-') || k.startsWith('supabase.') || k.includes('-auth-token'))) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch(e){}
+  // 3) Limpa estado local da app
+  try {
+    supaUser = null;
+    _lastSignedInUserId = null;
+    window._didInitialSignIn = false;
+    if (supaRealtimeCh && supaClient) { supaClient.removeChannel(supaRealtimeCh); supaRealtimeCh = null; }
+  } catch(e){}
+  // 4) Recarrega a página pra garantir estado limpo (tela de login aparece)
+  setTimeout(() => location.reload(), 100);
 }
 async function exitSupabaseMode() {
   const ok = await appConfirm('Sair do modo Cloud?', 'Os dados continuam no Supabase, mas este navegador volta a usar localStorage.', { icon:'⚠️', danger:true, okLabel:'Sair do Cloud' });
@@ -23025,7 +23052,13 @@ function _sheetClearSelection() {
   const c1 = Math.min(sel.startCol, sel.endCol), c2 = Math.max(sel.startCol, sel.endCol);
   for (let r = r1; r <= r2; r++) {
     for (let c = c1; c <= c2; c++) {
+      // Limpa o valor da célula
       if (cv.sheetData.rows[r]) cv.sheetData.rows[r][c] = '';
+      // Limpa também tipo (lista/checkbox/nota) — Delete deve apagar TUDO da célula
+      const k = `${r},${c}`;
+      if (cv.sheetData.cellTypes && cv.sheetData.cellTypes[k]) {
+        delete cv.sheetData.cellTypes[k];
+      }
     }
   }
   cv.updatedAt = new Date().toISOString();
@@ -23318,6 +23351,7 @@ function _sheetApplyFill(source, target) {
     sd.rows.forEach(r2 => { while (r2.length < sd.columns.length) r2.push(''); });
   }
   // Para cada célula no target, copia o equivalente no source ajustando refs
+  if (!sd.cellTypes) sd.cellTypes = {};
   for (let r = target.r1; r <= target.r2; r++) {
     for (let c = target.c1; c <= target.c2; c++) {
       // Pula células que já estão no source
@@ -23328,13 +23362,21 @@ function _sheetApplyFill(source, target) {
       const safeSrcR = Math.max(source.r1, Math.min(source.r2, srcR));
       const safeSrcC = Math.max(source.c1, Math.min(source.c2, srcC));
       const srcVal = sd.rows[safeSrcR]?.[safeSrcC] ?? '';
-      // Se for fórmula, ajusta refs relativas
       const dr = r - safeSrcR;
       const dc = c - safeSrcC;
       const newVal = (typeof srcVal === 'string' && srcVal.startsWith('='))
         ? _adjustFormulaRefs(srcVal, dr, dc)
         : srcVal;
       sd.rows[r][c] = newVal;
+      // Replica/limpa também o tipo (lista/checkbox/nota) — arrastar célula vazia REMOVE o tipo
+      const srcKey = `${safeSrcR},${safeSrcC}`;
+      const dstKey = `${r},${c}`;
+      const srcType = sd.cellTypes[srcKey];
+      if (srcType) {
+        sd.cellTypes[dstKey] = JSON.parse(JSON.stringify(srcType));
+      } else {
+        delete sd.cellTypes[dstKey];
+      }
     }
   }
   cv.updatedAt = new Date().toISOString();
@@ -31724,25 +31766,7 @@ function renderZaiHub() {
   const root = document.getElementById('zai-root');
   if (!root) return;
   const zaiBoards = _getAllZaiBoards();
-
-  if (zaiBoards.length === 0) {
-    // Estado vazio: convida a criar primeiro board financeiro
-    root.innerHTML = `
-      <div class="zai-hub">
-        <div class="zai-hub-hero">
-          <h1>財 Zai · Visão Financeira</h1>
-          <p>Sem fluxo de caixa complicado. Cards têm tipo (Receita / Custo Fixo / Custo Variável) e o sistema calcula <strong>burn rate</strong> e <strong>runway</strong> automaticamente. Use o <strong>Synk</strong> pra distribuir um valor entre boards, o <strong>Custo de Oportunidade</strong> pra comparar gasto vs. investimento ao longo do tempo, o <strong>Invest-Lab</strong> pra simular cenários antes de mexer no caixa real, e o <strong>Pessoal · Regra dos 1%</strong> pra acompanhar metas de longo prazo (poupança, hábitos, estudos).</p>
-        </div>
-        <div class="zai-hub-empty">
-          <span class="zai-hub-empty-icon">財</span>
-          <h3>Você ainda não tem nenhum board financeiro</h3>
-          <p>Crie um board novo aqui pelo Zai — você dá o nome que quiser, o prefixo "Zai" entra automático.</p>
-          <button onclick="createZaiBoardFromHub()">+ Novo board Zai</button>
-        </div>
-      </div>
-    `;
-    return;
-  }
+  // (não retornamos cedo — Synk, Metas e cards de stats devem aparecer sempre)
 
   // Agrega stats de todos os boards Zai
   let totalInc = 0, totalBurn = 0, totalBalance = 0;
@@ -31820,9 +31844,17 @@ function renderZaiHub() {
 
       <div class="zai-hub-section-h">
         <span>Boards financeiros</span>
+        ${zaiBoards.length === 0 ? '<button class="zai-hub-action" onclick="createZaiBoardFromHub()">+ Criar primeiro board Zai</button>' : ''}
       </div>
       <div class="zai-hub-boards-grid">
-        ${tiles}
+        ${zaiBoards.length > 0 ? tiles : `
+          <div class="zai-hub-board-tile" style="opacity:.55;border:1px dashed var(--color-border-tertiary);background:transparent;cursor:default;text-align:center;padding:24px;">
+            <div style="font-size:32px;margin-bottom:8px;">財</div>
+            <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:4px;">Nenhum board financeiro ainda</div>
+            <div style="font-size:12px;color:var(--color-text-tertiary);margin-bottom:12px;">Crie um pra começar a acompanhar receita, custos e runway.</div>
+            <button onclick="createZaiBoardFromHub()" style="padding:6px 14px;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.08);color:#d4af37;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;">+ Novo board Zai</button>
+          </div>
+        `}
       </div>
 
       ${_renderSynkSectionHTML()}
