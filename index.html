@@ -29402,11 +29402,11 @@ var ZAI_TYPES = {
 function getCardMoneyType(card) {
   if (typeof ZAI_TYPES === 'undefined' || !ZAI_TYPES) return null;
   if (!card) return null;
-  // Granatum: usa cf_tipo (receber/pagar) pra mapear pra income/expense
+  // Granatum: usa cf_tipo (receber/pagar) pra mapear pra income/fixed
   if (allBoards[currentBoardId]?.granatum_linked) {
     const tipo = (card.customFieldValues?.cf_tipo || '').toLowerCase();
     if (tipo === 'receber' || tipo === 'receita') return 'income';
-    if (tipo === 'pagar' || tipo === 'despesa') return 'fixed_cost';
+    if (tipo === 'pagar' || tipo === 'despesa') return 'fixed';
     return null;
   }
   return card.moneyType && ZAI_TYPES[card.moneyType] ? card.moneyType : null;
