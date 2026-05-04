@@ -11736,7 +11736,7 @@ async function _granatumDoImport() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
       body: JSON.stringify({ board_name: boardName, filters }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(90000),
     });
     const data = await r.json();
     if (!r.ok || !data.ok) { appAlert('Falha na importação', data.error || `HTTP ${r.status}`, {icon:'⚠️'}); return; }
