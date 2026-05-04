@@ -5947,6 +5947,16 @@ function _bindCurrentBoard() {
   COLS       = (Array.isArray(b.COLS) && b.COLS.length) ? b.COLS : DEFAULT_COLS.map(c=>({...c}));
   team       = (Array.isArray(b.team) && b.team.length) ? b.team : [...DEFAULT_TEAM];
   customFields = Array.isArray(b.customFields) ? b.customFields : [];
+  // Migration: corrige boards Granatum legacy que usavam `name` em vez de `label` nos custom fields
+  if (b.granatum_linked && Array.isArray(customFields)) {
+    let _fixed = false;
+    customFields.forEach(f => {
+      if (!f.label && f.name) { f.label = f.name; delete f.name; _fixed = true; }
+      if (f.id === 'cf_valor' && f.type !== 'currency') { f.type = 'currency'; f.showOnCard = true; _fixed = true; }
+      if (f.id === 'cf_tipo' && f.type === 'text') { f.type = 'select'; f.options = ['pagar','receber']; _fixed = true; }
+    });
+    if (_fixed) { b.customFields = customFields; if (typeof saveData === 'function') try { saveData(); } catch(e){} }
+  }
   kanbanConfig = Object.assign({}, DEFAULT_CONFIG, b.kanbanConfig || {});
   kanbanConfig.cardFields = Object.assign({}, DEFAULT_CARD_FIELDS, kanbanConfig.cardFields || {});
   if (!COLS.find(c=>c.id===TERMINAL_COL)) COLS.push({id:TERMINAL_COL, title:'Concluído'});
@@ -11815,10 +11825,10 @@ async function _granatumCreateBoardFromLancamentos(boardName, lancamentos, filte
   seed.icon = '財'; // ideograma de riqueza/finanças — destaca como board de integração financeira
   // Custom fields pra valor + tipo
   seed.customFields = [
-    { id: 'cf_valor',     name: 'Valor',     type: 'number' },
-    { id: 'cf_tipo',      name: 'Tipo',      type: 'text' },   // pagar/receber
-    { id: 'cf_categoria', name: 'Categoria', type: 'text' },
-    { id: 'cf_conta',     name: 'Conta',     type: 'text' },
+    { id: 'cf_valor',     label: 'Valor',     type: 'currency', showOnCard: true },
+    { id: 'cf_tipo',      label: 'Tipo',      type: 'select', options: ['pagar','receber'], showOnCard: false },
+    { id: 'cf_categoria', label: 'Categoria', type: 'text', showOnCard: false },
+    { id: 'cf_conta',     label: 'Conta',     type: 'text', showOnCard: false },
   ];
   const today = new Date(); today.setHours(0,0,0,0);
   seed.cards = lancamentos.map((l, idx) => {
@@ -13680,6 +13690,21 @@ function filteredCards() {
   if (isUnifiedMode() && activeBoardFilter && activeBoardFilter.size > 0) {
     result = result.filter(c => activeBoardFilter.has(c._sourceBoardId));
   }
+  // Granatum: filtro de entrada/saída (cf_tipo)
+  if (allBoards[currentBoardId]?.granatum_linked) {
+    const granFilter = _granatumGetTipoFilter();
+    if (granFilter === 'receber') {
+      result = result.filter(c => {
+        const t = (c.customFieldValues?.cf_tipo || '').toLowerCase();
+        return t === 'receber' || t === 'receita';
+      });
+    } else if (granFilter === 'pagar') {
+      result = result.filter(c => {
+        const t = (c.customFieldValues?.cf_tipo || '').toLowerCase();
+        return t === 'pagar' || t === 'despesa';
+      });
+    }
+  }
   if (activeFilter !== null) result = result.filter(c => c.tagIds.includes(activeFilter));
   if (activePriFilter !== null) result = result.filter(c => c.priority === activePriFilter);
   if (activeDateFilter !== null || dateFrom || dateTo) {
@@ -15210,14 +15235,24 @@ function _renderEnergyToolbar() {
     </span>` : '';
   // Granatum: toggle pra mostrar/ocultar histórico (que tem milhares de cards)
   let granHistHTML = '';
+  let granTipoHTML = '';
   if (allBoards[currentBoardId]?.granatum_linked) {
     const _histCount = (cards||[]).filter(c => c.col === 'historico').length;
     const _show = _granatumShowHistorico();
     granHistHTML = `<button class="zai-view-toggle" style="padding:5px 12px;font-size:11.5px;cursor:pointer;border-radius:999px;background:var(--color-background-secondary);color:var(--color-text-secondary);" onclick="_granatumToggleHistorico()" title="Mostrar/ocultar coluna histórico">${_show ? '📂 Ocultar histórico' : '📁 Mostrar histórico ('+_histCount+')'}</button>`;
+    // Filtro entrada/saída
+    const _t = _granatumGetTipoFilter();
+    granTipoHTML = `
+      <span class="zai-view-toggle" title="Filtrar entrada (a receber) ou saída (a pagar)">
+        <button class="${_t==='todos'?'is-active':''}" onclick="_granatumSetTipoFilter('todos')">Tudo</button>
+        <button class="${_t==='receber'?'is-active':''}" onclick="_granatumSetTipoFilter('receber')" style="${_t==='receber'?'color:#3B6D11;':''}">↑ Entrada</button>
+        <button class="${_t==='pagar'?'is-active':''}" onclick="_granatumSetTipoFilter('pagar')" style="${_t==='pagar'?'color:#A32D2D;':''}">↓ Saída</button>
+      </span>`;
   }
   wrap.innerHTML = `
     ${viewsBarHTML}
     ${zaiViewHTML}
+    ${granTipoHTML}
     ${granHistHTML}
     <span class="energy-bar${isActive?' is-active':''}" onclick="toggleEnergyPopover()" id="energy-bar"
           title="Modo Foco · ${isActive ? 'mostre só tarefas que cabem na sua energia hoje' : 'desligado — mostrando tudo'}">
@@ -15320,6 +15355,16 @@ function _granatumToggleHistorico() {
     const cur = _granatumShowHistorico();
     localStorage.setItem('synkan_granatum_show_hist_' + currentBoardId, cur ? '0' : '1');
   } catch(e) {}
+  if (typeof render === 'function') render();
+}
+
+// Filtro de entrada/saída em boards Granatum
+function _granatumGetTipoFilter() {
+  try { return localStorage.getItem('synkan_granatum_tipo_' + currentBoardId) || 'todos'; }
+  catch(e) { return 'todos'; }
+}
+function _granatumSetTipoFilter(tipo) {
+  try { localStorage.setItem('synkan_granatum_tipo_' + currentBoardId, tipo); } catch(e) {}
   if (typeof render === 'function') render();
 }
 
