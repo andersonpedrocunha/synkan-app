@@ -11059,6 +11059,7 @@ function setSettingsTab(t) {
   if (t === 'sync') {
     const promises = [];
     if (typeof _calLoadTokens === 'function') promises.push(_calLoadTokens());
+    if (typeof _calLoadOAuth === 'function') promises.push(_calLoadOAuth());
     if (typeof _waLoadAll === 'function') promises.push(_waLoadAll());
     if (typeof _waAdminLoadPending === 'function') promises.push(_waAdminLoadPending());
     if (typeof _slackLoadAll === 'function') promises.push(_slackLoadAll());
@@ -13561,10 +13562,35 @@ function fireWhatsAppEvent(event_type, opts) {
 
 function _settingsCalendarSection() {
   const total = _allCardsAcrossBoards().filter(c => c.deadline).length;
+  // OAuth providers conectados (Phase 1 e 2: real-time)
+  const oauthRows = (typeof _calendarOAuth !== 'undefined' && Array.isArray(_calendarOAuth)) ? _calendarOAuth : [];
+  const byProvider = {};
+  oauthRows.forEach(r => { byProvider[r.provider] = r; });
+  const renderProviderCard = (provider, label, icon, color) => {
+    const row = byProvider[provider];
+    const connected = !!row;
+    return `
+      <div style="border:1.5px solid ${connected?color:'var(--color-border-secondary)'};border-radius:10px;padding:14px;background:${connected?color+'08':'var(--color-background-primary)'};">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="font-size:22px;">${icon}</span>
+          <strong style="flex:1;font-size:13px;">${label}</strong>
+          <span class="settings-status-pill ${connected?'on':'off'}" style="font-size:10px;">${connected?'conectado':'não conectado'}</span>
+        </div>
+        ${connected ? `
+          <div style="font-size:11.5px;color:var(--color-text-secondary);margin-bottom:8px;">
+            ${_esc(row.account_email||'?')}${row.last_sync_at?` · sync: ${new Date(row.last_sync_at).toLocaleDateString('pt-BR')}`:''}
+          </div>
+          <button class="btn-c" style="padding:6px 12px;font-size:11px;color:var(--color-error);border-color:var(--color-error);" onclick="_calDisconnect('${provider}')">Desconectar</button>
+        ` : `
+          <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-bottom:8px;">Push real-time bidirecional via API oficial. Eventos aparecem em &lt;1 segundo.</div>
+          <button class="btn-c" style="padding:7px 14px;font-size:12px;background:${color};color:#fff;border-color:${color};font-weight:600;" onclick="_calConnect${provider==='google'?'Google':provider==='microsoft'?'Microsoft':'Caldav'}()">${icon} Conectar ${label.split('·')[0].trim()}</button>
+        `}
+      </div>`;
+  };
   const tokens = (typeof _calendarTokens !== 'undefined' && Array.isArray(_calendarTokens)) ? _calendarTokens : [];
   const activeTokens = tokens.filter(t => !t.revoked_at);
   const tokensListHTML = activeTokens.length === 0
-    ? `<div class="settings-card-sub" style="margin-top:10px;font-style:italic;color:var(--color-text-tertiary);">Nenhuma URL de calendário ainda. Crie uma pra Google Calendar e Outlook se atualizarem sozinhos.</div>`
+    ? `<div class="settings-card-sub" style="margin-top:10px;font-style:italic;color:var(--color-text-tertiary);">Nenhuma URL webcal ainda.</div>`
     : activeTokens.map(t => {
         const url = `${KANBAN_SYNC_BASE}/calendar/sub/${encodeURIComponent(t.token)}.ics`;
         const webcalUrl = url.replace(/^https?:\/\//, 'webcal://');
@@ -13597,17 +13623,170 @@ function _settingsCalendarSection() {
   return `
     <div class="settings-card">
       <div class="settings-card-h">
-        <span class="settings-card-title">Sincronizar com Google Calendar / Outlook</span>
+        <span class="settings-card-title">Calendar · Sincronização real-time</span>
         <span class="settings-status-pill ${total?'on':'off'}">${total} card${total===1?'':'s'} com deadline</span>
       </div>
-      <div class="settings-card-sub">Crie uma URL de calendário com os boards que você escolher. Cole essa URL no Google Calendar (Adicionar calendário → A partir de URL) ou no Outlook (Inscrever-se em um calendário) — eles atualizam sozinhos a cada poucas horas. Cada card com deadline vira um evento de dia inteiro.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
-        <button class="btn-c" style="background:#111;color:#fff;border-color:#111;" onclick="_calOpenCreateModal()">+ Nova URL de calendário</button>
-        <button class="btn-c" onclick="exportCalendarICS()" title="Alternativa antiga: baixa o arquivo .ics estático.">Baixar .ics (avulso)</button>
+      <div class="settings-card-sub">Conecte seu calendário via API oficial — eventos sincronizam em <strong>tempo real</strong> (criar/editar/deletar card no Synkan reflete em &lt;1s). Suporta Google Calendar, Outlook e Apple iCloud.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-top:12px;">
+        ${renderProviderCard('google', 'Google Calendar · OAuth', '📅', '#4285F4')}
+        ${renderProviderCard('microsoft', 'Outlook · Microsoft Graph', '📧', '#0078D4')}
+        ${renderProviderCard('caldav', 'Apple iCloud · CalDAV', '🍎', '#000000')}
       </div>
-      ${tokensListHTML}
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer;font-size:12px;color:var(--color-text-secondary);user-select:none;">URL .ics legacy (fallback) ▾</summary>
+        <div style="padding:10px 0;">
+          <div class="settings-card-sub" style="font-size:12px;">Modo antigo via webcal. Atualização lenta (Google: 12-24h, Outlook: 3-6h). Use só se OAuth não estiver disponível.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
+            <button class="btn-c" onclick="_calOpenCreateModal()">+ Nova URL .ics</button>
+            <button class="btn-c" onclick="exportCalendarICS()">Baixar .ics avulso</button>
+          </div>
+          ${tokensListHTML}
+        </div>
+      </details>
     </div>
   `;
+}
+
+// ── Calendar OAuth (real-time, Phase 1+2) ────────────────────────────
+let _calendarOAuth = [];
+async function _calLoadOAuth() {
+  if (typeof supaUser === 'undefined' || !supaUser) { _calendarOAuth = []; return; }
+  try {
+    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+    if (!cfg?.url) return;
+    const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+    if (!jwt) return;
+    const r = await fetch(`${cfg.url}/rest/v1/calendar_oauth_tokens?user_id=eq.${encodeURIComponent(supaUser.id)}&select=provider,account_email,sync_enabled,last_sync_at`, {
+      headers: { 'apikey': cfg.anonKey, 'Authorization': 'Bearer ' + jwt },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (r.ok) _calendarOAuth = await r.json();
+  } catch(e) { console.warn('[cal-oauth] load:', e?.message); }
+}
+
+function _calConnectGoogle()    { _calStartOAuth('google'); }
+function _calConnectMicrosoft() { _calStartOAuth('microsoft'); }
+function _calConnectCaldav()    { _calOpenCaldavModal(); }
+
+function _calStartOAuth(provider) {
+  if (!supaUser) { appAlert('Login necessário'); return; }
+  const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+  if (!jwt) { appAlert('Sessão expirada'); return; }
+  const apiBase = (typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : 'https://api.synkan.com.br');
+  const url = `${apiBase}/calendar/oauth/${provider}/start?jwt=${encodeURIComponent(jwt)}&app_url=${encodeURIComponent(location.origin)}`;
+  const popup = window.open(url, 'cal_oauth', 'width=550,height=700,menubar=no,toolbar=no');
+  if (!popup) { appAlert('Popup bloqueado', 'Permita popups pra conectar o calendário.'); return; }
+  // Listener pra mensagem do callback
+  const onMsg = (ev) => {
+    if (ev.data?.type !== 'calendar_oauth') return;
+    window.removeEventListener('message', onMsg);
+    if (ev.data.success) {
+      showToastMsg(`✓ ${provider==='google'?'Google Calendar':'Outlook'} conectado`);
+      _calLoadOAuth().then(() => { if (typeof renderSettings === 'function') renderSettings(); });
+    } else {
+      appAlert('Falha conectar', ev.data.msg || 'Tente novamente', { icon:'⚠️' });
+    }
+  };
+  window.addEventListener('message', onMsg);
+  // Fallback: se popup fechar sem mensagem, recarrega config (pode ter funcionado)
+  const checkClosed = setInterval(() => {
+    if (popup.closed) {
+      clearInterval(checkClosed);
+      window.removeEventListener('message', onMsg);
+      _calLoadOAuth().then(() => { if (typeof renderSettings === 'function') renderSettings(); });
+    }
+  }, 1000);
+}
+
+async function _calDisconnect(provider) {
+  const ok = await appConfirm('Desconectar calendário', `Remover conexão com ${provider}? Eventos já sincronizados não serão apagados, mas novos cards param de sincronizar.`, { danger:true, okLabel:'Desconectar' });
+  if (!ok) return;
+  const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+  if (!jwt) return;
+  try {
+    const apiBase = (typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : 'https://api.synkan.com.br');
+    await fetch(apiBase + '/calendar/disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ provider }),
+    });
+    showToastMsg('Desconectado');
+    await _calLoadOAuth();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) { appAlert('Erro', e?.message||String(e), { icon:'⚠️' }); }
+}
+
+function _calOpenCaldavModal() {
+  const html = `
+    <h3 style="margin:0 0 8px;font-size:18px;font-weight:600;">🍎 Apple iCloud · CalDAV</h3>
+    <p class="settings-card-sub" style="margin-bottom:12px;font-size:12.5px;">iCloud requer <strong>app-specific password</strong>. Crie em <a href="https://account.apple.com" target="_blank" style="color:#000;text-decoration:underline;">account.apple.com</a> → Sign-In and Security → App-Specific Passwords.</p>
+    <div class="profile-field">
+      <label>CalDAV URL</label>
+      <input id="caldav-url" type="text" value="https://caldav.icloud.com" />
+    </div>
+    <div class="profile-field">
+      <label>Apple ID (email)</label>
+      <input id="caldav-user" type="email" placeholder="seu@icloud.com" />
+    </div>
+    <div class="profile-field">
+      <label>App-specific password</label>
+      <input id="caldav-pwd" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" />
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="app-dialog-btn" onclick="_appDialogClose(null)">Cancelar</button>
+      <button class="app-dialog-btn primary" onclick="_calCaldavSave()">Conectar</button>
+    </div>
+  `;
+  if (typeof _appDialogShow === 'function') _appDialogShow(html);
+}
+
+async function _calCaldavSave() {
+  const url = document.getElementById('caldav-url')?.value?.trim();
+  const user = document.getElementById('caldav-user')?.value?.trim();
+  const pwd = document.getElementById('caldav-pwd')?.value?.trim();
+  if (!url || !user || !pwd) { appAlert('Preencha todos os campos'); return; }
+  const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+  if (!jwt) return;
+  try {
+    const apiBase = (typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : 'https://api.synkan.com.br');
+    const r = await fetch(apiBase + '/calendar/caldav/connect', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ caldav_url: url, username: user, password: pwd }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) { appAlert('Falha', d.error||'Erro', {icon:'⚠️'}); return; }
+    if (typeof _appDialogClose === 'function') _appDialogClose(true);
+    showToastMsg('✓ iCloud conectado');
+    await _calLoadOAuth();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) { appAlert('Erro', e?.message||String(e), {icon:'⚠️'}); }
+}
+
+// Hook: chama backend pra propagar mudança de card pros calendars conectados
+async function _calSyncCardEvent(card, action) {
+  try {
+    if (typeof supaUser === 'undefined' || !supaUser) return;
+    if (!_calendarOAuth || _calendarOAuth.length === 0) return;
+    if (action !== 'delete' && !card?.deadline) return;
+    const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+    if (!jwt) return;
+    const apiBase = (typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : 'https://api.synkan.com.br');
+    const _bn = (allBoards[currentBoardId]?.name) || '';
+    fetch(apiBase + '/calendar/sync-card', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({
+        action,
+        card: {
+          id: card.id, name: card.name, deadline: card.deadline, priority: card.priority,
+          board_id: currentBoardId, _board_name: _bn,
+        },
+      }),
+      signal: AbortSignal.timeout(8000),
+    }).catch(e => console.warn('[cal-sync]', e?.message));
+  } catch(e) { console.warn('[cal-sync] err:', e?.message); }
 }
 
 // ── Calendar tokens (webcal subscription) ────────────────────────────
@@ -17198,6 +17377,7 @@ function saveCard() {
     Object.assign(card,{name,priority,col,tagIds,deadline,responsavel,contactId,recurrence,attachments:[...cAttachments],subtasks:[...cSubtasks],customFieldValues:{...cCustomValues}});
     audit('card.updated', { cardId: card.id, name, col });
     fireWebhook('card.updated', { cardId: card.id, name, col, priority, deadline, responsavel });
+    if (typeof _calSyncCardEvent === 'function') _calSyncCardEvent(card, 'upsert');
     // Granatum: se board é linked e card tem granatum_id, propaga edits (descrição/valor/data)
     try {
       const _bGran = allBoards[currentBoardId];
@@ -17234,6 +17414,7 @@ function saveCard() {
     const newCard={id:nCard++,name,priority,col,tagIds,deadline,responsavel,contactId,recurrence,threads:[],attachments:[],subtasks:[],customFieldValues:{...cCustomValues},createdAt:now,doneAt:col===TERMINAL_COL?now:null};
     audit('card.created', { cardId: newCard.id, name, col });
     fireWebhook('card.created', { cardId: newCard.id, name, col, priority, deadline, responsavel });
+    if (typeof _calSyncCardEvent === 'function') _calSyncCardEvent(newCard, 'upsert');
     // WhatsApp: notificação de card criado (e atribuído, se tiver responsável)
     if (typeof fireWhatsAppEvent === 'function') {
       const _boardName = (allBoards[currentBoardId]?.name) || '';
@@ -17271,6 +17452,7 @@ function deleteCard() {
   const card = cards.find(c=>c.id===editId);
   audit('card.deleted', { cardId: editId, name: card?.name });
   fireWebhook('card.deleted', { cardId: editId, name: card?.name });
+  if (typeof _calSyncCardEvent === 'function' && card) _calSyncCardEvent({ id: editId, deadline: card.deadline }, 'delete');
   cards=cards.filter(c=>c.id!==editId);
   closeModal();render();saveData();
   if(currentTab==='checklist') renderChecklist();
