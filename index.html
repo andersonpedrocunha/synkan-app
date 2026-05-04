@@ -10315,11 +10315,16 @@ function renderSettings() {
 function setSettingsTab(t) {
   _settingsTab = t;
   renderSettings();
-  // Quando entra na aba Sincronização, carrega tokens de calendário (assíncrono)
-  if (t === 'sync' && typeof _calLoadTokens === 'function') {
-    _calLoadTokens().then(() => {
-      if (_settingsTab === 'sync') renderSettings();
-    });
+  // Quando entra na aba Sincronização, carrega tokens calendário + config WhatsApp (assíncrono)
+  if (t === 'sync') {
+    const promises = [];
+    if (typeof _calLoadTokens === 'function') promises.push(_calLoadTokens());
+    if (typeof _waLoadAll === 'function') promises.push(_waLoadAll());
+    if (promises.length) {
+      Promise.all(promises).then(() => {
+        if (_settingsTab === 'sync') renderSettings();
+      });
+    }
   }
 }
 
@@ -10907,6 +10912,7 @@ function _settingsIASection() {
     ${_settingsVoiceCardsSection()}
     ${_settingsPomoSection()}
     ${_settingsWebhooksSection()}
+    ${_settingsWhatsAppSection()}
     ${_settingsCalendarSection()}
     ${isDev ? _settingsEmailToCardSection() : ''}
     ${isDev ? _settingsApiSsoSection() : ''}
@@ -10994,6 +11000,337 @@ function _settingsWebhooksSection() {
       </div>
     </div>
   `;
+}
+
+// ── WhatsApp (Z-API) ─────────────────────────────────────────────────
+function _settingsWhatsAppSection() {
+  const cfg = (typeof _waConfig !== 'undefined' && _waConfig) ? _waConfig : null;
+  const dests = (typeof _waDestinations !== 'undefined' && Array.isArray(_waDestinations)) ? _waDestinations : [];
+  const isConfigured = !!(cfg && cfg.zapi_instance_id && cfg.zapi_token);
+  const isActive = !!(cfg && cfg.is_active);
+  const statusPill = !isConfigured ? `<span class="settings-status-pill off">não configurado</span>`
+                   : isActive    ? `<span class="settings-status-pill on">ativo</span>`
+                   :              `<span class="settings-status-pill warn">aguarda teste</span>`;
+
+  const allEvents = [
+    ['card_created','Card criado'],
+    ['card_done','Card concluído'],
+    ['card_assigned','Card atribuído'],
+    ['lead_received','Lead novo (form)'],
+  ];
+  const realBoards = Object.entries(allBoards||{})
+    .filter(([id]) => id !== (typeof UNIFIED_BOARD_ID !== 'undefined' ? UNIFIED_BOARD_ID : '__unified__'))
+    .map(([id,b]) => ({ id, name: b.name || '(sem nome)' }));
+
+  const destsHTML = dests.length === 0
+    ? `<div class="settings-card-sub" style="margin-top:10px;font-style:italic;color:var(--color-text-tertiary);">Nenhum destino cadastrado. Adicione um número ou grupo pra receber notificações.</div>`
+    : dests.map(d => {
+        const evList = (d.events||[]).map(e => allEvents.find(x=>x[0]===e)?.[1] || e).join(' · ');
+        const boardLabel = (d.board_ids||[]).length === 0
+          ? 'Todos os boards'
+          : `${d.board_ids.length} board${d.board_ids.length>1?'s':''}`;
+        const typeIcon = d.type === 'group' ? '👥' : '📱';
+        return `
+          <div style="border:1px solid var(--color-border-secondary);border-radius:10px;padding:12px;margin-top:8px;background:var(--color-background-primary);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+              <strong style="font-size:13px;">${typeIcon} ${_esc(d.label||d.value)}</strong>
+              <span style="font-size:11px;color:var(--color-text-tertiary);font-family:monospace;">${_esc(d.value)}</span>
+            </div>
+            <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:6px;">
+              <strong>Eventos:</strong> ${evList || '<em>nenhum</em>'} · <strong>Boards:</strong> ${_esc(boardLabel)}
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn-c" style="padding:5px 10px;font-size:11px;" onclick="_waEditDestination('${_esc(d.id)}')">Editar</button>
+              <button class="btn-c" style="padding:5px 10px;font-size:11px;" onclick="_waTestDestination('${_esc(d.value)}')">Testar</button>
+              <button class="btn-c" style="padding:5px 10px;font-size:11px;color:var(--color-error);border-color:var(--color-error);" onclick="_waDeleteDestination('${_esc(d.id)}')">Remover</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+  const lastTest = cfg?.last_test_at
+    ? `<div class="settings-card-sub" style="font-size:11px;margin-top:4px;color:${cfg.last_test_ok?'var(--color-success)':'var(--color-error)'};">Último teste: ${cfg.last_test_ok ? '✓ ok' : '✗ ' + (cfg.last_test_msg||'erro')} · ${new Date(cfg.last_test_at).toLocaleString('pt-BR')}</div>`
+    : '';
+
+  return `
+    <div class="settings-card">
+      <div class="settings-card-h">
+        <span class="settings-card-title">WhatsApp · Notificações via Z-API</span>
+        ${statusPill}
+      </div>
+      <div class="settings-card-sub">Envia notificações de cards e leads pra números individuais ou <strong>grupos</strong> de WhatsApp via <a href="https://z-api.io" target="_blank" rel="noopener" style="color:var(--color-text-primary);text-decoration:underline;">Z-API</a>. Você cria uma conta na Z-API (tem plano free pra testar), conecta seu WhatsApp escaneando QR, e cola as credenciais aqui.</div>
+
+      <details style="margin-top:8px;">
+        <summary style="cursor:pointer;font-size:12px;color:var(--color-text-secondary);user-select:none;">Como configurar (passo a passo) ▾</summary>
+        <ol style="font-size:12px;color:var(--color-text-secondary);margin:8px 0 0 18px;line-height:1.6;">
+          <li>Cria conta em <a href="https://z-api.io" target="_blank" rel="noopener">z-api.io</a> (tem plano free).</li>
+          <li>No painel Z-API: cria uma nova <strong>Instância</strong> → escaneia o QR code com o WhatsApp do celular pra conectar.</li>
+          <li>Copia o <strong>Instance ID</strong> e o <strong>Token</strong> da página de detalhes da instância.</li>
+          <li>Em "Segurança" da Z-API, gera um <strong>Client Token</strong> (recomendado, segurança extra).</li>
+          <li>Cola os 3 valores nos campos abaixo, salva, clica "Testar conexão".</li>
+          <li>Adiciona destinos (números no formato 5511999999999 ou groupId no formato 120363xxxxx).</li>
+        </ol>
+      </details>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px;">
+        <div class="profile-field">
+          <label for="wa-instance-id">Instance ID</label>
+          <input id="wa-instance-id" type="text" placeholder="3D..." value="${_esc(cfg?.zapi_instance_id||'')}" style="font-family:monospace;font-size:12px;"/>
+        </div>
+        <div class="profile-field">
+          <label for="wa-token">Token</label>
+          <input id="wa-token" type="text" placeholder="..." value="${_esc(cfg?.zapi_token||'')}" style="font-family:monospace;font-size:12px;"/>
+        </div>
+        <div class="profile-field">
+          <label for="wa-client-token">Client Token (opcional, recomendado)</label>
+          <input id="wa-client-token" type="text" placeholder="F..." value="${_esc(cfg?.zapi_client_token||'')}" style="font-family:monospace;font-size:12px;"/>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button class="btn-c" onclick="_waSaveCfg()">Salvar credenciais</button>
+        <button class="btn-c" onclick="_waOpenTestModal()">Testar conexão</button>
+      </div>
+      ${lastTest}
+
+      <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--color-border-secondary);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <strong style="font-size:13px;">Destinos de notificação</strong>
+          <button class="btn-c" style="background:#111;color:#fff;border-color:#111;" onclick="_waOpenDestinationModal()">+ Novo destino</button>
+        </div>
+        <div class="settings-card-sub" style="font-size:11px;">Cada destino escolhe quais eventos recebe e (opcional) limita a boards específicos.</div>
+        ${destsHTML}
+      </div>
+    </div>
+  `;
+}
+
+// ── State + carga de dados WhatsApp ─────────────────────────────────
+var _waConfig = null;
+var _waDestinations = [];
+async function _waLoadAll() {
+  if (typeof supaUser === 'undefined' || !supaUser) {
+    _waConfig = null; _waDestinations = []; return;
+  }
+  try {
+    const [cfg, dests] = await Promise.all([
+      _capRESTCall(`whatsapp_configs?user_id=eq.${encodeURIComponent(supaUser.id)}&select=*&limit=1`, { timeoutMs: 6000 }).catch(()=>null),
+      _capRESTCall(`whatsapp_destinations?user_id=eq.${encodeURIComponent(supaUser.id)}&select=*&order=created_at.desc`, { timeoutMs: 6000 }).catch(()=>[]),
+    ]);
+    _waConfig = (Array.isArray(cfg) && cfg.length) ? cfg[0] : null;
+    _waDestinations = Array.isArray(dests) ? dests : [];
+  } catch(e) {
+    console.warn('[whatsapp] falha load:', e?.message || e);
+    _waConfig = null; _waDestinations = [];
+  }
+}
+
+async function _waSaveCfg() {
+  if (!supaUser) { appAlert('Login necessário', 'Faça login pra configurar WhatsApp.', { icon:'⚠️' }); return; }
+  const instance_id = document.getElementById('wa-instance-id')?.value?.trim() || '';
+  const token = document.getElementById('wa-token')?.value?.trim() || '';
+  const client_token = document.getElementById('wa-client-token')?.value?.trim() || '';
+  if (!instance_id || !token) { appAlert('Faltam credenciais', 'Instance ID e Token são obrigatórios.', { icon:'⚠️' }); return; }
+  try {
+    await _capRESTCall('whatsapp_configs', {
+      method: 'POST',
+      body: { user_id: supaUser.id, zapi_instance_id: instance_id, zapi_token: token, zapi_client_token: client_token, updated_at: new Date().toISOString() },
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      timeoutMs: 6000,
+    });
+    showToastMsg('Credenciais Z-API salvas');
+    await _waLoadAll();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) {
+    appAlert('Não consegui salvar', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
+}
+
+async function _waCallApiSend(payload) {
+  // POST autenticado para o api server (passa JWT do user no Authorization)
+  const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+  if (!jwt) throw new Error('Sessão expirada — faça login novamente');
+  const url = (typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/whatsapp/' + (payload._endpoint || 'send');
+  delete payload._endpoint;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(20000),
+  });
+  const txt = await r.text();
+  let data; try { data = txt ? JSON.parse(txt) : null; } catch(e) { data = txt; }
+  if (!r.ok) {
+    const err = new Error((data && data.error) || `HTTP ${r.status}`);
+    err.status = r.status; err.body = data;
+    throw err;
+  }
+  return data;
+}
+
+function _waOpenTestModal() {
+  const html = `
+    <h3 style="margin:0 0 14px;font-size:18px;font-weight:600;">Testar conexão WhatsApp</h3>
+    <p class="settings-card-sub">Vai mandar uma mensagem de teste pro destino abaixo. Útil pra confirmar que as credenciais Z-API estão certas e seu WhatsApp está conectado.</p>
+    <div class="profile-field" style="margin-top:12px;">
+      <label for="wa-test-dest">Destino (número ou groupId)</label>
+      <input id="wa-test-dest" type="text" placeholder="Ex: 5511999999999 ou 120363xxxxx" style="font-family:monospace;font-size:13px;"/>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="app-dialog-btn" onclick="_appDialogClose(null)">Cancelar</button>
+      <button class="app-dialog-btn primary" onclick="_waRunTest()">Enviar teste</button>
+    </div>
+  `;
+  if (typeof _appDialogShow === 'function') _appDialogShow(html);
+}
+
+async function _waRunTest() {
+  const dest = document.getElementById('wa-test-dest')?.value?.trim() || '';
+  if (!dest) { return; }
+  try {
+    const r = await _waCallApiSend({ _endpoint: 'test', destination: dest });
+    if (typeof _appDialogClose === 'function') _appDialogClose(true);
+    if (r.ok) showToastMsg('✓ Mensagem de teste enviada — confere o WhatsApp');
+    else appAlert('Falhou no teste', r.error || 'Erro desconhecido', { icon:'⚠️' });
+    await _waLoadAll();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) {
+    appAlert('Erro no teste', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+function _waTestDestination(value) {
+  // Atalho: pré-preenche o modal de teste com esse destino
+  _waOpenTestModal();
+  setTimeout(() => {
+    const inp = document.getElementById('wa-test-dest');
+    if (inp) inp.value = value;
+  }, 50);
+}
+
+function _waOpenDestinationModal(existing) {
+  const realBoards = Object.entries(allBoards||{})
+    .filter(([id]) => id !== (typeof UNIFIED_BOARD_ID !== 'undefined' ? UNIFIED_BOARD_ID : '__unified__'))
+    .map(([id,b]) => ({ id, name: b.name || '(sem nome)' }));
+  const allEvents = [
+    ['card_created','Card criado'],
+    ['card_done','Card concluído'],
+    ['card_assigned','Card atribuído'],
+    ['lead_received','Lead novo (form)'],
+  ];
+  const e = existing || {};
+  const evSet = new Set(e.events || ['card_created','card_done','card_assigned','lead_received']);
+  const boardSet = new Set(e.board_ids || []);
+  const isEdit = !!existing;
+  const html = `
+    <h3 style="margin:0 0 14px;font-size:18px;font-weight:600;">${isEdit?'Editar destino':'Novo destino WhatsApp'}</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="profile-field">
+        <label>Tipo</label>
+        <div style="display:flex;gap:12px;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="wa-d-type" value="phone" ${e.type!=='group'?'checked':''}/> 📱 Número individual</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="wa-d-type" value="group" ${e.type==='group'?'checked':''}/> 👥 Grupo do WhatsApp</label>
+        </div>
+      </div>
+      <div class="profile-field">
+        <label for="wa-d-value">Valor (número 5511... ou groupId 120363...)</label>
+        <input id="wa-d-value" type="text" value="${_esc(e.value||'')}" placeholder="5511999999999" style="font-family:monospace;font-size:13px;"/>
+      </div>
+      <div class="profile-field">
+        <label for="wa-d-label">Nome amigável (rótulo)</label>
+        <input id="wa-d-label" type="text" value="${_esc(e.label||'')}" placeholder="Ex: Anderson · Time Vendas"/>
+      </div>
+      <div class="profile-field">
+        <label>Eventos que esse destino recebe</label>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:4px;">
+          ${allEvents.map(([id,lbl]) => `
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" class="wa-d-evt" value="${id}" ${evSet.has(id)?'checked':''}/> ${lbl}
+            </label>`).join('')}
+        </div>
+      </div>
+      <div class="profile-field">
+        <label>Filtro por boards (opcional — vazio = todos)</label>
+        ${realBoards.length === 0
+          ? `<div class="settings-card-sub" style="font-size:11px;font-style:italic;">Nenhum board ainda.</div>`
+          : `<div style="display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;border:1px solid var(--color-border-secondary);border-radius:6px;padding:6px;">${realBoards.map(b => `
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" class="wa-d-board" value="${_esc(b.id)}" ${boardSet.has(b.id)?'checked':''}/> ${_esc(b.name)}
+              </label>`).join('')}</div>`}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+        <button class="app-dialog-btn" onclick="_appDialogClose(null)">Cancelar</button>
+        <button class="app-dialog-btn primary" onclick="_waSaveDestination(${isEdit?`'${_esc(existing.id)}'`:'null'})">Salvar destino</button>
+      </div>
+    </div>
+  `;
+  if (typeof _appDialogShow === 'function') _appDialogShow(html);
+}
+
+async function _waSaveDestination(editId) {
+  if (!supaUser) return;
+  const type = (document.querySelector('input[name="wa-d-type"]:checked')?.value) || 'phone';
+  const value = (document.getElementById('wa-d-value')?.value || '').trim();
+  const label = (document.getElementById('wa-d-label')?.value || '').trim();
+  const events = Array.from(document.querySelectorAll('.wa-d-evt:checked')).map(c => c.value);
+  const board_ids = Array.from(document.querySelectorAll('.wa-d-board:checked')).map(c => c.value);
+  if (!value) { appAlert('Faltou o destino', 'Preencha o número (5511...) ou groupId.', { icon:'⚠️' }); return; }
+  if (events.length === 0) { appAlert('Escolha ao menos um evento', 'Marque pelo menos um tipo de notificação.', { icon:'⚠️' }); return; }
+  // Limpa número (se for tipo phone): tira caracteres não-numéricos
+  const cleanValue = (type === 'phone') ? value.replace(/\D/g, '') : value;
+  try {
+    if (editId && editId !== 'null') {
+      await _capRESTCall(`whatsapp_destinations?id=eq.${encodeURIComponent(editId)}`, {
+        method: 'PATCH',
+        body: { type, value: cleanValue, label, events, board_ids },
+        headers: { 'Prefer': 'return=minimal' },
+      });
+    } else {
+      await _capRESTCall('whatsapp_destinations', {
+        method: 'POST',
+        body: { user_id: supaUser.id, type, value: cleanValue, label, events, board_ids },
+        headers: { 'Prefer': 'return=minimal' },
+      });
+    }
+    if (typeof _appDialogClose === 'function') _appDialogClose(true);
+    showToastMsg('Destino salvo');
+    await _waLoadAll();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) {
+    appAlert('Não consegui salvar', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
+}
+
+async function _waEditDestination(id) {
+  const d = (_waDestinations||[]).find(x => x.id === id);
+  if (!d) return;
+  _waOpenDestinationModal(d);
+}
+
+async function _waDeleteDestination(id) {
+  const ok = await appConfirm('Remover destino?', 'O WhatsApp não vai mais receber notificações desse destino.', { danger:true, okLabel:'Remover' });
+  if (!ok) return;
+  try {
+    await _capRESTCall(`whatsapp_destinations?id=eq.${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'Prefer': 'return=minimal' },
+    });
+    showToastMsg('Destino removido');
+    await _waLoadAll();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) {
+    appAlert('Não consegui remover', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
+}
+
+// Helper público: dispara um evento WhatsApp. Sem await — fire and forget,
+// nunca bloqueia ações do user. Falhas vão pro console.
+function fireWhatsAppEvent(event_type, opts) {
+  try {
+    if (typeof supaUser === 'undefined' || !supaUser) return;
+    if (!_waConfig || !_waConfig.is_active) return;  // não dispara se não configurado/ativo
+    const payload = Object.assign({ event_type }, opts || {});
+    _waCallApiSend(payload).catch(e => console.warn('[whatsapp] envio falhou:', e?.message || e));
+  } catch(e) { console.warn('[whatsapp] fire failed:', e?.message || e); }
 }
 
 function _settingsCalendarSection() {
@@ -13894,6 +14231,14 @@ function _finalizeCardMove(card, newCol) {
     if (typeof _zaiSynkApplyOnPaid === 'function') _zaiSynkApplyOnPaid(card);
     audit('card.completed', { cardId: card.id, name: card.name });
     fireWebhook('card.completed', { cardId: card.id, name: card.name });
+    if (typeof fireWhatsAppEvent === 'function') {
+      const _bn = (allBoards[currentBoardId]?.name) || '';
+      fireWhatsAppEvent('card_done', {
+        board_id: currentBoardId,
+        title: card.name,
+        details: (_bn ? 'Board: '+_bn+'\n' : '') + (card.responsavel ? 'Responsável: '+card.responsavel : ''),
+      });
+    }
   } else if (movedFromDone) {
     card.doneAt = null;
   }
@@ -14273,7 +14618,17 @@ function saveCard() {
     if(card.priority!==priority) autoThread(card,`Prioridade alterada para "${pLbl(priority)}"`);
     if(card.name!==name) autoThread(card,`Nome alterado para "${name}"`);
     if((card.deadline||'')!==(deadline||'')) autoThread(card, deadline ? `Deadline definido: ${new Date(deadline+'T00:00:00').toLocaleDateString('pt-BR')}` : 'Deadline removido');
-    if((card.responsavel||'')!==(responsavel||'')) autoThread(card, responsavel ? `Responsável: ${responsavel}` : 'Responsável removido');
+    const _waRespChanged = (card.responsavel||'')!==(responsavel||'');
+    if(_waRespChanged) autoThread(card, responsavel ? `Responsável: ${responsavel}` : 'Responsável removido');
+    // WhatsApp: avisa se atribuição mudou pra alguém novo
+    if (_waRespChanged && responsavel && typeof fireWhatsAppEvent === 'function') {
+      const _bn = (allBoards[currentBoardId]?.name) || '';
+      fireWhatsAppEvent('card_assigned', {
+        board_id: currentBoardId,
+        title: card.name,
+        details: (_bn ? 'Board: '+_bn+'\n' : '') + 'Responsável: ' + responsavel,
+      });
+    }
     if((card.contactId||'')!==(contactId||'')) {
       const _ct = contactId ? (Array.isArray(_contacts) ? _contacts.find(x=>x.id===contactId) : null) : null;
       autoThread(card, contactId ? `Cadastro vinculado: ${_ct?.name || contactId}` : 'Cadastro desvinculado');
@@ -14285,6 +14640,14 @@ function saveCard() {
     if (movedToDone) {
       audit('card.completed', { cardId: card.id, name });
       fireWebhook('card.completed', { cardId: card.id, name });
+      if (typeof fireWhatsAppEvent === 'function') {
+        const _bn = (allBoards[currentBoardId]?.name) || '';
+        fireWhatsAppEvent('card_done', {
+          board_id: currentBoardId,
+          title: name,
+          details: (_bn ? 'Board: '+_bn+'\n' : '') + (responsavel ? 'Responsável: '+responsavel : ''),
+        });
+      }
       _gamifAwardCardDone(card);
     }
     // Recorrência: ao concluir, gera próxima instância
@@ -14294,6 +14657,19 @@ function saveCard() {
     const newCard={id:nCard++,name,priority,col,tagIds,deadline,responsavel,contactId,recurrence,threads:[],attachments:[],subtasks:[],customFieldValues:{...cCustomValues},createdAt:now,doneAt:col===TERMINAL_COL?now:null};
     audit('card.created', { cardId: newCard.id, name, col });
     fireWebhook('card.created', { cardId: newCard.id, name, col, priority, deadline, responsavel });
+    // WhatsApp: notificação de card criado (e atribuído, se tiver responsável)
+    if (typeof fireWhatsAppEvent === 'function') {
+      const _boardName = (allBoards[currentBoardId]?.name) || '';
+      const _details = [
+        _boardName ? `Board: ${_boardName}` : '',
+        `Coluna: ${COLS.find(x=>x.id===col)?.title || col}`,
+        responsavel ? `Responsável: ${responsavel}` : '',
+        deadline ? `Deadline: ${new Date(deadline+'T00:00:00').toLocaleDateString('pt-BR')}` : '',
+      ].filter(Boolean).join('\n');
+      fireWhatsAppEvent('card_created', { board_id: currentBoardId, title: name, details: _details });
+      if (responsavel) fireWhatsAppEvent('card_assigned', { board_id: currentBoardId, title: name, details: _details });
+      if (col === TERMINAL_COL) fireWhatsAppEvent('card_done', { board_id: currentBoardId, title: name, details: _details });
+    }
     if (col === TERMINAL_COL) _gamifAwardCardDone(newCard);
     if (col===TERMINAL_COL && newCard.recurrence) _spawnRecurrence(newCard);
     autoThread(newCard,`Card criado em "${COLS.find(x=>x.id===col)?.title}"`);
@@ -25416,6 +25792,11 @@ async function _capRESTCall(path, opts={}) {
   return data;
 }
 
+// Detecção de leads novos pra disparar WhatsApp.
+// `_capSeenLeadIds` marca leads que já vimos, e `_capInitialLoadDone` evita
+// disparar pra leads existentes na primeira vez que abrir o app.
+var _capSeenLeadIds = new Set();
+var _capInitialLoadDone = false;
 async function _capLoadAll() {
   _capLoading = true; _capError = '';
   try {
@@ -25424,7 +25805,33 @@ async function _capLoadAll() {
       _capRESTCall('leads_inbox?select=*&order=created_at.desc&limit=200'),
     ]);
     _capForms = Array.isArray(forms) ? forms : [];
-    _capInbox = Array.isArray(inbox) ? inbox : [];
+    const newInbox = Array.isArray(inbox) ? inbox : [];
+    // Detecta leads novos (entre _capInbox antigo e o novo)
+    if (_capInitialLoadDone && typeof fireWhatsAppEvent === 'function') {
+      for (const lead of newInbox) {
+        if (!lead || !lead.id) continue;
+        if (_capSeenLeadIds.has(lead.id)) continue;
+        // Lead novo
+        const formName = (_capForms.find(f => f.id === lead.form_id)?.name) || 'formulário';
+        const data = lead.data || {};
+        const leadName = data.nome || data.name || data.email || '(sem nome)';
+        const detailsParts = [
+          `Form: ${formName}`,
+          data.email ? `Email: ${data.email}` : '',
+          data.telefone || data.phone ? `Telefone: ${data.telefone || data.phone}` : '',
+          data.mensagem ? `Mensagem: ${String(data.mensagem).slice(0, 200)}` : '',
+        ].filter(Boolean);
+        fireWhatsAppEvent('lead_received', {
+          board_id: _capForms.find(f => f.id === lead.form_id)?.target_board_id || '',
+          title: leadName,
+          details: detailsParts.join('\n'),
+        });
+      }
+    }
+    // Atualiza state final
+    _capInbox = newInbox;
+    _capSeenLeadIds = new Set(newInbox.map(l => l.id).filter(Boolean));
+    _capInitialLoadDone = true;
   } catch(e) {
     _capError = e.message || 'Erro ao carregar dados de captação. Verifique se rodou o SQL atualizado no Supabase.';
     _capForms = []; _capInbox = [];
