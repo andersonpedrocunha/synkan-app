@@ -11430,18 +11430,29 @@ async function _granatumLoadConfig() {
     _granatumConfig = (Array.isArray(rows) && rows.length) ? rows[0] : null;
     console.log('[granatum] loadConfig:', _granatumConfig
       ? { hasToken: !!_granatumConfig.access_token, tokenLen: (_granatumConfig.access_token||'').length, last_test_ok: _granatumConfig.last_test_ok, last_test_at: _granatumConfig.last_test_at }
-      : 'null');
+      : 'null (nenhum registro em granatum_configs pra esse user)');
+    // Re-render Settings se já está aberta (evita race entre boot e UI)
+    if (typeof currentTab !== 'undefined' && currentTab === 'settings' && typeof _settingsTab !== 'undefined' && _settingsTab === 'sync') {
+      if (typeof renderSettings === 'function') renderSettings();
+    }
   } catch(e) {
     console.warn('[granatum] falha load:', e?.message || e, 'status:', e?.status, 'body:', e?.body);
     _granatumConfig = null;
   }
 }
 
+var _granatumConfigLoaded = false;
 function _settingsGranatumSection() {
+  // Se ainda não carregou e supaUser existe, dispara load e mostra "verificando"
+  if (!_granatumConfigLoaded && supaUser && typeof _granatumLoadConfig === 'function') {
+    _granatumLoadConfig().finally(() => { _granatumConfigLoaded = true; if (typeof renderSettings === 'function') renderSettings(); });
+  }
   const cfg = _granatumConfig;
   const hasToken = !!(cfg && cfg.access_token);
   const isOk = !!(cfg && cfg.last_test_ok);
-  const statusPill = !hasToken
+  const statusPill = !_granatumConfigLoaded
+    ? `<span class="settings-status-pill warn">verificando...</span>`
+    : !hasToken
     ? `<span class="settings-status-pill off">não conectado</span>`
     : isOk
       ? `<span class="settings-status-pill on">conectado</span>`
@@ -11470,8 +11481,9 @@ function _settingsGranatumSection() {
       </details>
 
       <div class="profile-field" style="margin-top:12px;">
-        <label for="gra-token">Access Token Granatum</label>
-        <input id="gra-token" type="password" placeholder="cole aqui o token..." value="${_esc(cfg?.access_token||'')}" style="font-family:monospace;font-size:12px;"/>
+        <label for="gra-token">Access Token Granatum ${hasToken ? `<span style="color:var(--color-success);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">✓ salvo (${(cfg.access_token||'').length} chars)</span>` : (_granatumConfigLoaded ? '' : '<span style="color:var(--color-text-tertiary);font-size:10px;">verificando...</span>')}</label>
+        <input id="gra-token" type="password" placeholder="${hasToken ? '••••••••••••••••' : 'cole aqui o token...'}" value="${_esc(cfg?.access_token||'')}" style="font-family:monospace;font-size:12px;"/>
+        ${hasToken ? `<div style="font-size:10px;color:var(--color-text-tertiary);margin-top:4px;">Pra trocar: cole um novo token e clique "Salvar + testar". Pra apagar: <a href="#" onclick="event.preventDefault();_granatumClearToken()" style="color:var(--color-error);text-decoration:underline;">remover token</a>.</div>` : ''}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
         <button class="btn-c" onclick="_granatumSaveAndTest()" style="background:#A32D2D;color:#fff;border-color:#A32D2D;">Salvar + testar</button>
@@ -15423,6 +15435,21 @@ function _granatumToggleHistorico() {
     localStorage.setItem('synkan_granatum_show_hist_' + currentBoardId, cur ? '0' : '1');
   } catch(e) {}
   if (typeof render === 'function') render();
+}
+
+async function _granatumClearToken() {
+  if (!supaUser) return;
+  if (!confirm('Remover token Granatum? Você precisará colar de novo pra usar.')) return;
+  try {
+    await _capRESTCall(`granatum_configs?user_id=eq.${encodeURIComponent(supaUser.id)}`, {
+      method: 'PATCH',
+      body: { access_token: '', last_test_ok: false, last_test_msg: 'removido pelo usuário', updated_at: new Date().toISOString() },
+      headers: { 'Prefer': 'return=minimal' },
+    });
+    showToastMsg('Token removido');
+    await _granatumLoadConfig();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) { appAlert('Erro', e?.message||String(e), { icon:'⚠️' }); }
 }
 
 // Filtro de entrada/saída em boards Granatum
