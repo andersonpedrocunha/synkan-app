@@ -15178,9 +15178,17 @@ function _renderEnergyToolbar() {
       <button class="${getZaiView()==='executive'?'is-active':''}" onclick="setZaiView('executive')">Executiva</button>
       <button class="${getZaiView()==='financial'?'is-active':''}" onclick="setZaiView('financial')">Financeira 財</button>
     </span>` : '';
+  // Granatum: toggle pra mostrar/ocultar histórico (que tem milhares de cards)
+  let granHistHTML = '';
+  if (allBoards[currentBoardId]?.granatum_linked) {
+    const _histCount = (cards||[]).filter(c => c.col === 'historico').length;
+    const _show = _granatumShowHistorico();
+    granHistHTML = `<button class="zai-view-toggle" style="padding:5px 12px;font-size:11.5px;cursor:pointer;border-radius:999px;background:var(--color-background-secondary);color:var(--color-text-secondary);" onclick="_granatumToggleHistorico()" title="Mostrar/ocultar coluna histórico">${_show ? '📂 Ocultar histórico' : '📁 Mostrar histórico ('+_histCount+')'}</button>`;
+  }
   wrap.innerHTML = `
     ${viewsBarHTML}
     ${zaiViewHTML}
+    ${granHistHTML}
     <span class="energy-bar${isActive?' is-active':''}" onclick="toggleEnergyPopover()" id="energy-bar"
           title="Modo Foco · ${isActive ? 'mostre só tarefas que cabem na sua energia hoje' : 'desligado — mostrando tudo'}">
       <span class="energy-icon">${cur ? cur.emoji : '⚡'}</span>
@@ -15326,27 +15334,6 @@ function render() {
   const visible = filteredCards();
   // pré-calcula auto-archive somente sobre cards "done" que sobreviveram aos filtros
   const archive = computeArchive(visible.filter(c=>c.col===TERMINAL_COL));
-  // Granatum: insere toggle "mostrar histórico" no header do kanban
-  if (_isGranBoard) {
-    const _kview = document.getElementById('view-kanban');
-    if (_kview && !_kview.querySelector('.granatum-hist-toggle')) {
-      const _histCount = (cards||[]).filter(c => c.col === 'historico').length;
-      const _btn = document.createElement('button');
-      _btn.className = 'granatum-hist-toggle';
-      _btn.style.cssText = 'position:absolute;top:8px;right:140px;background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:999px;padding:5px 12px;font-size:11px;color:var(--color-text-secondary);cursor:pointer;z-index:5;';
-      _btn.textContent = _hideHist ? `📁 Mostrar histórico (${_histCount})` : `📂 Ocultar histórico`;
-      _btn.onclick = _granatumToggleHistorico;
-      _kview.style.position = _kview.style.position || 'relative';
-      _kview.appendChild(_btn);
-    } else if (_kview) {
-      const _btn = _kview.querySelector('.granatum-hist-toggle');
-      const _histCount = (cards||[]).filter(c => c.col === 'historico').length;
-      if (_btn) _btn.textContent = _hideHist ? `📁 Mostrar histórico (${_histCount})` : `📂 Ocultar histórico`;
-    }
-  } else {
-    // remove botão se mudou pra board não-Granatum
-    document.querySelectorAll('.granatum-hist-toggle').forEach(b => b.remove());
-  }
   _renderCols.forEach(col=>{
     let cc = visible.filter(c=>c.col===col.id);
     let archivedCount = 0;
@@ -15355,6 +15342,12 @@ function render() {
       archivedCount = archive.archivedCount;
     }
     cc = sortKanbanCards(cc);
+    // Cap de performance: em boards Granatum, renderiza no máximo 150 cards por coluna
+    let _cappedCount = 0;
+    if (_isGranBoard && cc.length > 150) {
+      _cappedCount = cc.length - 150;
+      cc = cc.slice(0, 150);
+    }
     const totalInCol = visible.filter(c=>c.col===col.id).length; // inclui arquivados
     const wipExceeded = col.wipLimit && totalInCol > col.wipLimit;
     const countLabel = col.wipLimit ? `${totalInCol}/${col.wipLimit}` : totalInCol;
@@ -15495,6 +15488,7 @@ function render() {
         }).join('')}
       </div>
       ${archivedCount ? `<div class="col-archived" title="${archivedCount} card(s) concluído(s) há mais de ${kanbanConfig.autoArchiveDays} dia(s) — ainda salvos, ocultos da visão">+ ${archivedCount} arquivado${archivedCount>1?'s':''}</div>` : ''}
+      ${_cappedCount ? `<div class="col-archived" style="color:#A99876;background:rgba(255,193,7,.06);" title="Renderização limitada para performance. Use filtros ou Modo Foco pra explorar todos.">+ ${_cappedCount} cards ocultos (cap performance)</div>` : ''}
       <button class="col-add" onclick="openModal('${col.id}')">+ adicionar card</button>
     `;
     ct.appendChild(div);
