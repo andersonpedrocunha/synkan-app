@@ -5528,7 +5528,7 @@ function setSupabaseConfig(cfg) {
 // Em modo Supabase, lê o plan_code da tabela subscriptions.
 const PLAN_LIMITS = {
   trial:        { ai: 30,   boards: -1, canvas: -1, okrs: -1, unified: -1, name: 'Trial 5 dias',                price: 0     },
-  faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: 3,  name: 'Faixa Azul · Pessoal',        price: 14.90 },
+  faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: -1, name: 'Faixa Azul · Pessoal',        price: 14.90 },
   faixa_roxa:   { ai: 300,  boards: 10, canvas: 10, okrs: -1, unified: -1, name: 'Faixa Roxa · Profissional',   price: 29.90 },
   faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1, name: 'Faixa Preta · Empresarial',   price: 79.90 },
 };
@@ -5689,10 +5689,19 @@ function _countActiveBoards() {
   } catch(e) { return 0; }
 }
 function _countCanvases() {
-  try { return (Array.isArray(canvases) ? canvases.length : 0); } catch(e) { return 0; }
+  // _canvases é um objeto (não array): { id: canvas }
+  try {
+    if (typeof _canvases === 'object' && _canvases) return Object.keys(_canvases).length;
+    return 0;
+  } catch(e) { return 0; }
 }
 function _countOKRs() {
-  try { return (Array.isArray(_okrs) ? _okrs.length : 0); } catch(e) { return 0; }
+  // _okrs pode ser objeto OU array dependendo da feature
+  try {
+    if (Array.isArray(_okrs)) return _okrs.length;
+    if (typeof _okrs === 'object' && _okrs) return Object.keys(_okrs).length;
+    return 0;
+  } catch(e) { return 0; }
 }
 
 function getResourceUsage(resource) {
@@ -9653,6 +9662,8 @@ async function renameZaiBoardFromHub(boardId) {
 
 // Cria um board novo a partir do ZAI_TEMPLATE (acessado pelo hub Zai)
 async function createZaiBoardFromHub() {
+  // Gate: respeita limite de boards do plano
+  if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('board')) return;
   const userName = await appPrompt('Novo board Zai', {
     icon: '財',
     message: 'Dê um nome ao board financeiro. O prefixo "Zai ·" entra automático.',
@@ -9692,6 +9703,8 @@ async function createZaiBoardFromHub() {
 function addTemplateToBoards(templateId, opts) {
   const tpl = KANBAN_TEMPLATES.find(t=>t.id===templateId);
   if (!tpl) return null;
+  // Gate: respeita limite de boards do plano
+  if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('board')) return null;
   const id = _genBoardId();
   const tagsOut = tpl.tags.map((t,i)=>({ id:'t'+(i+1), text:t.text, color:COLORS[t.colorIdx % COLORS.length] }));
   const startNCard = 1;
@@ -14132,7 +14145,6 @@ function _settingsPlanoSection() {
       ${_row('Boards', 'Boards ativos na sua conta', usageBoards.used, usageBoards.max)}
       ${_row('Canvas', 'Canvas (mindmap, OKR, fluxo) criados', usageCanvas.used, usageCanvas.max)}
       ${_row('OKRs', 'Objetivos e resultados-chave ativos', usageOKRs.used, usageOKRs.max)}
-      ${_row('Board Unificado', 'Boards conectados ao Unificado', usageUnified.used, usageUnified.max)}
 
       ${upgradeBtn}
     </div>
@@ -24152,6 +24164,8 @@ async function openAISheetGen() {
 // Promove linhas do sheet pra board (1ª coluna vira nome do card, demais viram custom fields)
 async function sheetCreateBoard() {
   const cv = _curCanvas(); if (!cv) return;
+  // Gate: respeita limite de boards do plano
+  if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('board')) return;
   const sd = cv.sheetData;
   const validRows = sd.rows.filter(r => r.some(c => String(c).trim()));
   if (!validRows.length) { appAlert('Vazio', 'Nada na planilha pra virar board.', { icon:'⚠️' }); return; }
@@ -31591,6 +31605,8 @@ async function saveOpCostFromModal() {
       updatedAt: new Date().toISOString(),
     });
   } else {
+    // Gate: novo OpCost canvas respeita limite de canvas do plano
+    if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('canvas')) return;
     const id = 'cv_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
     _canvases[id] = {
       id, name, format: 'opcost',
@@ -31820,6 +31836,8 @@ async function saveGoal1pctFromModal() {
       updatedAt: new Date().toISOString(),
     });
   } else {
+    // Gate: nova meta 1% canvas respeita limite de canvas do plano
+    if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('canvas')) return;
     const id = 'cv_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
     _canvases[id] = {
       id, name: f.name, format: 'goal-1pct',
