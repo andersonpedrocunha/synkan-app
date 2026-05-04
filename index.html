@@ -10965,12 +10965,13 @@ function _settingsWebhooksSection() {
   const allEvents = [
     ['card.created','Card criado'],
     ['card.updated','Card atualizado'],
+    ['card.moved','Card mudou de status (coluna)'],
     ['card.completed','Card concluído'],
     ['card.deleted','Card excluído'],
     ['board.created','Board criado'],
     ['mention','Menção (@) em thread'],
   ];
-  const enabledSet = new Set(cfg.events || ['card.created','card.completed','card.deleted','board.created','mention']);
+  const enabledSet = new Set(cfg.events || ['card.created','card.moved','card.completed','card.deleted','board.created','mention']);
   const isSlack = cfg.url && /hooks\.slack\.com\//.test(cfg.url);
   return `
     <div class="settings-card">
@@ -11016,6 +11017,7 @@ function _settingsWhatsAppSection() {
     ['card_created','Card criado'],
     ['card_done','Card concluído'],
     ['card_assigned','Card atribuído'],
+    ['card_moved','Card mudou de status'],
     ['lead_received','Lead novo (form)'],
   ];
   const realBoards = Object.entries(allBoards||{})
@@ -11215,6 +11217,7 @@ function _waOpenDestinationModal(existing) {
     ['card_created','Card criado'],
     ['card_done','Card concluído'],
     ['card_assigned','Card atribuído'],
+    ['card_moved','Card mudou de status'],
     ['lead_received','Lead novo (form)'],
   ];
   const e = existing || {};
@@ -11606,7 +11609,7 @@ async function testWebhookFromUI() {
   if (!url) { alert('Informe a URL do webhook primeiro.'); return; }
   // salva temporariamente para que fireWebhook use
   const prev = getWebhookCfg();
-  setWebhookCfg({ url, events: ['card.created','card.updated','card.completed','card.deleted','board.created','mention'] });
+  setWebhookCfg({ url, events: ['card.created','card.updated','card.moved','card.completed','card.deleted','board.created','mention'] });
   try {
     fireWebhook('card.created', { cardId: 'test', name: 'Card de teste do Synkan', col: 'backlog', priority: 'med' });
     alert('Teste enviado. Confira no destino (Slack/seu endpoint). Se for fora do Slack e a CORS bloquear, o payload chega mesmo assim em servidores modernos.');
@@ -13507,6 +13510,18 @@ function tblSetCol(id, newCol) {
   if (typeof _gamifTrigger === 'function' && movedToDone) _gamifTrigger('card_done', { cardId: id });
   if (movedToDone && typeof _checkReleasedDependents === 'function') _checkReleasedDependents(id);
   if (movedToDone && typeof _zaiSynkApplyOnPaid === 'function') _zaiSynkApplyOnPaid(card);
+  // Webhook + WhatsApp: card mudou de status (coluna)
+  try {
+    if (typeof fireWebhook === 'function') fireWebhook('card.moved', { cardId: id, name: card.name, from: oldTitle, to: newTitle });
+    if (typeof fireWhatsAppEvent === 'function') {
+      const _bn = (allBoards[currentBoardId]?.name) || '';
+      fireWhatsAppEvent('card_moved', {
+        board_id: currentBoardId,
+        title: card.name,
+        details: (_bn ? 'Board: '+_bn+'\n' : '') + `Movido de "${oldTitle}" → "${newTitle}"` + (card.responsavel ? '\nResponsável: '+card.responsavel : ''),
+      });
+    }
+  } catch(e) {}
   saveData();
   if (typeof _bindCurrentBoard === 'function') _bindCurrentBoard();
   render();
@@ -13610,7 +13625,21 @@ function toggleDone(id) {
   const card = cards.find(c=>c.id===id); if(!card) return;
   const next = card.col==='done' ? 'todo' : 'done';
   const movedToDone = card.col !== TERMINAL_COL && next === TERMINAL_COL;
-  autoThread(card, `Movido para "${COLS.find(x=>x.id===next)?.title}"`);
+  const _oldTitle = COLS.find(x=>x.id===card.col)?.title || card.col;
+  const _newTitle = COLS.find(x=>x.id===next)?.title || next;
+  autoThread(card, `Movido para "${_newTitle}"`);
+  // Webhook + WhatsApp: card mudou de status
+  try {
+    if (typeof fireWebhook === 'function') fireWebhook('card.moved', { cardId: id, name: card.name, from: _oldTitle, to: _newTitle });
+    if (typeof fireWhatsAppEvent === 'function') {
+      const _bn = (allBoards[currentBoardId]?.name) || '';
+      fireWhatsAppEvent('card_moved', {
+        board_id: currentBoardId,
+        title: card.name,
+        details: (_bn ? 'Board: '+_bn+'\n' : '') + `Movido de "${_oldTitle}" → "${_newTitle}"` + (card.responsavel ? '\nResponsável: '+card.responsavel : ''),
+      });
+    }
+  } catch(e) {}
   card.col = next;
   card.colChangedAt = new Date().toISOString();   // aging WIP tracking
   card.doneAt = next==='done' ? new Date().toISOString() : null;
@@ -14220,9 +14249,23 @@ function _finalizeCardMove(card, newCol) {
       }
     }
   } catch(e){}
-  autoThread(card, `Movido para "${COLS.find(x=>x.id===newCol)?.title}"`);
+  const _oldTitle = COLS.find(x=>x.id===card.col)?.title || card.col;
+  const _newTitle = COLS.find(x=>x.id===newCol)?.title || newCol;
+  autoThread(card, `Movido para "${_newTitle}"`);
   card.col = newCol;
   card.colChangedAt = new Date().toISOString();
+  // Webhook + WhatsApp: card mudou de status (coluna)
+  try {
+    if (typeof fireWebhook === 'function') fireWebhook('card.moved', { cardId: card.id, name: card.name, from: _oldTitle, to: _newTitle });
+    if (typeof fireWhatsAppEvent === 'function') {
+      const _bn = (allBoards[currentBoardId]?.name) || '';
+      fireWhatsAppEvent('card_moved', {
+        board_id: currentBoardId,
+        title: card.name,
+        details: (_bn ? 'Board: '+_bn+'\n' : '') + `Movido de "${_oldTitle}" → "${_newTitle}"` + (card.responsavel ? '\nResponsável: '+card.responsavel : ''),
+      });
+    }
+  } catch(e) {}
   if (movedToDone) {
     card.doneAt = new Date().toISOString();
     if (typeof _gamifAwardCardDone === 'function') _gamifAwardCardDone(card);
@@ -16293,7 +16336,7 @@ function setWebhookCfg(cfg) { localStorage.setItem(WEBHOOK_KEY, JSON.stringify(c
 function fireWebhook(event, payload) {
   const cfg = getWebhookCfg();
   if (!cfg.url) return;
-  const events = cfg.events || ['card.created','card.completed','card.deleted','board.created','mention'];
+  const events = cfg.events || ['card.created','card.moved','card.completed','card.deleted','board.created','mention'];
   if (!events.includes(event)) return;
   const body = {
     event,
@@ -16318,9 +16361,13 @@ function fireWebhook(event, payload) {
 function _slackFormat(event, b) {
   const verb = {
     'card.created':'criou', 'card.updated':'atualizou', 'card.completed':'concluiu',
-    'card.deleted':'excluiu', 'board.created':'criou board', 'mention':'mencionou em',
+    'card.deleted':'excluiu', 'card.moved':'moveu', 'board.created':'criou board', 'mention':'mencionou em',
   }[event] || event;
   const cardName = b.data?.name || b.data?.cardId || '';
+  // Pra card.moved, mostra o de/pra
+  if (event === 'card.moved' && b.data?.from && b.data?.to) {
+    return `*[${b.boardName}]* ${b.by} ${verb} _${cardName}_ de "${b.data.from}" → "${b.data.to}"`;
+  }
   return `*[${b.boardName}]* ${b.by} ${verb} _${cardName}_`;
 }
 
