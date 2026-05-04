@@ -10349,6 +10349,7 @@ function setSettingsTab(t) {
     if (typeof _waLoadAll === 'function') promises.push(_waLoadAll());
     if (typeof _waAdminLoadPending === 'function') promises.push(_waAdminLoadPending());
     if (typeof _slackLoadAll === 'function') promises.push(_slackLoadAll());
+    if (typeof _granatumLoadConfig === 'function') promises.push(_granatumLoadConfig());
     if (promises.length) {
       Promise.all(promises).then(() => {
         if (_settingsTab === 'sync') renderSettings();
@@ -10944,6 +10945,7 @@ function _settingsIASection() {
     ${_settingsSlackAppSection()}
     ${_settingsWhatsAppSection()}
     ${_settingsWhatsAppAdminSection()}
+    ${_settingsGranatumSection()}
     ${_settingsCalendarSection()}
     ${isDev ? _settingsEmailToCardSection() : ''}
     ${isDev ? _settingsApiSsoSection() : ''}
@@ -11386,6 +11388,488 @@ async function _slackDeleteDestination(id) {
     if (typeof renderSettings === 'function') renderSettings();
   } catch(e) {
     appAlert('Erro', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
+}
+
+// ── Granatum (financeiro · Caminho C) ────────────────────────────────
+var _granatumConfig = null;
+async function _granatumLoadConfig() {
+  if (typeof supaUser === 'undefined' || !supaUser) { _granatumConfig = null; return; }
+  try {
+    const rows = await _capRESTCall(
+      `granatum_configs?user_id=eq.${encodeURIComponent(supaUser.id)}&select=*&limit=1`,
+      { timeoutMs: 6000 }
+    );
+    _granatumConfig = (Array.isArray(rows) && rows.length) ? rows[0] : null;
+  } catch(e) {
+    console.warn('[granatum] falha load:', e?.message || e);
+    _granatumConfig = null;
+  }
+}
+
+function _settingsGranatumSection() {
+  const cfg = _granatumConfig;
+  const hasToken = !!(cfg && cfg.access_token);
+  const isOk = !!(cfg && cfg.last_test_ok);
+  const statusPill = !hasToken
+    ? `<span class="settings-status-pill off">não conectado</span>`
+    : isOk
+      ? `<span class="settings-status-pill on">conectado</span>`
+      : `<span class="settings-status-pill warn">token inválido</span>`;
+  const lastTest = cfg?.last_test_at
+    ? `<div class="settings-card-sub" style="font-size:11px;margin-top:6px;color:${cfg.last_test_ok?'var(--color-success)':'var(--color-error)'};">Último teste: ${cfg.last_test_ok?'✓ ok':'✗ '+(cfg.last_test_msg||'erro')} · ${new Date(cfg.last_test_at).toLocaleString('pt-BR')}</div>`
+    : '';
+
+  return `
+    <div class="settings-card" style="border:1px solid #A32D2D;background:linear-gradient(135deg,#fdfcfb 0%,#fff5f0 100%);">
+      <div class="settings-card-h">
+        <span class="settings-card-title">財 Granatum · Sincronização financeira</span>
+        ${statusPill}
+      </div>
+      <div class="settings-card-sub">Sincroniza lançamentos do <a href="https://www.granatum.com.br" target="_blank" rel="noopener" style="text-decoration:underline;">Granatum</a> com seus boards Zai do Synkan. Cards refletem contas a pagar/receber. Drag-drop atualiza status no Granatum automaticamente.</div>
+
+      <details style="margin-top:8px;">
+        <summary style="cursor:pointer;font-size:12px;color:var(--color-text-secondary);user-select:none;">Como pegar o Access Token ▾</summary>
+        <ol style="font-size:12px;color:var(--color-text-secondary);margin:8px 0 0 18px;line-height:1.6;">
+          <li>Acessa <a href="https://app.granatum.com.br" target="_blank" rel="noopener">app.granatum.com.br</a> → faz login</li>
+          <li>Menu superior direito: <strong>Configurações → Minha empresa</strong></li>
+          <li>No menu lateral, abre a seção <strong>API</strong></li>
+          <li>Copia o <strong>Access Token</strong> (string longa)</li>
+          <li>Cola no campo abaixo, clica "Testar conexão"</li>
+        </ol>
+      </details>
+
+      <div class="profile-field" style="margin-top:12px;">
+        <label for="gra-token">Access Token Granatum</label>
+        <input id="gra-token" type="password" placeholder="cole aqui o token..." value="${_esc(cfg?.access_token||'')}" style="font-family:monospace;font-size:12px;"/>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button class="btn-c" onclick="_granatumSaveAndTest()" style="background:#A32D2D;color:#fff;border-color:#A32D2D;">Salvar + testar</button>
+        ${hasToken && isOk ? `<button class="btn-c" onclick="_granatumOpenImportModal()">↗ Importar pra board</button>` : ''}
+        ${hasToken && isOk ? `<button class="btn-c" onclick="_granatumOpenDashboard()">📊 Dashboard executivo</button>` : ''}
+        ${hasToken && isOk ? `<button class="btn-c" onclick="_granatumAskKan()" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Análise Mestre Kan</button>` : ''}
+      </div>
+      ${hasToken && isOk ? `
+        <div style="margin-top:12px;padding:10px 12px;background:var(--color-background-primary);border:1px solid var(--color-border-secondary);border-radius:8px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" ${cfg?.sync_enabled?'checked':''} onchange="_granatumToggleAutoSync(this.checked)"/>
+            <strong>Sincronização automática</strong>
+            <span style="color:var(--color-text-tertiary);font-size:11px;">a cada ${cfg?.sync_interval_minutes||5} min</span>
+          </label>
+          ${cfg?.last_sync_at ? `<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:4px;margin-left:24px;">Última sync: ${new Date(cfg.last_sync_at).toLocaleString('pt-BR')}</div>` : ''}
+        </div>
+      ` : ''}
+      ${lastTest}
+    </div>
+  `;
+}
+
+async function _granatumToggleAutoSync(enabled) {
+  if (!supaUser) return;
+  try {
+    await _capRESTCall(`granatum_configs?user_id=eq.${encodeURIComponent(supaUser.id)}`, {
+      method: 'PATCH',
+      body: { sync_enabled: !!enabled, updated_at: new Date().toISOString() },
+      headers: { 'Prefer': 'return=minimal' },
+    });
+    showToastMsg(enabled ? '✓ Sync automático ativado' : 'Sync desativado');
+    await _granatumLoadConfig();
+  } catch(e) { appAlert('Erro', e?.message||String(e), {icon:'⚠️'}); }
+}
+
+// Dashboard executivo: agrega cards dos boards granatum_linked + cards Zai normais
+async function _granatumOpenDashboard() {
+  const boards = Object.values(allBoards||{}).filter(b => b?.granatum_linked);
+  if (!boards.length) { appAlert('Sem boards Granatum', 'Importe primeiro pelo botão "↗ Importar pra board".', { icon:'ℹ️' }); return; }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const month30 = new Date(today.getTime() + 30*86400000);
+  let aReceberTotal = 0, aPagarTotal = 0, atrasadoTotal = 0, recebidoMes = 0, pagoMes = 0;
+  let aReceberCount = 0, aPagarCount = 0, atrasadoCount = 0;
+  for (const b of boards) {
+    for (const c of (b.cards||[])) {
+      const valor = parseFloat(c.customFieldValues?.cf_valor || 0) || 0;
+      const tipo = c.customFieldValues?.cf_tipo || (valor < 0 ? 'pagar' : 'receber');
+      const dl = c.deadline ? new Date(c.deadline) : null;
+      if (dl) dl.setHours(0,0,0,0);
+      const isPaid = !!c.doneAt;
+      if (!isPaid) {
+        if (dl && dl < today) { atrasadoTotal += Math.abs(valor); atrasadoCount++; }
+        else if (dl && dl <= month30) {
+          if (tipo === 'pagar') { aPagarTotal += Math.abs(valor); aPagarCount++; }
+          else { aReceberTotal += Math.abs(valor); aReceberCount++; }
+        }
+      } else {
+        // Pagos no mês corrente
+        const pd = new Date(c.doneAt);
+        if (pd.getMonth() === today.getMonth() && pd.getFullYear() === today.getFullYear()) {
+          if (tipo === 'pagar') pagoMes += Math.abs(valor);
+          else recebidoMes += Math.abs(valor);
+        }
+      }
+    }
+  }
+  const fmt = n => 'R$ ' + n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const saldoMes = recebidoMes - pagoMes;
+  const futuroNet = aReceberTotal - aPagarTotal;
+  const html = `
+    <h3 style="margin:0 0 12px;font-size:18px;font-weight:600;">📊 Dashboard Granatum</h3>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;">
+      <div style="border:1px solid var(--color-border-secondary);border-radius:8px;padding:12px;background:#fef2f2;">
+        <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;">Vencido (não pago)</div>
+        <div style="font-size:20px;font-weight:700;color:#A32D2D;">${fmt(atrasadoTotal)}</div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);">${atrasadoCount} lançamento${atrasadoCount!==1?'s':''}</div>
+      </div>
+      <div style="border:1px solid var(--color-border-secondary);border-radius:8px;padding:12px;background:#fefce8;">
+        <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;">A pagar nos próximos 30d</div>
+        <div style="font-size:20px;font-weight:700;color:#854D0E;">${fmt(aPagarTotal)}</div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);">${aPagarCount} contas</div>
+      </div>
+      <div style="border:1px solid var(--color-border-secondary);border-radius:8px;padding:12px;background:#f0fdf4;">
+        <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;">A receber nos próximos 30d</div>
+        <div style="font-size:20px;font-weight:700;color:#3B6D11;">${fmt(aReceberTotal)}</div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);">${aReceberCount} contas</div>
+      </div>
+      <div style="border:1px solid var(--color-border-secondary);border-radius:8px;padding:12px;background:${saldoMes>=0?'#f0fdf4':'#fef2f2'};">
+        <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;">Saldo do mês (caixa)</div>
+        <div style="font-size:20px;font-weight:700;color:${saldoMes>=0?'#3B6D11':'#A32D2D'};">${saldoMes>=0?'+':''}${fmt(saldoMes)}</div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);">Recebido: ${fmt(recebidoMes)} · Pago: ${fmt(pagoMes)}</div>
+      </div>
+    </div>
+    <div style="padding:12px;background:${futuroNet>=0?'#f0fdf4':'#fef2f2'};border-radius:8px;border:1px solid var(--color-border-secondary);">
+      <div style="font-size:12px;color:var(--color-text-tertiary);">Net previsto próximos 30 dias</div>
+      <div style="font-size:24px;font-weight:700;color:${futuroNet>=0?'#3B6D11':'#A32D2D'};">${futuroNet>=0?'+':''}${fmt(futuroNet)}</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="app-dialog-btn primary" onclick="_appDialogClose(true)">Fechar</button>
+    </div>
+  `;
+  if (typeof _appDialogShow === 'function') _appDialogShow(html);
+}
+
+// Mestre Kan analisa o financeiro e dá recomendações
+async function _granatumAskKan() {
+  const boards = Object.values(allBoards||{}).filter(b => b?.granatum_linked);
+  if (!boards.length) { appAlert('Sem boards Granatum', 'Importe primeiro.', { icon:'ℹ️' }); return; }
+  if (typeof callClaudeAPI !== 'function') { appAlert('IA indisponível', '', { icon:'⚠️' }); return; }
+  // Constrói contexto resumido
+  const today = new Date(); today.setHours(0,0,0,0);
+  const summary = boards.map(b => {
+    const cards = b.cards || [];
+    const aPagar = cards.filter(c => !c.doneAt && c.customFieldValues?.cf_tipo === 'pagar');
+    const aReceber = cards.filter(c => !c.doneAt && c.customFieldValues?.cf_tipo !== 'pagar');
+    const sum = arr => arr.reduce((s,c) => s + Math.abs(parseFloat(c.customFieldValues?.cf_valor||0)||0), 0);
+    return `Board "${b.name}": ${aPagar.length} contas a pagar (R$ ${sum(aPagar).toFixed(2)}), ${aReceber.length} a receber (R$ ${sum(aReceber).toFixed(2)})`;
+  }).join('\n');
+  showToastMsg('Mestre Kan analisando...');
+  const r = await callClaudeAPI({
+    system: (typeof MESTRE_KAN_SYSTEM !== 'undefined' ? MESTRE_KAN_SYSTEM : '') + '\n\nVocê está analisando dados financeiros vindos do Granatum.',
+    instruction: 'Analise o cenário financeiro abaixo (vindo da integração Granatum) e dê 3-5 recomendações práticas em pt-BR. Seja conciso, foca em ações concretas (renegociar X, antecipar Y, segurar Z). Sem markdown pesado, parágrafos curtos.',
+    context: summary,
+    max_tokens: 600,
+  });
+  if (r.error) { appAlert('Mestre Kan falhou', r.error, { icon:'⚠️' }); return; }
+  const html = `
+    <h3 style="margin:0 0 12px;font-size:18px;font-weight:600;display:flex;align-items:center;gap:8px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;object-position:center 18%;"/> Análise Mestre Kan · Granatum</h3>
+    <div style="background:var(--color-background-secondary);padding:14px;border-radius:8px;font-size:13px;line-height:1.7;white-space:pre-wrap;color:var(--color-text-primary);">${_esc(r.text||'(sem resposta)')}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="app-dialog-btn primary" onclick="_appDialogClose(true)">Fechar</button>
+    </div>
+  `;
+  if (typeof _appDialogShow === 'function') _appDialogShow(html);
+}
+
+async function _granatumSaveAndTest() {
+  if (!supaUser) { appAlert('Login necessário'); return; }
+  const token = document.getElementById('gra-token')?.value?.trim();
+  if (!token) { appAlert('Cole o token primeiro'); return; }
+  const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+  if (!jwt) { appAlert('Sessão expirada'); return; }
+  try {
+    const r = await fetch((typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/granatum/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ access_token: token }),
+      signal: AbortSignal.timeout(20000),
+    });
+    const data = await r.json();
+    if (r.ok && data.ok) {
+      showToastMsg('✓ Token Granatum válido');
+      await _granatumLoadConfig();
+      if (typeof renderSettings === 'function') renderSettings();
+    } else {
+      appAlert('Token inválido', data.error || 'Verifique e tente de novo.', { icon:'⚠️' });
+      await _granatumLoadConfig();
+      if (typeof renderSettings === 'function') renderSettings();
+    }
+  } catch(e) {
+    appAlert('Erro de conexão', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+async function _granatumOpenImportModal() {
+  const html = `
+    <h3 style="margin:0 0 12px;font-size:18px;font-weight:600;">Importar lançamentos do Granatum</h3>
+    <p class="settings-card-sub" style="margin-bottom:12px;">Vai criar um <strong>board novo</strong> tipo Zai marcado como "Granatum-linked" com os últimos lançamentos. Cards refletem contas a pagar/receber e drag-drop entre colunas atualiza status no Granatum.</p>
+    <div class="profile-field">
+      <label>Nome do board</label>
+      <input id="gra-import-name" type="text" placeholder="Ex: Financeiro · Granatum" value="Financeiro · Granatum"/>
+    </div>
+    <div class="profile-field">
+      <label>Tipo de lançamentos</label>
+      <select id="gra-import-tipo" style="font-size:14px;">
+        <option value="ambos">Contas a pagar + a receber</option>
+        <option value="pagar">Apenas a pagar (despesas)</option>
+        <option value="receber">Apenas a receber (receitas)</option>
+      </select>
+    </div>
+    <div class="profile-field">
+      <label>Período</label>
+      <select id="gra-import-period" style="font-size:14px;">
+        <option value="30">Últimos 30 dias</option>
+        <option value="90" selected>Últimos 90 dias</option>
+        <option value="180">Últimos 180 dias</option>
+        <option value="365">Último ano</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="app-dialog-btn" onclick="_appDialogClose(null)">Cancelar</button>
+      <button class="app-dialog-btn primary" onclick="_granatumDoImport()">Importar</button>
+    </div>
+  `;
+  if (typeof _appDialogShow === 'function') _appDialogShow(html);
+}
+
+async function _granatumDoImport() {
+  const boardName = (document.getElementById('gra-import-name')?.value || '').trim() || 'Financeiro · Granatum';
+  const tipo = document.getElementById('gra-import-tipo')?.value || 'ambos';
+  const periodDays = parseInt(document.getElementById('gra-import-period')?.value || '90', 10);
+  const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+  if (!jwt) return;
+  if (typeof _appDialogClose === 'function') _appDialogClose(true);
+  showToastMsg('Buscando lançamentos no Granatum...');
+  try {
+    const filters = { limit: 200 };
+    if (tipo !== 'ambos') filters.tipo = tipo;
+    if (periodDays) {
+      const from = new Date(Date.now() - periodDays*86400000);
+      filters.data_vencimento_gte = from.toISOString().slice(0,10);
+    }
+    const r = await fetch((typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/granatum/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ board_name: boardName, filters }),
+      signal: AbortSignal.timeout(30000),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { appAlert('Falha na importação', data.error || `HTTP ${r.status}`, {icon:'⚠️'}); return; }
+    // Cria o board localmente com os lançamentos retornados
+    await _granatumCreateBoardFromLancamentos(boardName, data.lancamentos || [], { tipo, periodDays });
+    showToastMsg(`✓ Board "${boardName}" criado com ${data.lancamentos_count || 0} cards`);
+  } catch(e) {
+    appAlert('Erro de conexão', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+async function _granatumCreateBoardFromLancamentos(boardName, lancamentos, filterCfg) {
+  // Verifica se já existe um board granatum_linked → reusa em vez de criar duplicado
+  const existing = Object.entries(allBoards||{}).find(([id,b]) => b?.granatum_linked && b?.name === boardName);
+  if (existing) {
+    const ok = await appConfirm('Board já existe',
+      `O board "${boardName}" já existe. Deseja atualizar com os lançamentos novos (sem duplicar) ou criar um novo?`,
+      { okLabel:'Atualizar existente', cancelLabel:'Criar novo' });
+    if (ok) {
+      return _granatumMergeIntoBoard(existing[0], lancamentos, filterCfg);
+    }
+  }
+  // Cria board novo e popula com cards
+  const newBoardId = (typeof _genBoardId === 'function') ? _genBoardId() : ('b_' + Math.random().toString(36).slice(2,12));
+  const seed = (typeof _seedBoardData === 'function') ? _seedBoardData(boardName) : { name: boardName, cards: [] };
+  // 4 colunas: A vencer, Atrasado, Pago, Histórico
+  seed.COLS = [
+    { id: 'a_vencer',  title: 'A vencer',   color:'#1F86E0' },
+    { id: 'atrasado',  title: 'Atrasado',   color:'#A32D2D' },
+    { id: 'pago_hoje', title: 'Pago hoje',  color:'#3B6D11' },
+    { id: 'historico', title: 'Histórico',  color:'#888' },
+  ];
+  seed.granatum_linked = true;
+  seed.granatum_filter = filterCfg || {};
+  // Custom fields pra valor + tipo
+  seed.customFields = [
+    { id: 'cf_valor',     name: 'Valor',     type: 'number' },
+    { id: 'cf_tipo',      name: 'Tipo',      type: 'text' },   // pagar/receber
+    { id: 'cf_categoria', name: 'Categoria', type: 'text' },
+    { id: 'cf_conta',     name: 'Conta',     type: 'text' },
+  ];
+  const today = new Date(); today.setHours(0,0,0,0);
+  seed.cards = lancamentos.map((l, idx) => {
+    const valor = parseFloat(l.valor || l.valor_total || 0);
+    const tipo = l.tipo || (valor < 0 ? 'pagar' : 'receber');
+    const dataVenc = l.data_vencimento || l.vencimento || null;
+    const dataPag  = l.data_pagamento || null;
+    let col = 'a_vencer';
+    if (dataPag) {
+      // Foi pago. Hoje? → pago_hoje. Antes? → histórico
+      const pd = new Date(dataPag); pd.setHours(0,0,0,0);
+      col = (pd.getTime() === today.getTime()) ? 'pago_hoje' : 'historico';
+    } else if (dataVenc) {
+      const dv = new Date(dataVenc); dv.setHours(0,0,0,0);
+      if (dv.getTime() < today.getTime()) col = 'atrasado';
+      else col = 'a_vencer';
+    }
+    const name = l.descricao || l.titulo || l.nome || `Lançamento #${l.id || idx+1}`;
+    return {
+      id: idx + 1,
+      name: name.slice(0, 200),
+      priority: (l.prioridade === 'alta' || (col === 'atrasado')) ? 'alta' : 'media',
+      col,
+      tagIds: [],
+      deadline: dataVenc || null,
+      responsavel: null,
+      threads: [{ type:'auto', text:`Sincronizado do Granatum · ID ${l.id}`, date: new Date().toISOString() }],
+      attachments: [], subtasks: [],
+      customFieldValues: {
+        cf_valor: String(valor),
+        cf_tipo: tipo,
+        cf_categoria: l.categoria_nome || l.categoria || '',
+        cf_conta: l.conta_nome || l.conta || '',
+      },
+      createdAt: l.created_at || new Date().toISOString(),
+      doneAt: dataPag || null,
+      granatum_id: String(l.id || ''),
+    };
+  });
+  seed.nCard = seed.cards.length + 1;
+  if (typeof allBoards === 'object') allBoards[newBoardId] = seed;
+  if (typeof saveData === 'function') saveData();
+  if (typeof switchBoard === 'function') switchBoard(newBoardId);
+  audit && audit('granatum.import', { boardId: newBoardId, count: seed.cards.length });
+}
+
+// Merge lançamentos num board existente (dedupe via granatum_id)
+async function _granatumMergeIntoBoard(boardId, lancamentos, filterCfg) {
+  const board = allBoards[boardId]; if (!board) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const byGid = new Map((board.cards||[]).filter(c => c.granatum_id).map(c => [String(c.granatum_id), c]));
+  let created = 0, updated = 0;
+  let nCard = board.nCard || (Math.max(0, ...(board.cards||[]).map(c=>c.id||0)) + 1);
+  for (const l of lancamentos) {
+    const gid = String(l.id || ''); if (!gid) continue;
+    const dataVenc = l.data_vencimento || l.vencimento || null;
+    const dataPag  = l.data_pagamento || null;
+    let col = 'a_vencer';
+    if (dataPag) {
+      const pd = new Date(dataPag); pd.setHours(0,0,0,0);
+      col = (pd.getTime() === today.getTime()) ? 'pago_hoje' : 'historico';
+    } else if (dataVenc) {
+      const dv = new Date(dataVenc); dv.setHours(0,0,0,0);
+      col = (dv.getTime() < today.getTime()) ? 'atrasado' : 'a_vencer';
+    }
+    const valor = parseFloat(l.valor || l.valor_total || 0);
+    const tipo = l.tipo || (valor < 0 ? 'pagar' : 'receber');
+    const name = (l.descricao || l.titulo || l.nome || `Lançamento #${gid}`).slice(0, 200);
+    const existing = byGid.get(gid);
+    if (existing) {
+      if (existing.col !== col || (existing.deadline||'') !== (dataVenc||'') || existing.name !== name) {
+        existing.col = col;
+        existing.deadline = dataVenc;
+        existing.name = name;
+        existing.doneAt = dataPag;
+        if (existing.customFieldValues) {
+          existing.customFieldValues.cf_valor = String(valor);
+          existing.customFieldValues.cf_tipo = tipo;
+          existing.customFieldValues.cf_categoria = l.categoria_nome || l.categoria || '';
+          existing.customFieldValues.cf_conta = l.conta_nome || l.conta || '';
+        }
+        updated++;
+      }
+    } else {
+      board.cards.push({
+        id: nCard++,
+        name,
+        priority: col === 'atrasado' ? 'alta' : 'media',
+        col,
+        tagIds: [],
+        deadline: dataVenc,
+        responsavel: null,
+        threads: [{ type:'auto', text:`Sincronizado do Granatum · ID ${gid}`, date: new Date().toISOString() }],
+        attachments: [], subtasks: [],
+        customFieldValues: {
+          cf_valor: String(valor),
+          cf_tipo: tipo,
+          cf_categoria: l.categoria_nome || l.categoria || '',
+          cf_conta: l.conta_nome || l.conta || '',
+        },
+        createdAt: l.created_at || new Date().toISOString(),
+        doneAt: dataPag || null,
+        granatum_id: gid,
+      });
+      created++;
+    }
+  }
+  board.nCard = nCard;
+  board.granatum_filter = filterCfg || board.granatum_filter || {};
+  if (typeof saveData === 'function') saveData();
+  showToastMsg(`✓ Sincronizado: ${created} novos, ${updated} atualizados`);
+  audit && audit('granatum.merge', { boardId, created, updated });
+}
+
+// Push helper: chamado quando um card num board granatum_linked muda
+async function _granatumPushCard(card, action, extra) {
+  if (!card?.granatum_id) return;
+  const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+  if (!jwt) return;
+  const data = extra || {};
+  fetch((typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/granatum/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+    body: JSON.stringify({ granatum_id: card.granatum_id, action, data }),
+    signal: AbortSignal.timeout(15000),
+  }).catch(e => console.warn('[granatum] push falhou:', e?.message || e));
+}
+
+// Push de criação: cria lançamento no Granatum quando o user adiciona um card
+// num board granatum_linked. Atualiza card.granatum_id com o id devolvido.
+async function _granatumPushNewCard(card, board) {
+  try {
+    if (!card || !board?.granatum_linked) return;
+    if (card.granatum_id) return; // já veio do Granatum, não duplica
+    const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+    if (!jwt) return;
+    const cfv = card.customFieldValues || {};
+    const valorRaw = cfv.cf_valor != null ? String(cfv.cf_valor).replace(',', '.') : '0';
+    const valor = parseFloat(valorRaw) || 0;
+    const tipo = (cfv.cf_tipo || (board.granatum_filter?.tipo === 'receber' ? 'receber' : 'pagar')).toLowerCase();
+    const data = {
+      descricao: card.name,
+      tipo: tipo === 'receber' ? 1 : 2, // Granatum: 1=receita, 2=despesa (mapeamento defensivo)
+      valor: Math.abs(valor),
+      data_vencimento: card.deadline || new Date().toISOString().slice(0,10),
+    };
+    if (cfv.cf_categoria) data.categoria_nome = String(cfv.cf_categoria);
+    if (cfv.cf_conta) data.conta_nome = String(cfv.cf_conta);
+    if (card.col === 'pago_hoje' || card.col === 'historico') {
+      data.data_pagamento = new Date().toISOString().slice(0,10);
+    }
+    const r = await fetch((typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/granatum/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ action: 'create', data }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (j?.ok && j?.response) {
+      const newGid = j.response.id || j.response.lancamento_id || j.response?.data?.id;
+      if (newGid) {
+        card.granatum_id = String(newGid);
+        if (typeof saveData === 'function') saveData();
+        if (typeof showToastMsg === 'function') showToastMsg('✓ Lançamento criado no Granatum');
+      }
+    } else if (j?.error) {
+      console.warn('[granatum] create push falhou:', j.error);
+      if (typeof showToastMsg === 'function') showToastMsg('⚠ Granatum recusou: ' + (j.error.slice(0,80)));
+    }
+  } catch (e) {
+    console.warn('[granatum] push new card erro:', e?.message || e);
   }
 }
 
@@ -15021,6 +15505,13 @@ function _finalizeCardMove(card, newCol) {
         details: (_bn ? 'Board: '+_bn+'\n' : '') + `Movido de "${_oldTitle}" → "${_newTitle}"` + (card.responsavel ? '\nResponsável: '+card.responsavel : ''),
       });
     }
+    // Granatum: se board é linked e card tem granatum_id, push status pra Granatum
+    const _b = allBoards[currentBoardId];
+    if (_b?.granatum_linked && card.granatum_id && typeof _granatumPushCard === 'function') {
+      if (newCol === 'pago_hoje' || newCol === 'historico') {
+        _granatumPushCard(card, 'mark_paid', { data_pagamento: new Date().toISOString().slice(0,10) });
+      }
+    }
   } catch(e) {}
   if (movedToDone) {
     card.doneAt = new Date().toISOString();
@@ -15433,9 +15924,26 @@ function saveCard() {
       autoThread(card, contactId ? `Cadastro vinculado: ${_ct?.name || contactId}` : 'Cadastro desvinculado');
     }
     const movedToDone = card.col !== col && col === TERMINAL_COL;
+    const _prevName = card.name, _prevDeadline = card.deadline, _prevValor = card.customFieldValues?.cf_valor;
     Object.assign(card,{name,priority,col,tagIds,deadline,responsavel,contactId,recurrence,attachments:[...cAttachments],subtasks:[...cSubtasks],customFieldValues:{...cCustomValues}});
     audit('card.updated', { cardId: card.id, name, col });
     fireWebhook('card.updated', { cardId: card.id, name, col, priority, deadline, responsavel });
+    // Granatum: se board é linked e card tem granatum_id, propaga edits (descrição/valor/data)
+    try {
+      const _bGran = allBoards[currentBoardId];
+      if (_bGran?.granatum_linked && card.granatum_id && typeof _granatumPushCard === 'function') {
+        const _newValor = card.customFieldValues?.cf_valor;
+        const _changed = (_prevName !== name) || (_prevDeadline !== deadline) || (_prevValor !== _newValor);
+        if (_changed) {
+          const _vRaw = _newValor != null ? String(_newValor).replace(',', '.') : null;
+          const _v = _vRaw != null ? parseFloat(_vRaw) : null;
+          const data = { descricao: name };
+          if (deadline) data.data_vencimento = deadline;
+          if (_v != null && !isNaN(_v)) data.valor = Math.abs(_v);
+          _granatumPushCard(card, 'update', data);
+        }
+      }
+    } catch(e) { console.warn('[granatum] push update falhou:', e?.message); }
     if (movedToDone) {
       audit('card.completed', { cardId: card.id, name });
       fireWebhook('card.completed', { cardId: card.id, name });
@@ -15475,6 +15983,13 @@ function saveCard() {
     if(deadline) autoThread(newCard,`Deadline definido: ${new Date(deadline+'T00:00:00').toLocaleDateString('pt-BR')}`);
     if(responsavel) autoThread(newCard,`Responsável: ${responsavel}`);
     cards.push(newCard);
+    // Granatum: se board é linked, push criação pra Granatum (cria lançamento)
+    try {
+      const _bGran = allBoards[currentBoardId];
+      if (_bGran?.granatum_linked && typeof _granatumPushNewCard === 'function') {
+        _granatumPushNewCard(newCard, _bGran);
+      }
+    } catch(e) { console.warn('[granatum] push new falhou:', e?.message); }
   }
   closeModal();renderFilterBar();render();saveData();
   if(currentTab==='checklist') renderChecklist();
