@@ -5955,13 +5955,13 @@ function _bindCurrentBoard() {
       if (f.id === 'cf_valor' && f.type !== 'currency') { f.type = 'currency'; f.showOnCard = true; _fixed = true; }
       if (f.id === 'cf_tipo' && f.type === 'text') { f.type = 'select'; f.options = ['pagar','receber']; _fixed = true; }
     });
-    // Adiciona campos novos cf_pessoa e cf_documento se ainda não existem
-    if (!customFields.find(f => f.id === 'cf_pessoa')) {
-      customFields.push({ id: 'cf_pessoa', label: 'Cliente/Fornecedor', type: 'text', showOnCard: false });
-      _fixed = true;
-    }
-    if (!customFields.find(f => f.id === 'cf_documento')) {
-      customFields.push({ id: 'cf_documento', label: 'CPF/CNPJ', type: 'text', showOnCard: false });
+    // Remove campos legacy cf_pessoa e cf_documento (agora cliente vai pra Cadastro vinculado)
+    const _origLen = customFields.length;
+    customFields = customFields.filter(f => f.id !== 'cf_pessoa' && f.id !== 'cf_documento');
+    if (customFields.length !== _origLen) _fixed = true;
+    // Adiciona cf_documento_numero (NF/recibo) se ainda não existe
+    if (!customFields.find(f => f.id === 'cf_documento_numero')) {
+      customFields.push({ id: 'cf_documento_numero', label: 'Nº Documento (NF)', type: 'text', showOnCard: false });
       _fixed = true;
     }
     if (_fixed) { b.customFields = customFields; if (typeof saveData === 'function') try { saveData(); } catch(e){} }
@@ -11850,14 +11850,13 @@ async function _granatumCreateBoardFromLancamentos(boardName, lancamentos, filte
   seed.granatum_linked = true;
   seed.granatum_filter = filterCfg || {};
   seed.icon = '財'; // ideograma de riqueza/finanças — destaca como board de integração financeira
-  // Custom fields pra valor + tipo + pessoa
+  // Custom fields pra valor + tipo + documento (cliente/fornecedor é vinculado via Cadastro Synconnect)
   seed.customFields = [
-    { id: 'cf_valor',      label: 'Valor',                   type: 'currency', showOnCard: true },
-    { id: 'cf_tipo',       label: 'Tipo',                    type: 'select', options: ['pagar','receber'], showOnCard: false },
-    { id: 'cf_categoria',  label: 'Categoria',               type: 'text', showOnCard: false },
-    { id: 'cf_conta',      label: 'Conta',                   type: 'text', showOnCard: false },
-    { id: 'cf_pessoa',     label: 'Cliente/Fornecedor',      type: 'text', showOnCard: false },
-    { id: 'cf_documento',  label: 'CPF/CNPJ',                type: 'text', showOnCard: false },
+    { id: 'cf_valor',            label: 'Valor',           type: 'currency', showOnCard: true },
+    { id: 'cf_tipo',             label: 'Tipo',            type: 'select', options: ['pagar','receber'], showOnCard: false },
+    { id: 'cf_categoria',        label: 'Categoria',       type: 'text', showOnCard: false },
+    { id: 'cf_conta',            label: 'Conta',           type: 'text', showOnCard: false },
+    { id: 'cf_documento_numero', label: 'Nº Documento (NF)', type: 'text', showOnCard: false },
   ];
   const today = new Date(); today.setHours(0,0,0,0);
   seed.cards = lancamentos.map((l, idx) => {
@@ -11891,9 +11890,9 @@ async function _granatumCreateBoardFromLancamentos(boardName, lancamentos, filte
         cf_tipo: tipo,
         cf_categoria: l.categoria_nome || l.categoria || '',
         cf_conta: l.conta_nome || l.conta || '',
-        cf_pessoa: l.pessoa_nome || '',
-        cf_documento: l.pessoa_documento || '',
+        cf_documento_numero: l.documento || l.numero_documento || (l.nfe_id && l.nfe_id !== 0 ? String(l.nfe_id) : '') || '',
       },
+      contactId: l.pessoa_nome ? _granatumEnsureContact(l.pessoa_nome, l.pessoa_documento, l.pessoa_tipo) : null,
       createdAt: l.created_at || new Date().toISOString(),
       doneAt: dataPag || null,
       granatum_id: String(l.id || ''),
@@ -11950,14 +11949,20 @@ async function _granatumResyncMetadata() {
       const newConta = l.conta_nome || (typeof l.conta === 'object' ? (l.conta.nome||'') : (l.conta||'')) || '';
       const newValor = l.valor != null ? String(l.valor) : (l.valor_total != null ? String(l.valor_total) : c.customFieldValues.cf_valor);
       const newTipo = (l.tipo || c.customFieldValues.cf_tipo || '').toString().toLowerCase();
-      const newPessoa = l.pessoa_nome || (typeof l.pessoa === 'object' ? (l.pessoa.nome||'') : '') || '';
-      const newDoc = l.pessoa_documento || (typeof l.pessoa === 'object' ? (l.pessoa.cnpj || l.pessoa.cpf || l.pessoa.documento || '') : '') || '';
+      const newDocNum = l.documento || l.numero_documento || (l.nfe_id && l.nfe_id !== 0 ? String(l.nfe_id) : '') || '';
       if (c.customFieldValues.cf_categoria !== newCat) { c.customFieldValues.cf_categoria = newCat; touched++; }
       if (c.customFieldValues.cf_conta !== newConta) c.customFieldValues.cf_conta = newConta;
       if (c.customFieldValues.cf_valor !== newValor) c.customFieldValues.cf_valor = newValor;
       if (newTipo && c.customFieldValues.cf_tipo !== newTipo) c.customFieldValues.cf_tipo = newTipo;
-      if (newPessoa && c.customFieldValues.cf_pessoa !== newPessoa) c.customFieldValues.cf_pessoa = newPessoa;
-      if (newDoc && c.customFieldValues.cf_documento !== newDoc) c.customFieldValues.cf_documento = newDoc;
+      if (newDocNum && c.customFieldValues.cf_documento_numero !== newDocNum) c.customFieldValues.cf_documento_numero = newDocNum;
+      // Limpa custom fields legacy de pessoa
+      delete c.customFieldValues.cf_pessoa;
+      delete c.customFieldValues.cf_documento;
+      // Cliente/Fornecedor: cria/encontra contact e linka via contactId
+      if (l.pessoa_nome && !c.contactId) {
+        const cid = _granatumEnsureContact(l.pessoa_nome, l.pessoa_documento, l.pessoa_tipo);
+        if (cid) { c.contactId = cid; touched++; }
+      }
     });
     if (typeof saveData === 'function') saveData();
     if (typeof render === 'function') render();
@@ -12020,9 +12025,9 @@ async function _granatumMergeIntoBoard(boardId, lancamentos, filterCfg) {
           cf_tipo: tipo,
           cf_categoria: l.categoria_nome || l.categoria || '',
           cf_conta: l.conta_nome || l.conta || '',
-          cf_pessoa: l.pessoa_nome || '',
-          cf_documento: l.pessoa_documento || '',
+          cf_documento_numero: l.documento || l.numero_documento || (l.nfe_id && l.nfe_id !== 0 ? String(l.nfe_id) : '') || '',
         },
+        contactId: l.pessoa_nome ? _granatumEnsureContact(l.pessoa_nome, l.pessoa_documento, l.pessoa_tipo) : null,
         createdAt: l.created_at || new Date().toISOString(),
         doneAt: dataPag || null,
         granatum_id: gid,
@@ -15454,6 +15459,39 @@ function _granatumToggleHistorico() {
     localStorage.setItem('synkan_granatum_show_hist_' + currentBoardId, cur ? '0' : '1');
   } catch(e) {}
   if (typeof render === 'function') render();
+}
+
+// Encontra contact existente por CPF/CNPJ ou nome; cria novo se não achar.
+// Retorna o id do contact pra linkar via card.contactId
+function _granatumEnsureContact(pessoaNome, pessoaDocumento, pessoaTipo) {
+  if (!pessoaNome) return null;
+  if (typeof _contacts === 'undefined') return null;
+  const norm = s => (s||'').replace(/[^0-9]/g, '');
+  const docNorm = norm(pessoaDocumento);
+  // 1) Match por documento (CPF/CNPJ) — mais confiável
+  if (docNorm) {
+    const found = _contacts.find(c => norm(c.taxId) === docNorm);
+    if (found) return found.id;
+  }
+  // 2) Match por nome exato (case-insensitive)
+  const nameNorm = pessoaNome.trim().toLowerCase();
+  const foundByName = _contacts.find(c => (c.name||'').trim().toLowerCase() === nameNorm);
+  if (foundByName) return foundByName.id;
+  // 3) Cria novo
+  const tipoMap = { 'cliente':'cliente', 'fornecedor':'fornecedor', 'cliente_fornecedor':'ambos' };
+  const newId = 'c_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  const newContact = {
+    id: newId,
+    name: pessoaNome.trim(),
+    type: tipoMap[String(pessoaTipo).toLowerCase()] || (pessoaTipo ? 'ambos' : 'cliente'),
+    taxId: pessoaDocumento || '',
+    email: '', phone: '', address: '', notes: 'Importado do Granatum',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  _contacts.push(newContact);
+  if (typeof _saveContacts === 'function') _saveContacts();
+  return newId;
 }
 
 async function _granatumClearToken() {
