@@ -11037,12 +11037,12 @@ function _settingsCalendarSection() {
         <span class="settings-card-title">Sincronizar com Google Calendar / Outlook</span>
         <span class="settings-status-pill ${total?'on':'off'}">${total} card${total===1?'':'s'} com deadline</span>
       </div>
-      <div class="settings-card-sub">Exporta todos os deadlines como um arquivo iCalendar (<code>.ics</code>) que você pode importar no Google Calendar, Outlook, Apple Calendar ou qualquer ferramenta compatível. Cada card vira um evento de dia inteiro com Board e prioridade na descrição.</div>
+      <div class="settings-card-sub">Crie uma URL de calendário com os boards que você escolher. Cole essa URL no Google Calendar (Adicionar calendário → A partir de URL) ou no Outlook (Inscrever-se em um calendário) — eles atualizam sozinhos a cada poucas horas. Cada card com deadline vira um evento de dia inteiro.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
-        <button class="btn-c" onclick="exportCalendarICS()">Baixar .ics</button>
-        <span style="font-size:11px;color:var(--color-text-tertiary);font-style:italic;">Sincronização automática por URL — em breve</span>
+        <button class="btn-c" style="background:#111;color:#fff;border-color:#111;" onclick="_calOpenCreateModal()">+ Nova URL de calendário</button>
+        <button class="btn-c" onclick="exportCalendarICS()" title="Alternativa antiga: baixa o arquivo .ics estático.">Baixar .ics (avulso)</button>
       </div>
-      <div class="settings-card-sub" style="font-size:12px;margin-top:6px;">No Google Calendar: <em>Configurações → Importar e exportar → Importar</em> e selecione o arquivo. No Outlook: <em>Arquivo → Abrir e Exportar → Importar/Exportar</em>.</div>
+      ${tokensListHTML}
     </div>
   `;
 }
