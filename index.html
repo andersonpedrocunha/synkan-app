@@ -11907,6 +11907,13 @@ async function _granatumResyncMetadata() {
     const data = await r.json();
     if (!r.ok || !data.ok) return appAlert('Falha', data.error || 'Erro buscando lançamentos', { icon:'⚠️' });
     const lancs = data.lancamentos || [];
+    // DEBUG: mostra estrutura crua do primeiro lançamento pra identificar qual campo é categoria
+    if (lancs.length) {
+      console.log('[granatum-debug] PRIMEIRO LANÇAMENTO CRU:', JSON.stringify(lancs[0], null, 2));
+      console.log('[granatum-debug] CHAVES DISPONÍVEIS:', Object.keys(lancs[0]).sort());
+      const catKeys = Object.keys(lancs[0]).filter(k => k.toLowerCase().includes('categ'));
+      console.log('[granatum-debug] CHAVES COM "categ":', catKeys, 'valores:', catKeys.map(k => [k, lancs[0][k]]));
+    }
     const byGid = new Map(lancs.map(l => [String(l.id), l]));
     let touched = 0;
     (b.cards || []).forEach(c => {
