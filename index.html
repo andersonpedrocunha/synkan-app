@@ -11881,6 +11881,56 @@ async function _granatumCreateBoardFromLancamentos(boardName, lancamentos, filte
   audit && audit('granatum.import', { boardId: newBoardId, count: seed.cards.length });
 }
 
+// Re-sincroniza metadados (categoria, conta, valor) dos cards existentes do board Granatum atual
+// sem mexer em col/posição. Usa /granatum/import como fonte (que agora enriquece categoria_nome).
+async function _granatumResyncMetadata() {
+  const b = allBoards[currentBoardId];
+  if (!b?.granatum_linked) return;
+  const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+  if (!jwt) return appAlert('Sessão expirada');
+  showToastMsg('Re-sincronizando metadados do Granatum...');
+  try {
+    // Pega filtros do board pra puxar o mesmo período
+    const filters = {};
+    const periodDays = b.granatum_filter?.periodDays || 365;
+    if (periodDays) {
+      const from = new Date(Date.now() - periodDays*86400000);
+      filters.data_vencimento_gte = from.toISOString().slice(0,10);
+    }
+    filters.limit = 200;
+    const r = await fetch((typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/granatum/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ board_name: b.name, filters }),
+      signal: AbortSignal.timeout(120000),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) return appAlert('Falha', data.error || 'Erro buscando lançamentos', { icon:'⚠️' });
+    const lancs = data.lancamentos || [];
+    const byGid = new Map(lancs.map(l => [String(l.id), l]));
+    let touched = 0;
+    (b.cards || []).forEach(c => {
+      if (!c.granatum_id) return;
+      const l = byGid.get(String(c.granatum_id));
+      if (!l) return;
+      c.customFieldValues = c.customFieldValues || {};
+      const newCat = l.categoria_nome || (typeof l.categoria === 'object' ? (l.categoria.nome||'') : (l.categoria||'')) || '';
+      const newConta = l.conta_nome || (typeof l.conta === 'object' ? (l.conta.nome||'') : (l.conta||'')) || '';
+      const newValor = l.valor != null ? String(l.valor) : (l.valor_total != null ? String(l.valor_total) : c.customFieldValues.cf_valor);
+      const newTipo = (l.tipo || c.customFieldValues.cf_tipo || '').toString().toLowerCase();
+      if (c.customFieldValues.cf_categoria !== newCat) { c.customFieldValues.cf_categoria = newCat; touched++; }
+      if (c.customFieldValues.cf_conta !== newConta) c.customFieldValues.cf_conta = newConta;
+      if (c.customFieldValues.cf_valor !== newValor) c.customFieldValues.cf_valor = newValor;
+      if (newTipo && c.customFieldValues.cf_tipo !== newTipo) c.customFieldValues.cf_tipo = newTipo;
+    });
+    if (typeof saveData === 'function') saveData();
+    if (typeof render === 'function') render();
+    showToastMsg(`✓ ${touched} cards atualizados (${lancs.length} lançamentos verificados)`);
+  } catch(e) {
+    appAlert('Erro de conexão', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
 // Merge lançamentos num board existente (dedupe via granatum_id)
 async function _granatumMergeIntoBoard(boardId, lancamentos, filterCfg) {
   const board = allBoards[boardId]; if (!board) return;
@@ -15242,6 +15292,7 @@ function _renderEnergyToolbar() {
   // Granatum: toggle pra mostrar/ocultar histórico (que tem milhares de cards)
   let granHistHTML = '';
   let granTipoHTML = '';
+  let granResyncHTML = '';
   if (allBoards[currentBoardId]?.granatum_linked) {
     const _histCount = (cards||[]).filter(c => c.col === 'historico').length;
     const _show = _granatumShowHistorico();
@@ -15254,12 +15305,15 @@ function _renderEnergyToolbar() {
         <button class="${_t==='receber'?'is-active':''}" onclick="_granatumSetTipoFilter('receber')" style="${_t==='receber'?'color:#3B6D11;':''}">↑ Entrada</button>
         <button class="${_t==='pagar'?'is-active':''}" onclick="_granatumSetTipoFilter('pagar')" style="${_t==='pagar'?'color:#A32D2D;':''}">↓ Saída</button>
       </span>`;
+    // Re-sincronizar metadata
+    granResyncHTML = `<button class="zai-view-toggle" style="padding:5px 12px;font-size:11.5px;cursor:pointer;border-radius:999px;background:var(--color-background-secondary);color:var(--color-text-secondary);" onclick="_granatumResyncMetadata()" title="Atualiza categoria, conta e valor dos cards a partir do Granatum (não move colunas)">🔄 Re-sincronizar</button>`;
   }
   wrap.innerHTML = `
     ${viewsBarHTML}
     ${zaiViewHTML}
     ${granTipoHTML}
     ${granHistHTML}
+    ${granResyncHTML}
     <span class="energy-bar${isActive?' is-active':''}" onclick="toggleEnergyPopover()" id="energy-bar"
           title="Modo Foco · ${isActive ? 'mostre só tarefas que cabem na sua energia hoje' : 'desligado — mostrando tudo'}">
       <span class="energy-icon">${cur ? cur.emoji : '⚡'}</span>
