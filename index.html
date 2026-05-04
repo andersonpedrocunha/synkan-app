@@ -5947,6 +5947,18 @@ function _bindCurrentBoard() {
   COLS       = (Array.isArray(b.COLS) && b.COLS.length) ? b.COLS : DEFAULT_COLS.map(c=>({...c}));
   team       = (Array.isArray(b.team) && b.team.length) ? b.team : [...DEFAULT_TEAM];
   customFields = Array.isArray(b.customFields) ? b.customFields : [];
+  // Migration: zera tags genéricas em boards Granatum (UX/Backend/Financeiro/Dev — herdadas do template Zai)
+  if (b.granatum_linked && Array.isArray(globalTags) && globalTags.length > 0) {
+    // Só limpa se nenhum card está usando essas tags (segurança)
+    const usedTagIds = new Set();
+    (cards || []).forEach(c => (c.tagIds || []).forEach(id => usedTagIds.add(id)));
+    const isPristine = globalTags.every(t => !usedTagIds.has(t.id));
+    if (isPristine) {
+      globalTags.length = 0;
+      b.globalTags = globalTags;
+      if (typeof saveData === 'function') try { saveData(); } catch(e){}
+    }
+  }
   // Migration: corrige boards Granatum legacy que usavam `name` em vez de `label` nos custom fields
   if (b.granatum_linked && Array.isArray(customFields)) {
     let _fixed = false;
@@ -12436,6 +12448,8 @@ async function _granatumCreateBoardFromLancamentos(boardName, lancamentos, filte
   // Cria board novo e popula com cards
   const newBoardId = (typeof _genBoardId === 'function') ? _genBoardId() : ('b_' + Math.random().toString(36).slice(2,12));
   const seed = (typeof _seedBoardData === 'function') ? _seedBoardData(boardName) : { name: boardName, cards: [] };
+  // Tags genéricas do template Zai não fazem sentido em board financeiro Granatum
+  seed.globalTags = [];
   // 4 colunas: A vencer, Atrasado, Pago, Histórico
   seed.COLS = [
     { id: 'a_vencer',  title: 'A vencer',   color:'#1F86E0' },
