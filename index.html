@@ -5739,7 +5739,10 @@ function getResourceUsage(resource) {
 
 function canCreate(resource) {
   const limits = getCurrentPlanLimits();
-  const max = limits[resource === 'okr' ? 'okrs' : resource];
+  // Mapeia resource (singular, como usado nos gates) pra a chave correta em PLAN_LIMITS
+  const _LIMIT_KEY = { board: 'boards', canvas: 'canvas', okr: 'okrs', ai: 'ai', unified: 'unified' };
+  const key = _LIMIT_KEY[resource] || resource;
+  const max = limits[key];
   if (max === -1 || max === undefined) return { ok: true, used: 0, max: -1 };
   const used = getResourceUsage(resource);
   // Pra IA: se usou tudo do plano, créditos extras (add-on) liberam mais
