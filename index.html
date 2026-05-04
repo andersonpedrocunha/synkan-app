@@ -11445,6 +11445,7 @@ function _settingsGranatumSection() {
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
         <button class="btn-c" onclick="_granatumSaveAndTest()" style="background:#A32D2D;color:#fff;border-color:#A32D2D;">Salvar + testar</button>
+        <button class="btn-c" onclick="_granatumDiagBrowser()" title="Testa conectividade direto do seu navegador (descarta bloqueio de IP do servidor)">🩺 Diagnóstico</button>
         ${hasToken && isOk ? `<button class="btn-c" onclick="_granatumOpenImportModal()">↗ Importar pra board</button>` : ''}
         ${hasToken && isOk ? `<button class="btn-c" onclick="_granatumOpenDashboard()">📊 Dashboard executivo</button>` : ''}
         ${hasToken && isOk ? `<button class="btn-c" onclick="_granatumAskKan()" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Análise Mestre Kan</button>` : ''}
@@ -11578,6 +11579,77 @@ async function _granatumAskKan() {
   if (typeof _appDialogShow === 'function') _appDialogShow(html);
 }
 
+// Diagnóstico browser-side: tenta acessar Granatum direto do navegador do user.
+// Se der erro CORS = Granatum tá vivo (mas bloqueia browser direto, esperado).
+// Se der network error = Granatum fora do ar OU sem conectividade da rede do user.
+async function _granatumDiagBrowser() {
+  const token = document.getElementById('gra-token')?.value?.trim() || '';
+  const tail = token ? token.slice(-6) : '(sem token)';
+  let result = `🩺 Diagnóstico Granatum\n\nToken: ...${tail}\n\n`;
+
+  // 1) Testa direto do browser
+  try {
+    const t0 = Date.now();
+    const r = await fetch('https://api.granatum.com.br/v1/categorias-de-conta?access_token=' + encodeURIComponent(token), {
+      method: 'GET',
+      mode: 'cors',
+      signal: AbortSignal.timeout(8000),
+    });
+    const ms = Date.now() - t0;
+    result += `1. Browser → Granatum: ✓ respondeu HTTP ${r.status} em ${ms}ms\n`;
+    if (r.status === 200) result += `   → Token VÁLIDO. Problema deve ser do nosso servidor (Fly.io bloqueado por Granatum)\n`;
+    else if (r.status === 401 || r.status === 403) result += `   → Token recusado por Granatum (HTTP ${r.status})\n`;
+  } catch (e) {
+    const msg = e?.message || String(e);
+    if (msg.includes('CORS') || msg.toLowerCase().includes('cross-origin') || msg.includes('NetworkError')) {
+      result += `1. Browser → Granatum: bloqueado por CORS (esperado — Granatum não permite browser)\n`;
+      result += `   → Granatum API está VIVA (ela respondeu, mas com header CORS bloqueando)\n`;
+    } else if (msg.includes('timed out') || msg.includes('aborted')) {
+      result += `1. Browser → Granatum: timeout (8s) — possivelmente fora do ar ou rede bloqueando\n`;
+    } else {
+      result += `1. Browser → Granatum: ${msg.slice(0,120)}\n`;
+    }
+  }
+
+  // 2) Testa nosso backend
+  const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+  if (jwt && token) {
+    try {
+      const t0 = Date.now();
+      const r = await fetch((typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/granatum/test', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + jwt },
+        body: JSON.stringify({ access_token: token }),
+        signal: AbortSignal.timeout(30000),
+      });
+      const ms = Date.now() - t0;
+      const data = await r.json().catch(() => ({}));
+      result += `\n2. Synkan API → Granatum: HTTP ${r.status} em ${ms}ms\n`;
+      if (data.ok) {
+        result += `   → Conexão OK: ${data.message || ''}\n`;
+      } else {
+        result += `   → ${data.error || 'falha'}\n`;
+        if (Array.isArray(data.diag)) {
+          data.diag.forEach(d => {
+            result += `   • /${d.ep} (${d.mode}): ${d.ok ? 'OK' : (d.err || 'falha')}\n`;
+          });
+        }
+      }
+    } catch (e) {
+      result += `\n2. Synkan API → Granatum: ${e?.message || e}\n`;
+    }
+  } else {
+    result += `\n2. Synkan API → Granatum: pulado (sem token ou JWT)\n`;
+  }
+
+  result += `\n💡 Interpretação:\n`;
+  result += `• Se 1 funciona e 2 falha → Granatum bloqueia IP do nosso servidor (Fly.io). Avise: anderson@taller.net.br\n`;
+  result += `• Se 1 e 2 falham → Granatum API offline ou problema de rede\n`;
+  result += `• Se 1 falha com CORS e 2 funciona → tudo certo\n`;
+
+  appAlert('🩺 Diagnóstico Granatum', result, { icon:'ℹ️' });
+}
+
 async function _granatumSaveAndTest() {
   if (!supaUser) { appAlert('Login necessário'); return; }
   const token = document.getElementById('gra-token')?.value?.trim();
@@ -11589,7 +11661,7 @@ async function _granatumSaveAndTest() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
       body: JSON.stringify({ access_token: token }),
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(30000),
     });
     const data = await r.json();
     if (r.ok && data.ok) {
@@ -11597,7 +11669,13 @@ async function _granatumSaveAndTest() {
       await _granatumLoadConfig();
       if (typeof renderSettings === 'function') renderSettings();
     } else {
-      appAlert('Token inválido', data.error || 'Verifique e tente de novo.', { icon:'⚠️' });
+      // Monta diagnóstico legível se vier
+      let detail = data.error || 'Verifique e tente de novo.';
+      if (Array.isArray(data.diag) && data.diag.length) {
+        const lines = data.diag.map(d => `• /${d.ep} (${d.mode}): ${d.ok ? 'OK' : (d.err || 'falha')}`).join('\n');
+        detail += '\n\nTentativas:\n' + lines;
+      }
+      appAlert('Falha no teste Granatum', detail, { icon:'⚠️' });
       await _granatumLoadConfig();
       if (typeof renderSettings === 'function') renderSettings();
     }
