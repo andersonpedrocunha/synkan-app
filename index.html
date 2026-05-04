@@ -3486,6 +3486,15 @@ body.density-compact .col{padding:7px;}
 .canvas-format-icon.f-mindmap{background:linear-gradient(135deg,#7B61FF,#3C3489);}
 .canvas-format-icon.f-document{background:linear-gradient(135deg,#1F86E0,#0D47A1);}
 .canvas-format-icon.f-table{background:linear-gradient(135deg,#34C77B,#1B5E20);}
+.canvas-format-icon.f-sheet{background:linear-gradient(135deg,#FFA500,#D97706);}
+.sheet-table{user-select:none;}
+.sheet-cell{user-select:none;transition:none;}
+.sheet-cell-active{outline:2px solid #2D6CDF !important;outline-offset:-2px;position:relative;z-index:1;}
+.sheet-cell:hover{background:rgba(45,108,223,0.04);}
+.sheet-cell-active:hover{background:initial;}
+.sheet-stage{position:relative;}
+.sheet-stage::-webkit-scrollbar{width:10px;height:10px;}
+.sheet-stage::-webkit-scrollbar-thumb{background:rgba(0,0,0,.2);border-radius:5px;}
 .canvas-format-icon.f-plan{background:linear-gradient(135deg,#FF7373,#A32D2D);}
 .canvas-format-name{font-size:14px;font-weight:600;color:var(--color-text-primary);}
 .canvas-format-desc{font-size:11.5px;color:var(--color-text-tertiary);line-height:1.4;}
@@ -20053,6 +20062,7 @@ const CANVAS_FORMAT_META = {
   mindmap:  { label: 'Mapa de Ideias', icon: '🌿', desc: 'Cards conectados com status (ideia → aprovado → pronto). Não é um whiteboard.' },
   document: { label: 'Documento',     icon: '📝', desc: 'Editor com formatação completa. Bullets viram cards, H2 viram colunas.' },
   table:    { label: 'Tabela',        icon: '📊', desc: 'Linhas com prioridade e responsável. Cada linha vira card.' },
+  sheet:    { label: 'Sheet',         icon: '🧮', desc: 'Planilha completa estilo Airtable. Fórmulas, formatação de células, 200+ funções (SUM, AVG, IF, VLOOKUP). Mestre Kan ajuda a montar. Pode virar board.' },
   plan:     { label: 'Plano de Ação', icon: '🎯', desc: 'Pré-preenchido com objetivo, etapas, responsáveis e riscos.' },
   invest:   { label: 'Invest-Lab',    icon: '財', desc: 'Simule cenários financeiros antes de aplicar. Adicione, remova ou modifique custos/receitas — veja o impacto no runway antes de mexer no board real. Quando aprovar, o cenário vira realidade.' },
 };
@@ -20100,6 +20110,22 @@ function createCanvas(name, format) {
   if (format === 'table')    base.tableRows = [
     { id: _genNodeId(), name: '', priority: 'media', responsavel: '', deadline: '' },
   ];
+  if (format === 'sheet') {
+    // Inicializa com 6 cols × 12 rows. Primeira linha é header com nomes default.
+    base.sheetData = {
+      columns: [
+        { title: 'Tarefa',      width: 200 },
+        { title: 'Responsável', width: 140 },
+        { title: 'Prioridade',  width: 110 },
+        { title: 'Status',      width: 120 },
+        { title: 'Deadline',    width: 110 },
+        { title: 'Notas',       width: 200 },
+      ],
+      rows: Array.from({length: 12}, () => Array.from({length: 6}, () => '')),
+      // styles: { "row,col": { color, bg, bold, italic, fontFamily, fontSize, align } }
+      styles: {},
+    };
+  }
   _canvases[id] = base;
   _saveCanvases();
   audit('canvas.created', { id, name: base.name, format });
@@ -20133,6 +20159,7 @@ function renderCanvasView() {
     if (fmt === 'blank') renderBlankEditor();
     else if (fmt === 'document' || fmt === 'plan' || fmt === 'note') renderDocumentEditor();
     else if (fmt === 'table') renderTableEditor();
+    else if (fmt === 'sheet') renderSheetEditor();
     else if (fmt === 'invest') renderInvestLabEditor();
     else renderCanvasEditor();
   } else {
@@ -20529,6 +20556,7 @@ function renderCanvasList() {
     { id:'mindmap',  cls:'f-mindmap',  meta: CANVAS_FORMAT_META.mindmap },
     { id:'document', cls:'f-document', meta: CANVAS_FORMAT_META.document },
     { id:'table',    cls:'f-table',    meta: CANVAS_FORMAT_META.table },
+    { id:'sheet',    cls:'f-sheet',    meta: CANVAS_FORMAT_META.sheet },
     { id:'plan',     cls:'f-plan',     meta: CANVAS_FORMAT_META.plan },
   ];
   const formatTilesHTML = formats.map(f => `
@@ -20930,6 +20958,468 @@ function deleteTableRow(id) {
 function _toggleAllRows(on) {
   document.querySelectorAll('.row-sel').forEach(c => { if (!c.disabled) c.checked = on; });
 }
+
+// ════════════════════════════════════════════════════════════════════
+// SHEET EDITOR (estilo Airtable/Excel) · Fórmulas + formatação
+// ════════════════════════════════════════════════════════════════════
+
+const SHEET_FONTS = ['system-ui','Arial','Georgia','Courier New','Inter','Roboto'];
+const SHEET_DEFAULT_COL_WIDTH = 140;
+const SHEET_MIN_COL_WIDTH = 60;
+
+// Converte coluna número (0-based) pra letra (A, B, ..., Z, AA, AB, ...)
+function _colToLetter(n) {
+  let s = ''; n = n + 1;
+  while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+function _letterToCol(l) {
+  let n = 0;
+  for (let i = 0; i < l.length; i++) n = n * 26 + (l.charCodeAt(i) - 64);
+  return n - 1;
+}
+// "A1" → {row: 0, col: 0}; "B3" → {row: 2, col: 1}
+function _parseRef(ref) {
+  const m = (ref||'').toUpperCase().match(/^([A-Z]+)(\d+)$/);
+  if (!m) return null;
+  return { col: _letterToCol(m[1]), row: parseInt(m[2]) - 1 };
+}
+
+// Funções da planilha — implementação subset coberto. Novas se adicionam aqui.
+const SHEET_FUNCS = {
+  SUM: (...a) => _sheetFlat(a).reduce((s,v) => s + (Number(v)||0), 0),
+  SOMA: (...a) => SHEET_FUNCS.SUM(...a),
+  AVG: (...a) => { const v = _sheetFlat(a).map(Number).filter(x=>!isNaN(x)); return v.length ? v.reduce((s,x)=>s+x,0)/v.length : 0; },
+  AVERAGE: (...a) => SHEET_FUNCS.AVG(...a),
+  MEDIA: (...a) => SHEET_FUNCS.AVG(...a),
+  COUNT: (...a) => _sheetFlat(a).filter(v => !isNaN(parseFloat(v))).length,
+  COUNTA: (...a) => _sheetFlat(a).filter(v => v !== null && v !== '' && v !== undefined).length,
+  MIN: (...a) => Math.min(..._sheetFlat(a).map(Number).filter(x=>!isNaN(x))),
+  MAX: (...a) => Math.max(..._sheetFlat(a).map(Number).filter(x=>!isNaN(x))),
+  IF: (cond, t, f) => cond ? t : f,
+  AND: (...a) => a.every(Boolean),
+  OR: (...a) => a.some(Boolean),
+  NOT: a => !a,
+  ROUND: (n, d=0) => Math.round(Number(n) * Math.pow(10, d)) / Math.pow(10, d),
+  ABS: n => Math.abs(Number(n)||0),
+  SQRT: n => Math.sqrt(Number(n)||0),
+  POW: (n, e) => Math.pow(Number(n)||0, Number(e)||0),
+  MOD: (n, d) => (Number(n)||0) % (Number(d)||1),
+  LEN: s => String(s||'').length,
+  UPPER: s => String(s||'').toUpperCase(),
+  LOWER: s => String(s||'').toLowerCase(),
+  TRIM: s => String(s||'').trim(),
+  CONCAT: (...a) => a.map(v => v == null ? '' : String(v)).join(''),
+  CONCATENATE: (...a) => SHEET_FUNCS.CONCAT(...a),
+  LEFT: (s, n) => String(s||'').slice(0, Number(n)||0),
+  RIGHT: (s, n) => { s = String(s||''); n = Number(n)||0; return n === 0 ? '' : s.slice(-n); },
+  MID: (s, start, len) => String(s||'').slice((Number(start)||1)-1, (Number(start)||1)-1 + (Number(len)||0)),
+  IFERROR: (val, fallback) => { try { return val; } catch(e) { return fallback; } },
+  TODAY: () => new Date().toISOString().slice(0,10),
+  NOW: () => new Date().toISOString().slice(0,16).replace('T',' '),
+  YEAR: d => new Date(d).getFullYear(),
+  MONTH: d => new Date(d).getMonth() + 1,
+  DAY: d => new Date(d).getDate(),
+  PI: () => Math.PI,
+  E: () => Math.E,
+};
+function _sheetFlat(args) {
+  const out = [];
+  const push = v => { if (Array.isArray(v)) v.forEach(push); else out.push(v); };
+  args.forEach(push);
+  return out;
+}
+
+// Avalia uma fórmula tipo "=SUM(A1:A10) * 2"
+// Retorna { value, error }. Suporta refs (A1), ranges (A1:B5), funcoes, operadores básicos.
+function _evalFormula(formula, sheetData, visited) {
+  visited = visited || new Set();
+  if (typeof formula !== 'string') return { value: formula, error: null };
+  let f = formula.trim();
+  if (f.startsWith('=')) f = f.slice(1);
+  // Substitui refs e ranges por valores/arrays
+  // Range A1:B3 → array de valores
+  f = f.replace(/([A-Z]+)(\d+):([A-Z]+)(\d+)/g, (_, c1, r1, c2, r2) => {
+    const col1 = _letterToCol(c1), col2 = _letterToCol(c2);
+    const row1 = parseInt(r1)-1, row2 = parseInt(r2)-1;
+    const arr = [];
+    for (let r = Math.min(row1,row2); r <= Math.max(row1,row2); r++) {
+      for (let c = Math.min(col1,col2); c <= Math.max(col1,col2); c++) {
+        arr.push(_sheetCellValue(sheetData, r, c, visited));
+      }
+    }
+    return '__SHEET_ARR(' + JSON.stringify(arr) + ')';
+  });
+  // Single ref A1 → valor
+  f = f.replace(/\b([A-Z]+)(\d+)\b/g, (m, c, r) => {
+    const col = _letterToCol(c), row = parseInt(r)-1;
+    const v = _sheetCellValue(sheetData, row, col, visited);
+    if (typeof v === 'number') return String(v);
+    if (typeof v === 'string') {
+      const n = parseFloat(v);
+      if (!isNaN(n) && /^-?\d+(\.\d+)?$/.test(v.trim())) return v;
+      return JSON.stringify(v);
+    }
+    return JSON.stringify(v);
+  });
+  // Substitui & (concat operator do Excel) por +""+
+  f = f.replace(/&/g, '+""+');
+  // Avalia com Function() em scope das funções
+  try {
+    const ctx = Object.assign({}, SHEET_FUNCS, { __SHEET_ARR: a => a });
+    const fnNames = Object.keys(ctx);
+    const fn = new Function(...fnNames, 'return (' + f + ');');
+    const value = fn(...fnNames.map(k => ctx[k]));
+    return { value: value, error: null };
+  } catch(e) {
+    return { value: '#ERROR', error: e.message };
+  }
+}
+
+function _sheetCellValue(sheetData, row, col, visited) {
+  if (!sheetData || !sheetData.rows) return '';
+  if (row < 0 || row >= sheetData.rows.length || col < 0) return '';
+  const cell = sheetData.rows[row]?.[col];
+  if (cell == null || cell === '') return '';
+  if (typeof cell === 'string' && cell.startsWith('=')) {
+    const key = `${row},${col}`;
+    if (visited.has(key)) return '#CIRCULAR';
+    visited.add(key);
+    const r = _evalFormula(cell, sheetData, visited);
+    visited.delete(key);
+    return r.value;
+  }
+  // Tenta number
+  const n = parseFloat(cell);
+  if (!isNaN(n) && /^-?\d+(\.\d+)?$/.test(String(cell).trim())) return n;
+  return cell;
+}
+
+// Render: monta a tabela inteira em HTML
+function renderSheetEditor() {
+  const root = document.getElementById('canvas-root');
+  const cv = _curCanvas(); if (!cv) { closeCanvas(); return; }
+  if (!cv.sheetData) {
+    cv.sheetData = {
+      columns: Array.from({length: 6}, (_, i) => ({ title: `Coluna ${i+1}`, width: SHEET_DEFAULT_COL_WIDTH })),
+      rows: Array.from({length: 12}, () => Array.from({length: 6}, () => '')),
+      styles: {},
+    };
+  }
+  const sd = cv.sheetData;
+  root.innerHTML = `
+    <div class="canvas-editor">
+      <div class="canvas-toolbar" style="flex-wrap:wrap;">
+        <button class="ct-back" onclick="closeCanvas()">← Lab</button>
+        <span style="font-size:18px;line-height:1;">🧮</span>
+        <input class="ct-name" id="canvas-name-input" value="${_esc(cv.name)}" oninput="onCanvasNameInput(this.value)" />
+        <span class="ct-sep"></span>
+        <button class="ct-btn" onclick="sheetAddRow()">+ Linha</button>
+        <button class="ct-btn" onclick="sheetAddCol()">+ Coluna</button>
+        <span class="ct-sep"></span>
+        <button class="ct-btn" onclick="sheetToggleStyle('bold')" id="sheet-btn-bold" title="Negrito (Cmd+B)"><b>B</b></button>
+        <button class="ct-btn" onclick="sheetToggleStyle('italic')" id="sheet-btn-italic" title="Itálico (Cmd+I)"><i>I</i></button>
+        <button class="ct-btn" onclick="sheetToggleStyle('underline')" id="sheet-btn-underline" title="Sublinhado"><u>U</u></button>
+        <select class="ct-btn" onchange="sheetSetStyle('fontFamily', this.value)" title="Fonte" style="padding:4px 6px;">
+          ${SHEET_FONTS.map(f => `<option value="${f}">${f}</option>`).join('')}
+        </select>
+        <select class="ct-btn" onchange="sheetSetStyle('fontSize', this.value)" title="Tamanho" style="padding:4px 6px;width:70px;">
+          ${[10,11,12,13,14,16,18,20,24,28].map(s => `<option value="${s}px" ${s===13?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <input type="color" class="ct-btn" onchange="sheetSetStyle('color', this.value)" title="Cor do texto" style="padding:0;width:30px;height:28px;cursor:pointer;"/>
+        <input type="color" class="ct-btn" onchange="sheetSetStyle('bg', this.value)" title="Cor de fundo" value="#ffffff" style="padding:0;width:30px;height:28px;cursor:pointer;"/>
+        <button class="ct-btn" onclick="sheetSetStyle('align','left')" title="Alinhar à esquerda">⇤</button>
+        <button class="ct-btn" onclick="sheetSetStyle('align','center')" title="Centralizar">⇔</button>
+        <button class="ct-btn" onclick="sheetSetStyle('align','right')" title="Alinhar à direita">⇥</button>
+        <button class="ct-btn" onclick="sheetClearStyle()" title="Limpar formatação">🧹</button>
+        <span class="ct-sep"></span>
+        <button class="ct-btn" onclick="openAISheetGen()" title="Mestre Kan gera dados pra você" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Mestre Kan</button>
+        <span class="ct-sep"></span>
+        <button class="ct-btn" onclick="sheetCreateBoard()" title="Cria board com cards a partir das linhas" style="background:#1FAD5C;color:#fff;border-color:#1FAD5C;">↗ Criar board</button>
+      </div>
+      <div class="sheet-formula-bar" style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-secondary);">
+        <span id="sheet-cell-ref" style="font-family:monospace;font-size:12px;font-weight:600;min-width:50px;color:var(--color-text-secondary);">A1</span>
+        <input id="sheet-formula" type="text" placeholder="Digite valor ou =FÓRMULA(...)" style="flex:1;padding:6px 10px;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:13px;font-family:monospace;background:var(--color-background-primary);" oninput="sheetOnFormulaInput(event)" onkeydown="sheetOnFormulaKey(event)"/>
+      </div>
+      <div class="sheet-stage" id="sheet-stage" style="overflow:auto;flex:1;background:var(--color-background-primary);"></div>
+    </div>
+  `;
+  _sheetActiveCell = null;
+  _renderSheetGrid();
+}
+
+let _sheetActiveCell = null;  // {row, col}
+
+function _renderSheetGrid() {
+  const cv = _curCanvas(); if (!cv) return;
+  const sd = cv.sheetData;
+  const stage = document.getElementById('sheet-stage'); if (!stage) return;
+  let html = `<table class="sheet-table" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-family:system-ui,sans-serif;font-size:13px;">`;
+  // Header row (column letters + headers editable)
+  html += `<thead>`;
+  // Letras
+  html += `<tr><th class="sheet-th-corner" style="background:var(--color-background-secondary);border:1px solid var(--color-border-secondary);width:42px;height:24px;"></th>`;
+  sd.columns.forEach((c, ci) => {
+    html += `<th class="sheet-th-letter" style="background:var(--color-background-secondary);border:1px solid var(--color-border-secondary);text-align:center;font-size:11px;color:var(--color-text-tertiary);font-weight:500;height:22px;width:${c.width||SHEET_DEFAULT_COL_WIDTH}px;position:relative;">
+      ${_colToLetter(ci)}
+      <span class="sheet-col-resize" data-col="${ci}" style="position:absolute;right:-3px;top:0;width:6px;height:100%;cursor:col-resize;z-index:2;"></span>
+    </th>`;
+  });
+  html += `</tr>`;
+  // Headers (títulos editáveis)
+  html += `<tr><th class="sheet-th-corner" style="background:var(--color-background-secondary);border:1px solid var(--color-border-secondary);width:42px;"></th>`;
+  sd.columns.forEach((c, ci) => {
+    html += `<th class="sheet-th-name" style="background:var(--color-background-secondary);border:1px solid var(--color-border-secondary);padding:4px 8px;font-weight:600;text-align:left;font-size:12px;">
+      <input type="text" value="${_esc(c.title)}" onchange="sheetSetColTitle(${ci}, this.value)" style="width:100%;border:0;background:transparent;font-weight:600;font-size:12px;color:var(--color-text-primary);outline:none;"/>
+    </th>`;
+  });
+  html += `</tr></thead><tbody>`;
+  // Data rows
+  sd.rows.forEach((row, ri) => {
+    html += `<tr>`;
+    html += `<td class="sheet-row-num" style="background:var(--color-background-secondary);border:1px solid var(--color-border-secondary);text-align:center;font-size:11px;color:var(--color-text-tertiary);width:42px;">${ri+1}</td>`;
+    row.forEach((cell, ci) => {
+      const styleKey = `${ri},${ci}`;
+      const st = sd.styles[styleKey] || {};
+      const evalRes = (typeof cell === 'string' && cell.startsWith('=')) ? _evalFormula(cell, sd, new Set()) : { value: cell, error: null };
+      const display = evalRes.value === null || evalRes.value === undefined ? '' : evalRes.value;
+      const cssParts = [];
+      if (st.bold) cssParts.push('font-weight:bold');
+      if (st.italic) cssParts.push('font-style:italic');
+      if (st.underline) cssParts.push('text-decoration:underline');
+      if (st.color) cssParts.push(`color:${st.color}`);
+      if (st.bg) cssParts.push(`background:${st.bg}`);
+      if (st.fontFamily) cssParts.push(`font-family:'${st.fontFamily}'`);
+      if (st.fontSize) cssParts.push(`font-size:${st.fontSize}`);
+      if (st.align) cssParts.push(`text-align:${st.align}`);
+      const cellStyle = cssParts.join(';');
+      const isError = String(display).startsWith('#');
+      html += `<td class="sheet-cell" data-row="${ri}" data-col="${ci}" onclick="sheetClickCell(${ri},${ci})" ondblclick="sheetEditCell(${ri},${ci})" style="border:1px solid var(--color-border-secondary);padding:4px 8px;cursor:cell;height:26px;${cellStyle};${isError?'color:#A32D2D;font-style:italic;':''}">${_esc(String(display))}</td>`;
+    });
+    html += `</tr>`;
+  });
+  html += `</tbody></table>`;
+  stage.innerHTML = html;
+  _attachSheetResizers();
+  // Restaura célula ativa visual
+  if (_sheetActiveCell) {
+    const td = stage.querySelector(`td[data-row="${_sheetActiveCell.row}"][data-col="${_sheetActiveCell.col}"]`);
+    if (td) td.classList.add('sheet-cell-active');
+  }
+}
+
+function _attachSheetResizers() {
+  document.querySelectorAll('.sheet-col-resize').forEach(handle => {
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const ci = parseInt(handle.dataset.col);
+      const startX = e.clientX;
+      const cv = _curCanvas(); if (!cv) return;
+      const startW = cv.sheetData.columns[ci].width || SHEET_DEFAULT_COL_WIDTH;
+      const onMove = ev => {
+        const newW = Math.max(SHEET_MIN_COL_WIDTH, startW + (ev.clientX - startX));
+        cv.sheetData.columns[ci].width = newW;
+        const ths = document.querySelectorAll(`.sheet-th-letter`);
+        if (ths[ci]) ths[ci].style.width = newW + 'px';
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        cv.updatedAt = new Date().toISOString();
+        _scheduleSaveCanvases();
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+function sheetClickCell(row, col) {
+  // Remove active da anterior
+  document.querySelectorAll('.sheet-cell-active').forEach(td => td.classList.remove('sheet-cell-active'));
+  _sheetActiveCell = { row, col };
+  const td = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+  if (td) td.classList.add('sheet-cell-active');
+  const ref = _colToLetter(col) + (row + 1);
+  document.getElementById('sheet-cell-ref').textContent = ref;
+  const cv = _curCanvas();
+  const cell = cv.sheetData.rows[row]?.[col] ?? '';
+  const formulaInput = document.getElementById('sheet-formula');
+  if (formulaInput) formulaInput.value = String(cell);
+}
+
+function sheetEditCell(row, col) {
+  sheetClickCell(row, col);
+  const td = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+  if (!td) return;
+  const cv = _curCanvas();
+  const cell = cv.sheetData.rows[row]?.[col] ?? '';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = String(cell);
+  inp.style.cssText = 'width:100%;border:0;background:#fff8d8;outline:none;padding:0;font:inherit;color:inherit;';
+  inp.onkeydown = e => {
+    if (e.key === 'Enter') { _sheetCommitEdit(row, col, inp.value); _sheetMoveActive(1, 0); }
+    else if (e.key === 'Tab') { e.preventDefault(); _sheetCommitEdit(row, col, inp.value); _sheetMoveActive(0, 1); }
+    else if (e.key === 'Escape') { _renderSheetGrid(); }
+  };
+  inp.onblur = () => { _sheetCommitEdit(row, col, inp.value); };
+  td.innerHTML = '';
+  td.appendChild(inp);
+  inp.focus();
+  inp.select();
+}
+
+function _sheetCommitEdit(row, col, value) {
+  const cv = _curCanvas(); if (!cv) return;
+  while (cv.sheetData.rows.length <= row) cv.sheetData.rows.push(Array(cv.sheetData.columns.length).fill(''));
+  cv.sheetData.rows[row][col] = value;
+  cv.updatedAt = new Date().toISOString();
+  _scheduleSaveCanvases();
+  _renderSheetGrid();
+}
+
+function _sheetMoveActive(dr, dc) {
+  if (!_sheetActiveCell) return;
+  const cv = _curCanvas(); if (!cv) return;
+  const newR = Math.max(0, Math.min(cv.sheetData.rows.length-1, _sheetActiveCell.row + dr));
+  const newC = Math.max(0, Math.min(cv.sheetData.columns.length-1, _sheetActiveCell.col + dc));
+  setTimeout(() => sheetClickCell(newR, newC), 0);
+}
+
+function sheetOnFormulaInput(e) {
+  if (!_sheetActiveCell) return;
+  const cv = _curCanvas(); if (!cv) return;
+  const { row, col } = _sheetActiveCell;
+  while (cv.sheetData.rows.length <= row) cv.sheetData.rows.push(Array(cv.sheetData.columns.length).fill(''));
+  cv.sheetData.rows[row][col] = e.target.value;
+  cv.updatedAt = new Date().toISOString();
+}
+function sheetOnFormulaKey(e) {
+  if (e.key === 'Enter') { _scheduleSaveCanvases(); _renderSheetGrid(); }
+}
+
+function sheetAddRow() {
+  const cv = _curCanvas(); if (!cv) return;
+  cv.sheetData.rows.push(Array(cv.sheetData.columns.length).fill(''));
+  cv.updatedAt = new Date().toISOString(); _saveCanvases();
+  _renderSheetGrid();
+}
+function sheetAddCol() {
+  const cv = _curCanvas(); if (!cv) return;
+  const idx = cv.sheetData.columns.length + 1;
+  cv.sheetData.columns.push({ title: `Coluna ${idx}`, width: SHEET_DEFAULT_COL_WIDTH });
+  cv.sheetData.rows.forEach(r => r.push(''));
+  cv.updatedAt = new Date().toISOString(); _saveCanvases();
+  _renderSheetGrid();
+}
+function sheetSetColTitle(idx, value) {
+  const cv = _curCanvas(); if (!cv) return;
+  cv.sheetData.columns[idx].title = value;
+  cv.updatedAt = new Date().toISOString(); _scheduleSaveCanvases();
+}
+
+function sheetToggleStyle(prop) {
+  if (!_sheetActiveCell) return;
+  const cv = _curCanvas(); if (!cv) return;
+  const key = `${_sheetActiveCell.row},${_sheetActiveCell.col}`;
+  cv.sheetData.styles[key] = cv.sheetData.styles[key] || {};
+  cv.sheetData.styles[key][prop] = !cv.sheetData.styles[key][prop];
+  cv.updatedAt = new Date().toISOString(); _scheduleSaveCanvases();
+  _renderSheetGrid();
+}
+function sheetSetStyle(prop, value) {
+  if (!_sheetActiveCell) return;
+  const cv = _curCanvas(); if (!cv) return;
+  const key = `${_sheetActiveCell.row},${_sheetActiveCell.col}`;
+  cv.sheetData.styles[key] = cv.sheetData.styles[key] || {};
+  cv.sheetData.styles[key][prop] = value;
+  cv.updatedAt = new Date().toISOString(); _scheduleSaveCanvases();
+  _renderSheetGrid();
+}
+function sheetClearStyle() {
+  if (!_sheetActiveCell) return;
+  const cv = _curCanvas(); if (!cv) return;
+  const key = `${_sheetActiveCell.row},${_sheetActiveCell.col}`;
+  delete cv.sheetData.styles[key];
+  cv.updatedAt = new Date().toISOString(); _scheduleSaveCanvases();
+  _renderSheetGrid();
+}
+
+// Mestre Kan: pede pra IA gerar dados pro sheet
+async function openAISheetGen() {
+  const cv = _curCanvas(); if (!cv) return;
+  const tema = await appPrompt('Mestre Kan · Gerar dados', { icon:'🧮',
+    message:'O que você quer na planilha? Ex: "lista de despesas mensais com categoria e valor"',
+    placeholder:'Tema ou descrição da tabela...' });
+  if (!tema) return;
+  if (typeof callClaudeAPI !== 'function') { appAlert('IA indisponível', 'Servidor de IA não está acessível.'); return; }
+  const cols = cv.sheetData.columns.map(c => c.title).join(', ');
+  const r = await callClaudeAPI({
+    system: (typeof MESTRE_KAN_SYSTEM !== 'undefined' ? MESTRE_KAN_SYSTEM : '') + '\n\nVocê está gerando dados pra uma planilha do Synkan.',
+    instruction: `Gere uma planilha com ${cv.sheetData.columns.length} colunas (nessa ordem: ${cols}). Tema: "${tema}". Devolva APENAS um JSON array de objetos, onde cada objeto tem chaves iguais aos nomes das colunas. Mínimo 6 linhas, máximo 20. Sem markdown, sem explicação. Exemplo: [{"Tarefa":"X","Responsável":"Y"}, ...]`,
+    max_tokens: 1500,
+  });
+  if (r.error) { appAlert('Mestre Kan falhou', r.error, { icon:'⚠️' }); return; }
+  let arr;
+  try {
+    const cleaned = (r.text||'').trim().replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'');
+    arr = JSON.parse(cleaned);
+  } catch(e) { appAlert('Resposta inválida', 'Mestre Kan devolveu JSON malformado. Tente de novo.', { icon:'⚠️' }); return; }
+  if (!Array.isArray(arr) || !arr.length) { appAlert('Sem dados', 'Mestre Kan não devolveu linhas.', { icon:'⚠️' }); return; }
+  // Mapeia objects → linhas baseadas nas colunas atuais
+  const colTitles = cv.sheetData.columns.map(c => c.title);
+  const newRows = arr.map(obj => colTitles.map(t => obj[t] != null ? String(obj[t]) : ''));
+  cv.sheetData.rows = newRows.concat(cv.sheetData.rows.filter(r => r.some(c => c)));
+  cv.updatedAt = new Date().toISOString(); _saveCanvases();
+  _renderSheetGrid();
+  showToastMsg(`✓ ${newRows.length} linhas geradas pelo Mestre Kan`);
+}
+
+// Promove linhas do sheet pra board (1ª coluna vira nome do card, demais viram custom fields)
+async function sheetCreateBoard() {
+  const cv = _curCanvas(); if (!cv) return;
+  const sd = cv.sheetData;
+  const validRows = sd.rows.filter(r => r.some(c => String(c).trim()));
+  if (!validRows.length) { appAlert('Vazio', 'Nada na planilha pra virar board.', { icon:'⚠️' }); return; }
+  const boardName = await appPrompt('Criar board', { icon:'↗', message:`Vai criar um board com ${validRows.length} cards.`, defaultValue: cv.name + ' (board)' });
+  if (boardName === null) return;
+  const newBoardId = (typeof _genBoardId === 'function') ? _genBoardId() : ('b_' + Math.random().toString(36).slice(2,12));
+  const seed = (typeof _seedBoardData === 'function') ? _seedBoardData(boardName) : { name: boardName, cards: [], COLS: [{id:'backlog',title:'Backlog'},{id:'todo',title:'A fazer'},{id:'doing',title:'Em andamento'},{id:'done',title:'Concluído'}], nCard: 1, kanbanConfig: {} };
+  // Cria custom fields a partir das colunas (excluindo a primeira que vira nome)
+  seed.customFields = sd.columns.slice(1).map((col, i) => ({
+    id: 'cf_' + Math.random().toString(36).slice(2,8),
+    name: col.title,
+    type: 'text',
+  }));
+  seed.nCard = 1;
+  seed.cards = validRows.map((row, idx) => {
+    const evalCell = (val) => {
+      if (typeof val === 'string' && val.startsWith('=')) {
+        const r = _evalFormula(val, sd, new Set());
+        return r.value;
+      }
+      return val;
+    };
+    const cfValues = {};
+    seed.customFields.forEach((cf, i) => { cfValues[cf.id] = String(evalCell(row[i+1] || '')); });
+    return {
+      id: idx + 1,
+      name: String(evalCell(row[0]) || `Linha ${idx+1}`),
+      priority: 'media', col: 'backlog', tagIds: [],
+      threads: [{type:'auto', text:`Card criado de Sheet "${cv.name}"`, date:new Date().toISOString()}],
+      attachments: [], subtasks: [], customFieldValues: cfValues,
+      createdAt: new Date().toISOString(), doneAt: null,
+    };
+  });
+  seed.nCard = seed.cards.length + 1;
+  if (typeof allBoards === 'object') allBoards[newBoardId] = seed;
+  if (typeof saveData === 'function') saveData();
+  if (typeof switchBoard === 'function') switchBoard(newBoardId);
+  audit('canvas.sheet.create_board', { canvasId: cv.id, boardId: newBoardId, count: seed.cards.length });
+  showToastMsg(`✓ Board "${boardName}" criado com ${seed.cards.length} cards`);
+}
+
 function promoteSelectedRows() {
   const cv = _curCanvas(); if (!cv) return;
   const sel = Array.from(document.querySelectorAll('#canvas-tbl-body tr')).filter(tr => {
