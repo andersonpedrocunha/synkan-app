@@ -10024,6 +10024,8 @@ function setBoardIcon(boardId, emoji) {
 
 function duplicateBoard(id) {
   if (!allBoards[id] || id === UNIFIED_BOARD_ID) return;
+  // Gate: duplicar conta como novo board no limite do plano
+  if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('board')) return;
   const src = allBoards[id];
   const newId = _genBoardId();
   // Clona estrutura inteira (todos os cards entram, mas com ids locais frescos e sem doneAt)
@@ -10073,6 +10075,8 @@ function archiveBoard(id) {
 
 function unarchiveBoard(id) {
   if (!allBoards[id]) return;
+  // Gate: desarquivar conta como adicionar board ativo (cabe no limite?)
+  if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('board')) return;
   allBoards[id].archived = false;
   saveData();
   if (currentTab === 'boards') renderBoardsManager();
@@ -10394,10 +10398,13 @@ function _refreshUnifiedIfActive() {
 }
 
 async function newBoardFlow() {
+  // Gate ANTES do prompt: evita pedir nome pra depois bloquear no createBoard
+  if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('board')) return;
   const name = await appPrompt('Novo board', { icon:'▤', message:'Dê um nome ao seu novo board.', defaultValue:'Novo board', placeholder:'Ex: Roadmap Q3' });
   if (name === null) return;
   const v = name.trim() || 'Novo board';
   const id = createBoard({ name: v, seed: false });
+  if (!id) return;
   switchBoard(id);
 }
 
@@ -25618,11 +25625,14 @@ function closeConvertModal() {
 
 function confirmConvertToBoard() {
   const cv = _curCanvas(); if (!cv) return;
+  // Gate de plano: criar board a partir do Lab também conta no limite
+  if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('board')) return;
   const name = (document.getElementById('convert-name').value || '').trim() || cv.name || 'Board do lab';
   const summary = _convertSummary(cv);
   if (!summary.total && cv.format !== 'mindmap') { closeConvertModal(); return; }
   // Cria board com defaults; depois ajustamos colunas se for doc/plan
   const boardId = createBoard({ name });
+  if (!boardId) { closeConvertModal(); return; }
   const board = allBoards[boardId];
   // Para document/plan/note: substituir colunas pelos H2s do doc
   if (cv.format === 'document' || cv.format === 'plan' || cv.format === 'note') {
