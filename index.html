@@ -628,9 +628,10 @@ kbd{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;font-size:
 /* Boards puxados de integração externa (Granatum etc.) */
 .board-tile.is-integration{border-color:#10b981;border-width:1px;background:linear-gradient(180deg,rgba(16,185,129,.04) 0%,var(--color-background-primary) 30%);}
 .board-tile.is-integration:hover{border-color:#059669;box-shadow:0 4px 14px rgba(16,185,129,.15);}
-.board-tile-int-badge{position:absolute;top:10px;left:12px;display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:#fff;background:#10b981;padding:3px 8px 3px 6px;border-radius:999px;letter-spacing:.02em;box-shadow:0 1px 3px rgba(16,185,129,.3);}
-.board-tile-int-badge svg{flex:none;}
 .board-tile-int-stripe{position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#10b981 0%,#059669 50%,#047857 100%);border-top-left-radius:14px;border-top-right-radius:14px;}
+.board-tile-int-source{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;color:#059669;background:rgba(16,185,129,.08);padding:3px 8px 3px 5px;border-radius:999px;border:1px solid rgba(16,185,129,.25);width:fit-content;}
+.board-tile-int-source img{width:13px;height:13px;border-radius:2px;flex:none;}
+.board-tile-int-source-label{letter-spacing:.02em;}
 .board-tile-mark{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;}
 .board-tile-name{font-size:15px;font-weight:600;color:var(--color-text-primary);}
 .board-tile-name input{font-size:15px;font-weight:600;color:var(--color-text-primary);background:transparent;border:none;outline:none;padding:0;width:100%;font-family:var(--font-sans);}
@@ -9438,7 +9439,6 @@ function renderBoardsManager() {
               ondragend="bm_dragEnd(event)"
               onclick="${b.archived?'':`switchBoard('${id}')`}">
       ${isGranatum?'<div class="board-tile-int-stripe"></div>':''}
-      ${isGranatum?`<span class="board-tile-int-badge" title="Sincronizado com Granatum"><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v14M3.5 4.5h6a2.5 2.5 0 010 5H6a2.5 2.5 0 000 5h6.5"/></svg>Granatum</span>`:''}
       ${isCurrent?'<span class="board-tile-current-pill">atual</span>':''}
       ${b.archived?'<span class="board-tile-current-pill" style="background:var(--color-text-tertiary);">arquivado</span>':''}
       <span class="board-tile-mark" style="${markStyle}${isGranatum?';background:linear-gradient(135deg,#10b981,#047857);color:#fff;':''}" onclick="event.stopPropagation();openIconPicker('${id}', this);" title="Clique para trocar o ícone">${_esc(icon)}</span>
@@ -9456,7 +9456,9 @@ function renderBoardsManager() {
         <span>${done} concl.</span>
       </div>
       <div class="board-tile-meta" style="margin-top:-2px;">Atualizado em ${updated}</div>
+      ${isGranatum?`<div style="margin-top:2px;"><span class="board-tile-int-source" title="Sincronizado com Granatum"><img src="https://www.google.com/s2/favicons?sz=32&domain=granatum.com.br" alt="" onerror="this.style.display='none'"/><span class="board-tile-int-source-label">Granatum</span></span></div>`:''}
       <div class="board-tile-actions">
+
         ${b.archived
           ? `<button class="board-tile-action" onclick="event.stopPropagation();unarchiveBoard('${id}');">↩ Desarquivar</button>
              <button class="board-tile-action del" onclick="event.stopPropagation();deleteBoard('${id}');">Excluir</button>`
