@@ -11412,8 +11412,11 @@ async function _granatumLoadConfig() {
       { timeoutMs: 6000 }
     );
     _granatumConfig = (Array.isArray(rows) && rows.length) ? rows[0] : null;
+    console.log('[granatum] loadConfig:', _granatumConfig
+      ? { hasToken: !!_granatumConfig.access_token, tokenLen: (_granatumConfig.access_token||'').length, last_test_ok: _granatumConfig.last_test_ok, last_test_at: _granatumConfig.last_test_at }
+      : 'null');
   } catch(e) {
-    console.warn('[granatum] falha load:', e?.message || e);
+    console.warn('[granatum] falha load:', e?.message || e, 'status:', e?.status, 'body:', e?.body);
     _granatumConfig = null;
   }
 }
@@ -11667,6 +11670,21 @@ async function _granatumSaveAndTest() {
   if (!token) { appAlert('Cole o token primeiro'); return; }
   const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
   if (!jwt) { appAlert('Sessão expirada'); return; }
+  // 1) PRIMEIRO grava direto no Supabase via REST (não depende do backend)
+  const nowIso = new Date().toISOString();
+  let directSaveOk = false;
+  try {
+    await _capRESTCall('granatum_configs', {
+      method: 'POST',
+      body: { user_id: supaUser.id, access_token: token, updated_at: nowIso },
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      timeoutMs: 8000,
+    });
+    directSaveOk = true;
+    console.log('[granatum] save direto OK');
+  } catch(e) {
+    console.warn('[granatum] save direto falhou:', e?.message, e?.status, e?.body);
+  }
   try {
     const r = await fetch((typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/granatum/test', {
       method: 'POST',
@@ -11676,16 +11694,28 @@ async function _granatumSaveAndTest() {
     });
     const data = await r.json();
     if (r.ok && data.ok) {
-      showToastMsg('✓ Token Granatum válido');
+      // Se o save direto funcionou, garante last_test_ok também
+      if (directSaveOk) {
+        try {
+          await _capRESTCall(`granatum_configs?user_id=eq.${encodeURIComponent(supaUser.id)}`, {
+            method: 'PATCH',
+            body: { last_test_at: new Date().toISOString(), last_test_ok: true, last_test_msg: null },
+            headers: { 'Prefer': 'return=minimal' },
+            timeoutMs: 6000,
+          });
+        } catch(e) { console.warn('[granatum] patch test_ok falhou:', e?.message); }
+      }
+      showToastMsg(directSaveOk ? '✓ Token Granatum válido e salvo' : '⚠ Token válido mas não foi gravado');
       await _granatumLoadConfig();
       if (typeof renderSettings === 'function') renderSettings();
     } else {
-      // Monta diagnóstico legível se vier
       let detail = data.error || 'Verifique e tente de novo.';
       if (Array.isArray(data.diag) && data.diag.length) {
         const lines = data.diag.map(d => `• /${d.ep} (${d.mode}): ${d.ok ? 'OK' : (d.err || 'falha')}`).join('\n');
         detail += '\n\nTentativas:\n' + lines;
       }
+      if (data.save_error) detail += '\n\nSave error: ' + data.save_error;
+      if (!directSaveOk) detail += '\n\n⚠ Save direto também falhou — token NÃO foi gravado.';
       appAlert('Falha no teste Granatum', detail, { icon:'⚠️' });
       await _granatumLoadConfig();
       if (typeof renderSettings === 'function') renderSettings();
