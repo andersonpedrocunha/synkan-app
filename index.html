@@ -21072,6 +21072,7 @@ function _evalFormula(formula, sheetData, visited) {
     const value = fn(...fnNames.map(k => ctx[k]));
     return { value: value, error: null };
   } catch(e) {
+    console.warn('[sheet] formula error:', { input: formula, transformed: f, error: e.message });
     return { value: '#ERROR', error: e.message };
   }
 }
@@ -21139,7 +21140,7 @@ function renderSheetEditor() {
       </div>
       <div class="sheet-formula-bar" style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-secondary);">
         <span id="sheet-cell-ref" style="font-family:monospace;font-size:12px;font-weight:600;min-width:50px;color:var(--color-text-secondary);">A1</span>
-        <input id="sheet-formula" type="text" placeholder="Digite valor ou =FÓRMULA(...)" style="flex:1;padding:6px 10px;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:13px;font-family:monospace;background:var(--color-background-primary);" oninput="sheetOnFormulaInput(event)" onkeydown="sheetOnFormulaKey(event)"/>
+        <input id="sheet-formula" type="text" placeholder="Digite valor ou =FÓRMULA(...) — pode clicar em outras células pra adicionar referências" onfocus="sheetOnFormulaFocus()" oninput="sheetOnFormulaInput(event)" onkeydown="sheetOnFormulaKey(event)" onblur="sheetOnFormulaBlur()" style="flex:1;padding:6px 10px;border:1px solid var(--color-border-secondary);border-radius:6px;font-size:13px;font-family:monospace;background:var(--color-background-primary);"/>
       </div>
       <div class="sheet-stage" id="sheet-stage" style="overflow:auto;flex:1;background:var(--color-background-primary);"></div>
     </div>
@@ -21149,6 +21150,9 @@ function renderSheetEditor() {
 }
 
 let _sheetActiveCell = null;  // {row, col}
+// Estado de edição: quando user está digitando uma fórmula, click em outra célula
+// insere a referência (A1, B2, etc) no input em vez de trocar de célula.
+let _sheetEditing = null;  // { row, col, input, isFormulaBar }
 
 function _renderSheetGrid() {
   const cv = _curCanvas(); if (!cv) return;
@@ -21194,7 +21198,8 @@ function _renderSheetGrid() {
       if (st.align) cssParts.push(`text-align:${st.align}`);
       const cellStyle = cssParts.join(';');
       const isError = String(display).startsWith('#');
-      html += `<td class="sheet-cell" data-row="${ri}" data-col="${ci}" onclick="sheetClickCell(${ri},${ci})" ondblclick="sheetEditCell(${ri},${ci})" style="border:1px solid var(--color-border-secondary);padding:4px 8px;cursor:cell;height:26px;${cellStyle};${isError?'color:#A32D2D;font-style:italic;':''}">${_esc(String(display))}</td>`;
+      const errMsg = (evalRes.error ? `Erro: ${evalRes.error}\nFórmula: ${cell}` : '');
+      html += `<td class="sheet-cell" data-row="${ri}" data-col="${ci}" onclick="sheetClickCell(${ri},${ci})" ondblclick="sheetEditCell(${ri},${ci})" ${errMsg ? `title="${_esc(errMsg)}"` : ''} style="border:1px solid var(--color-border-secondary);padding:4px 8px;cursor:cell;height:26px;${cellStyle};${isError?'color:#A32D2D;font-style:italic;':''}">${_esc(String(display))}</td>`;
     });
     html += `</tr>`;
   });
@@ -21235,8 +21240,17 @@ function _attachSheetResizers() {
 }
 
 function sheetClickCell(row, col) {
-  // Remove active da anterior
+  // Se está editando fórmula, click insere referência (estilo Excel/Google Sheets)
+  if (_sheetInFormulaMode()) {
+    // Não trocar a célula ativa, só inserir ref no input
+    if (_sheetEditing) _sheetEditing._absorbingClick = true;
+    _sheetInsertRefInInput(row, col);
+    setTimeout(() => { if (_sheetEditing) _sheetEditing._absorbingClick = false; }, 0);
+    return;
+  }
+  // Comportamento normal: troca célula ativa
   document.querySelectorAll('.sheet-cell-active').forEach(td => td.classList.remove('sheet-cell-active'));
+  document.querySelectorAll('.sheet-ref-highlight').forEach(td => { td.classList.remove('sheet-ref-highlight'); td.style.boxShadow = ''; });
   _sheetActiveCell = { row, col };
   const td = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
   if (td) td.classList.add('sheet-cell-active');
@@ -21259,15 +21273,107 @@ function sheetEditCell(row, col) {
   inp.value = String(cell);
   inp.style.cssText = 'width:100%;border:0;background:#fff8d8;outline:none;padding:0;font:inherit;color:inherit;';
   inp.onkeydown = e => {
-    if (e.key === 'Enter') { _sheetCommitEdit(row, col, inp.value); _sheetMoveActive(1, 0); }
-    else if (e.key === 'Tab') { e.preventDefault(); _sheetCommitEdit(row, col, inp.value); _sheetMoveActive(0, 1); }
-    else if (e.key === 'Escape') { _renderSheetGrid(); }
+    if (e.key === 'Enter') { _sheetEndEdit(); _sheetCommitEdit(row, col, inp.value); _sheetMoveActive(1, 0); }
+    else if (e.key === 'Tab') { e.preventDefault(); _sheetEndEdit(); _sheetCommitEdit(row, col, inp.value); _sheetMoveActive(0, 1); }
+    else if (e.key === 'Escape') { _sheetEndEdit(); _renderSheetGrid(); }
   };
-  inp.onblur = () => { _sheetCommitEdit(row, col, inp.value); };
+  inp.onblur = () => {
+    // blur pode ser causado por click em outra célula (fórmula em modo seleção).
+    // Se estamos em modo fórmula e o blur veio de click em célula, NÃO commit.
+    if (_sheetEditing && _sheetEditing._absorbingClick) return;
+    _sheetEndEdit();
+    _sheetCommitEdit(row, col, inp.value);
+  };
+  // Sincroniza valor com formula bar enquanto digita
+  inp.oninput = () => {
+    const fb = document.getElementById('sheet-formula');
+    if (fb) fb.value = inp.value;
+    _sheetUpdateRefHighlights(inp.value);
+  };
   td.innerHTML = '';
   td.appendChild(inp);
+  _sheetEditing = { row, col, input: inp, isFormulaBar: false };
   inp.focus();
   inp.select();
+  _sheetUpdateRefHighlights(inp.value);
+}
+
+function _sheetEndEdit() {
+  _sheetEditing = null;
+  document.querySelectorAll('.sheet-ref-highlight').forEach(td => td.classList.remove('sheet-ref-highlight'));
+}
+
+// Verifica se o input atual está em modo fórmula (começa com =)
+function _sheetInFormulaMode() {
+  if (!_sheetEditing) return false;
+  const v = _sheetEditing.input?.value || '';
+  return v.startsWith('=');
+}
+
+// Insere uma referência (ex: "B5") na posição do cursor do input atual.
+// Se a posição imediatamente antes do cursor já tem uma referência válida,
+// SUBSTITUI ela (pra suportar "clicar várias vezes em células diferentes").
+function _sheetInsertRefInInput(row, col) {
+  if (!_sheetEditing) return;
+  const inp = _sheetEditing.input;
+  if (!inp) return;
+  const ref = _colToLetter(col) + (row + 1);
+  let val = inp.value;
+  let pos = inp.selectionStart;
+  // Detecta se o último token antes do cursor é uma ref pra substituir
+  const before = val.slice(0, pos);
+  const refMatch = before.match(/[A-Z]+\d+$/);
+  if (refMatch) {
+    // Substitui a última ref
+    const start = before.length - refMatch[0].length;
+    val = val.slice(0, start) + ref + val.slice(pos);
+    pos = start + ref.length;
+  } else {
+    // Insere na posição
+    val = val.slice(0, pos) + ref + val.slice(pos);
+    pos = pos + ref.length;
+  }
+  inp.value = val;
+  inp.setSelectionRange(pos, pos);
+  // Sincroniza com formula bar
+  const fb = document.getElementById('sheet-formula');
+  if (fb && !_sheetEditing.isFormulaBar) fb.value = val;
+  _sheetUpdateRefHighlights(val);
+  // Re-foca o input pra continuar digitando
+  inp.focus();
+}
+
+// Destaca todas as células referenciadas no input atual com borda colorida (estilo Excel)
+function _sheetUpdateRefHighlights(value) {
+  document.querySelectorAll('.sheet-ref-highlight').forEach(td => td.classList.remove('sheet-ref-highlight'));
+  if (!value || !value.startsWith('=')) return;
+  const colors = ['#2D6CDF','#1FAD5C','#FF7373','#FFA500','#9854D0'];
+  let colorIdx = 0;
+  // Ranges
+  const seen = new Set();
+  value.replace(/([A-Z]+)(\d+):([A-Z]+)(\d+)/g, (_, c1, r1, c2, r2) => {
+    const col1 = _letterToCol(c1), col2 = _letterToCol(c2);
+    const row1 = parseInt(r1)-1, row2 = parseInt(r2)-1;
+    const color = colors[colorIdx++ % colors.length];
+    for (let r = Math.min(row1,row2); r <= Math.max(row1,row2); r++) {
+      for (let c = Math.min(col1,col2); c <= Math.max(col1,col2); c++) {
+        const key = `${r},${c}`; if (seen.has(key)) continue; seen.add(key);
+        const td = document.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+        if (td) { td.classList.add('sheet-ref-highlight'); td.style.boxShadow = `inset 0 0 0 2px ${color}`; }
+      }
+    }
+    return _;
+  });
+  // Refs únicas
+  value.replace(/\b([A-Z]+)(\d+)\b/g, (m, c, r) => {
+    const col = _letterToCol(c), row = parseInt(r)-1;
+    const key = `${row},${col}`; if (seen.has(key)) return m;
+    seen.add(key);
+    const color = colors[colorIdx++ % colors.length];
+    const td = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+    if (td) { td.classList.add('sheet-ref-highlight'); td.style.boxShadow = `inset 0 0 0 2px ${color}`; }
+    return m;
+  });
 }
 
 function _sheetCommitEdit(row, col, value) {
@@ -21287,6 +21393,14 @@ function _sheetMoveActive(dr, dc) {
   setTimeout(() => sheetClickCell(newR, newC), 0);
 }
 
+function sheetOnFormulaFocus() {
+  if (!_sheetActiveCell) return;
+  const fb = document.getElementById('sheet-formula');
+  if (!fb) return;
+  // Marca como em edição via formula bar — clicks em células viram refs
+  _sheetEditing = { row: _sheetActiveCell.row, col: _sheetActiveCell.col, input: fb, isFormulaBar: true };
+  _sheetUpdateRefHighlights(fb.value);
+}
 function sheetOnFormulaInput(e) {
   if (!_sheetActiveCell) return;
   const cv = _curCanvas(); if (!cv) return;
@@ -21294,9 +21408,18 @@ function sheetOnFormulaInput(e) {
   while (cv.sheetData.rows.length <= row) cv.sheetData.rows.push(Array(cv.sheetData.columns.length).fill(''));
   cv.sheetData.rows[row][col] = e.target.value;
   cv.updatedAt = new Date().toISOString();
+  _sheetUpdateRefHighlights(e.target.value);
 }
 function sheetOnFormulaKey(e) {
-  if (e.key === 'Enter') { _scheduleSaveCanvases(); _renderSheetGrid(); }
+  if (e.key === 'Enter') { _sheetEndEdit(); _scheduleSaveCanvases(); _renderSheetGrid(); }
+  else if (e.key === 'Escape') { _sheetEndEdit(); _renderSheetGrid(); }
+}
+function sheetOnFormulaBlur() {
+  // Se blur foi causado por click em célula (modo fórmula), não termina edit
+  if (_sheetEditing && _sheetEditing._absorbingClick) return;
+  _sheetEndEdit();
+  _scheduleSaveCanvases();
+  _renderSheetGrid();
 }
 
 function sheetAddRow() {
