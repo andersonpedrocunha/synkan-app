@@ -3490,6 +3490,7 @@ body.density-compact .col{padding:7px;}
 .sheet-table{user-select:none;}
 .sheet-cell{user-select:none;transition:none;}
 .sheet-cell-active{outline:2px solid #2D6CDF !important;outline-offset:-2px;position:relative;z-index:1;}
+.sheet-fill-preview{outline:2px dashed #2D6CDF !important;outline-offset:-2px;background:rgba(45,108,223,0.06) !important;}
 .sheet-cell:hover{background:rgba(45,108,223,0.04);}
 .sheet-cell-active:hover{background:initial;}
 .sheet-stage{position:relative;}
@@ -20062,7 +20063,7 @@ const CANVAS_FORMAT_META = {
   mindmap:  { label: 'Mapa de Ideias', icon: '🌿', desc: 'Cards conectados com status (ideia → aprovado → pronto). Não é um whiteboard.' },
   document: { label: 'Documento',     icon: '📝', desc: 'Editor com formatação completa. Bullets viram cards, H2 viram colunas.' },
   table:    { label: 'Tabela',        icon: '📊', desc: 'Linhas com prioridade e responsável. Cada linha vira card.' },
-  sheet:    { label: 'Sheet',         icon: '🧮', desc: 'Planilha completa estilo Airtable. Fórmulas, formatação de células, 200+ funções (SUM, AVG, IF, VLOOKUP). Mestre Kan ajuda a montar. Pode virar board.' },
+  sheet:    { label: 'Planilha',      icon: '🔢', desc: 'Planilha completa estilo Airtable. Fórmulas (SUM, MEDIA, SE, etc.), formatação de células, atalhos de teclado, range selection com soma/média/contagem na barra inferior. Mestre Kan ajuda a montar. Pode virar board.' },
   plan:     { label: 'Plano de Ação', icon: '🎯', desc: 'Pré-preenchido com objetivo, etapas, responsáveis e riscos.' },
   invest:   { label: 'Invest-Lab',    icon: '財', desc: 'Simule cenários financeiros antes de aplicar. Adicione, remova ou modifique custos/receitas — veja o impacto no runway antes de mexer no board real. Quando aprovar, o cenário vira realidade.' },
 };
@@ -21112,7 +21113,7 @@ function renderSheetEditor() {
     <div class="canvas-editor">
       <div class="canvas-toolbar" style="flex-wrap:wrap;">
         <button class="ct-back" onclick="closeCanvas()">← Lab</button>
-        <span style="font-size:18px;line-height:1;">🧮</span>
+        <span style="font-size:18px;line-height:1;">🔢</span>
         <input class="ct-name" id="canvas-name-input" value="${_esc(cv.name)}" oninput="onCanvasNameInput(this.value)" />
         <span class="ct-sep"></span>
         <button class="ct-btn" onclick="sheetAddRow()">+ Linha</button>
@@ -21133,6 +21134,11 @@ function renderSheetEditor() {
         <button class="ct-btn" onclick="sheetSetStyle('align','center')" title="Centralizar">⇔</button>
         <button class="ct-btn" onclick="sheetSetStyle('align','right')" title="Alinhar à direita">⇥</button>
         <button class="ct-btn" onclick="sheetClearStyle()" title="Limpar formatação">🧹</button>
+        <span class="ct-sep"></span>
+        <button class="ct-btn" onclick="sheetSetType('select')" title="Lista suspensa nas células selecionadas">📋 Lista</button>
+        <button class="ct-btn" onclick="sheetSetType('checkbox')" title="Checkbox nas células selecionadas">☑ Check</button>
+        <button class="ct-btn" onclick="sheetSetNote()" title="Adicionar nota à célula ativa">📝 Nota</button>
+        <button class="ct-btn" onclick="sheetClearType()" title="Voltar pra texto normal">↺</button>
         <span class="ct-sep"></span>
         <button class="ct-btn" onclick="openAISheetGen()" title="Mestre Kan gera dados pra você" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Mestre Kan</button>
         <span class="ct-sep"></span>
@@ -21172,6 +21178,23 @@ function _sheetWireKeyboard() {
     // Undo/redo
     if (cmd && e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); sheetUndo(); return; }
     if (cmd && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); sheetRedo(); return; }
+    // Copy / Cut / Paste
+    if (cmd && e.key.toLowerCase() === 'c') { e.preventDefault(); _sheetCopy(); return; }
+    if (cmd && e.key.toLowerCase() === 'x') { e.preventDefault(); _sheetCut(); return; }
+    if (cmd && e.key.toLowerCase() === 'v') { e.preventDefault(); _sheetPaste(); return; }
+    // Select all (Cmd+A) — seleciona toda a planilha
+    if (cmd && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      const cv = _curCanvas(); if (cv) {
+        _sheetSelection = {
+          startRow: 0, startCol: 0,
+          endRow: cv.sheetData.rows.length - 1,
+          endCol: cv.sheetData.columns.length - 1,
+        };
+        _renderSheetGrid(); _sheetUpdateStatusBar();
+      }
+      return;
+    }
     // Delete / Backspace: limpa células selecionadas
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); _sheetClearSelection(); return; }
     // Arrow keys: move (Shift+Arrow extend, sem shift = move)
@@ -21199,6 +21222,105 @@ function _sheetWireKeyboard() {
   };
   stage.addEventListener('keydown', stage._sheetKeyHandler);
   stage.focus();
+}
+
+// Helper: pega os bounds da seleção (range ou célula ativa)
+function _sheetGetSelectionBounds() {
+  if (_sheetSelection) {
+    return {
+      r1: Math.min(_sheetSelection.startRow, _sheetSelection.endRow),
+      r2: Math.max(_sheetSelection.startRow, _sheetSelection.endRow),
+      c1: Math.min(_sheetSelection.startCol, _sheetSelection.endCol),
+      c2: Math.max(_sheetSelection.startCol, _sheetSelection.endCol),
+    };
+  }
+  if (_sheetActiveCell) {
+    return { r1: _sheetActiveCell.row, r2: _sheetActiveCell.row, c1: _sheetActiveCell.col, c2: _sheetActiveCell.col };
+  }
+  return null;
+}
+
+// Ajusta refs relativas de uma fórmula em (dr, dc). Útil pra fill handle.
+function _adjustFormulaRefs(formula, dr, dc) {
+  if (typeof formula !== 'string' || !formula.startsWith('=')) return formula;
+  return formula.replace(/\b([A-Z]+)(\d+)\b/g, (m, c, r) => {
+    const newCol = _letterToCol(c) + dc;
+    const newRow = parseInt(r) - 1 + dr;
+    if (newCol < 0 || newRow < 0) return m;
+    return _colToLetter(newCol) + (newRow + 1);
+  });
+}
+
+// Copy: pega bounds, monta TSV, escreve no clipboard
+async function _sheetCopy() {
+  const cv = _curCanvas(); if (!cv) return;
+  const b = _sheetGetSelectionBounds(); if (!b) return;
+  const lines = [];
+  for (let r = b.r1; r <= b.r2; r++) {
+    const row = [];
+    for (let c = b.c1; c <= b.c2; c++) {
+      const v = cv.sheetData.rows[r]?.[c] ?? '';
+      // Escapa tabs e newlines no valor (substitui por espaço)
+      row.push(String(v).replace(/[\t\n]/g, ' '));
+    }
+    lines.push(row.join('\t'));
+  }
+  const text = lines.join('\n');
+  try { await navigator.clipboard.writeText(text); showToastMsg('✓ Copiado'); }
+  catch(e) { console.warn('[sheet] copy failed:', e); }
+}
+
+// Cut: copia + apaga
+async function _sheetCut() {
+  await _sheetCopy();
+  _sheetClearSelection();
+}
+
+// Paste: lê do clipboard como TSV, aplica a partir da célula ativa
+async function _sheetPaste() {
+  const cv = _curCanvas(); if (!cv) return;
+  if (!_sheetActiveCell) return;
+  let text = '';
+  try { text = await navigator.clipboard.readText(); }
+  catch(e) { showToastMsg('Permissão de clipboard negada'); return; }
+  if (!text) return;
+  _sheetPushHistory();
+  const lines = text.replace(/\r/g,'').split('\n');
+  // Remove última linha vazia (comum em copies de Excel/Sheets)
+  if (lines.length && lines[lines.length-1] === '') lines.pop();
+  const startRow = _sheetActiveCell.row;
+  const startCol = _sheetActiveCell.col;
+  let maxC = startCol;
+  lines.forEach((line, dr) => {
+    const cells = line.split('\t');
+    cells.forEach((val, dc) => {
+      const r = startRow + dr;
+      const c = startCol + dc;
+      // Expande grid se necessário
+      while (cv.sheetData.rows.length <= r) {
+        cv.sheetData.rows.push(Array(cv.sheetData.columns.length).fill(''));
+      }
+      while (cv.sheetData.columns.length <= c) {
+        cv.sheetData.columns.push({ title: 'Coluna ' + (cv.sheetData.columns.length+1), width: SHEET_DEFAULT_COL_WIDTH });
+        // Adiciona célula vazia pra cada row existente
+        cv.sheetData.rows.forEach(r2 => { while (r2.length < cv.sheetData.columns.length) r2.push(''); });
+      }
+      cv.sheetData.rows[r][c] = val;
+      if (c > maxC) maxC = c;
+    });
+  });
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  // Atualiza seleção pra cobrir o range pasted
+  if (lines.length > 1 || maxC > startCol) {
+    _sheetSelection = {
+      startRow: startRow, startCol: startCol,
+      endRow: startRow + lines.length - 1, endCol: maxC,
+    };
+  }
+  _renderSheetGrid();
+  _sheetUpdateStatusBar();
+  showToastMsg(`✓ Colado (${lines.length} linhas)`);
 }
 
 // Limpa o conteúdo das células selecionadas (Delete/Backspace)
@@ -21375,6 +21497,10 @@ function _renderSheetGrid() {
       const cellStyle = cssParts.join(';');
       const isError = String(display).startsWith('#');
       const errMsg = (evalRes.error ? `Erro: ${evalRes.error}\nFórmula: ${cell}` : '');
+      // Cell type config (select, checkbox, nota)
+      const cellType = (sd.cellTypes || {})[styleKey] || {};
+      const noteMsg = cellType.note ? `Nota: ${cellType.note}` : '';
+      const titleMsg = errMsg || noteMsg;
       // Está dentro do range selecionado?
       let inRange = false;
       if (_sheetSelection) {
@@ -21385,7 +21511,23 @@ function _renderSheetGrid() {
         inRange = (ri >= r1 && ri <= r2 && ci >= c1 && ci <= c2);
       }
       const rangeBg = inRange ? 'background:rgba(45,108,223,0.10);' : '';
-      html += `<td class="sheet-cell${inRange?' sheet-cell-in-range':''}" data-row="${ri}" data-col="${ci}" onmousedown="sheetCellMouseDown(event, ${ri},${ci})" onmousemove="sheetCellMouseMove(event, ${ri},${ci})" onmouseup="sheetCellMouseUp(event, ${ri},${ci})" ondblclick="sheetEditCell(${ri},${ci})" ${errMsg ? `title="${_esc(errMsg)}"` : ''} style="border:1px solid var(--color-border-secondary);padding:4px 8px;cursor:cell;height:26px;${rangeBg}${cellStyle};${isError?'color:#A32D2D;font-style:italic;':''}">${_esc(String(display))}</td>`;
+      // Indicador visual de nota (triângulo amarelo no canto)
+      const noteMarker = cellType.note ? `<span class="sheet-note-marker" style="position:absolute;top:0;right:0;width:0;height:0;border-style:solid;border-width:0 6px 6px 0;border-color:transparent #f5b400 transparent transparent;pointer-events:none;"></span>` : '';
+      // Render por tipo
+      let cellInner = '';
+      if (cellType.type === 'checkbox') {
+        const checked = (cell === 'true' || cell === true);
+        cellInner = `<input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();sheetToggleCheckbox(${ri},${ci})" style="cursor:pointer;margin:0;"/>`;
+      } else if (cellType.type === 'select') {
+        const opts = cellType.options || [];
+        cellInner = `<select onchange="sheetSetSelectValue(${ri},${ci},this.value)" onclick="event.stopPropagation()" style="border:0;background:transparent;font:inherit;color:inherit;width:100%;padding:0;outline:none;cursor:pointer;">
+          <option value="">—</option>
+          ${opts.map(o => `<option value="${_esc(o)}" ${String(cell)===o?'selected':''}>${_esc(o)}</option>`).join('')}
+        </select>`;
+      } else {
+        cellInner = _esc(String(display));
+      }
+      html += `<td class="sheet-cell${inRange?' sheet-cell-in-range':''}" data-row="${ri}" data-col="${ci}" onmousedown="sheetCellMouseDown(event, ${ri},${ci})" onmousemove="sheetCellMouseMove(event, ${ri},${ci})" onmouseup="sheetCellMouseUp(event, ${ri},${ci})" ondblclick="sheetEditCell(${ri},${ci})" ${titleMsg ? `title="${_esc(titleMsg)}"` : ''} style="border:1px solid var(--color-border-secondary);padding:4px 8px;cursor:cell;height:26px;position:relative;${rangeBg}${cellStyle};${isError?'color:#A32D2D;font-style:italic;':''}">${cellInner}${noteMarker}</td>`;
     });
     html += `</tr>`;
   });
@@ -21397,6 +21539,121 @@ function _renderSheetGrid() {
     const td = stage.querySelector(`td[data-row="${_sheetActiveCell.row}"][data-col="${_sheetActiveCell.col}"]`);
     if (td) td.classList.add('sheet-cell-active');
   }
+  _attachSheetFillHandle();
+}
+
+// Anexa o "fill handle" (quadradinho azul) na célula/range ativo
+function _attachSheetFillHandle() {
+  // Remove handle antigo
+  document.querySelectorAll('.sheet-fill-handle').forEach(h => h.remove());
+  const b = _sheetGetSelectionBounds();
+  if (!b) return;
+  // Última célula do range (canto inferior direito)
+  const td = document.querySelector(`td[data-row="${b.r2}"][data-col="${b.c2}"]`);
+  if (!td) return;
+  const handle = document.createElement('div');
+  handle.className = 'sheet-fill-handle';
+  handle.style.cssText = 'position:absolute;width:8px;height:8px;background:#2D6CDF;border:1.5px solid #fff;border-radius:1px;cursor:crosshair;z-index:5;box-shadow:0 0 0 1px rgba(0,0,0,.2);';
+  handle.onmousedown = e => _sheetStartFillDrag(e, b);
+  // Posiciona absoluto no canto inferior direito da célula
+  td.style.position = 'relative';
+  handle.style.right = '-4px';
+  handle.style.bottom = '-4px';
+  td.appendChild(handle);
+}
+
+let _sheetFillDrag = null;  // { sourceBounds, currentTarget }
+
+function _sheetStartFillDrag(e, sourceBounds) {
+  e.preventDefault(); e.stopPropagation();
+  _sheetFillDrag = { source: sourceBounds, target: { ...sourceBounds } };
+  document.body.style.cursor = 'crosshair';
+  const stage = document.getElementById('sheet-stage');
+  const onMove = ev => {
+    const td = document.elementFromPoint(ev.clientX, ev.clientY);
+    if (!td || !td.classList.contains('sheet-cell')) return;
+    const r = parseInt(td.dataset.row);
+    const c = parseInt(td.dataset.col);
+    if (isNaN(r) || isNaN(c)) return;
+    _sheetFillDrag.target = {
+      r1: Math.min(sourceBounds.r1, r),
+      r2: Math.max(sourceBounds.r2, r),
+      c1: Math.min(sourceBounds.c1, c),
+      c2: Math.max(sourceBounds.c2, c),
+    };
+    _renderFillPreview();
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.style.cursor = '';
+    if (_sheetFillDrag) {
+      _sheetApplyFill(_sheetFillDrag.source, _sheetFillDrag.target);
+      _sheetFillDrag = null;
+      _clearFillPreview();
+    }
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function _renderFillPreview() {
+  _clearFillPreview();
+  if (!_sheetFillDrag) return;
+  const t = _sheetFillDrag.target;
+  for (let r = t.r1; r <= t.r2; r++) {
+    for (let c = t.c1; c <= t.c2; c++) {
+      const td = document.querySelector(`td[data-row="${r}"][data-col="${c}"]`);
+      if (td) td.classList.add('sheet-fill-preview');
+    }
+  }
+}
+function _clearFillPreview() {
+  document.querySelectorAll('.sheet-fill-preview').forEach(td => td.classList.remove('sheet-fill-preview'));
+}
+
+// Aplica o fill: pega valores do source, replica/ajusta no target
+function _sheetApplyFill(source, target) {
+  const cv = _curCanvas(); if (!cv) return;
+  const sd = cv.sheetData;
+  // Se target é o mesmo do source, não faz nada
+  if (target.r1 === source.r1 && target.r2 === source.r2 && target.c1 === source.c1 && target.c2 === source.c2) return;
+  _sheetPushHistory();
+  // Calcula offset (em qual direção foi)
+  const sourceWidth = source.c2 - source.c1 + 1;
+  const sourceHeight = source.r2 - source.r1 + 1;
+  // Garante grid expandido
+  while (sd.rows.length <= target.r2) sd.rows.push(Array(sd.columns.length).fill(''));
+  while (sd.columns.length <= target.c2) {
+    sd.columns.push({ title: 'Coluna ' + (sd.columns.length+1), width: SHEET_DEFAULT_COL_WIDTH });
+    sd.rows.forEach(r2 => { while (r2.length < sd.columns.length) r2.push(''); });
+  }
+  // Para cada célula no target, copia o equivalente no source ajustando refs
+  for (let r = target.r1; r <= target.r2; r++) {
+    for (let c = target.c1; c <= target.c2; c++) {
+      // Pula células que já estão no source
+      if (r >= source.r1 && r <= source.r2 && c >= source.c1 && c <= source.c2) continue;
+      // Calcula qual célula source replicar
+      const srcR = source.r1 + ((r - source.r1) % sourceHeight + sourceHeight) % sourceHeight;
+      const srcC = source.c1 + ((c - source.c1) % sourceWidth + sourceWidth) % sourceWidth;
+      const safeSrcR = Math.max(source.r1, Math.min(source.r2, srcR));
+      const safeSrcC = Math.max(source.c1, Math.min(source.c2, srcC));
+      const srcVal = sd.rows[safeSrcR]?.[safeSrcC] ?? '';
+      // Se for fórmula, ajusta refs relativas
+      const dr = r - safeSrcR;
+      const dc = c - safeSrcC;
+      const newVal = (typeof srcVal === 'string' && srcVal.startsWith('='))
+        ? _adjustFormulaRefs(srcVal, dr, dc)
+        : srcVal;
+      sd.rows[r][c] = newVal;
+    }
+  }
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  // Atualiza seleção pra cobrir o target inteiro
+  _sheetSelection = { startRow: target.r1, startCol: target.c1, endRow: target.r2, endCol: target.c2 };
+  _renderSheetGrid();
+  _sheetUpdateStatusBar();
 }
 
 function _attachSheetResizers() {
@@ -21711,6 +21968,110 @@ function sheetClearStyle() {
   const key = `${_sheetActiveCell.row},${_sheetActiveCell.col}`;
   delete cv.sheetData.styles[key];
   cv.updatedAt = new Date().toISOString(); _scheduleSaveCanvases();
+  _renderSheetGrid();
+}
+
+// ── Cell types (Lista suspensa, Checkbox, Nota) ───────────────────────
+async function sheetSetType(type) {
+  const cv = _curCanvas(); if (!cv) return;
+  if (!cv.sheetData.cellTypes) cv.sheetData.cellTypes = {};
+  const b = _sheetGetSelectionBounds();
+  if (!b) { appAlert('Selecione células', 'Clique numa célula ou range primeiro.', { icon:'ℹ️' }); return; }
+  if (type === 'select') {
+    const optsTxt = await appPrompt('Lista suspensa', {
+      icon: '📋',
+      message: 'Digite as opções separadas por vírgula. Ex: Pendente, Em andamento, Concluído',
+      placeholder: 'Opção 1, Opção 2, Opção 3',
+      defaultValue: 'Pendente, Em andamento, Concluído',
+    });
+    if (!optsTxt) return;
+    const options = optsTxt.split(',').map(s => s.trim()).filter(Boolean);
+    if (!options.length) return;
+    _sheetPushHistory();
+    for (let r = b.r1; r <= b.r2; r++) {
+      for (let c = b.c1; c <= b.c2; c++) {
+        const k = `${r},${c}`;
+        cv.sheetData.cellTypes[k] = { type: 'select', options };
+      }
+    }
+  } else if (type === 'checkbox') {
+    _sheetPushHistory();
+    for (let r = b.r1; r <= b.r2; r++) {
+      for (let c = b.c1; c <= b.c2; c++) {
+        const k = `${r},${c}`;
+        cv.sheetData.cellTypes[k] = { type: 'checkbox' };
+        // Inicializa com false se vazio
+        if (!cv.sheetData.rows[r]) cv.sheetData.rows[r] = Array(cv.sheetData.columns.length).fill('');
+        if (!cv.sheetData.rows[r][c]) cv.sheetData.rows[r][c] = 'false';
+      }
+    }
+  }
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  _renderSheetGrid();
+}
+
+async function sheetSetNote() {
+  const cv = _curCanvas(); if (!cv) return;
+  if (!_sheetActiveCell) return;
+  if (!cv.sheetData.cellTypes) cv.sheetData.cellTypes = {};
+  const k = `${_sheetActiveCell.row},${_sheetActiveCell.col}`;
+  const existing = cv.sheetData.cellTypes[k]?.note || '';
+  const note = await appPrompt('Nota da célula', {
+    icon: '📝',
+    message: 'Texto que aparece no tooltip da célula. Deixe vazio pra remover a nota.',
+    defaultValue: existing,
+    placeholder: 'Ex: Verificar com financeiro',
+  });
+  if (note === null) return;
+  _sheetPushHistory();
+  // Mantém o type existente se houver, só atualiza nota
+  const cur = cv.sheetData.cellTypes[k] || {};
+  if (note.trim()) {
+    cv.sheetData.cellTypes[k] = { ...cur, note: note.trim() };
+  } else {
+    if (cur.note) delete cur.note;
+    if (Object.keys(cur).length === 0) delete cv.sheetData.cellTypes[k];
+    else cv.sheetData.cellTypes[k] = cur;
+  }
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  _renderSheetGrid();
+}
+
+function sheetClearType() {
+  const cv = _curCanvas(); if (!cv) return;
+  if (!cv.sheetData.cellTypes) return;
+  const b = _sheetGetSelectionBounds();
+  if (!b) return;
+  _sheetPushHistory();
+  for (let r = b.r1; r <= b.r2; r++) {
+    for (let c = b.c1; c <= b.c2; c++) {
+      delete cv.sheetData.cellTypes[`${r},${c}`];
+    }
+  }
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  _renderSheetGrid();
+}
+
+// Toggle de checkbox (chamado pelo onchange)
+function sheetToggleCheckbox(row, col) {
+  const cv = _curCanvas(); if (!cv) return;
+  _sheetPushHistory();
+  const cur = cv.sheetData.rows[row]?.[col];
+  cv.sheetData.rows[row][col] = (cur === 'true' || cur === true) ? 'false' : 'true';
+  cv.updatedAt = new Date().toISOString();
+  _scheduleSaveCanvases();
+  _renderSheetGrid();
+}
+// Onchange do select
+function sheetSetSelectValue(row, col, value) {
+  const cv = _curCanvas(); if (!cv) return;
+  _sheetPushHistory();
+  cv.sheetData.rows[row][col] = value;
+  cv.updatedAt = new Date().toISOString();
+  _scheduleSaveCanvases();
   _renderSheetGrid();
 }
 
