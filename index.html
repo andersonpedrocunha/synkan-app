@@ -12093,13 +12093,32 @@ async function _granatumOpenImportModal() {
       </select>
     </div>
     <div class="profile-field">
-      <label>Período</label>
-      <select id="gra-import-period" style="font-size:14px;">
-        <option value="30">Últimos 30 dias</option>
-        <option value="90" selected>Últimos 90 dias</option>
-        <option value="180">Últimos 180 dias</option>
-        <option value="365">Último ano</option>
-      </select>
+      <label>Janela de tempo</label>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;">
+          <label style="font-size:11px;color:var(--color-text-tertiary);">Passado</label>
+          <select id="gra-import-past" style="font-size:14px;width:100%;">
+            <option value="0">Nenhum</option>
+            <option value="30">30 dias</option>
+            <option value="90" selected>90 dias</option>
+            <option value="180">180 dias</option>
+            <option value="365">1 ano</option>
+            <option value="730">2 anos</option>
+          </select>
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:11px;color:var(--color-text-tertiary);">Futuro</label>
+          <select id="gra-import-future" style="font-size:14px;width:100%;">
+            <option value="0">Nenhum</option>
+            <option value="30" selected>30 dias</option>
+            <option value="60">60 dias</option>
+            <option value="90">90 dias</option>
+            <option value="180">180 dias</option>
+            <option value="365">1 ano</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:4px;">Cobre desde X dias atrás até Y dias à frente do vencimento.</div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
       <button class="app-dialog-btn" onclick="_appDialogClose(null)">Cancelar</button>
@@ -12112,7 +12131,8 @@ async function _granatumOpenImportModal() {
 async function _granatumDoImport() {
   const boardName = (document.getElementById('gra-import-name')?.value || '').trim() || 'Financeiro · Granatum';
   const tipo = document.getElementById('gra-import-tipo')?.value || 'ambos';
-  const periodDays = parseInt(document.getElementById('gra-import-period')?.value || '90', 10);
+  const pastDays = parseInt(document.getElementById('gra-import-past')?.value || '90', 10);
+  const futureDays = parseInt(document.getElementById('gra-import-future')?.value || '30', 10);
   const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
   if (!jwt) return;
   if (typeof _appDialogClose === 'function') _appDialogClose(true);
@@ -12120,10 +12140,15 @@ async function _granatumDoImport() {
   try {
     const filters = { limit: 200 };
     if (tipo !== 'ambos') filters.tipo = tipo;
-    if (periodDays) {
-      const from = new Date(Date.now() - periodDays*86400000);
+    if (pastDays > 0) {
+      const from = new Date(Date.now() - pastDays*86400000);
       filters.data_vencimento_gte = from.toISOString().slice(0,10);
     }
+    if (futureDays > 0) {
+      const to = new Date(Date.now() + futureDays*86400000);
+      filters.data_vencimento_lte = to.toISOString().slice(0,10);
+    }
+    const periodDays = pastDays + futureDays; // pra granatum_filter (compat)
     const r = await fetch((typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/granatum/import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
@@ -12133,7 +12158,7 @@ async function _granatumDoImport() {
     const data = await r.json();
     if (!r.ok || !data.ok) { appAlert('Falha na importação', data.error || `HTTP ${r.status}`, {icon:'⚠️'}); return; }
     // Cria o board localmente com os lançamentos retornados
-    await _granatumCreateBoardFromLancamentos(boardName, data.lancamentos || [], { tipo, periodDays });
+    await _granatumCreateBoardFromLancamentos(boardName, data.lancamentos || [], { tipo, periodDays, pastDays, futureDays });
     showToastMsg(`✓ Board "${boardName}" criado com ${data.lancamentos_count || 0} cards`);
   } catch(e) {
     appAlert('Erro de conexão', e?.message || String(e), { icon:'⚠️' });
@@ -12230,10 +12255,15 @@ async function _granatumResyncMetadata() {
   try {
     // Pega filtros do board pra puxar o mesmo período
     const filters = {};
-    const periodDays = b.granatum_filter?.periodDays || 365;
-    if (periodDays) {
-      const from = new Date(Date.now() - periodDays*86400000);
+    const pastD = b.granatum_filter?.pastDays != null ? b.granatum_filter.pastDays : (b.granatum_filter?.periodDays || 365);
+    const futD  = b.granatum_filter?.futureDays != null ? b.granatum_filter.futureDays : 30;
+    if (pastD > 0) {
+      const from = new Date(Date.now() - pastD*86400000);
       filters.data_vencimento_gte = from.toISOString().slice(0,10);
+    }
+    if (futD > 0) {
+      const to = new Date(Date.now() + futD*86400000);
+      filters.data_vencimento_lte = to.toISOString().slice(0,10);
     }
     filters.limit = 200;
     const r = await fetch((typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/granatum/import', {
