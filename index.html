@@ -9428,7 +9428,13 @@ function renderBoardsManager() {
     const b = allBoards[id];
     const isCurrent = id === currentBoardId;
     const total = (b.cards||[]).length;
-    const open  = (b.cards||[]).filter(c=>c.col!==TERMINAL_COL).length;
+    // Em boards Granatum, 'pago_hoje' e 'historico' contam como concluídos
+    const _isGranTile = !!b.granatum_linked;
+    const open  = (b.cards||[]).filter(c => {
+      if (c.col === TERMINAL_COL) return false;
+      if (_isGranTile && (c.col === 'pago_hoje' || c.col === 'historico')) return false;
+      return true;
+    }).length;
     const done  = total - open;
     const updated = b.updatedAt ? new Date(b.updatedAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
     const markBg = avatarColor(b.name || 'Board');
@@ -15439,7 +15445,7 @@ function render() {
       <div class="dz" data-col="${col.id}">
         ${cc.map(c=>{
           const tags=c.tagIds.map(id=>globalTags.find(g=>g.id===id)).filter(Boolean);
-          const isDone=c.col==='done';
+          const isDone = c.col === 'done' || (_isGranBoard && (c.col === 'pago_hoje' || c.col === 'historico'));
           const threadCount=(c.threads||[]).length;
           const attachCount=(c.attachments||[]).length;
           const ttd=timeToDone(c);
