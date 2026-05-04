@@ -17744,10 +17744,96 @@ async function supaUpsertCurrentBoard() {
 }
 
 async function supaCreateBoard(boardId, boardData) {
-  const c = _ensureSupaClient(); if(!c) return;
-  const row = { id: boardId, owner_id: supaUser?.id, ..._boardToRow({...boardData, id: boardId}) };
-  delete row.id; row.id = boardId; // garantir
-  await c.from('boards').insert(row);
+  const c = _ensureSupaClient(); if(!c) return false;
+  try {
+    const row = { id: boardId, owner_id: supaUser?.id, ..._boardToRow({...boardData, id: boardId}) };
+    delete row.id; row.id = boardId; // garantir
+    // Usa upsert em vez de insert pra ser idempotente (se já existe, sobrescreve)
+    const { error } = await c.from('boards').upsert(row);
+    if (error) {
+      console.error('[supa] supaCreateBoard falhou:', error);
+      _enqueueRetry({ kind:'createBoard', boardId, ts: Date.now() });
+      return false;
+    }
+    return true;
+  } catch(e) {
+    console.error('[supa] supaCreateBoard exception:', e);
+    _enqueueRetry({ kind:'createBoard', boardId, ts: Date.now() });
+    return false;
+  }
+}
+
+// Salva BOARD + CARDS num pacote só. Idempotente (upsert). Retorna true/false.
+async function supaUpsertBoardWithCards(boardId) {
+  const c = _ensureSupaClient(); if(!c) return false;
+  const b = allBoards[boardId];
+  if (!b) return false;
+  try {
+    // 1) upsert board metadata
+    const row = { id: boardId, owner_id: supaUser?.id, ..._boardToRow({...b, id: boardId}) };
+    delete row.id; row.id = boardId;
+    const { error: bErr } = await c.from('boards').upsert(row);
+    if (bErr) {
+      console.error('[supa] upsert board falhou:', bErr);
+      _enqueueRetry({ kind:'upsertBoardWithCards', boardId, ts: Date.now() });
+      return false;
+    }
+    // 2) upsert cards (todos)
+    if ((b.cards||[]).length) {
+      const rows = b.cards.map(card => _cardToRow(card, boardId));
+      const { error: cErr } = await c.from('cards').upsert(rows, { onConflict:'board_id,local_id' });
+      if (cErr) {
+        console.error('[supa] upsert cards falhou:', cErr);
+        _enqueueRetry({ kind:'upsertBoardWithCards', boardId, ts: Date.now() });
+        return false;
+      }
+    }
+    return true;
+  } catch(e) {
+    console.error('[supa] upsertBoardWithCards exception:', e);
+    _enqueueRetry({ kind:'upsertBoardWithCards', boardId, ts: Date.now() });
+    return false;
+  }
+}
+
+// ── Fila de retry pra writes que falharam ─────────────────────────
+// Persiste em localStorage. Reprocessa quando volta sessão/online.
+const _RETRY_QUEUE_KEY = 'kanban_v8_retry_queue';
+function _getRetryQueue() {
+  try { return JSON.parse(localStorage.getItem(_RETRY_QUEUE_KEY) || '[]'); } catch(e) { return []; }
+}
+function _setRetryQueue(q) {
+  try { localStorage.setItem(_RETRY_QUEUE_KEY, JSON.stringify(q || [])); } catch(e){}
+}
+function _enqueueRetry(item) {
+  const q = _getRetryQueue();
+  // Dedupe pelo (kind, boardId) — só guarda o mais recente
+  const filtered = q.filter(x => !(x.kind === item.kind && x.boardId === item.boardId));
+  filtered.push(item);
+  _setRetryQueue(filtered.slice(-50)); // limita a 50 itens
+  console.warn('[supa] retry enqueued:', item);
+}
+async function _processRetryQueue() {
+  if (!supaUser || !_ensureSupaClient()) return;
+  const q = _getRetryQueue();
+  if (!q.length) return;
+  console.log(`[supa] processando ${q.length} retry(s)...`);
+  const remaining = [];
+  for (const item of q) {
+    try {
+      let ok = false;
+      if (item.kind === 'createBoard' || item.kind === 'upsertBoardWithCards') {
+        ok = await supaUpsertBoardWithCards(item.boardId);
+      }
+      if (!ok && item.boardId && allBoards[item.boardId]) remaining.push(item);
+    } catch(e) {
+      console.error('[supa] retry exception:', e);
+      remaining.push(item);
+    }
+  }
+  _setRetryQueue(remaining);
+  if (remaining.length) console.warn(`[supa] ${remaining.length} retry(s) ainda pendentes`);
+  else console.log('[supa] retry queue limpa');
 }
 
 async function supaDeleteBoard(boardId) {
@@ -17854,7 +17940,23 @@ async function _onSignedIn(session) {
 
   // Carrega boards do usuário
   const remote = await supaLoadAllBoards();
-  if (Object.keys(remote).length === 0) {
+  // CRÍTICO: snapshot do estado local ANTES de mexer em allBoards.
+  // Se há boards no localStorage que NÃO estão no Supabase (por exemplo,
+  // criados offline, ou o supaCreateBoard falhou silenciosamente), precisamos
+  // UPLOADÁ-LOS antes de sobrescrever, senão o user perde dados no refresh.
+  const localSnapshot = {};
+  try {
+    Object.keys(allBoards || {}).forEach(bid => {
+      if (bid === UNIFIED_BOARD_ID) return;
+      if (!allBoards[bid]) return;
+      // Só considera boards de DONO atual (evita re-uploadar boards de outras contas
+      // que ficaram no localStorage de uma sessão anterior)
+      const ownerOk = !allBoards[bid].owner_id || allBoards[bid].owner_id === supaUser.id;
+      if (ownerOk) localSnapshot[bid] = allBoards[bid];
+    });
+  } catch(e) { console.warn('snapshot local failed', e); }
+
+  if (Object.keys(remote).length === 0 && Object.keys(localSnapshot).length === 0) {
     // primeiro acesso: cria board principal a partir dos defaults
     const id = _genBoardId();
     const seed = _seedBoardData('Board principal');
@@ -17865,11 +17967,38 @@ async function _onSignedIn(session) {
     await supaCreateBoard(id, seed);
     await supaUpsertCurrentBoard();
   } else {
+    // MERGE: começa do remoto, depois UPLOADA boards local-only que faltam
     allBoards = remote;
+    const localOnly = Object.keys(localSnapshot).filter(bid => !remote[bid]);
+    if (localOnly.length > 0) {
+      console.warn(`[supa] ${localOnly.length} board(s) local-only detectado(s). Uploadando...`, localOnly);
+      for (const bid of localOnly) {
+        const board = localSnapshot[bid];
+        if (!board) continue;
+        try {
+          // Re-insere no allBoards pra que supaUpsertBoardWithCards saiba dele
+          allBoards[bid] = board;
+          // Use a função robusta que sobe board + cards juntos
+          if (typeof supaUpsertBoardWithCards === 'function') {
+            const ok = await supaUpsertBoardWithCards(bid);
+            if (!ok) console.error('[supa] falha ao recuperar board local-only', bid);
+          } else {
+            await supaCreateBoard(bid, board);
+          }
+        } catch(e) {
+          console.error('[supa] erro ao recuperar board local-only', bid, e);
+          // Mantém o board no allBoards (mesmo que upload falhe) pra não perder
+        }
+      }
+      console.warn(`[supa] recuperação concluída`);
+    }
     if (!allBoards[currentBoardId]) currentBoardId = Object.keys(allBoards)[0];
     _bindCurrentBoard();
     _migrateCards(cards);
   }
+
+  // Processa fila de retry (writes que falharam em sessões anteriores)
+  try { if (typeof _processRetryQueue === 'function') _processRetryQueue(); } catch(e) { console.warn('retry queue', e); }
 
   refreshAccountUI();
   refreshSidebarBoardLabel();
@@ -21916,7 +22045,16 @@ saveData = function() {
 createBoard = function(opts) {
   const id = _origCreateBoard.apply(this, arguments);
   if (getStorageMode()==='supabase' && supaUser && id && allBoards[id]) {
-    supaCreateBoard(id, allBoards[id]).catch(console.error);
+    // Usa supaUpsertBoardWithCards que salva board + cards juntos, com retry
+    // automático em caso de falha. CRÍTICO: se isso falhar silenciosamente, o
+    // board fica só no localStorage e some no próximo refresh.
+    if (typeof supaUpsertBoardWithCards === 'function') {
+      supaUpsertBoardWithCards(id).then(ok => {
+        if (!ok) console.warn('[supa] novo board não persistiu no Supabase ainda — está na fila de retry', id);
+      });
+    } else {
+      supaCreateBoard(id, allBoards[id]).catch(console.error);
+    }
   }
   return id;
 };
