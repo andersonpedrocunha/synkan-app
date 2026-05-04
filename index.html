@@ -7756,7 +7756,7 @@ function _renderFinancialDashboard(el) {
     </div>
     <div class="dash-export-bar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
       <span class="zai-view-toggle" style="background:var(--color-background-secondary);padding:3px;border-radius:999px;border:0.5px solid var(--color-border-tertiary);">
-        <button onclick="setDashboardTab('operation')" style="padding:6px 14px;font-size:12px;border:none;background:transparent;border-radius:999px;cursor:pointer;font-weight:500;color:var(--color-text-tertiary);">📊 Operação</button>
+        <button onclick="setDashboardTab('operation')" style="padding:6px 14px;font-size:12px;border:none;background:transparent;border-radius:999px;cursor:pointer;font-weight:500;color:var(--color-text-tertiary);">流 Fluxo</button>
         <button onclick="setDashboardTab('financial')" style="padding:6px 14px;font-size:12px;border:none;background:var(--color-background-primary);border-radius:999px;cursor:pointer;font-weight:600;color:var(--color-text-primary);">財 Financeiro</button>
       </span>
       <button class="dash-export-btn" onclick="exportDashboardPDF()">📄 Exportar PDF</button>
@@ -7894,6 +7894,8 @@ function _renderFinancialDashboard(el) {
       <strong>Synkan Management Lab</strong>
     </div>
   `;
+  // Painel do Mestre Kan no final (com presets financeiros específicos)
+  if (typeof renderDashAIPanel === 'function') renderDashAIPanel();
 }
 
 var _dashboardTab = 'operation'; // 'operation' | 'financial'
@@ -8134,7 +8136,7 @@ function renderDashboard() {
     <div class="dash-export-bar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
       ${_hasFin ? `
         <span class="zai-view-toggle" style="background:var(--color-background-secondary);padding:3px;border-radius:999px;border:0.5px solid var(--color-border-tertiary);">
-          <button class="${_dashboardTab==='operation'?'is-active':''}" onclick="setDashboardTab('operation')" style="padding:6px 14px;font-size:12px;border:none;background:${_dashboardTab==='operation'?'var(--color-background-primary)':'transparent'};border-radius:999px;cursor:pointer;font-weight:${_dashboardTab==='operation'?'600':'500'};color:${_dashboardTab==='operation'?'var(--color-text-primary)':'var(--color-text-tertiary)'};">📊 Operação</button>
+          <button class="${_dashboardTab==='operation'?'is-active':''}" onclick="setDashboardTab('operation')" style="padding:6px 14px;font-size:12px;border:none;background:${_dashboardTab==='operation'?'var(--color-background-primary)':'transparent'};border-radius:999px;cursor:pointer;font-weight:${_dashboardTab==='operation'?'600':'500'};color:${_dashboardTab==='operation'?'var(--color-text-primary)':'var(--color-text-tertiary)'};">流 Fluxo</button>
           <button class="${_dashboardTab==='financial'?'is-active':''}" onclick="setDashboardTab('financial')" style="padding:6px 14px;font-size:12px;border:none;background:${_dashboardTab==='financial'?'var(--color-background-primary)':'transparent'};border-radius:999px;cursor:pointer;font-weight:${_dashboardTab==='financial'?'600':'500'};color:${_dashboardTab==='financial'?'var(--color-text-primary)':'var(--color-text-tertiary)'};">財 Financeiro</button>
         </span>
       ` : '<div></div>'}
@@ -20181,31 +20183,47 @@ const DASH_AI_PRESETS = [
     instr:'Olhando o board, quais são as 5 próximas ações mais importantes pra fazer? Justifique brevemente cada uma e ordene da mais para a menos urgente.' },
 ];
 
+// Presets específicos do dashboard Financeiro
+const DASH_AI_PRESETS_FINANCIAL = [
+  { id:'fin-summary',    icon:'❑', label:'Resumo financeiro',
+    instr:'Resuma a saúde financeira deste board em 4-6 bullets: saldo do mês, tendência de fluxo, top categorias de saída e entrada, atrasados críticos. Seja direto e numérico.' },
+  { id:'fin-risks',      icon:'⚠', label:'Riscos & alertas',
+    instr:'Aponte os principais riscos financeiros visíveis: lançamentos atrasados, concentração em poucos clientes/fornecedores, categorias com gasto alto, descompasso entre entradas e saídas. Liste com gravidade (alta/média/baixa).' },
+  { id:'fin-actions',    icon:'➜', label:'Próximas ações',
+    instr:'Liste 5 ações concretas que melhorariam o resultado financeiro deste board nas próximas semanas. Foque em: cobranças em aberto, renegociações, otimização de categorias, antecipação de receitas. Seja prático.' },
+  { id:'fin-categorias', icon:'∑', label:'Análise por categoria',
+    instr:'Analise as categorias de receita e despesa: quais estão mais altas, alguma fora do esperado, padrões sazonais visíveis. Sugira onde focar pra reduzir custo ou aumentar receita.' },
+  { id:'fin-cobranca',   icon:'📨', label:'Plano de cobrança',
+    instr:'Pra os clientes com lançamentos atrasados ou a vencer próximos 7 dias, monte um plano de cobrança: ordem de prioridade (por valor e idade), tom da abordagem (gentil, firme, último aviso), próximos passos.' },
+];
+
 let _dashAILastOutput = '';
 
 function renderDashAIPanel() {
   // Acrescenta painel de IA no fim do dashboard
   const dashEl = document.getElementById('dashboard'); if (!dashEl) return;
-  if (dashEl.querySelector('.dash-ai-panel')) {
-    // Já existe — só atualiza o badge de uso (caso o usuário tenha trocado de plano ou consumido IA)
-    try { refreshAIQuotaPill(); } catch(e){}
-    return;
-  }
+  // Remove qualquer painel anterior (pra trocar presets ao mudar de tab)
+  dashEl.querySelectorAll('.dash-ai-panel').forEach(p => p.remove());
+  const isFin = (typeof _dashboardTab !== 'undefined' && _dashboardTab === 'financial');
+  const presets = isFin ? DASH_AI_PRESETS_FINANCIAL : DASH_AI_PRESETS;
+  const subtitle = isFin ? 'O mestre observa suas finanças' : 'O mestre observa seu board';
+  const placeholder = isFin ? 'Pergunta livre sobre as finanças deste board…' : 'Pergunta livre sobre este board…';
   const panel = document.createElement('div');
   panel.className = 'dash-panel dash-ai-panel';
+  panel.dataset.tab = isFin ? 'financial' : 'operation';
   panel.innerHTML = `
     <div class="dash-panel-head">
-      <span class="dash-panel-title" style="display:inline-flex;align-items:center;gap:9px;"><img class="kan-avatar md" src="mestre_kan_avatar.png?v=6" alt=""/>Análise do Mestre Kan</span>
+      <span class="dash-panel-title" style="display:inline-flex;align-items:center;gap:9px;"><img class="kan-avatar md" src="mestre_kan_avatar.png?v=6" alt=""/>Análise do Mestre Kan${isFin ? ' · Financeiro' : ''}</span>
       <span class="dash-panel-sub" style="display:flex;align-items:center;gap:8px;">
-        O mestre observa seu board
+        ${subtitle}
         ${aiQuotaBadgeHTML()}
       </span>
     </div>
     <div class="ai-presets" id="dash-ai-presets">
-      ${DASH_AI_PRESETS.map(p=>`<button class="ai-preset" onclick="runDashAI('${p.id}')"><span class="ai-preset-icon">${p.icon}</span><span>${_esc(p.label)}</span></button>`).join('')}
+      ${presets.map(p=>`<button class="ai-preset" onclick="runDashAI('${p.id}')"><span class="ai-preset-icon">${p.icon}</span><span>${_esc(p.label)}</span></button>`).join('')}
     </div>
     <div class="ai-prompt">
-      <input id="dash-ai-prompt" type="text" placeholder="Pergunta livre sobre este board…"
+      <input id="dash-ai-prompt" type="text" placeholder="${placeholder}"
              onkeydown="if(event.key==='Enter'){event.preventDefault();runDashAICustom();}" />
       <button id="dash-ai-send" onclick="runDashAICustom()">Perguntar</button>
     </div>
@@ -20244,7 +20262,9 @@ async function _runDashAI(instruction) {
 }
 
 function runDashAI(presetId) {
-  const p = DASH_AI_PRESETS.find(x=>x.id===presetId); if(!p) return;
+  const p = DASH_AI_PRESETS.find(x=>x.id===presetId)
+         || DASH_AI_PRESETS_FINANCIAL.find(x=>x.id===presetId);
+  if(!p) return;
   _runDashAI(p.instr);
 }
 function runDashAICustom() {
