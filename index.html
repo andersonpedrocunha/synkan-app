@@ -5658,25 +5658,48 @@ async function loadPlanFromSupabase() {
 }
 
 async function loadAIUsageThisMonth() {
+  // Source of truth na prática é o localStorage (bumpAIQuota persiste lá após cada
+  // chamada). A tabela ai_usage no Supabase é alimentada por service_role apenas
+  // (futuro: backend tracking). Por isso pegamos o MAX dos dois — se Supabase
+  // tiver count > local (raro), respeitamos. Senão usamos local.
+  const m = new Date().toISOString().slice(0,7); // YYYY-MM
+  let localCount = 0;
+  try {
+    const cfg = JSON.parse(localStorage.getItem('kanban_v8_ai_quota') || '{}');
+    if (cfg.month === m) localCount = cfg.count || 0;
+  } catch(e){}
+
   if (typeof supaClient === 'undefined' || !supaClient || !supaUser) {
-    // Sem sessão Supabase: usa contador local (kanban_v8_ai_quota)
-    try { _aiUsageThisMonth = JSON.parse(localStorage.getItem('kanban_v8_ai_quota') || '{}').count || 0; } catch(e){ _aiUsageThisMonth = 0; }
+    _aiUsageThisMonth = localCount;
     return _aiUsageThisMonth;
   }
+
+  // Tenta Supabase via fetch direto (evita auth-token lock contention do supabase-js)
+  let supaCount = 0;
   try {
-    const m = new Date().toISOString().slice(0,7); // YYYY-MM
-    const { data, error } = await supaClient
-      .from('ai_usage')
-      .select('count')
-      .eq('user_id', supaUser.id)
-      .eq('month', m)
-      .maybeSingle();
-    if (error) throw error;
-    _aiUsageThisMonth = (data && data.count) || 0;
+    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+    const url = cfg?.url, anonKey = cfg?.anonKey;
+    if (!url || !anonKey) throw new Error('Supabase config ausente');
+    let jwt = null;
+    if (typeof _capReadJWTFromStorage === 'function') jwt = _capReadJWTFromStorage();
+    if (!jwt) throw new Error('JWT indisponível');
+    const reqUrl = `${url}/rest/v1/ai_usage?user_id=eq.${encodeURIComponent(supaUser.id)}&month=eq.${encodeURIComponent(m)}&select=count&limit=1`;
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
+    const r = await fetch(reqUrl, {
+      headers: { 'apikey': anonKey, 'Authorization': 'Bearer ' + jwt, 'Accept': 'application/json' },
+      signal: ctrl.signal,
+    });
+    clearTimeout(tid);
+    if (r.ok) {
+      const arr = await r.json();
+      if (Array.isArray(arr) && arr.length) supaCount = arr[0].count || 0;
+    }
   } catch(e) {
-    console.warn('[plan] falha ao carregar uso IA:', e);
-    _aiUsageThisMonth = 0;
+    console.warn('[plan] falha ao carregar uso IA do Supabase:', e?.message || e);
   }
+
+  _aiUsageThisMonth = Math.max(localCount, supaCount);
   return _aiUsageThisMonth;
 }
 
