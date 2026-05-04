@@ -9987,8 +9987,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }, 800);
     }
+    const whatsappAddon = params.get('whatsapp_addon');
+    if (whatsappAddon === 'success') {
+      setTimeout(() => {
+        if (typeof _showKanWarning === 'function') {
+          _showKanWarning('WhatsApp ativado!', '✓ Pagamento confirmado. Em breve você recebe as credenciais por e-mail.', 'info');
+        }
+      }, 800);
+    } else if (whatsappAddon === 'canceled') {
+      setTimeout(() => {
+        if (typeof _showKanWarning === 'function') {
+          _showKanWarning('Compra cancelada', 'Sem problema. Você pode ativar quando quiser.', 'info');
+        }
+      }, 600);
+    }
     // Remove os params da URL sem reload
-    if (aiTopup || upgrade) {
+    if (aiTopup || upgrade || whatsappAddon) {
       window.history.replaceState({}, '', location.pathname + location.hash);
     }
   } catch(e) { console.warn('clear stripe params:', e); }
@@ -10320,6 +10334,7 @@ function setSettingsTab(t) {
     const promises = [];
     if (typeof _calLoadTokens === 'function') promises.push(_calLoadTokens());
     if (typeof _waLoadAll === 'function') promises.push(_waLoadAll());
+    if (typeof _waAdminLoadPending === 'function') promises.push(_waAdminLoadPending());
     if (promises.length) {
       Promise.all(promises).then(() => {
         if (_settingsTab === 'sync') renderSettings();
@@ -10913,6 +10928,7 @@ function _settingsIASection() {
     ${_settingsPomoSection()}
     ${_settingsWebhooksSection()}
     ${_settingsWhatsAppSection()}
+    ${_settingsWhatsAppAdminSection()}
     ${_settingsCalendarSection()}
     ${isDev ? _settingsEmailToCardSection() : ''}
     ${isDev ? _settingsApiSsoSection() : ''}
@@ -11007,10 +11023,27 @@ function _settingsWebhooksSection() {
 function _settingsWhatsAppSection() {
   const cfg = (typeof _waConfig !== 'undefined' && _waConfig) ? _waConfig : null;
   const dests = (typeof _waDestinations !== 'undefined' && Array.isArray(_waDestinations)) ? _waDestinations : [];
+  const subStatus = cfg?.subscription_status || 'none';
+  const setupStatus = cfg?.setup_status || 'self_service';
+
+  // Estado: ainda não escolheu modelo + sem assinatura → mostra paywall com 2 opções
+  const showPaywall = (subStatus === 'none' || subStatus === 'canceled')
+                   && setupStatus === 'self_service'
+                   && !cfg?.zapi_instance_id;
+  if (showPaywall) return _waRenderPaywall();
+
+  // Estado: pagou, aguardando admin provisionar
+  if (setupStatus === 'pending_setup') return _waRenderPendingSetup(cfg);
+
+  // Estado: admin provisionou, cliente precisa escanear QR
+  if (setupStatus === 'ready_to_configure') return _waRenderReadyToConfigure(cfg);
+
+  // Estado normal: configurado (BYO ou concierge ativo)
   const isConfigured = !!(cfg && cfg.zapi_instance_id && cfg.zapi_token);
   const isActive = !!(cfg && cfg.is_active);
+  const isManaged = subStatus === 'active';
   const statusPill = !isConfigured ? `<span class="settings-status-pill off">não configurado</span>`
-                   : isActive    ? `<span class="settings-status-pill on">ativo</span>`
+                   : isActive    ? `<span class="settings-status-pill on">${isManaged?'gerenciado · ativo':'ativo'}</span>`
                    :              `<span class="settings-status-pill warn">aguarda teste</span>`;
 
   const allEvents = [
@@ -11104,6 +11137,304 @@ function _settingsWhatsAppSection() {
       </div>
     </div>
   `;
+}
+
+// Renderiza o "paywall" — 2 opções de ativação
+function _waRenderPaywall() {
+  return `
+    <div class="settings-card">
+      <div class="settings-card-h">
+        <span class="settings-card-title">WhatsApp · Notificações automáticas</span>
+        <span class="settings-status-pill off">não ativo</span>
+      </div>
+      <div class="settings-card-sub">Receba notificações de cards, leads e mudanças de status direto no WhatsApp — em números individuais ou grupos da sua equipe. Escolha o modelo que prefere:</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
+        <!-- Opção 1: Concierge (Synkan gerencia) -->
+        <div style="border:2px solid #111;border-radius:12px;padding:16px;background:linear-gradient(135deg,#fef9ec 0%,#fff 100%);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <strong style="font-size:15px;">⚡ Plug-and-play</strong>
+            <span style="background:#111;color:#fff;font-size:10px;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.04em;">recomendado</span>
+          </div>
+          <div style="font-size:24px;font-weight:700;margin-bottom:4px;">R$ 119<span style="font-size:13px;font-weight:400;color:var(--color-text-tertiary);">/mês</span></div>
+          <div style="font-size:11.5px;color:var(--color-text-secondary);line-height:1.5;margin-bottom:14px;">Synkan cuida de tudo: cria a instância, conecta o WhatsApp, configura. Você só escaneia o QR e usa.</div>
+          <ul style="font-size:12px;color:var(--color-text-secondary);padding-left:16px;margin:0 0 14px;line-height:1.6;">
+            <li>Sem dor de configuração</li>
+            <li>Suporte centralizado conosco</li>
+            <li>Cobrado junto com Synkan</li>
+            <li>Mensagens ilimitadas</li>
+          </ul>
+          <button class="btn-c" style="background:#111;color:#fff;border-color:#111;width:100%;padding:10px;font-weight:600;" onclick="_waActivateConcierge()">Ativar agora →</button>
+        </div>
+
+        <!-- Opção 2: BYO Z-API -->
+        <div style="border:1px solid var(--color-border-secondary);border-radius:12px;padding:16px;background:var(--color-background-primary);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <strong style="font-size:15px;">🔧 DIY (faça você)</strong>
+            <span style="font-size:10px;color:var(--color-text-tertiary);">técnico</span>
+          </div>
+          <div style="font-size:24px;font-weight:700;margin-bottom:4px;">R$ 90<span style="font-size:13px;font-weight:400;color:var(--color-text-tertiary);">/mês na Z-API</span></div>
+          <div style="font-size:11.5px;color:var(--color-text-secondary);line-height:1.5;margin-bottom:14px;">Você cria conta na <a href="https://z-api.io" target="_blank" rel="noopener">Z-API</a> e cola as credenciais aqui. Mais barato, mas você gerencia.</div>
+          <ul style="font-size:12px;color:var(--color-text-secondary);padding-left:16px;margin:0 0 14px;line-height:1.6;">
+            <li>Pagamento direto à Z-API</li>
+            <li>Você conecta o WhatsApp</li>
+            <li>Tutorial passo-a-passo abaixo</li>
+            <li>Mensagens ilimitadas</li>
+          </ul>
+          <button class="btn-c" style="width:100%;padding:10px;font-weight:600;" onclick="_waSwitchToSelfService()">Configurar manualmente</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Render quando a assinatura está paga mas Anderson ainda não provisionou
+function _waRenderPendingSetup(cfg) {
+  return `
+    <div class="settings-card">
+      <div class="settings-card-h">
+        <span class="settings-card-title">WhatsApp · Notificações automáticas</span>
+        <span class="settings-status-pill warn">aguardando provisionamento</span>
+      </div>
+      <div style="background:linear-gradient(135deg,#fef9ec 0%,#fff 100%);border:1px solid #f0d97e;border-radius:10px;padding:16px;margin-top:8px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="font-size:24px;">⏳</span>
+          <strong style="font-size:14px;">Pagamento confirmado!</strong>
+        </div>
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6;">
+          Estamos preparando a sua instância de WhatsApp. Você vai receber um e-mail
+          em até <strong>24 horas úteis</strong> com as credenciais e instruções pra
+          escanear o QR code do seu WhatsApp.
+        </div>
+        <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-top:10px;">
+          Se precisar de algo antes disso, escreve pra <a href="mailto:contato@synkan.com.br">contato@synkan.com.br</a>.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Render quando admin colou credenciais e cliente precisa escanear QR
+function _waRenderReadyToConfigure(cfg) {
+  const lastTest = cfg?.last_test_at
+    ? `<div class="settings-card-sub" style="font-size:11px;margin-top:4px;color:${cfg.last_test_ok?'var(--color-success)':'var(--color-error)'};">Último teste: ${cfg.last_test_ok ? '✓ ok' : '✗ ' + (cfg.last_test_msg||'erro')} · ${new Date(cfg.last_test_at).toLocaleString('pt-BR')}</div>`
+    : '';
+  return `
+    <div class="settings-card">
+      <div class="settings-card-h">
+        <span class="settings-card-title">WhatsApp · Notificações automáticas</span>
+        <span class="settings-status-pill warn">conecte seu WhatsApp</span>
+      </div>
+      <div style="background:#e8f5e9;border:1px solid #81c784;border-radius:10px;padding:16px;margin-top:8px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="font-size:24px;">🎉</span>
+          <strong style="font-size:14px;">Sua instância tá pronta!</strong>
+        </div>
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6;">
+          Suas credenciais já foram cadastradas. Agora falta conectar o WhatsApp do seu celular escaneando um QR code:
+        </div>
+        <ol style="font-size:13px;color:var(--color-text-secondary);margin:10px 0 0 18px;line-height:1.7;">
+          <li>Abre o <a href="https://app.z-api.io" target="_blank" rel="noopener" style="text-decoration:underline;">painel da Z-API</a> e faz login com o e-mail <strong>${_esc(cfg?.billing_email||'que você pagou')}</strong></li>
+          <li>Acessa a instância criada pra você</li>
+          <li>Escaneia o <strong>QR code</strong> com o WhatsApp do celular (Configurações → Aparelhos conectados → Conectar aparelho)</li>
+          <li>Volta aqui e clica <strong>"Testar conexão"</strong> abaixo</li>
+        </ol>
+      </div>
+      <div style="margin-top:16px;padding:12px;border:1px solid var(--color-border-secondary);border-radius:8px;background:var(--color-background-primary);">
+        <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Credenciais (cadastradas pelo Synkan)</div>
+        <div style="font-size:11.5px;font-family:monospace;color:var(--color-text-secondary);">Instance: ${_esc((cfg.zapi_instance_id||'').slice(0,12))}…</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+        <button class="btn-c" style="background:#111;color:#fff;border-color:#111;" onclick="_waOpenTestModal()">Testar conexão</button>
+        <button class="btn-c" onclick="_waMarkConfigured()">✓ Já está funcionando, continuar</button>
+      </div>
+      ${lastTest}
+    </div>
+  `;
+}
+
+// Cliente clica "Ativar agora" no plano concierge
+async function _waActivateConcierge() {
+  if (typeof supaUser === 'undefined' || !supaUser) {
+    appAlert('Login necessário', 'Faça login pra ativar o WhatsApp Add-on.', { icon:'⚠️' });
+    return;
+  }
+  try {
+    const r = await fetch((typeof SYNKAN_BILLING_BASE !== 'undefined' ? SYNKAN_BILLING_BASE : 'https://billing.synkan.com.br') + '/api/billing/create-whatsapp-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: supaUser.id, user_email: supaUser.email || '' }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.checkout_url) {
+      appAlert('Não consegui criar o checkout', data.message || data.error || 'Tente novamente.', { icon:'⚠️' });
+      return;
+    }
+    // Redireciona pro Stripe Checkout
+    window.location.href = data.checkout_url;
+  } catch(e) {
+    appAlert('Erro de conexão', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+// Cliente prefere DIY: marca setup_status como self_service e mostra a UI antiga
+async function _waSwitchToSelfService() {
+  if (!supaUser) return;
+  try {
+    await _capRESTCall('whatsapp_configs', {
+      method: 'POST',
+      body: { user_id: supaUser.id, setup_status: 'self_service' },
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    });
+    // Adiciona um marcador local pra forçar UI BYO mesmo sem credenciais
+    if (!_waConfig) _waConfig = {};
+    _waConfig.setup_status = 'self_service';
+    _waConfig._showByoForm = true;
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) {
+    appAlert('Erro', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
+}
+
+// Cliente confirma que escaneou QR e WhatsApp está conectado
+async function _waMarkConfigured() {
+  if (!supaUser) return;
+  try {
+    await _capRESTCall(`whatsapp_configs?user_id=eq.${encodeURIComponent(supaUser.id)}`, {
+      method: 'PATCH',
+      body: { setup_status: 'configured', is_active: true },
+      headers: { 'Prefer': 'return=minimal' },
+    });
+    showToastMsg('✓ WhatsApp ativado! Configure os destinos abaixo.');
+    await _waLoadAll();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) {
+    appAlert('Erro', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
+}
+
+// ── Admin panel (só pra Anderson) ────────────────────────────────────
+const WA_ADMIN_EMAILS = new Set(['anderson@taller.net.br', 'contato@synkan.com.br', 'anderson.pedro01@gmail.com']);
+function _waIsAdmin() {
+  return !!(typeof supaUser !== 'undefined' && supaUser && WA_ADMIN_EMAILS.has((supaUser.email||'').toLowerCase()));
+}
+
+var _waPendingSubs = [];
+async function _waAdminLoadPending() {
+  if (!_waIsAdmin()) { _waPendingSubs = []; return; }
+  try {
+    // Service role não dá pra usar do front; usamos endpoint do api server (com JWT do admin)
+    // Por simplicidade da v1, lê via REST normal — RLS impede outros users
+    // (admin bypassa porque a query usa user_id=eq.<self> implicitamente, mas precisamos ver TODOS).
+    // Solução: criar endpoint /admin/whatsapp/pending no api server, ou criar policy especial.
+    // Por agora, vamos criar uma policy SQL que permite admins lerem todos os whatsapp_configs.
+    const rows = await _capRESTCall(
+      `whatsapp_configs?or=(setup_status.eq.pending_setup,setup_status.eq.ready_to_configure)&select=*&order=created_at.desc`,
+      { timeoutMs: 6000 }
+    );
+    _waPendingSubs = Array.isArray(rows) ? rows : [];
+  } catch(e) {
+    console.warn('[wa-admin] falha load pending:', e?.message || e);
+    _waPendingSubs = [];
+  }
+}
+
+function _settingsWhatsAppAdminSection() {
+  if (!_waIsAdmin()) return '';
+  const pending = _waPendingSubs || [];
+  const itemsHTML = pending.length === 0
+    ? `<div class="settings-card-sub" style="font-style:italic;margin-top:8px;">Nenhuma assinatura pendente. 😎</div>`
+    : pending.map(p => {
+        const status = p.setup_status === 'pending_setup'
+          ? `<span style="background:#fef3cd;color:#825c00;padding:2px 8px;border-radius:4px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;">aguarda provisionamento</span>`
+          : `<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:4px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;">aguarda QR</span>`;
+        return `
+          <div style="border:1px solid var(--color-border-secondary);border-radius:10px;padding:12px;margin-top:8px;background:var(--color-background-primary);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <strong style="font-size:13px;font-family:monospace;">${_esc(p.user_id?.slice(0,8))}…</strong>
+              ${status}
+            </div>
+            <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px;">
+              <div>📧 ${_esc(p.billing_email || '(sem email)')}</div>
+              <div style="color:var(--color-text-tertiary);font-size:11px;margin-top:2px;">Subscription: ${_esc((p.stripe_subscription_id||'').slice(0,18))}…</div>
+              <div style="color:var(--color-text-tertiary);font-size:11px;">Pagou em: ${p.subscription_started_at ? new Date(p.subscription_started_at).toLocaleString('pt-BR') : '—'}</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              ${p.setup_status === 'pending_setup'
+                ? `<button class="btn-c" style="background:#111;color:#fff;border-color:#111;padding:6px 10px;font-size:11px;" onclick="_waAdminProvisionModal('${_esc(p.user_id)}','${_esc(p.billing_email||'')}')">Provisionar</button>`
+                : `<span style="font-size:11px;color:var(--color-text-tertiary);font-style:italic;padding:6px 0;">Cliente precisa escanear QR e confirmar.</span>`}
+            </div>
+          </div>
+        `;
+      }).join('');
+  return `
+    <div class="settings-card" style="border:2px solid #d4af37;background:linear-gradient(135deg,#fffdf5 0%,#fff 100%);">
+      <div class="settings-card-h">
+        <span class="settings-card-title">⚙️ Admin · WhatsApp Add-on (concierge)</span>
+        <span class="settings-status-pill ${pending.length?'warn':'on'}">${pending.length} pendente${pending.length===1?'':'s'}</span>
+      </div>
+      <div class="settings-card-sub">Subscriptions de WhatsApp Add-on aguardando provisionamento. Pra cada uma: cria instância na Z-API, copia credenciais, cola aqui.</div>
+      ${itemsHTML}
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button class="btn-c" onclick="_waAdminLoadPending().then(()=>renderSettings())">↻ Recarregar</button>
+      </div>
+    </div>
+  `;
+}
+
+function _waAdminProvisionModal(userId, billingEmail) {
+  const html = `
+    <h3 style="margin:0 0 12px;font-size:18px;font-weight:600;">Provisionar instância Z-API</h3>
+    <div class="settings-card-sub" style="margin-bottom:12px;">
+      Cliente: <strong>${_esc(billingEmail||userId)}</strong><br>
+      Cria a instância no painel Z-API, copia as credenciais e cola aqui.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="profile-field">
+        <label>Instance ID</label>
+        <input id="wa-adm-instance" type="text" placeholder="3D..." style="font-family:monospace;font-size:12px;"/>
+      </div>
+      <div class="profile-field">
+        <label>Token</label>
+        <input id="wa-adm-token" type="text" style="font-family:monospace;font-size:12px;"/>
+      </div>
+      <div class="profile-field">
+        <label>Client Token</label>
+        <input id="wa-adm-client-token" type="text" style="font-family:monospace;font-size:12px;"/>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+        <button class="app-dialog-btn" onclick="_appDialogClose(null)">Cancelar</button>
+        <button class="app-dialog-btn primary" onclick="_waAdminProvision('${_esc(userId)}')">Salvar e liberar</button>
+      </div>
+    </div>
+  `;
+  if (typeof _appDialogShow === 'function') _appDialogShow(html);
+}
+
+async function _waAdminProvision(userId) {
+  const instance = document.getElementById('wa-adm-instance')?.value?.trim();
+  const token = document.getElementById('wa-adm-token')?.value?.trim();
+  const clientToken = document.getElementById('wa-adm-client-token')?.value?.trim();
+  if (!instance || !token) { appAlert('Faltam credenciais', 'Instance ID e Token são obrigatórios.', { icon:'⚠️' }); return; }
+  try {
+    await _capRESTCall(`whatsapp_configs?user_id=eq.${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      body: {
+        zapi_instance_id: instance,
+        zapi_token: token,
+        zapi_client_token: clientToken || '',
+        setup_status: 'ready_to_configure',
+      },
+      headers: { 'Prefer': 'return=minimal' },
+    });
+    if (typeof _appDialogClose === 'function') _appDialogClose(true);
+    showToastMsg('✓ Instância liberada — cliente vai ver as instruções no app');
+    await _waAdminLoadPending();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) {
+    appAlert('Erro', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
 }
 
 // ── State + carga de dados WhatsApp ─────────────────────────────────
