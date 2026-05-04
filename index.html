@@ -15226,11 +15226,126 @@ function deadlineBadge(deadline, isDone) {
   return `<div class="deadline-badge deadline-ok">📅 ${lbl}</div>`;
 }
 
+// Renderiza barra executiva específica pra boards Granatum (KPIs financeiros reais)
+function _renderGranatumExecBar() {
+  const view = document.getElementById('view-kanban');
+  if (!view) return;
+  view.querySelectorAll('.zai-runway-bar').forEach(el => el.remove());
+  const b = allBoards[currentBoardId];
+  if (!b?.granatum_linked) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const horizon30 = new Date(today); horizon30.setDate(horizon30.getDate() + 30);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const cardVal = c => {
+    const v = c?.customFieldValues?.cf_valor;
+    if (v == null) return 0;
+    const n = Number(String(v).replace(',','.'));
+    return Number.isFinite(n) ? Math.abs(n) : 0;
+  };
+  const isReceber = c => {
+    const t = (c?.customFieldValues?.cf_tipo || '').toLowerCase();
+    return t === 'receber' || t === 'receita';
+  };
+  const isPagar = c => {
+    const t = (c?.customFieldValues?.cf_tipo || '').toLowerCase();
+    return t === 'pagar' || t === 'despesa';
+  };
+  const inWindow30 = c => {
+    if (!c?.deadline) return false;
+    try {
+      const dl = new Date(c.deadline+'T00:00:00');
+      return dl >= today && dl <= horizon30;
+    } catch(e) { return false; }
+  };
+  const paidInMonth = c => {
+    if (!c?.doneAt) return c.col === 'pago_hoje';
+    try {
+      const dt = new Date(c.doneAt);
+      return dt >= monthStart && dt <= today;
+    } catch(e) { return false; }
+  };
+  let aReceber30 = 0, aPagar30 = 0;
+  let atrasadoReceber = 0, atrasadoPagar = 0;
+  let recebidoMes = 0, pagoMes = 0;
+  let countReceber30 = 0, countPagar30 = 0, countAtrasado = 0;
+  (cards || []).forEach(c => {
+    if (c.col === 'a_vencer' && inWindow30(c)) {
+      if (isReceber(c)) { aReceber30 += cardVal(c); countReceber30++; }
+      if (isPagar(c)) { aPagar30 += cardVal(c); countPagar30++; }
+    }
+    if (c.col === 'atrasado') {
+      countAtrasado++;
+      if (isReceber(c)) atrasadoReceber += cardVal(c);
+      if (isPagar(c)) atrasadoPagar += cardVal(c);
+    }
+    if ((c.col === 'pago_hoje' || c.col === 'historico') && paidInMonth(c)) {
+      if (isReceber(c)) recebidoMes += cardVal(c);
+      if (isPagar(c)) pagoMes += cardVal(c);
+    }
+  });
+  const saldoMes = recebidoMes - pagoMes;
+  const netPrev = aReceber30 - aPagar30;
+  const fmt = n => 'R$ ' + n.toLocaleString('pt-BR', { maximumFractionDigits:0 });
+  const fmtSigned = n => (n >= 0 ? '+' : '') + 'R$ ' + Math.abs(n).toLocaleString('pt-BR', { maximumFractionDigits:0 });
+  const lastSync = b.granatum_last_sync || '';
+  const lastSyncStr = lastSync ? new Date(lastSync).toLocaleDateString('pt-BR') : '—';
+  const bar = document.createElement('div');
+  bar.className = 'zai-runway-bar';
+  bar.innerHTML = `
+    <div class="zai-runway-head">
+      <span class="zai-runway-title">財 · Granatum · visão executiva</span>
+      <span style="font-size:11px;color:#A99876;">Sincronizado: ${lastSyncStr}</span>
+    </div>
+    <div class="zai-runway-stats" style="gap:24px;flex-wrap:wrap;">
+      <div class="zai-runway-stat">
+        <span class="zai-runway-stat-lbl">A Receber (30d)</span>
+        <span class="zai-runway-stat-val income">${fmt(aReceber30)}</span>
+        <span style="font-size:10px;color:#A99876;">${countReceber30} lançamento${countReceber30!==1?'s':''}</span>
+      </div>
+      <div class="zai-runway-stat">
+        <span class="zai-runway-stat-lbl">A Pagar (30d)</span>
+        <span class="zai-runway-stat-val burn">${fmt(aPagar30)}</span>
+        <span style="font-size:10px;color:#A99876;">${countPagar30} lançamento${countPagar30!==1?'s':''}</span>
+      </div>
+      <div class="zai-runway-stat" style="border-left:1px solid rgba(169,152,118,.3);padding-left:24px;">
+        <span class="zai-runway-stat-lbl">Atrasado</span>
+        <span class="zai-runway-stat-val" style="color:#FCD34D;">${fmt(atrasadoReceber + atrasadoPagar)}</span>
+        <span style="font-size:10px;color:#A99876;">${countAtrasado} card${countAtrasado!==1?'s':''} (${fmt(atrasadoReceber)} a receber + ${fmt(atrasadoPagar)} a pagar)</span>
+      </div>
+      <div class="zai-runway-stat" style="border-left:1px solid rgba(169,152,118,.3);padding-left:24px;">
+        <span class="zai-runway-stat-lbl">Recebido (mês)</span>
+        <span class="zai-runway-stat-val income">${fmt(recebidoMes)}</span>
+      </div>
+      <div class="zai-runway-stat">
+        <span class="zai-runway-stat-lbl">Pago (mês)</span>
+        <span class="zai-runway-stat-val burn">${fmt(pagoMes)}</span>
+      </div>
+      <div class="zai-runway-stat">
+        <span class="zai-runway-stat-lbl">Saldo do mês</span>
+        <span class="zai-runway-stat-val" style="color:${saldoMes>=0?'#A8D87A':'#F09595'};">${fmtSigned(saldoMes)}</span>
+      </div>
+      <div class="zai-runway-stat" style="border-left:1px solid rgba(169,152,118,.3);padding-left:24px;">
+        <span class="zai-runway-stat-lbl">Net previsto (30d)</span>
+        <span class="zai-runway-stat-val" style="color:${netPrev>=0?'#A8D87A':'#F09595'};font-size:22px;">${fmtSigned(netPrev)}</span>
+        <span style="font-size:10px;color:#A99876;">a receber − a pagar</span>
+      </div>
+    </div>
+  `;
+  // Insere depois do banner Kaizen/Cascade se houver, senão no topo
+  const cascadeBanner = view.querySelector('.cascade-banner');
+  const kaizenBanner  = view.querySelector('.kaizen-banner');
+  const insertAfter = cascadeBanner || kaizenBanner;
+  if (insertAfter) insertAfter.after(bar);
+  else view.insertBefore(bar, view.firstChild);
+}
+
 // Renderiza a Runway Bar do Zai no topo do kanban
 function _renderZaiRunwayBar() {
   // Guard: se ZAI_TYPES ainda não foi inicializada (TDZ durante load), sai
   if (typeof ZAI_TYPES === 'undefined' || !ZAI_TYPES) return;
   if (typeof isBoardZaiEnabled !== 'function') return;
+  // Granatum boards: usa visão executiva específica
+  if (allBoards[currentBoardId]?.granatum_linked) { _renderGranatumExecBar(); return; }
   const view = document.getElementById('view-kanban');
   if (!view) return;
   view.querySelectorAll('.zai-runway-bar').forEach(el => el.remove());
