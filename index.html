@@ -5464,6 +5464,9 @@ const SYNKAN_BILLING_BASE = (() => {
   } catch(e) {}
   return 'http://127.0.0.1:9998';
 })();
+// Slack App Client ID — público, vem do dashboard.slack.com da app criada.
+// Se vazio, o botão "Conectar Slack" mostra mensagem "em breve" (graceful degrade).
+const SYNKAN_SLACK_CLIENT_ID = '';   // PREENCHER após criar Slack App em api.slack.com
 const SYNKAN_PUBLIC_HOST = 'synkan.com.br';
 const SYNKAN_APP_URL = (() => {
   try {
@@ -10335,6 +10338,7 @@ function setSettingsTab(t) {
     if (typeof _calLoadTokens === 'function') promises.push(_calLoadTokens());
     if (typeof _waLoadAll === 'function') promises.push(_waLoadAll());
     if (typeof _waAdminLoadPending === 'function') promises.push(_waAdminLoadPending());
+    if (typeof _slackLoadAll === 'function') promises.push(_slackLoadAll());
     if (promises.length) {
       Promise.all(promises).then(() => {
         if (_settingsTab === 'sync') renderSettings();
@@ -10927,6 +10931,7 @@ function _settingsIASection() {
     ${_settingsVoiceCardsSection()}
     ${_settingsPomoSection()}
     ${_settingsWebhooksSection()}
+    ${_settingsSlackAppSection()}
     ${_settingsWhatsAppSection()}
     ${_settingsWhatsAppAdminSection()}
     ${_settingsCalendarSection()}
@@ -10992,10 +10997,10 @@ function _settingsWebhooksSection() {
   return `
     <div class="settings-card">
       <div class="settings-card-h">
-        <span class="settings-card-title">Webhooks de saída + Slack</span>
-        <span class="settings-status-pill ${cfg.url?'on':'off'}">${cfg.url ? (isSlack?'Slack':'Webhook'):'desligado'}</span>
+        <span class="settings-card-title">Webhooks de saída (Discord, Zapier, Make, n8n)</span>
+        <span class="settings-status-pill ${cfg.url?'on':'off'}">${cfg.url ? (isSlack?'Slack (legado)':'Webhook'):'desligado'}</span>
       </div>
-      <div class="settings-card-sub">Envia eventos do Synkan para uma URL externa (Slack, Discord, Zapier, Make, n8n, seu próprio servidor). Se a URL for de um Slack Incoming Webhook (<code>hooks.slack.com</code>), o payload é formatado pra mensagem de texto. Caso contrário, vira um JSON com <code>event</code>, <code>boardName</code>, <code>by</code> e <code>data</code>.</div>
+      <div class="settings-card-sub">Envia eventos do Synkan para uma URL externa (Discord, Zapier, Make, n8n, seu próprio servidor). Para <strong>Slack</strong>, recomendamos usar a <strong>Slack App nativa</strong> (seção abaixo) — mais recursos: bot, slash commands, botões. Esta opção fica como fallback genérico.</div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px;">
         <div class="settings-row-label">URL do webhook</div>
         <input id="webhook-url" type="url" placeholder="https://hooks.slack.com/services/... ou https://api.seusite.com/synkan" value="${_esc(cfg.url||'')}" style="width:100%;padding:9px 11px;border:1px solid var(--color-border-default);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font-size:13px;font-family:monospace;"/>
@@ -11017,6 +11022,323 @@ function _settingsWebhooksSection() {
       </div>
     </div>
   `;
+}
+
+// ── Slack App Nativo (OAuth + bot) ───────────────────────────────────
+var _slackWorkspace = null;
+var _slackDestinations = [];
+async function _slackLoadAll() {
+  if (typeof supaUser === 'undefined' || !supaUser) {
+    _slackWorkspace = null; _slackDestinations = []; return;
+  }
+  try {
+    const [ws, dests] = await Promise.all([
+      _capRESTCall(`slack_workspaces?user_id=eq.${encodeURIComponent(supaUser.id)}&select=*&limit=1`, { timeoutMs: 6000 }).catch(()=>null),
+      _capRESTCall(`slack_destinations?user_id=eq.${encodeURIComponent(supaUser.id)}&select=*&order=created_at.desc`, { timeoutMs: 6000 }).catch(()=>[]),
+    ]);
+    _slackWorkspace = (Array.isArray(ws) && ws.length) ? ws[0] : null;
+    _slackDestinations = Array.isArray(dests) ? dests : [];
+  } catch(e) {
+    console.warn('[slack] falha load:', e?.message || e);
+    _slackWorkspace = null; _slackDestinations = [];
+  }
+}
+
+function _settingsSlackAppSection() {
+  const ws = _slackWorkspace;
+  const isConnected = !!(ws && ws.team_id && ws.bot_token && !ws.uninstalled_at);
+  const dests = _slackDestinations || [];
+  const allEvents = [
+    ['card_created','Card criado'],
+    ['card_done','Card concluído'],
+    ['card_assigned','Card atribuído'],
+    ['card_moved','Card mudou de status'],
+    ['lead_received','Lead novo (form)'],
+  ];
+
+  // Não conectado: mostra paywall com botão grande "Conectar Slack workspace"
+  if (!isConnected) {
+    return `
+      <div class="settings-card" style="border:1px solid #4A154B;background:linear-gradient(135deg,#fefefe 0%,#f9f5fa 100%);">
+        <div class="settings-card-h">
+          <span class="settings-card-title">💼 Slack App Nativo · Beta</span>
+          <span class="settings-status-pill off">não conectado</span>
+        </div>
+        <div class="settings-card-sub">Notificações via bot oficial do Synkan no Slack — com avatar, branding e canais selecionáveis. Inclui slash commands (<code>/synkan novo</code>, <code>/synkan listar</code>) e botões interativos (Concluir, Atribuir) direto na mensagem.</div>
+        <div style="margin-top:14px;padding:14px;background:#f4f0f5;border-radius:10px;font-size:12.5px;color:var(--color-text-secondary);">
+          <strong style="color:var(--color-text-primary);">O que você ganha conectando:</strong>
+          <ul style="margin:6px 0 0 18px;padding:0;line-height:1.6;">
+            <li>Bot com avatar e nome <strong>Synkan</strong> no Slack</li>
+            <li>Múltiplos canais com filtros por evento e board</li>
+            <li>Slash commands: <code>/synkan novo &lt;nome&gt;</code>, <code>/synkan listar</code>, <code>/synkan ajuda</code></li>
+            <li>Botões nas mensagens: Concluir, Atribuir a mim, Ver no Synkan</li>
+            <li>@menção e DMs pro bot criam cards automaticamente</li>
+          </ul>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+          <button class="btn-c" style="background:#4A154B;color:#fff;border-color:#4A154B;font-weight:600;" onclick="_slackStartOAuth()">
+            <svg viewBox="0 0 24 24" width="14" height="14" style="vertical-align:-2px;margin-right:4px;" xmlns="http://www.w3.org/2000/svg"><path fill="#fff" d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+            Conectar Slack workspace
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Conectado: mostra lista de destinos + ações
+  const destsHTML = dests.length === 0
+    ? `<div class="settings-card-sub" style="margin-top:10px;font-style:italic;color:var(--color-text-tertiary);">Nenhum canal cadastrado ainda. Adicione um canal pra receber notificações.</div>`
+    : dests.map(d => {
+        const evList = (d.events||[]).map(e => allEvents.find(x=>x[0]===e)?.[1] || e).join(' · ');
+        const boardLabel = (d.board_ids||[]).length === 0
+          ? 'Todos os boards'
+          : `${d.board_ids.length} board${d.board_ids.length>1?'s':''}`;
+        return `
+          <div style="border:1px solid var(--color-border-secondary);border-radius:10px;padding:12px;margin-top:8px;background:var(--color-background-primary);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+              <strong style="font-size:13px;">#${_esc(d.channel_name||d.channel_id)}</strong>
+              <span style="font-size:11px;color:var(--color-text-tertiary);font-family:monospace;">${_esc(d.channel_id)}</span>
+            </div>
+            <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:6px;">
+              <strong>Eventos:</strong> ${evList || '<em>nenhum</em>'} · <strong>Boards:</strong> ${_esc(boardLabel)}
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn-c" style="padding:5px 10px;font-size:11px;" onclick="_slackEditDestination('${_esc(d.id)}')">Editar</button>
+              <button class="btn-c" style="padding:5px 10px;font-size:11px;color:var(--color-error);border-color:var(--color-error);" onclick="_slackDeleteDestination('${_esc(d.id)}')">Remover</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+  return `
+    <div class="settings-card" style="border:1px solid #4A154B;">
+      <div class="settings-card-h">
+        <span class="settings-card-title">💼 Slack App Nativo</span>
+        <span class="settings-status-pill on">conectado · ${_esc(ws.team_name||'workspace')}</span>
+      </div>
+      <div class="settings-card-sub">Bot Synkan instalado no <strong>${_esc(ws.team_name||'seu workspace')}</strong>. Configure os canais que recebem notificações abaixo.</div>
+      <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <strong style="font-size:13px;">Canais de notificação</strong>
+        <button class="btn-c" style="background:#4A154B;color:#fff;border-color:#4A154B;" onclick="_slackOpenDestinationModal()">+ Novo canal</button>
+      </div>
+      ${destsHTML}
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--color-border-secondary);display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-c" style="font-size:11px;padding:6px 10px;" onclick="_slackDisconnect()">Desconectar workspace</button>
+      </div>
+    </div>
+  `;
+}
+
+// Inicia OAuth: gera state, salva no Supabase, abre popup do Slack
+async function _slackStartOAuth() {
+  if (!supaUser) { appAlert('Login necessário', 'Faça login pra conectar o Slack.', { icon:'⚠️' }); return; }
+  try {
+    // Gera state aleatório (32 chars)
+    const state = (() => {
+      const arr = new Uint8Array(24);
+      crypto.getRandomValues(arr);
+      return Array.from(arr).map(b => b.toString(36).padStart(2,'0')).join('').slice(0, 32);
+    })();
+    // Salva state no Supabase
+    await _capRESTCall('slack_oauth_states', {
+      method: 'POST',
+      body: { state, user_id: supaUser.id },
+      headers: { 'Prefer': 'return=minimal' },
+    });
+    // Abre popup com URL OAuth do Slack
+    const SLACK_CLIENT_ID = (typeof SYNKAN_SLACK_CLIENT_ID !== 'undefined' ? SYNKAN_SLACK_CLIENT_ID : '');
+    if (!SLACK_CLIENT_ID) {
+      appAlert('Slack não configurado', 'Aguarde — a Slack App ainda não foi publicada. Em breve.', { icon:'⚠️' });
+      return;
+    }
+    const scopes = [
+      'chat:write','chat:write.public','channels:read','groups:read',
+      'im:write','im:history','commands','app_mentions:read',
+      'users:read','users:read.email',
+    ].join(',');
+    const redirectUri = encodeURIComponent('https://api.synkan.com.br/slack/oauth/callback');
+    const url = `https://slack.com/oauth/v2/authorize?client_id=${encodeURIComponent(SLACK_CLIENT_ID)}&scope=${scopes}&redirect_uri=${redirectUri}&state=${encodeURIComponent(state)}`;
+    const popup = window.open(url, 'synkan-slack-oauth', 'width=600,height=750');
+    if (!popup) {
+      appAlert('Popup bloqueado', 'Autorize popups deste site e clique de novo. Ou use ' + url, { icon:'⚠️' });
+      return;
+    }
+    // Escuta mensagem da popup quando OAuth terminar
+    const onMessage = async (ev) => {
+      if (!ev.data || ev.data.type !== 'slack_oauth_done') return;
+      window.removeEventListener('message', onMessage);
+      if (ev.data.kind === 'success') {
+        showToastMsg('✓ Slack conectado');
+        await _slackLoadAll();
+        if (typeof renderSettings === 'function') renderSettings();
+      } else {
+        appAlert('OAuth não completou', 'Algo deu errado na conexão. Tente de novo.', { icon:'⚠️' });
+      }
+    };
+    window.addEventListener('message', onMessage);
+  } catch(e) {
+    appAlert('Erro', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
+}
+
+async function _slackDisconnect() {
+  const ok = await appConfirm('Desconectar Slack?', 'O bot vai parar de mandar notificações. Você pode reconectar depois.', { danger:true, okLabel:'Desconectar' });
+  if (!ok) return;
+  try {
+    await _capRESTCall(`slack_workspaces?user_id=eq.${encodeURIComponent(supaUser.id)}`, {
+      method: 'PATCH',
+      body: { uninstalled_at: new Date().toISOString() },
+      headers: { 'Prefer': 'return=minimal' },
+    });
+    showToastMsg('Slack desconectado');
+    await _slackLoadAll();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) {
+    appAlert('Erro', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
+}
+
+// Cache de canais carregados via API pra não bater toda hora
+var _slackChannelsCache = null;
+async function _slackFetchChannels() {
+  if (_slackChannelsCache) return _slackChannelsCache;
+  const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+  if (!jwt) throw new Error('Sessão expirada');
+  const r = await fetch((typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/slack/channels', {
+    method: 'GET',
+    headers: { 'Authorization': 'Bearer ' + jwt },
+    signal: AbortSignal.timeout(15000),
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  _slackChannelsCache = data.channels || [];
+  return _slackChannelsCache;
+}
+
+async function _slackOpenDestinationModal(existing) {
+  if (!_slackWorkspace) { appAlert('Conecte o Slack primeiro', '', { icon:'⚠️' }); return; }
+  const allEvents = [
+    ['card_created','Card criado'],
+    ['card_done','Card concluído'],
+    ['card_assigned','Card atribuído'],
+    ['card_moved','Card mudou de status'],
+    ['lead_received','Lead novo (form)'],
+  ];
+  const realBoards = Object.entries(allBoards||{})
+    .filter(([id]) => id !== (typeof UNIFIED_BOARD_ID !== 'undefined' ? UNIFIED_BOARD_ID : '__unified__'))
+    .map(([id,b]) => ({ id, name: b.name || '(sem nome)' }));
+  const e = existing || {};
+  const evSet = new Set(e.events || ['card_created','card_done','card_assigned','card_moved','lead_received']);
+  const boardSet = new Set(e.board_ids || []);
+  const isEdit = !!existing;
+
+  // Mostra modal com loading enquanto canais carregam
+  const loadingHTML = `<div style="text-align:center;padding:40px;"><strong>Carregando canais do Slack...</strong></div>`;
+  if (typeof _appDialogShow === 'function') _appDialogShow(loadingHTML);
+  let channels = [];
+  try { channels = await _slackFetchChannels(); }
+  catch(err) {
+    if (typeof _appDialogClose === 'function') _appDialogClose(null);
+    appAlert('Erro listando canais', err?.message || String(err), { icon:'⚠️' });
+    return;
+  }
+  if (!channels.length) {
+    if (typeof _appDialogClose === 'function') _appDialogClose(null);
+    appAlert('Nenhum canal acessível', 'O bot Synkan ainda não foi adicionado a nenhum canal. No Slack: /invite @synkan no canal desejado.', { icon:'ℹ️' });
+    return;
+  }
+  const channelOptions = channels.map(c => {
+    const sel = (e.channel_id === c.id) ? ' selected' : '';
+    const icon = c.is_private ? '🔒' : '#';
+    return `<option value="${_esc(c.id)}" data-name="${_esc(c.name)}"${sel}>${icon} ${_esc(c.name)}</option>`;
+  }).join('');
+
+  const html = `
+    <h3 style="margin:0 0 14px;font-size:18px;font-weight:600;">${isEdit?'Editar canal':'Novo canal Slack'}</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="profile-field">
+        <label for="slack-d-channel">Canal do Slack</label>
+        <select id="slack-d-channel" style="font-size:14px;">${channelOptions}</select>
+      </div>
+      <div class="profile-field">
+        <label>Eventos que esse canal recebe</label>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:4px;">
+          ${allEvents.map(([id,lbl]) => `
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" class="slack-d-evt" value="${id}" ${evSet.has(id)?'checked':''}/> ${lbl}
+            </label>`).join('')}
+        </div>
+      </div>
+      <div class="profile-field">
+        <label>Filtro por boards (opcional — vazio = todos)</label>
+        ${realBoards.length === 0
+          ? `<div class="settings-card-sub" style="font-size:11px;font-style:italic;">Nenhum board ainda.</div>`
+          : `<div style="display:flex;flex-direction:column;gap:4px;max-height:140px;overflow-y:auto;border:1px solid var(--color-border-secondary);border-radius:6px;padding:6px;">${realBoards.map(b => `
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" class="slack-d-board" value="${_esc(b.id)}" ${boardSet.has(b.id)?'checked':''}/> ${_esc(b.name)}
+              </label>`).join('')}</div>`}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+        <button class="app-dialog-btn" onclick="_appDialogClose(null)">Cancelar</button>
+        <button class="app-dialog-btn primary" onclick="_slackSaveDestination(${isEdit?`'${_esc(existing.id)}'`:'null'})">Salvar canal</button>
+      </div>
+    </div>
+  `;
+  if (typeof _appDialogShow === 'function') _appDialogShow(html);
+}
+
+async function _slackSaveDestination(editId) {
+  if (!supaUser) return;
+  const sel = document.getElementById('slack-d-channel');
+  const channel_id = sel?.value || '';
+  const channel_name = sel?.options?.[sel.selectedIndex]?.dataset?.name || '';
+  const events = Array.from(document.querySelectorAll('.slack-d-evt:checked')).map(c => c.value);
+  const board_ids = Array.from(document.querySelectorAll('.slack-d-board:checked')).map(c => c.value);
+  if (!channel_id) { appAlert('Escolha um canal', '', { icon:'⚠️' }); return; }
+  if (events.length === 0) { appAlert('Escolha pelo menos um evento', '', { icon:'⚠️' }); return; }
+  try {
+    if (editId && editId !== 'null') {
+      await _capRESTCall(`slack_destinations?id=eq.${encodeURIComponent(editId)}`, {
+        method: 'PATCH',
+        body: { channel_id, channel_name, events, board_ids },
+        headers: { 'Prefer': 'return=minimal' },
+      });
+    } else {
+      await _capRESTCall('slack_destinations', {
+        method: 'POST',
+        body: { user_id: supaUser.id, channel_id, channel_name, events, board_ids },
+        headers: { 'Prefer': 'return=minimal' },
+      });
+    }
+    if (typeof _appDialogClose === 'function') _appDialogClose(true);
+    showToastMsg('Canal salvo');
+    await _slackLoadAll();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) {
+    appAlert('Erro', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
+}
+
+async function _slackEditDestination(id) {
+  const d = (_slackDestinations||[]).find(x => x.id === id);
+  if (!d) return;
+  _slackOpenDestinationModal(d);
+}
+
+async function _slackDeleteDestination(id) {
+  const ok = await appConfirm('Remover canal?', 'O Slack não vai mais receber notificações desse canal.', { danger:true, okLabel:'Remover' });
+  if (!ok) return;
+  try {
+    await _capRESTCall(`slack_destinations?id=eq.${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'Prefer': 'return=minimal' },
+    });
+    showToastMsg('Canal removido');
+    await _slackLoadAll();
+    if (typeof renderSettings === 'function') renderSettings();
+  } catch(e) {
+    appAlert('Erro', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
+  }
 }
 
 // ── WhatsApp (Z-API) ─────────────────────────────────────────────────
@@ -11173,8 +11495,8 @@ function _waRenderPaywall() {
             <strong style="font-size:15px;">🔧 DIY (faça você)</strong>
             <span style="font-size:10px;color:var(--color-text-tertiary);">técnico</span>
           </div>
-          <div style="font-size:24px;font-weight:700;margin-bottom:4px;">R$ 90<span style="font-size:13px;font-weight:400;color:var(--color-text-tertiary);">/mês na Z-API</span></div>
-          <div style="font-size:11.5px;color:var(--color-text-secondary);line-height:1.5;margin-bottom:14px;">Você cria conta na <a href="https://z-api.io" target="_blank" rel="noopener">Z-API</a> e cola as credenciais aqui. Mais barato, mas você gerencia.</div>
+          <div style="font-size:24px;font-weight:700;margin-bottom:4px;">R$ 99,99<span style="font-size:13px;font-weight:400;color:var(--color-text-tertiary);">/mês na Z-API</span></div>
+          <div style="font-size:11.5px;color:var(--color-text-secondary);line-height:1.5;margin-bottom:14px;">Você cria conta na <a href="https://z-api.io" target="_blank" rel="noopener">Z-API</a> e cola as credenciais aqui. Você gerencia a infra.</div>
           <ul style="font-size:12px;color:var(--color-text-secondary);padding-left:16px;margin:0 0 14px;line-height:1.6;">
             <li>Pagamento direto à Z-API</li>
             <li>Você conecta o WhatsApp</li>
@@ -11654,6 +11976,30 @@ async function _waDeleteDestination(id) {
   } catch(e) {
     appAlert('Não consegui remover', _translateSupabaseError ? _translateSupabaseError(e) : (e?.message||String(e)), { icon:'⚠️' });
   }
+}
+
+// Dispara um evento pra TODOS os canais externos configurados (Slack + WhatsApp).
+// Helper unificado pra reduzir duplicação nos hooks de cards/leads.
+function fireExternalEvent(event_type, opts) {
+  try { if (typeof fireSlackEvent === 'function') fireSlackEvent(event_type, opts); } catch(e){}
+  try { if (typeof fireWhatsAppEvent === 'function') fireWhatsAppEvent(event_type, opts); } catch(e){}
+}
+
+// Dispara evento pro Slack App nativo (fire-and-forget)
+function fireSlackEvent(event_type, opts) {
+  try {
+    if (typeof supaUser === 'undefined' || !supaUser) return;
+    if (!_slackWorkspace || _slackWorkspace.uninstalled_at) return;
+    const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+    if (!jwt) return;
+    const payload = Object.assign({ event_type }, opts || {});
+    fetch((typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : '') + '/slack/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    }).catch(e => console.warn('[slack] envio falhou:', e?.message || e));
+  } catch(e) { console.warn('[slack] fire failed:', e?.message || e); }
 }
 
 // Helper público: dispara um evento WhatsApp. Sem await — fire and forget,
@@ -13846,7 +14192,7 @@ function tblSetCol(id, newCol) {
     if (typeof fireWebhook === 'function') fireWebhook('card.moved', { cardId: id, name: card.name, from: oldTitle, to: newTitle });
     if (typeof fireWhatsAppEvent === 'function') {
       const _bn = (allBoards[currentBoardId]?.name) || '';
-      fireWhatsAppEvent('card_moved', {
+      fireExternalEvent('card_moved', {
         board_id: currentBoardId,
         title: card.name,
         details: (_bn ? 'Board: '+_bn+'\n' : '') + `Movido de "${oldTitle}" → "${newTitle}"` + (card.responsavel ? '\nResponsável: '+card.responsavel : ''),
@@ -13964,7 +14310,7 @@ function toggleDone(id) {
     if (typeof fireWebhook === 'function') fireWebhook('card.moved', { cardId: id, name: card.name, from: _oldTitle, to: _newTitle });
     if (typeof fireWhatsAppEvent === 'function') {
       const _bn = (allBoards[currentBoardId]?.name) || '';
-      fireWhatsAppEvent('card_moved', {
+      fireExternalEvent('card_moved', {
         board_id: currentBoardId,
         title: card.name,
         details: (_bn ? 'Board: '+_bn+'\n' : '') + `Movido de "${_oldTitle}" → "${_newTitle}"` + (card.responsavel ? '\nResponsável: '+card.responsavel : ''),
@@ -14590,7 +14936,7 @@ function _finalizeCardMove(card, newCol) {
     if (typeof fireWebhook === 'function') fireWebhook('card.moved', { cardId: card.id, name: card.name, from: _oldTitle, to: _newTitle });
     if (typeof fireWhatsAppEvent === 'function') {
       const _bn = (allBoards[currentBoardId]?.name) || '';
-      fireWhatsAppEvent('card_moved', {
+      fireExternalEvent('card_moved', {
         board_id: currentBoardId,
         title: card.name,
         details: (_bn ? 'Board: '+_bn+'\n' : '') + `Movido de "${_oldTitle}" → "${_newTitle}"` + (card.responsavel ? '\nResponsável: '+card.responsavel : ''),
@@ -14607,7 +14953,7 @@ function _finalizeCardMove(card, newCol) {
     fireWebhook('card.completed', { cardId: card.id, name: card.name });
     if (typeof fireWhatsAppEvent === 'function') {
       const _bn = (allBoards[currentBoardId]?.name) || '';
-      fireWhatsAppEvent('card_done', {
+      fireExternalEvent('card_done', {
         board_id: currentBoardId,
         title: card.name,
         details: (_bn ? 'Board: '+_bn+'\n' : '') + (card.responsavel ? 'Responsável: '+card.responsavel : ''),
@@ -14997,7 +15343,7 @@ function saveCard() {
     // WhatsApp: avisa se atribuição mudou pra alguém novo
     if (_waRespChanged && responsavel && typeof fireWhatsAppEvent === 'function') {
       const _bn = (allBoards[currentBoardId]?.name) || '';
-      fireWhatsAppEvent('card_assigned', {
+      fireExternalEvent('card_assigned', {
         board_id: currentBoardId,
         title: card.name,
         details: (_bn ? 'Board: '+_bn+'\n' : '') + 'Responsável: ' + responsavel,
@@ -15016,7 +15362,7 @@ function saveCard() {
       fireWebhook('card.completed', { cardId: card.id, name });
       if (typeof fireWhatsAppEvent === 'function') {
         const _bn = (allBoards[currentBoardId]?.name) || '';
-        fireWhatsAppEvent('card_done', {
+        fireExternalEvent('card_done', {
           board_id: currentBoardId,
           title: name,
           details: (_bn ? 'Board: '+_bn+'\n' : '') + (responsavel ? 'Responsável: '+responsavel : ''),
@@ -15040,9 +15386,9 @@ function saveCard() {
         responsavel ? `Responsável: ${responsavel}` : '',
         deadline ? `Deadline: ${new Date(deadline+'T00:00:00').toLocaleDateString('pt-BR')}` : '',
       ].filter(Boolean).join('\n');
-      fireWhatsAppEvent('card_created', { board_id: currentBoardId, title: name, details: _details });
-      if (responsavel) fireWhatsAppEvent('card_assigned', { board_id: currentBoardId, title: name, details: _details });
-      if (col === TERMINAL_COL) fireWhatsAppEvent('card_done', { board_id: currentBoardId, title: name, details: _details });
+      fireExternalEvent('card_created', { board_id: currentBoardId, title: name, details: _details });
+      if (responsavel) fireExternalEvent('card_assigned', { board_id: currentBoardId, title: name, details: _details });
+      if (col === TERMINAL_COL) fireExternalEvent('card_done', { board_id: currentBoardId, title: name, details: _details });
     }
     if (col === TERMINAL_COL) _gamifAwardCardDone(newCard);
     if (col===TERMINAL_COL && newCard.recurrence) _spawnRecurrence(newCard);
@@ -26199,7 +26545,7 @@ async function _capLoadAll() {
           data.telefone || data.phone ? `Telefone: ${data.telefone || data.phone}` : '',
           data.mensagem ? `Mensagem: ${String(data.mensagem).slice(0, 200)}` : '',
         ].filter(Boolean);
-        fireWhatsAppEvent('lead_received', {
+        fireExternalEvent('lead_received', {
           board_id: _capForms.find(f => f.id === lead.form_id)?.target_board_id || '',
           title: leadName,
           details: detailsParts.join('\n'),
