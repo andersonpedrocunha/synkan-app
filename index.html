@@ -7611,8 +7611,15 @@ function _weeklyBuckets(N){
 function _renderFinancialDashboard(el) {
   const today = new Date(); today.setHours(0,0,0,0);
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthPrevStart = new Date(today.getFullYear(), today.getMonth()-1, 1);
+  const monthPrevEnd = new Date(today.getFullYear(), today.getMonth(), 0);
   const horizon30 = new Date(today); horizon30.setDate(horizon30.getDate() + 30);
+  const horizon60 = new Date(today); horizon60.setDate(horizon60.getDate() + 60);
+  const horizon90 = new Date(today); horizon90.setDate(horizon90.getDate() + 90);
   const isGran = !!allBoards[currentBoardId]?.granatum_linked;
+
+  // Respeita os filtros do topo (tags, prioridade, data, busca)
+  const filteredCardsList = (typeof filteredCards === 'function') ? filteredCards() : (cards || []);
 
   const cardVal = c => {
     const v = c?.customFieldValues?.cf_valor;
@@ -7638,15 +7645,28 @@ function _renderFinancialDashboard(el) {
     if (isGran) return c.col === 'pago_hoje' || c.col === 'historico';
     return c.col === TERMINAL_COL;
   };
+  const cardDeadline = c => c.deadline ? new Date(c.deadline+'T00:00:00') : null;
+  const cardPaidAt = c => {
+    if (c.doneAt) return new Date(c.doneAt);
+    if (c.col === 'pago_hoje') return today;
+    return null;
+  };
 
   let aReceber30 = 0, aPagar30 = 0;
+  let aReceber60 = 0, aPagar60 = 0;
+  let aReceber90 = 0, aPagar90 = 0;
   let atrasadoReceber = 0, atrasadoPagar = 0;
   let recebidoMes = 0, pagoMes = 0;
+  let recebidoMesAnt = 0, pagoMesAnt = 0;
   let countReceber30 = 0, countPagar30 = 0, countAtrasado = 0;
-  const categoriaSum = {};   // { categoria: { entrada, saida, count } }
-  const pessoaSum = {};      // { contactId: { nome, entrada, saida, count } }
+  const categoriaSum = {};
+  const pessoaSum = {};
+  // Aging: 0-30, 31-60, 61-90, 90+ (dias desde vencimento, em atraso)
+  const agingBuckets = { '0-30':{ rec:0, pag:0, n:0 }, '31-60':{ rec:0, pag:0, n:0 }, '61-90':{ rec:0, pag:0, n:0 }, '90+':{ rec:0, pag:0, n:0 } };
+  // Pra DSO/DPO: dias entre vencimento e pagamento de cards pagos
+  const daysToReceive = [], daysToPay = [];
 
-  (cards || []).forEach(c => {
+  filteredCardsList.forEach(c => {
     const v = cardVal(c);
     const cat = (c.customFieldValues?.cf_categoria || '').trim() || '— sem categoria —';
     if (!categoriaSum[cat]) categoriaSum[cat] = { entrada:0, saida:0, count:0 };
@@ -7657,51 +7677,130 @@ function _renderFinancialDashboard(el) {
     if (c.contactId) {
       const ct = (Array.isArray(_contacts) ? _contacts : []).find(x => x.id === c.contactId);
       const nome = ct?.name || c.contactId;
-      if (!pessoaSum[c.contactId]) pessoaSum[c.contactId] = { nome, taxId: ct?.taxId||'', entrada:0, saida:0, count:0 };
+      if (!pessoaSum[c.contactId]) pessoaSum[c.contactId] = { id: c.contactId, nome, taxId: ct?.taxId||'', type: ct?.type||'', entrada:0, saida:0, count:0 };
       pessoaSum[c.contactId].count++;
       if (isReceber(c)) pessoaSum[c.contactId].entrada += v;
       if (isPagar(c)) pessoaSum[c.contactId].saida += v;
     }
 
-    // Estado atual (a vencer / atrasado / pago)
     const isOpen = !isPaid(c);
     if (isOpen) {
-      const dl = c.deadline ? new Date(c.deadline+'T00:00:00') : null;
+      const dl = cardDeadline(c);
       if (dl && dl < today) {
         countAtrasado++;
-        if (isReceber(c)) atrasadoReceber += v;
-        if (isPagar(c)) atrasadoPagar += v;
-      } else if (dl && dl <= horizon30) {
-        if (isReceber(c)) { aReceber30 += v; countReceber30++; }
-        if (isPagar(c)) { aPagar30 += v; countPagar30++; }
+        const daysLate = Math.floor((today - dl) / 86400000);
+        let bucket = '90+';
+        if (daysLate <= 30) bucket = '0-30';
+        else if (daysLate <= 60) bucket = '31-60';
+        else if (daysLate <= 90) bucket = '61-90';
+        agingBuckets[bucket].n++;
+        if (isReceber(c)) { atrasadoReceber += v; agingBuckets[bucket].rec += v; }
+        if (isPagar(c)) { atrasadoPagar += v; agingBuckets[bucket].pag += v; }
+      } else if (dl) {
+        if (dl <= horizon30) {
+          if (isReceber(c)) { aReceber30 += v; countReceber30++; }
+          if (isPagar(c)) { aPagar30 += v; countPagar30++; }
+        }
+        if (dl <= horizon60) {
+          if (isReceber(c)) aReceber60 += v;
+          if (isPagar(c)) aPagar60 += v;
+        }
+        if (dl <= horizon90) {
+          if (isReceber(c)) aReceber90 += v;
+          if (isPagar(c)) aPagar90 += v;
+        }
       }
     } else {
-      // Pago/concluído no mês corrente
-      const paidAt = c.doneAt ? new Date(c.doneAt) : null;
-      if (paidAt && paidAt >= monthStart && paidAt <= today) {
-        if (isReceber(c)) recebidoMes += v;
-        if (isPagar(c)) pagoMes += v;
-      } else if (c.col === 'pago_hoje') {
-        // Granatum: pago_hoje sem doneAt → conta como recebido/pago hoje
-        if (isReceber(c)) recebidoMes += v;
-        if (isPagar(c)) pagoMes += v;
+      const paidAt = cardPaidAt(c);
+      const dl = cardDeadline(c);
+      if (paidAt) {
+        // Mês atual
+        if (paidAt >= monthStart && paidAt <= today) {
+          if (isReceber(c)) recebidoMes += v;
+          if (isPagar(c)) pagoMes += v;
+        }
+        // Mês anterior
+        if (paidAt >= monthPrevStart && paidAt <= monthPrevEnd) {
+          if (isReceber(c)) recebidoMesAnt += v;
+          if (isPagar(c)) pagoMesAnt += v;
+        }
+        // DSO/DPO
+        if (dl) {
+          const diff = Math.round((paidAt - dl) / 86400000);
+          if (isReceber(c)) daysToReceive.push(diff);
+          if (isPagar(c)) daysToPay.push(diff);
+        }
       }
     }
   });
 
   const saldoMes = recebidoMes - pagoMes;
-  const netPrev = aReceber30 - aPagar30;
+  const saldoMesAnt = recebidoMesAnt - pagoMesAnt;
+  const netPrev30 = aReceber30 - aPagar30;
+  const netPrev60 = aReceber60 - aPagar60;
+  const netPrev90 = aReceber90 - aPagar90;
+
+  // Δ% vs mês anterior
+  const pctChange = (cur, prev) => {
+    if (!prev) return cur > 0 ? 100 : 0;
+    return Math.round(((cur - prev) / Math.abs(prev)) * 100);
+  };
+  const dRec = pctChange(recebidoMes, recebidoMesAnt);
+  const dPag = pctChange(pagoMes, pagoMesAnt);
+  const dSaldo = pctChange(saldoMes, saldoMesAnt);
+
+  // DSO / DPO médios (dias)
+  const avg = arr => arr.length ? Math.round(arr.reduce((s,x)=>s+x,0)/arr.length) : null;
+  const dso = avg(daysToReceive);
+  const dpo = avg(daysToPay);
+
+  // Concentração de risco (top 1 cliente / top 1 fornecedor sobre o total)
+  const totalEntrada = Object.values(categoriaSum).reduce((s,v)=>s+v.entrada, 0);
+  const totalSaida = Object.values(categoriaSum).reduce((s,v)=>s+v.saida, 0);
+  const pessoaArr = Object.values(pessoaSum);
+  const topClienteVal = pessoaArr.filter(p=>p.entrada>0).sort((a,b)=>b.entrada-a.entrada)[0];
+  const topFornecVal = pessoaArr.filter(p=>p.saida>0).sort((a,b)=>b.saida-a.saida)[0];
+  const concClienteV = topClienteVal ? Math.round((topClienteVal.entrada/Math.max(1,totalEntrada))*100) : 0;
+  const concFornecV  = topFornecVal  ? Math.round((topFornecVal.saida/Math.max(1,totalSaida))*100)   : 0;
+
   const fmt = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
   const fmtSigned = n => (n >= 0 ? '+' : '−') + fmt(Math.abs(n)).replace('R$ ','R$ ');
+  const pctPill = d => {
+    if (!isFinite(d)) return '';
+    const cls = d > 0 ? 'ok' : (d < 0 ? 'warn' : '');
+    const sym = d > 0 ? '↑' : (d < 0 ? '↓' : '→');
+    const color = d > 0 ? '#3B6D11' : (d < 0 ? '#A32D2D' : '#888');
+    return `<span style="font-size:11px;font-weight:600;color:${color};">${sym} ${Math.abs(d)}%</span>`;
+  };
+
+  // Saldo mensal últimos 6 meses
+  const monthsBack = [];
+  for (let i = 5; i >= 0; i--) {
+    const ms = new Date(today.getFullYear(), today.getMonth()-i, 1);
+    const me = new Date(today.getFullYear(), today.getMonth()-i+1, 0);
+    monthsBack.push({ start: ms, end: me, label: ms.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}).replace('.',''), entrada: 0, saida: 0 });
+  }
+  filteredCardsList.forEach(c => {
+    const paidAt = cardPaidAt(c);
+    if (!paidAt) return;
+    const v = cardVal(c);
+    monthsBack.forEach(m => {
+      if (paidAt >= m.start && paidAt <= m.end) {
+        if (isReceber(c)) m.entrada += v;
+        if (isPagar(c)) m.saida += v;
+      }
+    });
+  });
+  const maxMonth = Math.max(1, ...monthsBack.map(m => Math.max(m.entrada, m.saida)));
 
   // Throughput financeiro: entradas + saídas pagas por semana (12 semanas)
   const buckets12 = (typeof _weeklyBuckets === 'function') ? _weeklyBuckets(12) : [];
   const flowWeekly = buckets12.map(b => {
     let inv = 0, outv = 0;
-    (cards || []).forEach(c => {
-      if (!c.doneAt && c.col !== 'pago_hoje') return;
-      const t = c.doneAt ? new Date(c.doneAt) : today;
-      if (t >= b.start && t < b.end) {
+    filteredCardsList.forEach(c => {
+      const paidAt = cardPaidAt(c);
+      if (!paidAt) return;
+      if (paidAt >= b.start && paidAt < b.end) {
         const v = cardVal(c);
         if (isReceber(c)) inv += v;
         if (isPagar(c)) outv += v;
@@ -7711,13 +7810,27 @@ function _renderFinancialDashboard(el) {
   });
   const maxFlow = Math.max(1, ...flowWeekly.map(b => Math.max(b.inv, b.outv)));
 
+  // Insights automáticos do Mestre Kan (regras determinísticas, não chama IA)
+  const insights = [];
+  if (atrasadoPagar > recebidoMes && recebidoMes > 0) insights.push({ type:'warn', text:`Você tem <strong>${fmt(atrasadoPagar)}</strong> em saídas atrasadas, mais que toda a receita do mês (${fmt(recebidoMes)}).` });
+  if (atrasadoReceber > 0 && agingBuckets['90+'].rec > 0) insights.push({ type:'warn', text:`<strong>${fmt(agingBuckets['90+'].rec)}</strong> em recebíveis atrasados há <strong>+90 dias</strong> — risco alto de inadimplência.` });
+  if (concClienteV >= 30 && topClienteVal) insights.push({ type:'warn', text:`<strong>${concClienteV}%</strong> da receita vem de <strong>${_esc(topClienteVal.nome)}</strong> — concentração alta.` });
+  if (concFornecV >= 40 && topFornecVal) insights.push({ type:'info', text:`<strong>${concFornecV}%</strong> dos custos vão pra <strong>${_esc(topFornecVal.nome)}</strong>.` });
+  if (netPrev30 < 0 && netPrev60 < 0) insights.push({ type:'warn', text:`Net previsto negativo nos próximos <strong>60 dias</strong> (${fmtSigned(netPrev60)}).` });
+  if (saldoMes > 0 && saldoMesAnt > 0 && dSaldo >= 20) insights.push({ type:'ok', text:`Saldo do mês cresceu <strong>${dSaldo}%</strong> vs mês anterior.` });
+  if (saldoMes < 0 && saldoMesAnt > 0) insights.push({ type:'warn', text:`Saldo virou negativo este mês — mês passado fechou em ${fmt(saldoMesAnt)}.` });
+  if (dso !== null && dso > 7) insights.push({ type:'info', text:`Tempo médio pra receber: <strong>+${dso} dias</strong> após o vencimento.` });
+  if (dpo !== null && dpo < -3) insights.push({ type:'ok', text:`Pagamentos antecipados em média <strong>${Math.abs(dpo)} dias</strong>.` });
+  if (insights.length === 0) insights.push({ type:'ok', text:'Sem alertas — fluxo financeiro saudável neste período.' });
+
   // Score de saúde financeira (0-100)
   let healthScore = 100;
   const totalAtrasado = atrasadoReceber + atrasadoPagar;
   if (totalAtrasado > 0) healthScore -= Math.min(40, Math.round(40 * totalAtrasado / Math.max(1, aPagar30 + aReceber30 + totalAtrasado)));
   if (saldoMes < 0) healthScore -= 20;
-  if (netPrev < 0) healthScore -= 20;
+  if (netPrev30 < 0) healthScore -= 20;
   if (recebidoMes === 0 && pagoMes > 0) healthScore -= 10;
+  if (concClienteV >= 50) healthScore -= 10;
   healthScore = Math.max(0, Math.min(100, healthScore));
   const healthColor = healthScore >= 70 ? '#3B6D11' : (healthScore >= 40 ? '#A99876' : '#A32D2D');
   const healthRing = `
@@ -7765,19 +7878,19 @@ function _renderFinancialDashboard(el) {
     <div class="dash-section-title">Visão geral</div>
     <div class="dash-kpis">
       <div class="kpi-card kpi-accent" style="--accent:#3B6D11;">
-        <div class="kpi-head"><span class="kpi-label">Recebido / mês</span></div>
+        <div class="kpi-head"><span class="kpi-label">Recebido / mês</span>${pctPill(dRec)}</div>
         <div class="kpi-row"><span class="kpi-value sm" style="color:#3B6D11;">${fmt(recebidoMes)}</span></div>
-        <div class="kpi-sub">desde ${monthStart.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
+        <div class="kpi-sub">vs ${fmt(recebidoMesAnt)} mês ant.</div>
       </div>
       <div class="kpi-card kpi-accent" style="--accent:#A32D2D;">
-        <div class="kpi-head"><span class="kpi-label">Pago / mês</span></div>
+        <div class="kpi-head"><span class="kpi-label">Pago / mês</span>${pctPill(-dPag)}</div>
         <div class="kpi-row"><span class="kpi-value sm" style="color:#A32D2D;">${fmt(pagoMes)}</span></div>
-        <div class="kpi-sub">desde ${monthStart.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
+        <div class="kpi-sub">vs ${fmt(pagoMesAnt)} mês ant.</div>
       </div>
       <div class="kpi-card kpi-accent" style="--accent:${saldoMes>=0?'#3B6D11':'#A32D2D'};">
-        <div class="kpi-head"><span class="kpi-label">Saldo do mês</span></div>
+        <div class="kpi-head"><span class="kpi-label">Saldo do mês</span>${pctPill(dSaldo)}</div>
         <div class="kpi-row"><span class="kpi-value sm" style="color:${saldoMes>=0?'#3B6D11':'#A32D2D'};">${fmtSigned(saldoMes)}</span></div>
-        <div class="kpi-sub">recebido − pago</div>
+        <div class="kpi-sub">vs ${fmtSigned(saldoMesAnt)} mês ant.</div>
       </div>
       <div class="kpi-card kpi-accent" style="--accent:#0C447C;">
         <div class="kpi-head"><span class="kpi-label">A receber (30d)</span></div>
@@ -7788,6 +7901,22 @@ function _renderFinancialDashboard(el) {
         <div class="kpi-head"><span class="kpi-label">A pagar (30d)</span></div>
         <div class="kpi-row"><span class="kpi-value sm" style="color:#A32D2D;">${fmt(aPagar30)}</span></div>
         <div class="kpi-sub">${countPagar30} lançamento${countPagar30!==1?'s':''}</div>
+      </div>
+    </div>
+
+    <!-- Insights automáticos -->
+    <div class="dash-row" style="margin-bottom:14px;">
+      <div class="dash-panel" style="flex:1;background:linear-gradient(180deg,rgba(60,52,137,.04),transparent);">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title" style="display:inline-flex;align-items:center;gap:8px;">💡 Insights automáticos</span>
+          <span class="dash-panel-sub">${insights.length} observação${insights.length!==1?'ões':''}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:6px 0;">
+          ${insights.map(i => `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:6px;background:${i.type==='warn'?'rgba(163,45,45,.06)':i.type==='ok'?'rgba(59,109,17,.06)':'rgba(60,52,137,.05)'};border-left:3px solid ${i.type==='warn'?'#A32D2D':i.type==='ok'?'#3B6D11':'#3C3489'};font-size:12.5px;line-height:1.5;">
+            <span style="flex:none;">${i.type==='warn'?'⚠':i.type==='ok'?'✓':'ℹ'}</span>
+            <span style="color:var(--color-text-secondary);">${i.text}</span>
+          </div>`).join('')}
+        </div>
       </div>
     </div>
 
@@ -7828,9 +7957,137 @@ function _renderFinancialDashboard(el) {
           <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.7;">
             ${countAtrasado ? `<div>● <strong>${countAtrasado}</strong> atrasados (${fmt(totalAtrasado)})</div>` : '<div style="color:#3B6D11;">● Nada atrasado</div>'}
             ${saldoMes < 0 ? `<div style="color:#A32D2D;">● Saldo do mês negativo</div>` : `<div style="color:#3B6D11;">● Saldo positivo</div>`}
-            ${netPrev < 0 ? `<div style="color:#A32D2D;">● Net previsto negativo</div>` : `<div style="color:#3B6D11;">● Net previsto positivo</div>`}
-            <div style="color:var(--color-text-tertiary);">Net 30d: <strong style="color:${netPrev>=0?'#3B6D11':'#A32D2D'};">${fmtSigned(netPrev)}</strong></div>
+            ${netPrev30 < 0 ? `<div style="color:#A32D2D;">● Net previsto negativo</div>` : `<div style="color:#3B6D11;">● Net previsto positivo</div>`}
+            <div style="color:var(--color-text-tertiary);">Net 30d: <strong style="color:${netPrev30>=0?'#3B6D11':'#A32D2D'};">${fmtSigned(netPrev30)}</strong></div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forecast + DSO/DPO + Aging -->
+    <div class="dash-section-title">Inteligência financeira</div>
+    <div class="dash-row">
+      <div class="dash-panel" style="flex:1;">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title">Forecast · próximos meses</span>
+          <span class="dash-panel-sub">a receber − a pagar (acumulado)</span>
+        </div>
+        <div style="display:flex;justify-content:space-around;padding:14px 0;text-align:center;">
+          <div>
+            <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;">30 dias</div>
+            <div style="font-size:18px;font-weight:600;color:${netPrev30>=0?'#3B6D11':'#A32D2D'};margin-top:4px;">${fmtSigned(netPrev30)}</div>
+          </div>
+          <div style="border-left:1px solid var(--color-border-tertiary);"></div>
+          <div>
+            <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;">60 dias</div>
+            <div style="font-size:18px;font-weight:600;color:${netPrev60>=0?'#3B6D11':'#A32D2D'};margin-top:4px;">${fmtSigned(netPrev60)}</div>
+          </div>
+          <div style="border-left:1px solid var(--color-border-tertiary);"></div>
+          <div>
+            <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;">90 dias</div>
+            <div style="font-size:18px;font-weight:600;color:${netPrev90>=0?'#3B6D11':'#A32D2D'};margin-top:4px;">${fmtSigned(netPrev90)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="dash-panel" style="flex:1;">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title">Prazos médios</span>
+          <span class="dash-panel-sub">DSO / DPO</span>
+        </div>
+        <div style="display:flex;justify-content:space-around;padding:14px 0;text-align:center;">
+          <div>
+            <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;">DSO · receber</div>
+            <div style="font-size:18px;font-weight:600;color:${dso!==null && dso>7?'#854F0B':'#3B6D11'};margin-top:4px;">${dso!==null?(dso>=0?'+':'')+dso+'d':'—'}</div>
+            <div style="font-size:10px;color:var(--color-text-tertiary);">${daysToReceive.length} pagamentos</div>
+          </div>
+          <div style="border-left:1px solid var(--color-border-tertiary);"></div>
+          <div>
+            <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;">DPO · pagar</div>
+            <div style="font-size:18px;font-weight:600;color:${dpo!==null && dpo<-3?'#3B6D11':'#854F0B'};margin-top:4px;">${dpo!==null?(dpo>=0?'+':'')+dpo+'d':'—'}</div>
+            <div style="font-size:10px;color:var(--color-text-tertiary);">${daysToPay.length} pagamentos</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);text-align:center;padding-bottom:6px;">
+          ${dso!==null && dpo!==null ? `Gap: <strong>${(dso-dpo)>=0?'+':''}${dso-dpo}d</strong> ${(dso-dpo)>0?'(você paga antes de receber)':'(folga financeira)'}` : '—'}
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-row">
+      <div class="dash-panel" style="flex:2;">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title">Aging de inadimplência</span>
+          <span class="dash-panel-sub">cards atrasados por idade do vencimento</span>
+        </div>
+        ${countAtrasado === 0 ? '<div class="dash-empty" style="padding:24px 0;">✓ Nada em atraso.</div>' : `
+        <div style="display:flex;gap:8px;padding:12px 0;">
+          ${['0-30','31-60','61-90','90+'].map(k => {
+            const b = agingBuckets[k];
+            const tot = b.rec + b.pag;
+            const pct = totalAtrasado > 0 ? (tot/totalAtrasado)*100 : 0;
+            const color = k==='0-30'?'#FCD34D':k==='31-60'?'#F59E0B':k==='61-90'?'#DC2626':'#7F1D1D';
+            return `<div style="flex:1;padding:10px;border-radius:8px;background:${color}15;border:1px solid ${color}40;">
+              <div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;font-weight:600;letter-spacing:.05em;">${k} dias</div>
+              <div style="font-size:16px;font-weight:700;color:${color};margin-top:4px;">${fmt(tot)}</div>
+              <div style="font-size:10px;color:var(--color-text-tertiary);margin-top:2px;">${b.n} card${b.n!==1?'s':''} · ${Math.round(pct)}%</div>
+              <div style="display:flex;gap:4px;margin-top:6px;font-size:10px;">
+                ${b.rec>0?`<span style="color:#3B6D11;">↑${fmt(b.rec).replace('R$ ','')}</span>`:''}
+                ${b.pag>0?`<span style="color:#A32D2D;">↓${fmt(b.pag).replace('R$ ','')}</span>`:''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`}
+      </div>
+      <div class="dash-panel" style="flex:1;">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title">Concentração</span>
+          <span class="dash-panel-sub">risco de dependência</span>
+        </div>
+        <div style="padding:10px 0;font-size:12px;">
+          ${topClienteVal ? `<div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:3px;"><span>Top cliente</span><span style="color:${concClienteV>=30?'#A32D2D':concClienteV>=15?'#854F0B':'#3B6D11'};">${concClienteV}%</span></div>
+            <div style="font-weight:600;font-size:13px;color:var(--color-text-primary);">${_esc(topClienteVal.nome)}</div>
+            <div style="font-size:11px;color:var(--color-text-tertiary);">${fmt(topClienteVal.entrada)} de ${fmt(totalEntrada)}</div>
+            <div style="height:4px;background:var(--color-background-secondary);border-radius:2px;margin-top:5px;overflow:hidden;"><div style="width:${concClienteV}%;height:100%;background:${concClienteV>=30?'#A32D2D':'#3B6D11'};"></div></div>
+          </div>` : ''}
+          ${topFornecVal ? `<div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:3px;"><span>Top fornecedor</span><span style="color:${concFornecV>=40?'#A32D2D':concFornecV>=20?'#854F0B':'#3B6D11'};">${concFornecV}%</span></div>
+            <div style="font-weight:600;font-size:13px;color:var(--color-text-primary);">${_esc(topFornecVal.nome)}</div>
+            <div style="font-size:11px;color:var(--color-text-tertiary);">${fmt(topFornecVal.saida)} de ${fmt(totalSaida)}</div>
+            <div style="height:4px;background:var(--color-background-secondary);border-radius:2px;margin-top:5px;overflow:hidden;"><div style="width:${concFornecV}%;height:100%;background:${concFornecV>=40?'#A32D2D':'#854F0B'};"></div></div>
+          </div>` : ''}
+          ${!topClienteVal && !topFornecVal ? '<div class="dash-empty">Nenhuma pessoa vinculada.</div>' : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Saldo mensal últimos 6 meses -->
+    <div class="dash-row">
+      <div class="dash-panel" style="flex:1;">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title">Saldo mensal — 6 meses</span>
+          <span class="dash-panel-sub">tendência de fechamento</span>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:10px;height:140px;padding:14px 0;border-bottom:1px solid var(--color-border-tertiary);">
+          ${monthsBack.map(m => {
+            const sal = m.entrada - m.saida;
+            const hIn = (m.entrada / maxMonth) * 90;
+            const hOut = (m.saida / maxMonth) * 90;
+            const isCurrent = m.start.getMonth() === today.getMonth() && m.start.getFullYear() === today.getFullYear();
+            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;" title="${m.label}: +${fmt(m.entrada)} / −${fmt(m.saida)} = ${fmtSigned(sal)}">
+              <div style="font-size:10px;font-weight:600;color:${sal>=0?'#3B6D11':'#A32D2D'};">${fmtSigned(sal).replace('R$ ','')}</div>
+              <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;height:90px;">
+                <div style="background:#3B6D11;width:42%;height:${hIn}%;min-height:${m.entrada?2:0}px;border-radius:2px 2px 0 0;${isCurrent?'opacity:1;':'opacity:.65;'}"></div>
+                <div style="background:#A32D2D;width:42%;height:${hOut}%;min-height:${m.saida?2:0}px;border-radius:2px 2px 0 0;${isCurrent?'opacity:1;':'opacity:.65;'}"></div>
+              </div>
+              <span style="font-size:10px;color:var(--color-text-tertiary);font-weight:${isCurrent?'600':'400'};">${m.label}</span>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--color-text-secondary);">
+          <span><span style="display:inline-block;width:10px;height:10px;background:#3B6D11;border-radius:2px;vertical-align:-1px;"></span> Recebido</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:#A32D2D;border-radius:2px;vertical-align:-1px;"></span> Pago</span>
+          <span style="margin-left:auto;color:var(--color-text-tertiary);">Mês atual em destaque</span>
         </div>
       </div>
     </div>
