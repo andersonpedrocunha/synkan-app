@@ -20063,7 +20063,9 @@ const CANVAS_FORMAT_META = {
   mindmap:  { label: 'Mapa de Ideias', icon: '🌿', desc: 'Cards conectados com status (ideia → aprovado → pronto). Não é um whiteboard.' },
   document: { label: 'Documento',     icon: '📝', desc: 'Editor com formatação completa. Bullets viram cards, H2 viram colunas.' },
   table:    { label: 'Tabela',        icon: '📊', desc: 'Linhas com prioridade e responsável. Cada linha vira card.' },
-  sheet:    { label: 'Planilha',      icon: '🔢', desc: 'Planilha completa estilo Airtable. Fórmulas (SUM, MEDIA, SE, etc.), formatação de células, atalhos de teclado, range selection com soma/média/contagem na barra inferior. Mestre Kan ajuda a montar. Pode virar board.' },
+  sheet:    { label: 'Planilha',
+    icon: `<svg viewBox="0 0 24 24" width="36" height="36" xmlns="http://www.w3.org/2000/svg" style="display:block;"><rect x="3" y="3" width="18" height="18" rx="2.5" fill="rgba(255,255,255,0.18)" stroke="white" stroke-width="1.7"/><rect x="3" y="3" width="18" height="5" rx="2.5" fill="rgba(255,255,255,0.35)" stroke="none"/><line x1="3" y1="8" x2="21" y2="8" stroke="white" stroke-width="1.5"/><line x1="3" y1="13" x2="21" y2="13" stroke="white" stroke-width="1.2" opacity="0.85"/><line x1="3" y1="18" x2="21" y2="18" stroke="white" stroke-width="1.2" opacity="0.85"/><line x1="9" y1="3" x2="9" y2="21" stroke="white" stroke-width="1.2" opacity="0.85"/><line x1="15" y1="3" x2="15" y2="21" stroke="white" stroke-width="1.2" opacity="0.85"/></svg>`,
+    desc: 'Planilha completa com fórmulas (SUM, MEDIA, SE, etc.), formatação de células, atalhos de teclado, range selection com soma/média/contagem na barra inferior. Mestre Kan ajuda a montar. Pode virar board.' },
   plan:     { label: 'Plano de Ação', icon: '🎯', desc: 'Pré-preenchido com objetivo, etapas, responsáveis e riscos.' },
   invest:   { label: 'Invest-Lab',    icon: '財', desc: 'Simule cenários financeiros antes de aplicar. Adicione, remova ou modifique custos/receitas — veja o impacto no runway antes de mexer no board real. Quando aprovar, o cenário vira realidade.' },
 };
@@ -21113,7 +21115,7 @@ function renderSheetEditor() {
     <div class="canvas-editor">
       <div class="canvas-toolbar" style="flex-wrap:wrap;">
         <button class="ct-back" onclick="closeCanvas()">← Lab</button>
-        <span style="font-size:18px;line-height:1;">🔢</span>
+        <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg" style="display:block;color:#D97706;"><rect x="3" y="3" width="18" height="18" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="3" y1="8" x2="21" y2="8" stroke="currentColor" stroke-width="1.6"/><line x1="3" y1="13" x2="21" y2="13" stroke="currentColor" stroke-width="1.2"/><line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="1.2"/><line x1="9" y1="3" x2="9" y2="21" stroke="currentColor" stroke-width="1.2"/><line x1="15" y1="3" x2="15" y2="21" stroke="currentColor" stroke-width="1.2"/></svg>
         <input class="ct-name" id="canvas-name-input" value="${_esc(cv.name)}" oninput="onCanvasNameInput(this.value)" />
         <span class="ct-sep"></span>
         <button class="ct-btn" onclick="sheetAddRow()">+ Linha</button>
