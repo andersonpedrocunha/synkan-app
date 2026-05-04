@@ -5536,11 +5536,27 @@ const PLAN_LIMITS = {
 let _currentPlan = null;          // plan_code carregado do Supabase
 let _aiUsageThisMonth = 0;        // contador local de chamadas IA neste mês
 
-// Botão "↻ Atualizar plano": força refetch e mostra diagnóstico claro
+// Botão "↻ Atualizar plano": chama backend pra reconciliar com Stripe direto, depois recarrega
 async function _settingsResyncPlan() {
-  if (typeof showToastMsg === 'function') showToastMsg('Verificando plano...');
+  if (typeof showToastMsg === 'function') showToastMsg('Verificando plano com Stripe...');
   const before = _currentPlan;
-  // 1) Tenta carregar plano + uso de novo
+  // 0) Reconcile via backend (sincroniza Supabase com Stripe direto, ignorando webhook)
+  let recRes = null;
+  try {
+    const billingBase = (typeof SYNKAN_BILLING_BASE !== 'undefined' ? SYNKAN_BILLING_BASE : 'https://billing.synkan.com.br');
+    const r = await fetch(billingBase + '/api/billing/reconcile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: supaUser?.id,
+        user_email: supaUser?.email,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    recRes = await r.json().catch(() => null);
+    console.log('[plan] reconcile:', recRes);
+  } catch(e) { console.warn('[plan] reconcile falhou:', e?.message || e); }
+  // 1) Recarrega o plano local depois do reconcile
   try { await loadPlanFromSupabase(); } catch(e){}
   try { await loadAIUsageThisMonth(); } catch(e){}
   // 2) Diagnóstico: lê direto da tabela subscriptions pra mostrar status real
@@ -5561,7 +5577,13 @@ async function _settingsResyncPlan() {
   // 4) Mostra resultado
   const after = _currentPlan;
   let msg;
-  if (after !== before) {
+  // Prioriza info do reconcile (mais autoritativo, vem direto do Stripe)
+  if (recRes && recRes.found) {
+    msg = `✓ Sincronizado com Stripe\n\nPlano: ${recRes.plan_code}\nStatus: ${recRes.status} (raw: ${recRes.raw_status})\nCustomer: ${recRes.customer_id}`;
+    if (recRes.current_period_end) msg += `\nVálido até: ${new Date(recRes.current_period_end).toLocaleDateString('pt-BR')}`;
+  } else if (recRes && recRes.error === 'no_customer') {
+    msg = `Nenhum customer Stripe encontrado pra esse user.\n\nProvavelmente você ainda não fez checkout, ou o email do Stripe é diferente do email do Synkan.\n\nUser ID: ${supaUser?.id || '?'}\nEmail: ${supaUser?.email || '?'}`;
+  } else if (after !== before) {
     msg = `✓ Plano atualizado: ${before || 'trial'} → ${after}`;
   } else if (raw) {
     msg = `Plano: <strong>${raw.plan_code || 'trial'}</strong> · Status: <strong>${raw.status || '?'}</strong>`;
@@ -5579,29 +5601,58 @@ async function _settingsResyncPlan() {
   }
 }
 
+// Cache do status raw da assinatura (active/incomplete/past_due/etc) pra UI
+let _currentSubscriptionStatus = null;
 async function loadPlanFromSupabase() {
-  // Se há sessão Supabase ativa, usa ela como fonte de verdade — independente
-  // do getStorageMode (que pode estar 'local' se a config URL+anonKey não foi
-  // persistida ainda no localStorage).
   if (typeof supaClient === 'undefined' || !supaClient || !supaUser) {
     _currentPlan = 'trial';
+    _currentSubscriptionStatus = null;
     return _currentPlan;
   }
+  // Usa fetch REST direto em vez de supaClient.from() pra evitar o "auth-token
+  // lock contention" do supabase-js (Promise fica pending indefinidamente em
+  // múltiplas tabs ou após sessões longas).
   try {
-    const { data, error } = await supaClient
-      .from('subscriptions')
-      .select('plan_code, status')
-      .eq('user_id', supaUser.id)
-      .maybeSingle();
-    if (error) throw error;
-    if (!data || data.status === 'canceled' || data.status === 'incomplete_expired') {
+    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+    const url = cfg?.url, anonKey = cfg?.anonKey;
+    if (!url || !anonKey) throw new Error('Supabase config ausente');
+    // Pega JWT do user (cache ou fresh)
+    let jwt = null;
+    if (typeof _capReadJWTFromStorage === 'function') jwt = _capReadJWTFromStorage();
+    if (!jwt) {
+      const { data } = await Promise.race([
+        supaClient.auth.getSession(),
+        new Promise(res => setTimeout(() => res({ data: { session: null } }), 2000)),
+      ]);
+      jwt = data?.session?.access_token;
+    }
+    if (!jwt) throw new Error('JWT indisponível');
+    const reqUrl = `${url}/rest/v1/subscriptions?user_id=eq.${encodeURIComponent(supaUser.id)}&select=plan_code,status&limit=1`;
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch(reqUrl, {
+      headers: {
+        'apikey': anonKey,
+        'Authorization': 'Bearer ' + jwt,
+        'Accept': 'application/json',
+      },
+      signal: ctrl.signal,
+    });
+    clearTimeout(tid);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const arr = await r.json();
+    const data = Array.isArray(arr) && arr.length ? arr[0] : null;
+    _currentSubscriptionStatus = data?.status || null;
+    const blockedStatuses = ['canceled', 'incomplete_expired', 'incomplete', 'unpaid'];
+    if (!data || blockedStatuses.includes(data.status)) {
       _currentPlan = 'trial';
     } else {
       _currentPlan = data.plan_code || 'trial';
     }
   } catch(e) {
-    console.warn('[plan] falha ao carregar:', e);
+    console.warn('[plan] falha ao carregar:', e?.message || e);
     _currentPlan = 'trial';
+    _currentSubscriptionStatus = null;
   }
   return _currentPlan;
 }
@@ -13863,7 +13914,29 @@ function _settingsPlanoSection() {
           <strong style="font-size:13px;color:var(--accent);white-space:nowrap;">${priceLabel}</strong>
         </div>
       </div>
-      ${code === 'trial' ? `
+      ${(() => {
+        const subSt = (typeof _currentSubscriptionStatus !== 'undefined') ? _currentSubscriptionStatus : null;
+        const portalUrl = 'https://billing.stripe.com/p/login/test_4gw5lu3R6dCs5bidQQ'; // fallback (substituir pela URL real do customer portal)
+        // Status "incomplete" = pagamento ficou pendente (3DS, cartão recusado)
+        if (subSt === 'incomplete' || subSt === 'incomplete_expired') {
+          return `
+        <div style="margin-top:10px;padding:12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12.5px;color:#7f1d1d;">
+          <strong style="color:#991b1b;font-size:13px;">⚠ Pagamento pendente (status Stripe: <code>${_esc(subSt)}</code>)</strong>
+          <p style="margin:6px 0 8px;line-height:1.6;">A assinatura foi criada mas o pagamento <strong>não foi concluído</strong>. Causas comuns: confirmação 3DS não aprovada, cartão recusado, ou autenticação expirou.</p>
+          <p style="margin:0 0 8px;line-height:1.6;">Pra resolver: abra o Stripe Customer Portal pra atualizar cartão ou completar o pagamento.</p>
+          <a href="https://billing.stripe.com/p/login/test_4gw5lu3R6dCs5bidQQ" target="_blank" style="display:inline-block;padding:7px 14px;background:#991b1b;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:12px;">→ Abrir Stripe Customer Portal</a>
+          <span style="margin-left:8px;font-size:11px;">Ou contate <a href="mailto:contato@synkan.com.br?subject=Pagamento%20pendente&body=User%20ID%3A%20${typeof supaUser !== 'undefined' && supaUser ? supaUser.id : ''}%0AStatus%3A%20${_esc(subSt)}" style="color:#7f1d1d;text-decoration:underline;font-weight:600;">contato@synkan.com.br</a></span>
+        </div>`;
+        }
+        if (subSt === 'past_due' || subSt === 'unpaid') {
+          return `
+        <div style="margin-top:10px;padding:12px;background:#fff8e1;border:1px solid #ffd54f;border-radius:8px;font-size:12.5px;color:#5d4e00;">
+          <strong style="color:#8b6800;">⚠ Cobrança em atraso (status: <code>${_esc(subSt)}</code>)</strong> — atualize o cartão antes que a assinatura seja cancelada.
+          <div style="margin-top:8px;"><a href="https://billing.stripe.com/p/login/test_4gw5lu3R6dCs5bidQQ" target="_blank" style="display:inline-block;padding:6px 12px;background:#8b6800;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:12px;">→ Atualizar pagamento</a></div>
+        </div>`;
+        }
+        if (code === 'trial') {
+          return `
         <div style="margin-top:10px;padding:10px 12px;background:#fff8e1;border:1px solid #ffd54f;border-radius:8px;font-size:12px;color:#5d4e00;">
           <strong style="color:#8b6800;">Plano não detectado?</strong> Se você já assinou e ainda aparece como Trial:
           <ol style="margin:6px 0 0 18px;padding:0;line-height:1.7;">
@@ -13871,8 +13944,10 @@ function _settingsPlanoSection() {
             <li>Clique em <strong>↻ Atualizar plano</strong> acima</li>
             <li>Se persistir, contate <a href="mailto:contato@synkan.com.br?subject=Plano%20n%C3%A3o%20detectado&body=User%20ID%3A%20${typeof supaUser !== 'undefined' && supaUser ? supaUser.id : '(faça login primeiro)'}%0AEmail%3A%20${typeof supaUser !== 'undefined' && supaUser ? (supaUser.email||'') : ''}" style="color:#8b6800;text-decoration:underline;font-weight:600;">contato@synkan.com.br</a> com seu User ID: <code style="background:#fff3cd;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:11px;">${typeof supaUser !== 'undefined' && supaUser ? supaUser.id.slice(0,18)+'…' : '(faça login)'}</code></li>
           </ol>
-        </div>
-      ` : ''}
+        </div>`;
+        }
+        return '';
+      })()}
 
       ${_row('Mestre Kan (IA)', 'Chamadas de IA neste mês', usageAI.used, usageAI.max)}
       ${_row('Boards', 'Boards ativos na sua conta', usageBoards.used, usageBoards.max)}
