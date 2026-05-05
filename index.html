@@ -5848,13 +5848,26 @@ const DEFAULT_CONFIG = {
   cardFields: { ...DEFAULT_CARD_FIELDS }
 };
 const TERMINAL_COL = 'done'; // coluna terminal: não pode ser removida
-// Roster inicial — sincronizado do workspace do Notion. Pode ser editado pela engrenagem.
-const DEFAULT_TEAM = [
-  'Anderson Cunha',
-  'Liz',
-  'Rafael Caceres',
-  'Tainá Dutra'
-];
+// Roster inicial — vazio. O team é populado dinamicamente com o nome do
+// usuário logado em _initialTeam(). Boards novos começam só com o dono;
+// usuário adiciona o resto da equipe pela engrenagem do board.
+const DEFAULT_TEAM = [];
+
+function _initialTeam() {
+  // Retorna [nomeDoUserLogado] ou [] se não houver login
+  try {
+    if (typeof supaUser !== 'undefined' && supaUser) {
+      const meta = supaUser.user_metadata || {};
+      const n = meta.full_name || meta.name || (supaUser.email||'').split('@')[0] || '';
+      if (n && n.trim()) return [n.trim()];
+    }
+    if (typeof getProfileName === 'function') {
+      const n = getProfileName();
+      if (n && !['Você','Convidado','convidado'].includes(n)) return [n];
+    }
+  } catch(e){}
+  return [];
+}
 const COLORS = [
   {bg:'#E6F1FB',text:'#0C447C',dot:'#378ADD'},
   {bg:'#EEEDFE',text:'#3C3489',dot:'#7F77DD'},
@@ -6019,7 +6032,7 @@ function _defaultBoardData(name) {
     icon: suggestBoardIcon(name||''),
     cards: [],
     COLS: DEFAULT_COLS.map(c=>({...c})),
-    team: [...DEFAULT_TEAM],
+    team: _initialTeam(),
     globalTags: DEFAULT_TAGS.map(t=>({...t})),
     customFields: [],
     nCard: 1,
@@ -6057,7 +6070,7 @@ let globalTags, cards, nCard, nTag, COLS, team, kanbanConfig, customFields;
       name: 'Board principal',
       cards: saved.cards || [],
       COLS: (Array.isArray(saved.COLS) && saved.COLS.length) ? saved.COLS : DEFAULT_COLS.map(c=>({...c})),
-      team: (Array.isArray(saved.team) && saved.team.length) ? saved.team : [...DEFAULT_TEAM],
+      team: (Array.isArray(saved.team) && saved.team.length) ? saved.team : _initialTeam(),
       globalTags: saved.globalTags || DEFAULT_TAGS.map(t=>({...t})),
       nCard: saved.nCard || 1,
       nTag: saved.nTag || 5,
@@ -6097,7 +6110,7 @@ function _bindCurrentBoard() {
   nCard      = b.nCard || 1;
   nTag       = b.nTag || 5;
   COLS       = (Array.isArray(b.COLS) && b.COLS.length) ? b.COLS : DEFAULT_COLS.map(c=>({...c}));
-  team       = (Array.isArray(b.team) && b.team.length) ? b.team : [...DEFAULT_TEAM];
+  team       = (Array.isArray(b.team) && b.team.length) ? b.team : _initialTeam();
   customFields = Array.isArray(b.customFields) ? b.customFields : [];
   // Migration: zera tags genéricas em boards Granatum (UX/Backend/Financeiro/Dev — herdadas do template Zai)
   if (b.granatum_linked && Array.isArray(globalTags) && globalTags.length > 0) {
@@ -9732,7 +9745,7 @@ async function createZaiBoardFromHub() {
     icon: tpl.icon || '財',
     cards: tplCards,
     COLS: tpl.columns.map(c=>({...c})),
-    team: [...DEFAULT_TEAM],
+    team: _initialTeam(),
     globalTags: tagsOut,
     customFields: (tpl.customFields || []).map(f=>({...f, options: f.options ? [...f.options] : undefined})),
     nCard,
@@ -9763,7 +9776,7 @@ function addTemplateToBoards(templateId, opts) {
     icon: tpl.icon || '📋',
     cards: tplCards,
     COLS: tpl.columns.map(c=>({...c})),
-    team: [...DEFAULT_TEAM],
+    team: _initialTeam(),
     globalTags: tagsOut,
     customFields: (tpl.customFields || []).map(f=>({...f, options: f.options ? [...f.options] : undefined})),
     nCard,
@@ -9900,7 +9913,7 @@ function createKaizenBoard(opts) {
       { id: 'kaizen_acao',     title: 'Ação' },
       { id: 'done',            title: 'Concluído' },
     ],
-    team: [...DEFAULT_TEAM],
+    team: _initialTeam(),
     globalTags: [],
     customFields: [],
     kanbanConfig: { ...DEFAULT_CONFIG, sort:'newest' },
