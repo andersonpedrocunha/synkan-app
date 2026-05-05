@@ -17641,6 +17641,39 @@ async function submitAuth() {
   }
   btn.disabled = false;
 }
+// ─── Wipe completo de localStorage do user (mantém só configs gerais da máquina) ───
+// Usado em (a) sign-out e (b) detecção de troca de user no mesmo browser.
+// CRÍTICO: sem isso, dados de um user vazam pra outro na mesma máquina.
+function _wipeAllAppLocalData() {
+  try {
+    // Configs que ficam por máquina (não vinculadas ao user)
+    const KEEP_KEYS = new Set([
+      'kanban_v8_supabase_cfg',  // URL/anon key do Supabase (config técnica)
+      'theme',                   // tema preferido (light/dark)
+      'kanban_v8_theme',
+    ]);
+    // Coleta todas as keys e remove tudo exceto as preservadas
+    const toRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      if (KEEP_KEYS.has(k)) continue;
+      // Wipa qualquer chave que pareça do app: kanban_v8_*, synkan_*, sb-*, supabase.*
+      if (
+        k.startsWith('kanban_v8') ||
+        k.startsWith('synkan_')   ||
+        k.startsWith('sb-')       ||
+        k.startsWith('supabase.') ||
+        k.includes('-auth-token')
+      ) {
+        toRemove.push(k);
+      }
+    }
+    toRemove.forEach(k => localStorage.removeItem(k));
+    console.log(`[wipe] removidas ${toRemove.length} keys do localStorage`);
+  } catch(e) { console.warn('[wipe] falhou:', e); }
+}
+
 async function signOut() {
   try { _capInvalidateJWTCache(); } catch(e){}
   // 1) signOut do Supabase com timeout curto (não bloqueia se a rede/API falhar)
@@ -17652,17 +17685,9 @@ async function signOut() {
       ]);
     }
   } catch(e) { console.warn('[signOut] supabase signOut falhou:', e?.message || e); }
-  // 2) Limpa localStorage de auth (mesmo se signOut falhou — garante logout local)
-  try {
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && (k.startsWith('sb-') || k.startsWith('supabase.') || k.includes('-auth-token'))) {
-        keysToRemove.push(k);
-      }
-    }
-    keysToRemove.forEach(k => localStorage.removeItem(k));
-  } catch(e){}
+  // 2) Wipe COMPLETO do localStorage (boards, gamificação, empresa, settings, etc)
+  // Antes só limpava auth-token — daí dados do user antigo vazavam pra próxima conta.
+  _wipeAllAppLocalData();
   // 3) Limpa estado local da app
   try {
     supaUser = null;
@@ -17953,7 +17978,29 @@ async function supaRemoveMember(boardId, userId) {
 // mesmo user já logado e, se for, só atualiza UI sem reset de tab.
 let _lastSignedInUserId = null;
 async function _onSignedIn(session) {
-  const sameUserAsBefore = _lastSignedInUserId && _lastSignedInUserId === session.user.id;
+  // ─── DETECÇÃO DE TROCA DE USER NO MESMO BROWSER ───
+  // CRÍTICO: dados de user A não podem vazar pra user B na mesma máquina.
+  // Persistimos o user_id em localStorage. Se o user que está logando agora
+  // é DIFERENTE do anterior, fazemos wipe COMPLETO antes de continuar.
+  // Caso contrário (mesmo user, refresh de token, reload, etc), preservamos
+  // o estado local pra suportar o caso de boards offline ainda não sincronizados.
+  const PERSISTED_UID_KEY = 'kanban_v8_last_user_id';
+  let lastUidPersisted = null;
+  try { lastUidPersisted = localStorage.getItem(PERSISTED_UID_KEY); } catch(e){}
+  const currentUid = session.user.id;
+  if (lastUidPersisted && lastUidPersisted !== currentUid) {
+    console.warn(`[auth] user mudou (${lastUidPersisted.slice(0,8)}… → ${currentUid.slice(0,8)}…). Wipando dados do user anterior.`);
+    _wipeAllAppLocalData();
+    // Marca o novo user e recarrega — assim allBoards/canvases/state em memória
+    // são reinicializados do zero a partir do remoto.
+    try { localStorage.setItem(PERSISTED_UID_KEY, currentUid); } catch(e){}
+    location.reload();
+    return; // não continua execução; a próxima boot já entra como user novo
+  }
+  // Persiste o user atual (idempotente — se já era o mesmo, no-op)
+  try { localStorage.setItem(PERSISTED_UID_KEY, currentUid); } catch(e){}
+
+  const sameUserAsBefore = _lastSignedInUserId && _lastSignedInUserId === currentUid;
   supaUser = session.user;
   showAuthOverlay(false);
   // Cache JWT recém-recebido (evita corrida pelo lock no próximo REST call)
@@ -17966,7 +18013,7 @@ async function _onSignedIn(session) {
     refreshAccountUI();
     return;
   }
-  _lastSignedInUserId = session.user.id;
+  _lastSignedInUserId = currentUid;
 
   // Atualiza profile (caso falte full_name)
   const c = _ensureSupaClient();
