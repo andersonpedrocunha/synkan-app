@@ -18218,11 +18218,16 @@ async function _onSignedIn(session) {
   // Cache JWT recém-recebido (evita corrida pelo lock no próximo REST call)
   try { _capInvalidateJWTCache && _capInvalidateJWTCache(); } catch(e){}
 
+  // ATUALIZA O WIDGET DA SIDEBAR IMEDIATAMENTE — antes do supaUser estar setado,
+  // o sidebar mostrava "Convidado". Agora que sabemos quem é o user, mostra
+  // o nome dele logo, sem esperar load de boards/plano (que pode demorar ou
+  // falhar e deixaria a UI travada em "Convidado").
+  try { refreshAccountUI(); } catch(e) { console.warn('early refreshAccountUI', e); }
+
   // Se é o MESMO user que já estava logado (token refresh, mudança de aba,
   // wake do sleep), só atualiza UI leve e sai. NÃO troca tab, NÃO recarrega
   // boards, NÃO reinicializa realtime.
   if (sameUserAsBefore) {
-    refreshAccountUI();
     return;
   }
   _lastSignedInUserId = currentUid;
