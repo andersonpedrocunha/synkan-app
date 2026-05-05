@@ -10951,6 +10951,60 @@ function _seedExampleData() {
       }
     }
 
+    // ── 4. Zai board (Visão Financeira) ──
+    if (typeof allBoards === 'object' && typeof ZAI_TEMPLATE !== 'undefined') {
+      const hasZaiExample = Object.values(allBoards).some(b => (b.name||'').startsWith('[Exemplo] Zai'));
+      if (!hasZaiExample && typeof _genBoardId === 'function') {
+        try {
+          const tpl = ZAI_TEMPLATE;
+          const zaiId = _genBoardId();
+          const tagsOut = tpl.tags.map((t,i)=>({ id:'t'+(i+1), text:t.text, color:COLORS[t.colorIdx % COLORS.length] }));
+          const today = new Date();
+          const fmtDate = (d) => d.toISOString().slice(0,10);
+          const inDays = (n) => { const d = new Date(today); d.setDate(d.getDate()+n); return fmtDate(d); };
+          // Cards de exemplo: 2 entradas, 3 saídas, em colunas variadas
+          const exampleCards = [
+            { id:1, name:'Mensalidade SaaS · Software',  priority:'media', col:'planejado',  tagIds:['t1'],
+              moneyType:'expense', cfv:{ cf_valor:-450,  cf_data:inDays(7),  cf_categoria:'Software',     cf_fornecedor:'Provedor X' } },
+            { id:2, name:'Pagamento freela · designer',  priority:'alta',  col:'aguardando', tagIds:['t1'],
+              moneyType:'expense', cfv:{ cf_valor:-2200, cf_data:inDays(3),  cf_categoria:'Marketing',    cf_fornecedor:'Maria Silva' } },
+            { id:3, name:'Recebível cliente A',          priority:'alta',  col:'planejado',  tagIds:['t1'],
+              moneyType:'income',  cfv:{ cf_valor:8500,  cf_data:inDays(14), cf_categoria:'Operacional',  cf_fornecedor:'Cliente A' } },
+            { id:4, name:'Aporte mensal · pró-labore',   priority:'media', col:'aprovado',   tagIds:['t3'],
+              moneyType:'expense', cfv:{ cf_valor:-5000, cf_data:inDays(2),  cf_categoria:'Pessoal',      cf_fornecedor:'Você' } },
+            { id:5, name:'Recebível assinatura ano',     priority:'baixa', col:'pago',       tagIds:['t1'],
+              moneyType:'income',  cfv:{ cf_valor:18000, cf_data:inDays(-5), cf_categoria:'Operacional',  cf_fornecedor:'Cliente B' } },
+          ].map(c => ({
+            ...c,
+            tagIds: c.tagIds || [],
+            createdAt: new Date().toISOString(),
+            customFieldValues: c.cfv || {},
+            subtasks: [], threads: [], attachments: [],
+          }));
+          allBoards[zaiId] = {
+            name: '[Exemplo] Zai · Visão Financeira',
+            icon: tpl.icon || '財',
+            cards: exampleCards,
+            COLS: tpl.columns.map(c=>({...c})),
+            team: _initialTeam(),
+            globalTags: tagsOut,
+            customFields: (tpl.customFields || []).map(f=>({...f, options: f.options ? [...f.options] : undefined})),
+            nCard: exampleCards.length + 1,
+            nTag: tagsOut.length + 1,
+            kanbanConfig: { ...DEFAULT_CONFIG, cardFields: { ...DEFAULT_CARD_FIELDS } },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            sourceTemplateId: tpl.id,
+            aiOCR: !!tpl.aiOCR,
+            zaiEnabled: true,
+            isZaiBoard: true,
+          };
+          if (typeof saveData === 'function') saveData();
+          summary.boards = 1;
+        } catch(e) { console.warn('[seed] zai board falhou:', e); }
+      }
+    }
+
     console.log('[seed] dados de exemplo criados:', summary);
     return summary;
   } catch(e) {
@@ -10964,7 +11018,7 @@ async function _settingsLoadExampleData() {
   if (typeof appConfirm !== 'function') return;
   const ok = await appConfirm(
     'Carregar dados de exemplo?',
-    'Vou criar 1 OKR, 3 contatos no Synconnect e 1 Lab — todos prefixados com <strong>[Exemplo]</strong>. Você pode apagar individualmente quando não precisar mais.',
+    'Vou criar 1 board financeiro <strong>Zai</strong>, 1 <strong>OKR</strong>, 3 contatos no <strong>Synconnect</strong> e 1 <strong>Lab</strong> — todos prefixados com <strong>[Exemplo]</strong>. Você pode apagar individualmente quando não precisar mais.',
     { icon:'✨', okLabel:'Carregar exemplos' }
   );
   if (!ok) return;
@@ -10972,9 +11026,12 @@ async function _settingsLoadExampleData() {
   const total = s.boards + s.canvas + s.okrs + s.contacts;
   if (typeof appAlert === 'function') {
     if (total > 0) {
-      appAlert('Exemplos carregados',
-        `${s.okrs ? '✓ 1 OKR · ' : ''}${s.contacts ? `${s.contacts} contatos · ` : ''}${s.canvas ? '1 Lab' : ''}`.replace(/·\s*$/,'').trim() || 'Pronto.',
-        { icon:'✓' });
+      const parts = [];
+      if (s.boards)   parts.push(`✓ 1 Zai board`);
+      if (s.okrs)     parts.push(`1 OKR`);
+      if (s.contacts) parts.push(`${s.contacts} contatos`);
+      if (s.canvas)   parts.push(`1 Lab`);
+      appAlert('Exemplos carregados', parts.join(' · ') || 'Pronto.', { icon:'✓' });
     } else {
       appAlert('Já existem exemplos', 'Seus módulos já têm dados marcados como [Exemplo]. Apague-os antes pra recarregar.', { icon:'ℹ️' });
     }
@@ -10993,16 +11050,6 @@ const OB_STEPS = [
     title: '🥋 Boas-vindas ao dojo',
     body: 'Vou te mostrar o Synkan em <strong>10 passos rápidos</strong> — leva menos de 2 minutos.<br/><br/>A qualquer momento você pode pular e explorar por conta própria.',
     primary: 'Começar',
-  },
-  {
-    type: 'choice',
-    title: 'Como você quer começar?',
-    body: 'Pode mudar depois em Configurações.',
-    choices: [
-      { id: 'demo',  icon: '✨', title: 'Com dados de exemplo', desc: 'Vou popular Lab, OKRs e Synconnect com itens demo. Tudo prefixado com [Exemplo] — apaga quando quiser.' },
-      { id: 'empty', icon: '🥋', title: 'Vazio',                desc: 'Começo do zero, com meus próprios dados.' },
-    ],
-    primary: 'Próximo',
   },
   {
     target: '#sb-gallery',
@@ -11058,6 +11105,19 @@ const OB_STEPS = [
     title: '🎨 Sua marca nos relatórios',
     body: 'Em <strong>Configurações → Empresa</strong>, suba o logo e o nome da sua empresa.<br/><br/>Eles aparecem em destaque no topo de todos os PDFs gerados — Dashboard, cobrança, documentos. Entregáveis profissionais saem do board direto pro cliente, sem retrabalho.',
     primary: 'Próximo',
+  },
+  {
+    // PENÚLTIMO passo: agora que viu tudo, decide se quer começar do zero
+    // ou com exemplos pré-populados. Antes era o 2º passo, mas a pessoa nem
+    // sabia o que era cada módulo — agora é uma escolha informada.
+    type: 'choice',
+    title: 'Quer dados de exemplo pra explorar?',
+    body: 'Posso popular alguns módulos com itens demo prefixados com <strong>[Exemplo]</strong> — você apaga quando quiser. Pode mudar depois em Configurações → Conta.',
+    choices: [
+      { id: 'demo',  icon: '✨', title: 'Sim, popular com exemplos', desc: '1 board financeiro Zai, 1 OKR, 3 contatos no Synconnect e 1 Lab. Bom pra explorar e entender o app antes dos seus próprios dados.' },
+      { id: 'empty', icon: '🥋', title: 'Não, prefiro começar vazio', desc: 'Começo do zero com meus próprios dados. Mais limpo, mas demanda construir tudo do zero.' },
+    ],
+    primary: 'Confirmar',
   },
   {
     type: 'final',
@@ -11711,7 +11771,7 @@ function _settingsContaSection() {
         <span class="settings-card-title">Dados de exemplo</span>
         <span class="settings-card-sub" style="font-size:11px;">Pra explorar o app sem começar do zero.</span>
       </div>
-      <div class="settings-card-sub">Cria 1 OKR, 3 contatos no Synconnect e 1 Lab — todos prefixados com <strong>[Exemplo]</strong>. Você pode apagar individualmente quando não precisar mais. Útil pra testar funcionalidades ou demonstrar o app.</div>
+      <div class="settings-card-sub">Cria 1 board financeiro <strong>Zai</strong>, 1 <strong>OKR</strong>, 3 contatos no <strong>Synconnect</strong> e 1 <strong>Lab</strong> — todos prefixados com <strong>[Exemplo]</strong>. Você pode apagar individualmente quando não precisar mais. Útil pra testar funcionalidades ou demonstrar o app.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
         <button class="btn-c" onclick="_settingsLoadExampleData()">✨ Carregar dados de exemplo</button>
         <button class="btn-c" onclick="restartOnboarding()">🥋 Refazer tour de boas-vindas</button>
