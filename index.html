@@ -24953,8 +24953,10 @@ function _canvasGlobalMove(e) {
       }
       n.w = Math.round(newW);
       n.h = Math.round(newH);
+      // Performance: só atualiza posição/tamanho via CSS inline (rápido).
+      // NÃO rebuilda DOM nem re-renderiza edges durante o drag — fica fluido.
       _updateNodeDOM(n);
-      _renderCanvasEdges();
+      // _renderCanvasEdges() removido daqui — chamamos apenas no mouseup.
     }
   }
 }
@@ -24964,9 +24966,13 @@ function _canvasGlobalUp(e) {
     document.getElementById('canvas-stage')?.classList.remove('is-panning');
   }
   if (_canvasDrag || _canvasFrameResize || _canvasNodeResize) {
+    const wasResizing = !!_canvasNodeResize;
     const cv = _curCanvas();
     if (cv) { cv.updatedAt = new Date().toISOString(); _saveCanvases(); }
     _canvasDrag = null; _canvasFrameResize = null; _canvasNodeResize = null;
+    // Re-renderiza edges UMA vez no fim do resize (otimização — durante o
+    // drag a gente pula esse render pra manter fluido).
+    if (wasResizing && typeof _renderCanvasEdges === 'function') _renderCanvasEdges();
   }
 }
 
@@ -25339,6 +25345,11 @@ function _nodeDOM(n) {
       return;
     }
     if (isInteractive) return;
+    // Pra textbox: previne o browser tentar selecionar texto / focar contenteditable=false
+    // (sem isso, o click no texto não inicia o drag direito em alguns browsers).
+    if (n.type === 'textbox' || n.type === 'image') {
+      e.preventDefault();
+    }
     e.stopPropagation();
     _selectCanvasNode(n.id);
     _canvasDrag = { kind: 'node', id: n.id, startX: e.clientX, startY: e.clientY, ox: n.x, oy: n.y };
@@ -25436,6 +25447,9 @@ function _updateNodeDOM(n) {
   const el = document.querySelector(`[data-node-id="${n.id}"]`);
   if (!el) return;
   el.style.left = n.x+'px'; el.style.top = n.y+'px';
+  // Atualiza tamanho também (essencial pra resize ao vivo de image/textbox)
+  if (n.w) el.style.width  = n.w + 'px';
+  if (n.h) el.style.height = n.h + 'px';
 }
 function _updateFrameDOM(f) {
   const el = document.querySelector(`[data-frame-id="${f.id}"]`);
