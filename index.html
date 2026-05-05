@@ -18002,7 +18002,19 @@ async function forgotPasswordFlow() {
       `Confira o email <strong>${_esc(email)}</strong> nos próximos minutos. O link expira em 1 hora.<br/><br/>Se não chegar, verifique a pasta de spam.`,
       { icon:'✉️', html:true });
   } catch(e) {
-    await appAlert('Erro ao enviar', e?.message || 'Tente de novo em alguns segundos.', { icon:'⚠️' });
+    const msg = (e?.message || '').toLowerCase();
+    // Traduz erros conhecidos do Supabase pra mensagens amigáveis
+    if (msg.includes('rate limit') || msg.includes('too many')) {
+      await appAlert('Muitas tentativas',
+        'Você atingiu o limite de envio de emails do nosso provedor. Por segurança, ele bloqueia envios repetidos.<br/><br/><strong>O que fazer:</strong><br/>• Aguarde aproximadamente <strong>1 hora</strong> antes de tentar de novo<br/>• Ou se já recebeu um link recente, use ele (verifique caixa de entrada e spam)<br/><br/>Se persistir, contate <a href="mailto:contato@synkan.com.br">contato@synkan.com.br</a>.',
+        { icon:'⏱', html:true });
+    } else if (msg.includes('not found') || msg.includes('user not found')) {
+      await appAlert('Email não cadastrado',
+        `Não encontramos uma conta com esse email. Se você ainda não criou conta, clique em "Criar conta" no topo do formulário.`,
+        { icon:'⚠️' });
+    } else {
+      await appAlert('Erro ao enviar', e?.message || 'Tente de novo em alguns segundos.', { icon:'⚠️' });
+    }
   }
 }
 
