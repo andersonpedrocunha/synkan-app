@@ -22459,7 +22459,9 @@ renderFilterBar();
 render();
 refreshNotifBadge();
 maybeAutoBackup();
-maybeStartTour();
+// REMOVIDO: maybeStartTour() — era o sistema antigo (TOUR_STEPS, 7 passos).
+// O novo sistema (OB_STEPS, 11 passos com hero icons + choice) é disparado
+// em maybeStartOnboarding() perto da linha 10734.
 
 // Boot routing: Supabase (com config) vs local
 // ── Canvas (Miro-like) ─────────────────────────────────────────────
