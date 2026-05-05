@@ -18006,22 +18006,67 @@ async function forgotPasswordFlow() {
   }
 }
 
-// Detecta `?reset_password=1` na URL após o user clicar no link de recuperação
+// Detecta `?reset_password=1` na URL após o user clicar no link de recuperação.
+// O Supabase cria uma sessão temporária automaticamente — não é login normal.
+// A gente força a troca da senha e DESLOGA depois pra obrigar o user a entrar
+// com a nova senha (mais seguro do que deixar a sessão de recuperação ativa).
 async function _maybeHandlePasswordReset() {
   try {
     const params = new URLSearchParams(location.search);
     if (params.get('reset_password') !== '1') return;
-    if (!supaUser) return; // só roda se Supabase já autenticou via magic link
-    // Limpa param da URL
+    if (!supaUser) return; // só roda se Supabase já autenticou via recovery link
+    // Limpa param da URL imediatamente
     const url = new URL(location.href);
     url.searchParams.delete('reset_password');
     history.replaceState(null, '', url.toString());
-    // Pede senha nova
-    if (typeof changePasswordFlow === 'function') {
-      await appAlert('Definir nova senha',
-        'Você acabou de chegar pelo link de recuperação. Vamos definir a nova senha agora.',
-        { icon:'🔑' });
-      changePasswordFlow();
+    // Pede senha nova — sem alert intermediário (o modal já é claro)
+    const pw1 = await appPrompt('Definir nova senha', {
+      icon:'🔑',
+      message:'Você chegou aqui pelo link de recuperação. Crie uma senha nova com pelo menos 8 caracteres.',
+      placeholder:'Nova senha',
+      okLabel:'Continuar',
+      type:'password',
+    });
+    if (pw1 === null) {
+      // Cancelou: desloga (sessão de recuperação não deve ficar ativa)
+      try { await supaClient.auth.signOut(); } catch(e){}
+      location.reload();
+      return;
+    }
+    if (!pw1 || pw1.length < 8) {
+      await appAlert('Senha curta', 'Use pelo menos 8 caracteres pra ter alguma segurança.', { icon:'⚠️' });
+      return _maybeHandlePasswordReset(); // tenta de novo
+    }
+    const pw2 = await appPrompt('Confirmar nova senha', {
+      icon:'🔑',
+      message:'Digite a senha de novo pra evitar erro de digitação.',
+      placeholder:'Confirme a senha',
+      okLabel:'Salvar e entrar',
+      type:'password',
+    });
+    if (pw2 === null) {
+      try { await supaClient.auth.signOut(); } catch(e){}
+      location.reload();
+      return;
+    }
+    if (pw1 !== pw2) {
+      await appAlert('Senhas diferentes', 'As duas digitações não bateram. Tenta de novo.', { icon:'⚠️' });
+      return _maybeHandlePasswordReset();
+    }
+    // Atualiza senha
+    try {
+      const { error } = await supaClient.auth.updateUser({ password: pw1 });
+      if (error) throw error;
+      // Sucesso: desloga e força login com a senha nova (segurança)
+      await appAlert('Senha redefinida ✓',
+        'Pronto. Agora entre com a senha nova.',
+        { icon:'✓' });
+      try { await supaClient.auth.signOut(); } catch(e){}
+      location.reload();
+    } catch(e) {
+      await appAlert('Erro ao redefinir',
+        e?.message || 'Tenta novamente em alguns segundos. Se persistir, peça outro link de recuperação.',
+        { icon:'⚠️' });
     }
   } catch(e) { console.warn('reset password flow failed', e); }
 }
