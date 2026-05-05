@@ -19043,13 +19043,63 @@ async function inviteMember() {
       `Quando <strong>${email}</strong> criar conta com esse endereço, será adicionado automaticamente como <strong>${role}</strong>.`,
       { icon:'✓' });
   }
+  // Se foi editor/admin (seat pago), atualiza quantity no Stripe
+  if (['admin','editor'].includes(role) && !pending) {
+    _updateSeatsFromMembers().catch(e => console.warn('[seats] update falhou:', e));
+  }
   refreshMembersConfig();
 }
 
+// Conta seats pagos em todos os boards do user e atualiza Stripe
+async function _updateSeatsFromMembers() {
+  if (!supaUser || !supaClient) return;
+  try {
+    // Conta unique users com role pago (admin/editor) em boards onde sou owner
+    const { data, error } = await supaClient
+      .from('board_members')
+      .select('user_id, role, board_id, boards!inner(owner_id)')
+      .eq('boards.owner_id', supaUser.id)
+      .in('role', ['admin', 'editor']);
+    if (error) { console.warn('[seats] query falhou:', error); return; }
+    const uniqueUsers = new Set((data||[]).map(m => m.user_id));
+    const quantity = Math.max(1, uniqueUsers.size + 1); // +1 = o owner
+    // Manda pro billing
+    const billingBase = (typeof SYNKAN_BILLING_BASE !== 'undefined') ? SYNKAN_BILLING_BASE : 'https://billing.synkan.com.br';
+    const r = await fetch(`${billingBase}/api/billing/update-seats`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: supaUser.id, quantity }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      // Plano não-per-seat (Azul/Trial): silencia (não é erro do user)
+      if (json.error === 'plan_not_per_seat') return;
+      console.warn('[seats] update falhou:', json);
+      return;
+    }
+    if (!json.unchanged) {
+      console.log(`[seats] atualizado: ${json.old_quantity} → ${json.new_quantity}`);
+    }
+    return json;
+  } catch(e) {
+    console.warn('[seats] exception:', e?.message || e);
+  }
+}
+
 async function removeMember(userId) {
+  // Pega o role antes de remover (pra saber se precisa atualizar seats)
+  const list = await supaListMembers(currentBoardId);
+  const member = list.find(m => m.user_id === userId);
+  const wasPaidSeat = member && ['admin','editor'].includes(member.role);
+
   const ok = await appConfirm('Remover do board', 'Remover essa pessoa do board?', { danger:true, okLabel:'Remover' });
   if (!ok) return;
   await supaRemoveMember(currentBoardId, userId);
+  // Se removeu um seat pago, recalcula no Stripe
+  if (wasPaidSeat) {
+    _updateSeatsFromMembers().catch(e => console.warn('[seats] update falhou:', e));
+  }
   refreshMembersConfig();
 }
 
