@@ -3629,6 +3629,16 @@ body.density-compact .col{padding:7px;}
 .canvas-node:hover{box-shadow:0 8px 22px rgba(20,20,40,.10), 0 2px 4px rgba(0,0,0,.04);transform:translateY(-1px);border-color:var(--color-border-secondary);}
 .canvas-node:active{cursor:grabbing;}
 .canvas-node.selected{border-color:#7B61FF;box-shadow:0 0 0 1px #7B61FF, 0 8px 22px rgba(123,97,255,.18);}
+/* Image node: sem padding, sem ::before, sem fundo branco — só a imagem */
+.canvas-node.is-image-node{padding:0;background:transparent;border-radius:8px;border:1px dashed transparent;min-width:80px;min-height:60px;max-width:none;}
+.canvas-node.is-image-node::before{display:none;}
+.canvas-node.is-image-node:hover{border:1px dashed var(--color-border-secondary);transform:none;}
+.canvas-node.is-image-node.selected{border:1px solid #7B61FF;box-shadow:0 0 0 1px #7B61FF;}
+/* Textbox: sem fundo amarelado, sem borda lateral — visual de texto livre */
+.canvas-node.is-textbox-node{background:transparent;border:1px dashed transparent;padding:0;min-width:120px;min-height:30px;max-width:none;box-shadow:none;}
+.canvas-node.is-textbox-node::before{display:none;}
+.canvas-node.is-textbox-node:hover{border:1px dashed var(--color-border-secondary);box-shadow:none;transform:none;}
+.canvas-node.is-textbox-node.selected{border:1px solid #7B61FF;box-shadow:0 0 0 1px #7B61FF;}
 .canvas-node.connect-source{border-color:#7B61FF;box-shadow:0 0 0 2px #7B61FF, 0 0 0 6px rgba(123,97,255,.18);}
 .canvas-node.t-sticky    { --cn-accent:#C9A227; background:linear-gradient(180deg,#FFFBEA 0%,var(--color-background-primary) 28%); }
 .canvas-node.t-idea      { --cn-accent:#7B61FF; }
@@ -22492,6 +22502,9 @@ const NODE_TYPE_META = {
   risk:      { label: 'Risk',      icon: '🚧', color: '#EF9A9A' },
   insight:   { label: 'Insight',   icon: '🌱', color: '#80CBC4' },
   milestone: { label: 'Milestone', icon: '🏁', color: '#CE93D8' },
+  // Tipos de mídia/anotação livre
+  image:     { label: 'Imagem',    icon: '📷', color: 'transparent' },
+  textbox:   { label: 'Texto',     icon: 'T',  color: 'transparent' },
 };
 
 function _loadCanvases() {
@@ -23247,6 +23260,8 @@ function renderCanvasEditor() {
         <span class="ct-sep"></span>
         <button class="ct-btn" onclick="addCanvasNode('idea')" style="background:#7B61FF;color:#fff;border-color:#7B61FF;">+ Nova ideia</button>
         <button class="ct-btn" onclick="addCanvasFrame()" title="Adicionar grupo (área que agrupa cards)">▢ Grupo</button>
+        <button class="ct-btn" onclick="addCanvasImage()" title="Adicionar imagem (PNG, JPG, GIF)">📷 Imagem</button>
+        <button class="ct-btn" onclick="addCanvasTextbox()" title="Caixa de texto com fonte, tamanho e cor configuráveis">T Texto</button>
         <button class="ct-btn" onclick="openAIGenerateCanvas()" title="Mestre Kan gera um mapa de ideias inteiro a partir de um tema" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA</button>
         <span class="ct-sep"></span>
         <button class="ct-btn" id="canvas-mode-connect" onclick="toggleConnectMode()" title="Conectar dois cards">↔ Conectar</button>
@@ -24964,6 +24979,105 @@ function addCanvasNode(type) {
   }, 30);
 }
 
+// ── Imagem: abre file picker, salva como dataURL no node ──
+function addCanvasImage() {
+  const cv = _curCanvas(); if (!cv) return;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml';
+  input.style.display = 'none';
+  input.onchange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    // Limite de 4MB pra não estourar localStorage
+    if (file.size > 4 * 1024 * 1024) {
+      if (typeof appAlert === 'function') {
+        appAlert('Imagem muito grande', 'Máximo 4MB. Tente comprimir ou redimensionar antes de subir.', { icon:'⚠️' });
+      }
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataURL = ev.target.result;
+      const stage = document.getElementById('canvas-stage');
+      const rect = stage.getBoundingClientRect();
+      const worldX = (rect.width/2 - _canvasViewport.x) / _canvasViewport.zoom;
+      const worldY = (rect.height/2 - _canvasViewport.y) / _canvasViewport.zoom;
+      // Cria <img> temporário pra detectar dimensões naturais
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 300, maxH = 300;
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (w > maxW) { h = h * (maxW / w); w = maxW; }
+        if (h > maxH) { w = w * (maxH / h); h = maxH; }
+        const node = {
+          id: _genNodeId(), type: 'image',
+          x: Math.round(worldX - w/2), y: Math.round(worldY - h/2),
+          w: Math.round(w), h: Math.round(h),
+          imgData: dataURL,
+          text: '', // sem texto por padrão
+        };
+        cv.nodes.push(node);
+        cv.updatedAt = new Date().toISOString();
+        _saveCanvases();
+        _renderCanvasNodes();
+        document.getElementById('canvas-empty')?.style && (document.getElementById('canvas-empty').style.display = 'none');
+        setTimeout(() => _selectCanvasNode(node.id), 30);
+      };
+      img.src = dataURL;
+    };
+    reader.readAsDataURL(file);
+  };
+  document.body.appendChild(input);
+  input.click();
+  setTimeout(() => input.remove(), 100);
+}
+
+// ── Caixa de texto livre: configura fonte, tamanho, cor ──
+function addCanvasTextbox() {
+  const cv = _curCanvas(); if (!cv) return;
+  const stage = document.getElementById('canvas-stage');
+  const rect = stage.getBoundingClientRect();
+  const worldX = (rect.width/2 - _canvasViewport.x) / _canvasViewport.zoom;
+  const worldY = (rect.height/2 - _canvasViewport.y) / _canvasViewport.zoom;
+  const node = {
+    id: _genNodeId(), type: 'textbox',
+    x: Math.round(worldX - 100), y: Math.round(worldY - 24),
+    w: 220, h: 60,
+    text: 'Texto livre',
+    // Configurações tipográficas (defaults editáveis)
+    textStyle: {
+      fontSize: 16,        // 12 a 48
+      fontWeight: 400,     // 400 = normal, 700 = bold
+      fontStyle: 'normal', // 'normal' | 'italic'
+      color: '#111111',
+      align: 'left',       // 'left' | 'center' | 'right'
+    },
+  };
+  cv.nodes.push(node);
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  _renderCanvasNodes();
+  document.getElementById('canvas-empty')?.style && (document.getElementById('canvas-empty').style.display = 'none');
+  setTimeout(() => {
+    const el = document.querySelector(`[data-node-id="${node.id}"] .canvas-node-text`);
+    if (el) { _selectCanvasNode(node.id); el.focus(); document.execCommand && document.execCommand('selectAll', false, null); }
+  }, 30);
+}
+
+// Atualiza estilo tipográfico do textbox e re-renderiza
+function _updateTextboxStyle(nodeId, key, value) {
+  const cv = _curCanvas(); if (!cv) return;
+  const n = (cv.nodes||[]).find(x => x.id === nodeId); if (!n || n.type !== 'textbox') return;
+  if (!n.textStyle) n.textStyle = {};
+  n.textStyle[key] = value;
+  cv.updatedAt = new Date().toISOString();
+  _saveCanvases();
+  _renderCanvasNodes();
+  // re-seleciona pra manter popover aberto
+  setTimeout(() => _selectCanvasNode(nodeId), 10);
+}
+
 function addCanvasFrame() {
   const cv = _curCanvas(); if (!cv) return;
   const stage = document.getElementById('canvas-stage');
@@ -25079,18 +25193,35 @@ function _nodeDOM(n) {
     ? `<div class="canvas-node-footer">${footerBits.join('')}${reactionRow}</div>`
     : '';
 
-  el.innerHTML = `
-    <div class="cn-header">
-      <button class="cn-type-chip" onclick="event.stopPropagation();_cnOpenTypePicker('${n.id}', this)" title="Mudar tipo">
-        <span class="cn-type-chip-icon">${meta.icon}</span><span>${_esc(meta.label)}</span>
-      </button>
-      <button class="cn-status-pill ${stat.cls}" onclick="event.stopPropagation();cycleNodeStatus('${n.id}')" title="Clique pra avançar de status">${_esc(stat.label)}</button>
-    </div>
-    <div class="canvas-node-text" contenteditable="true" spellcheck="false">${_esc(n.text||'')}</div>
-    ${promoted?`<div class="canvas-node-meta"><span class="has-card-pill">✓ Já é card no board</span></div>`:''}
-    ${footerHTML}
-    <button class="cn-actions-trigger" onclick="event.stopPropagation();_cnOpenPopover('${n.id}', this)" title="Mais ações">⋯</button>
-  `;
+  // ── Render especializado para tipos de mídia ──
+  if (n.type === 'image' && n.imgData) {
+    el.classList.add('is-image-node');
+    el.innerHTML = `
+      <img src="${_esc(n.imgData)}" alt="" style="display:block;width:100%;height:100%;object-fit:contain;border-radius:8px;pointer-events:none;user-select:none;-webkit-user-drag:none;" draggable="false"/>
+      <button class="cn-actions-trigger" onclick="event.stopPropagation();_cnOpenPopover('${n.id}', this)" title="Mais ações">⋯</button>
+    `;
+  } else if (n.type === 'textbox') {
+    el.classList.add('is-textbox-node');
+    const ts = n.textStyle || {};
+    const textStyle = `font-size:${ts.fontSize||16}px;font-weight:${ts.fontWeight||400};font-style:${ts.fontStyle||'normal'};color:${ts.color||'#111'};text-align:${ts.align||'left'};line-height:1.4;padding:8px 10px;`;
+    el.innerHTML = `
+      <div class="canvas-node-text" contenteditable="true" spellcheck="false" style="${textStyle}">${_esc(n.text||'Texto livre')}</div>
+      <button class="cn-actions-trigger" onclick="event.stopPropagation();_cnOpenPopover('${n.id}', this)" title="Mais ações · estilo">⋯</button>
+    `;
+  } else {
+    el.innerHTML = `
+      <div class="cn-header">
+        <button class="cn-type-chip" onclick="event.stopPropagation();_cnOpenTypePicker('${n.id}', this)" title="Mudar tipo">
+          <span class="cn-type-chip-icon">${meta.icon}</span><span>${_esc(meta.label)}</span>
+        </button>
+        <button class="cn-status-pill ${stat.cls}" onclick="event.stopPropagation();cycleNodeStatus('${n.id}')" title="Clique pra avançar de status">${_esc(stat.label)}</button>
+      </div>
+      <div class="canvas-node-text" contenteditable="true" spellcheck="false">${_esc(n.text||'')}</div>
+      ${promoted?`<div class="canvas-node-meta"><span class="has-card-pill">✓ Já é card no board</span></div>`:''}
+      ${footerHTML}
+      <button class="cn-actions-trigger" onclick="event.stopPropagation();_cnOpenPopover('${n.id}', this)" title="Mais ações">⋯</button>
+    `;
+  }
   // drag + connect
   el.addEventListener('mousedown', e => {
     const t = e.target;
@@ -25319,23 +25450,66 @@ function _cnOpenPopover(nodeId, anchor) {
   const pop = document.createElement('div');
   pop.className = 'cn-popover';
   pop.onclick = e => e.stopPropagation();
-  pop.innerHTML = `
-    <button class="cn-popover-item" onclick="_cnPickContact('${nodeId}')"><span class="cn-popover-icon">🔗</span>Cadastro (lead/cliente)${n.contactId?' ✓':''}</button>
-    <button class="cn-popover-item" onclick="_cnPickResponsavel('${nodeId}')"><span class="cn-popover-icon">👤</span>Responsável${n.responsavel?': '+_esc(n.responsavel.split(' ')[0]):''}</button>
-    <button class="cn-popover-item" onclick="_cnPickOKR('${nodeId}')"><span class="cn-popover-icon">🎯</span>Vincular a OKR${n.krId?' ✓':''}</button>
-    <div class="cn-popover-divider"></div>
-    <button class="cn-popover-item" onclick="_cnPickPriority('${nodeId}')"><span class="cn-popover-icon">⚑</span>Prioridade${n.priority?': '+({alta:'Alta',media:'Média',baixa:'Baixa'})[n.priority]:''}</button>
-    <button class="cn-popover-item" onclick="_cnPickDeadline('${nodeId}')"><span class="cn-popover-icon">📅</span>Deadline${n.deadline?': '+new Date(n.deadline+'T00:00:00').toLocaleDateString('pt-BR'):''}</button>
-    <button class="cn-popover-item" onclick="_cnPickTags('${nodeId}')"><span class="cn-popover-icon">🏷</span>Tags${(n.tags||[]).length?': '+n.tags.length:''}</button>
-    <button class="cn-popover-item" onclick="_cnQuickReact('${nodeId}', this)"><span class="cn-popover-icon">👍</span>Reagir</button>
-    <button class="cn-popover-item" onclick="_cnOpenComments('${nodeId}')"><span class="cn-popover-icon">💬</span>Comentários${(n.comments||[]).length?' ('+n.comments.length+')':''}</button>
-    <div class="cn-popover-divider"></div>
-    <button class="cn-popover-item" onclick="_cnAskMestreKan('${nodeId}')"><span class="cn-popover-icon" style="width:20px;height:20px;flex-shrink:0;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:20px;height:20px;display:block;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid var(--color-border-tertiary);"/></span>Pedir ao Mestre Kan</button>
-    <button class="cn-popover-item" onclick="_cnClosePopover();openPromoteModal('${nodeId}')"><span class="cn-popover-icon">→</span>Promover a card</button>
-    <button class="cn-popover-item" onclick="_cnClosePopover();duplicateCanvasNode('${nodeId}')"><span class="cn-popover-icon">⎘</span>Duplicar</button>
-    <div class="cn-popover-divider"></div>
-    <button class="cn-popover-item is-danger" onclick="_cnClosePopover();deleteCanvasNode('${nodeId}')"><span class="cn-popover-icon">✕</span>Excluir</button>
-  `;
+  // Popover especial pra textbox: controles de tipografia
+  if (n.type === 'textbox') {
+    const ts = n.textStyle || {};
+    const sz = ts.fontSize || 16;
+    const wt = ts.fontWeight || 400;
+    const it = ts.fontStyle === 'italic';
+    const cl = ts.color || '#111111';
+    const al = ts.align || 'left';
+    pop.innerHTML = `
+      <div style="padding:10px 12px;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;">Tipografia</div>
+      <div style="padding:4px 12px 8px;display:flex;flex-direction:column;gap:10px;">
+        <label style="font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:8px;">
+          Tamanho
+          <input type="range" min="10" max="64" step="1" value="${sz}" oninput="_updateTextboxStyle('${nodeId}','fontSize',parseInt(this.value));this.nextElementSibling.textContent=this.value+'px';" style="flex:1;"/>
+          <span style="min-width:42px;text-align:right;font-variant-numeric:tabular-nums;">${sz}px</span>
+        </label>
+        <label style="font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:8px;">
+          Cor
+          <input type="color" value="${cl}" oninput="_updateTextboxStyle('${nodeId}','color',this.value)" style="width:40px;height:28px;border:none;cursor:pointer;border-radius:4px;"/>
+          <code style="font-size:11px;color:var(--color-text-tertiary);">${cl}</code>
+        </label>
+        <div style="display:flex;gap:6px;">
+          <button class="cn-popover-item" style="flex:1;justify-content:center;padding:7px 10px;${wt===700?'background:var(--color-text-primary);color:var(--color-background-primary);':''}" onclick="_updateTextboxStyle('${nodeId}','fontWeight',${wt===700?400:700})"><b>B</b></button>
+          <button class="cn-popover-item" style="flex:1;justify-content:center;padding:7px 10px;${it?'background:var(--color-text-primary);color:var(--color-background-primary);':''}" onclick="_updateTextboxStyle('${nodeId}','fontStyle','${it?'normal':'italic'}')"><i>I</i></button>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="cn-popover-item" style="flex:1;justify-content:center;padding:7px 10px;${al==='left'?'background:var(--color-text-primary);color:var(--color-background-primary);':''}" onclick="_updateTextboxStyle('${nodeId}','align','left')" title="Esquerda">⫷</button>
+          <button class="cn-popover-item" style="flex:1;justify-content:center;padding:7px 10px;${al==='center'?'background:var(--color-text-primary);color:var(--color-background-primary);':''}" onclick="_updateTextboxStyle('${nodeId}','align','center')" title="Centro">≡</button>
+          <button class="cn-popover-item" style="flex:1;justify-content:center;padding:7px 10px;${al==='right'?'background:var(--color-text-primary);color:var(--color-background-primary);':''}" onclick="_updateTextboxStyle('${nodeId}','align','right')" title="Direita">⫸</button>
+        </div>
+      </div>
+      <div class="cn-popover-divider"></div>
+      <button class="cn-popover-item" onclick="_cnClosePopover();duplicateCanvasNode('${nodeId}')"><span class="cn-popover-icon">⎘</span>Duplicar</button>
+      <button class="cn-popover-item is-danger" onclick="_cnClosePopover();deleteCanvasNode('${nodeId}')"><span class="cn-popover-icon">✕</span>Excluir</button>
+    `;
+  } else if (n.type === 'image') {
+    pop.innerHTML = `
+      <button class="cn-popover-item" onclick="_cnClosePopover();duplicateCanvasNode('${nodeId}')"><span class="cn-popover-icon">⎘</span>Duplicar</button>
+      <div class="cn-popover-divider"></div>
+      <button class="cn-popover-item is-danger" onclick="_cnClosePopover();deleteCanvasNode('${nodeId}')"><span class="cn-popover-icon">✕</span>Excluir</button>
+    `;
+  } else {
+    pop.innerHTML = `
+      <button class="cn-popover-item" onclick="_cnPickContact('${nodeId}')"><span class="cn-popover-icon">🔗</span>Cadastro (lead/cliente)${n.contactId?' ✓':''}</button>
+      <button class="cn-popover-item" onclick="_cnPickResponsavel('${nodeId}')"><span class="cn-popover-icon">👤</span>Responsável${n.responsavel?': '+_esc(n.responsavel.split(' ')[0]):''}</button>
+      <button class="cn-popover-item" onclick="_cnPickOKR('${nodeId}')"><span class="cn-popover-icon">🎯</span>Vincular a OKR${n.krId?' ✓':''}</button>
+      <div class="cn-popover-divider"></div>
+      <button class="cn-popover-item" onclick="_cnPickPriority('${nodeId}')"><span class="cn-popover-icon">⚑</span>Prioridade${n.priority?': '+({alta:'Alta',media:'Média',baixa:'Baixa'})[n.priority]:''}</button>
+      <button class="cn-popover-item" onclick="_cnPickDeadline('${nodeId}')"><span class="cn-popover-icon">📅</span>Deadline${n.deadline?': '+new Date(n.deadline+'T00:00:00').toLocaleDateString('pt-BR'):''}</button>
+      <button class="cn-popover-item" onclick="_cnPickTags('${nodeId}')"><span class="cn-popover-icon">🏷</span>Tags${(n.tags||[]).length?': '+n.tags.length:''}</button>
+      <button class="cn-popover-item" onclick="_cnQuickReact('${nodeId}', this)"><span class="cn-popover-icon">👍</span>Reagir</button>
+      <button class="cn-popover-item" onclick="_cnOpenComments('${nodeId}')"><span class="cn-popover-icon">💬</span>Comentários${(n.comments||[]).length?' ('+n.comments.length+')':''}</button>
+      <div class="cn-popover-divider"></div>
+      <button class="cn-popover-item" onclick="_cnAskMestreKan('${nodeId}')"><span class="cn-popover-icon" style="width:20px;height:20px;flex-shrink:0;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:20px;height:20px;display:block;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid var(--color-border-tertiary);"/></span>Pedir ao Mestre Kan</button>
+      <button class="cn-popover-item" onclick="_cnClosePopover();openPromoteModal('${nodeId}')"><span class="cn-popover-icon">→</span>Promover a card</button>
+      <button class="cn-popover-item" onclick="_cnClosePopover();duplicateCanvasNode('${nodeId}')"><span class="cn-popover-icon">⎘</span>Duplicar</button>
+      <div class="cn-popover-divider"></div>
+      <button class="cn-popover-item is-danger" onclick="_cnClosePopover();deleteCanvasNode('${nodeId}')"><span class="cn-popover-icon">✕</span>Excluir</button>
+    `;
+  }
   // Adiciona no body (pra não ser cortado pelo overflow do canvas) e calcula posição inteligente
   document.body.appendChild(pop);
   // Espera 1 frame pra ter offsetHeight real
