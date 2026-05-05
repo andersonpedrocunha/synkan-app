@@ -29127,9 +29127,12 @@ function _dojoStartWindEngine(overlay) {
         if (lf.y >= groundLine - lf.size * 0.15) {
           lf.landed = true;
           lf.landedTime = elapsed;
-          // Offset Y individual: folha pode pousar acima ou abaixo da linha
-          // do chão (-22..+8) — empilhamento natural com sobreposição.
-          lf._yOffset = rand(-22, 8) - lf.size * 0.15;
+          // Offset Y individual: folha pousa com o CENTRO visualmente apoiado
+          // na linha do chão (deitada na neve, não flutuando acima dela).
+          // size * 0.5 = subtrair metade da box pra alinhar centro à linha.
+          // rand(-2, 10) = pequena variação pra empilhamento natural — algumas
+          // ligeiramente sobre a neve, outras enfeitiadas.
+          lf._yOffset = rand(-2, 10) - lf.size * 0.5;
           lf.y = groundLine + lf._yOffset;
           lf.vy = 0;
           lf.vx *= 0.3;
