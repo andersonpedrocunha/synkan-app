@@ -11684,6 +11684,7 @@ function _settingsContaSection() {
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn-c" onclick="pickProfileAvatar()">📷 ${avatarURL?'Trocar foto':'Adicionar foto'}</button>
         ${avatarURL ? `<button class="btn-c" onclick="clearProfileAvatar()">Remover foto</button>` : ''}
+        ${inSupa ? `<button class="btn-c" onclick="changePasswordFlow()">🔑 Trocar senha</button>` : ''}
         ${inSupa ? `<button class="btn-c" onclick="signOut()">Sair</button>` : ''}
       </div>
     </div>
@@ -17907,6 +17908,51 @@ function _wipeAllAppLocalData() {
     toRemove.forEach(k => localStorage.removeItem(k));
     console.log(`[wipe] removidas ${toRemove.length} keys do localStorage`);
   } catch(e) { console.warn('[wipe] falhou:', e); }
+}
+
+// Trocar senha (user já autenticado — Supabase aceita updateUser sem
+// pedir a senha atual quando há sessão ativa)
+async function changePasswordFlow() {
+  if (!supaUser || !supaClient) {
+    appAlert('Não disponível', 'Precisa estar logado pra trocar a senha.', { icon:'⚠️' });
+    return;
+  }
+  // Pede a senha nova
+  const pw1 = await appPrompt('Nova senha', {
+    icon:'🔑',
+    message:'Digite uma senha nova com pelo menos 8 caracteres.',
+    placeholder:'Nova senha',
+    okLabel:'Continuar',
+    type:'password',
+  });
+  if (pw1 === null) return;
+  if (!pw1 || pw1.length < 8) {
+    await appAlert('Senha curta', 'Use pelo menos 8 caracteres pra ter alguma segurança.', { icon:'⚠️' });
+    return;
+  }
+  // Pede confirmação
+  const pw2 = await appPrompt('Confirmar nova senha', {
+    icon:'🔑',
+    message:'Digite a senha de novo pra evitar erro de digitação.',
+    placeholder:'Confirme a senha',
+    okLabel:'Trocar senha',
+    type:'password',
+  });
+  if (pw2 === null) return;
+  if (pw1 !== pw2) {
+    await appAlert('Senhas diferentes', 'As duas digitações não bateram. Tenta de novo.', { icon:'⚠️' });
+    return;
+  }
+  // Update no Supabase
+  try {
+    const { error } = await supaClient.auth.updateUser({ password: pw1 });
+    if (error) throw error;
+    await appAlert('Senha trocada ✓', 'Pronto. Da próxima vez que entrar, use a nova senha.', { icon:'✓' });
+    try { audit && audit('account.password_changed', {}); } catch(e){}
+  } catch(e) {
+    console.error('updateUser falhou:', e);
+    await appAlert('Erro ao trocar senha', e?.message || 'Tenta novamente em alguns segundos.', { icon:'⚠️' });
+  }
 }
 
 async function signOut() {
