@@ -18469,6 +18469,80 @@ async function _onSignedIn(session) {
     window._didInitialSignIn = true;
   }
   supaSubscribeRealtime();
+  // Se chegou da landing com ?plan=...&cycle=..., dispara checkout
+  try { _maybeRedirectToPlanCheckout(); } catch(e) { console.warn('plan checkout', e); }
+}
+
+// Detecta ?plan=...&cycle=... na URL ou em localStorage (caso veio antes de logar)
+// e dispara o checkout do Stripe automaticamente.
+async function _maybeRedirectToPlanCheckout() {
+  let plan = null, cycle = 'monthly';
+  // 1) URL atual
+  try {
+    const params = new URLSearchParams(location.search);
+    plan = params.get('plan');
+    cycle = params.get('cycle') || 'monthly';
+  } catch(e){}
+  // 2) Fallback: pendente do signup (user veio sem conta, criou, agora retorna)
+  if (!plan) {
+    try {
+      const pending = localStorage.getItem('synkan_pending_plan');
+      if (pending) {
+        const p = JSON.parse(pending);
+        plan = p.plan; cycle = p.cycle || 'monthly';
+        localStorage.removeItem('synkan_pending_plan');
+      }
+    } catch(e){}
+  }
+  if (!plan) return;
+  // Valida plano
+  const validPlans = ['faixa_azul','faixa_roxa','faixa_preta'];
+  if (!validPlans.includes(plan)) return;
+  if (!['monthly','annual'].includes(cycle)) cycle = 'monthly';
+  if (!supaUser) {
+    // Não logado: guarda intent pra disparar após signup
+    try { localStorage.setItem('synkan_pending_plan', JSON.stringify({plan, cycle})); } catch(e){}
+    return;
+  }
+  // Limpa params da URL pra não disparar de novo no próximo refresh
+  try {
+    const url = new URL(location.href);
+    url.searchParams.delete('plan');
+    url.searchParams.delete('cycle');
+    history.replaceState(null, '', url.toString());
+  } catch(e){}
+  // Confirma com user antes de mandar pro Stripe
+  const planNames = { faixa_azul:'Faixa Azul', faixa_roxa:'Faixa Roxa', faixa_preta:'Faixa Preta' };
+  const cycleLabel = cycle === 'annual' ? 'anual (com 10% de desconto)' : 'mensal';
+  const ok = await appConfirm(
+    `Assinar ${planNames[plan]}?`,
+    `Você vai ser redirecionado pro Stripe pra completar a assinatura <strong>${cycleLabel}</strong> da <strong>${planNames[plan]}</strong>.`,
+    { icon:'💳', okLabel:'Ir pro pagamento', cancelLabel:'Agora não' }
+  );
+  if (!ok) return;
+  try {
+    const billingBase = (location.hostname === 'app.synkan.com.br')
+      ? 'https://billing.synkan.com.br/api/billing'
+      : '/api/billing';
+    const res = await fetch(`${billingBase}/create-checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        plan_code: plan,
+        cycle: cycle,
+        user_id: supaUser.id,
+        user_email: supaUser.email,
+      }),
+    });
+    const data = await res.json();
+    if (data.checkout_url) {
+      location.href = data.checkout_url;
+    } else {
+      await appAlert('Erro ao criar checkout', data.error || data.message || 'Tente de novo em alguns segundos.', { icon:'⚠️' });
+    }
+  } catch(e) {
+    await appAlert('Erro de conexão', 'Não consegui falar com o servidor de pagamento.', { icon:'⚠️' });
+  }
 }
 
 async function _onSignedOut() {
