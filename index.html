@@ -5040,6 +5040,7 @@ body.density-compact .col{padding:7px;}
         </div>
       </div>
       <button class="tbtn" onclick="openModal()">+ novo card</button>
+      <button class="tbtn-icon" id="btn-share" onclick="openShareModal()" title="Compartilhar board" aria-label="Compartilhar board">👥</button>
       <button class="tbtn-icon" id="btn-config" onclick="openConfigModal()" title="Configurar Kanban" aria-label="Configurar Kanban">⚙</button>
     </div>
   </div>
@@ -5365,9 +5366,9 @@ body.density-compact .col{padding:7px;}
     </div>
 
     <div class="cfg-section" id="cfg-members-section">
-      <div class="cfg-section-title">Membros do board (acesso via login)</div>
-      <div class="cfg-section-hint">Convide pessoas com email pra colaborar neste board. Editor/Admin = seats pagos · Viewer = grátis (só leitura) · Convidado = externo na Faixa Preta (até 3 boards cada).</div>
-      <div id="cfg-members"></div>
+      <div class="cfg-section-title">Membros do board</div>
+      <div class="cfg-section-hint">Pra convidar pessoas pra colaborar neste board, use o botão <strong>👥 Compartilhar</strong> no topo do board. Lá você gerencia editores, admins, viewers e convidados externos.</div>
+      <button class="cfg-add-col" onclick="closeConfigModal();setTimeout(openShareModal,150);" style="margin-top:6px;">👥 Abrir compartilhamento →</button>
     </div>
 
     <div class="cfg-section">
@@ -5432,6 +5433,22 @@ body.density-compact .col{padding:7px;}
 
     <div class="mfoot">
       <button class="btn-c" onclick="closeConfigModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de compartilhamento (membros do board) -->
+<div class="ov" id="ov-share">
+  <div class="modal" style="width:560px;max-width:96vw;max-height:88vh;overflow-y:auto;">
+    <div class="mh" style="display:flex;align-items:center;gap:8px;">
+      👥 <span>Compartilhar board</span>
+    </div>
+    <div class="cfg-section-hint" id="share-board-name" style="margin-bottom:14px;"></div>
+    <div id="share-members-area">
+      <div class="cfg-section-hint">Carregando…</div>
+    </div>
+    <div class="mfoot" style="margin-top:18px;">
+      <button class="btn-c" onclick="closeShareModal()">Fechar</button>
     </div>
   </div>
 </div>
@@ -5782,6 +5799,74 @@ async function loadAIUsageThisMonth() {
 
 function getCurrentPlanCode() { return _currentPlan || 'trial'; }
 function getCurrentPlanLimits() { return PLAN_LIMITS[getCurrentPlanCode()] || PLAN_LIMITS.trial; }
+
+// ─── Convidado role helpers ───────────────────────────────────────
+// Cache leve do papel do user em cada board (preenchido por
+// supaLoadAllBoards e atualizado em invite/remove).
+window._myRoleByBoard = window._myRoleByBoard || {};
+// Marca se o user atual é convidado em PELO MENOS UM board (= é "guest user")
+window._isGuestUser = false;
+
+function getMyRoleOnBoard(boardId) {
+  try {
+    if (!supaUser) return null;
+    const b = allBoards && allBoards[boardId];
+    if (!b) return null;
+    if (b.owner_id === supaUser.id) return 'owner';
+    return window._myRoleByBoard[boardId] || null;
+  } catch(e) { return null; }
+}
+
+function isGuestOnBoard(boardId) {
+  return getMyRoleOnBoard(boardId) === 'convidado';
+}
+
+// Carrega roles do user atual em todos os boards visíveis. Chamado após login.
+async function _refreshMyRoles() {
+  window._myRoleByBoard = {};
+  window._isGuestUser = false;
+  if (!supaUser) return;
+  const c = _ensureSupaClient(); if (!c) return;
+  try {
+    const { data, error } = await c.from('board_members').select('board_id, role').eq('user_id', supaUser.id);
+    if (error) { console.warn('[roles]', error); return; }
+    let anyGuest = false;
+    (data||[]).forEach(r => {
+      window._myRoleByBoard[r.board_id] = r.role;
+      if (r.role === 'convidado') anyGuest = true;
+    });
+    window._isGuestUser = anyGuest;
+    // Se for convidado puro (não é owner de nenhum board), esconde módulos pessoais
+    try { _applyGuestUIGating(); } catch(e){ console.warn('guest gating', e); }
+  } catch(e) { console.warn('[roles] falhou:', e); }
+}
+
+// Esconde Zai/OKRs/Synconnect/Lab/Sheet do sidebar pra users que NÃO são
+// owner de NENHUM board (são puramente convidados). Owner que ALSO tem
+// boards próprios continua vendo tudo.
+function _applyGuestUIGating() {
+  try {
+    if (!supaUser) return;
+    // É owner de algum board?
+    const ownsAny = Object.values(allBoards||{}).some(b => b && b.owner_id === supaUser.id);
+    const isPureGuest = !ownsAny && window._isGuestUser;
+    const itemsToHide = ['sb-zai', 'sb-okrs', 'sb-registry', 'sb-canvas']; // Zai, OKRs, Synconnect, Lab
+    itemsToHide.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = isPureGuest ? 'none' : '';
+    });
+    document.body.classList.toggle('synkan-guest-mode', isPureGuest);
+    // Banner de boas-vindas pro convidado puro (uma vez por sessão)
+    if (isPureGuest && !window.__guestBannerShown) {
+      window.__guestBannerShown = true;
+      try {
+        appAlert('Bem-vindo como convidado',
+          'Você foi convidado pra colaborar em até 3 boards específicos. Você pode comentar, anexar arquivos e mexer nos seus próprios cards. Outros recursos do dono (Zai, OKRs, Synconnect, Lab) não fazem parte do seu acesso.',
+          { icon:'👤' });
+      } catch(e){}
+    }
+  } catch(e) { console.warn('_applyGuestUIGating', e); }
+}
 
 function _countActiveBoards() {
   try {
@@ -11480,6 +11565,7 @@ function renderSettings() {
   const el = document.getElementById('settings-page'); if(!el) return;
   const tabs = [
     { id:'conta',     label:'Conta' },
+    { id:'membros',   label:'Membros' },
     { id:'sync',      label:'Sincronização' },
     { id:'ia',        label:'Integrações' },
     { id:'dojo',      label:'Dojo' },
@@ -11491,6 +11577,7 @@ function renderSettings() {
 
   let body = '';
   if (_settingsTab === 'conta')   body = _settingsContaSection();
+  if (_settingsTab === 'membros') body = _settingsMembrosSection();
   if (_settingsTab === 'sync')    body = _settingsSyncSection();
   if (_settingsTab === 'ia')      body = _settingsIASection();
   if (_settingsTab === 'dojo')    body = _settingsDojoSection();
@@ -11509,6 +11596,10 @@ function renderSettings() {
 function setSettingsTab(t) {
   _settingsTab = t;
   renderSettings();
+  // Quando entra na aba Membros, carrega o dashboard agregado de seats
+  if (t === 'membros') {
+    setTimeout(() => { try { _loadMembersDashboard(); } catch(e) { console.warn('membros dashboard', e); } }, 50);
+  }
   // Quando entra na aba Sincronização, carrega tokens calendário + config WhatsApp (assíncrono)
   if (t === 'sync') {
     const promises = [];
@@ -14493,6 +14584,134 @@ async function clearWebhookFromUI() {
   if (currentTab === 'settings') renderSettings();
 }
 
+// — Settings → Membros (dashboard agregado de seats em todos os boards) —
+function _settingsMembrosSection() {
+  if (getStorageMode() !== 'supabase' || !supaUser) {
+    return `
+      <div class="settings-section">
+        <div class="settings-section-h">Membros</div>
+        <div class="settings-section-d">Disponível só em modo Supabase. Faça login pra ver os membros dos seus boards.</div>
+      </div>`;
+  }
+  const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+  const limits = getCurrentPlanLimits();
+  return `
+    <div class="settings-section">
+      <div class="settings-section-h">Visão geral</div>
+      <div class="settings-section-d">Resumo de quem tem acesso aos seus boards e impacto no plano.</div>
+      <div id="membros-dashboard" style="margin-top:14px;">
+        <div class="cfg-section-hint">Carregando seus boards e membros…</div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-h">Como funciona a cobrança per-seat</div>
+      <div class="settings-section-d" style="line-height:1.7;">
+        <strong>Editor</strong> e <strong>Admin</strong> são "seats" pagos — cada um soma <strong>R$ ${(limits.price||0).toFixed(2).replace('.',',')}/mês</strong> na sua ${_esc(limits.name||'fatura')}.<br/>
+        <strong>Viewer</strong> só lê — incluso no plano sem custo extra (limite por plano).<br/>
+        <strong>Convidado</strong> é externo (cliente, fornecedor, parceiro) — exclusivo da Faixa Preta, vê só os 3 boards autorizados.<br/><br/>
+        Pra adicionar/remover membros use o botão <strong>👥 Compartilhar</strong> no header de cada board.
+      </div>
+    </div>`;
+}
+
+// Carrega assincronamente: lista boards do owner + members + agrega
+async function _loadMembersDashboard() {
+  const target = document.getElementById('membros-dashboard');
+  if (!target) return;
+  const c = _ensureSupaClient(); if (!c) {
+    target.innerHTML = '<div class="cfg-section-hint">Sem cliente Supabase.</div>'; return;
+  }
+  try {
+    // 1) Pega boards onde sou owner
+    const { data: myBoards, error: bErr } = await c.from('boards').select('id, name').eq('owner_id', supaUser.id);
+    if (bErr) throw bErr;
+    const boardIds = (myBoards||[]).map(b => b.id);
+    if (!boardIds.length) {
+      target.innerHTML = '<div class="cfg-section-hint">Você ainda não tem boards. Crie um pra começar a convidar pessoas.</div>';
+      return;
+    }
+    // 2) Pega members de todos eles
+    const { data: members, error: mErr } = await c.from('board_members').select('user_id, role, board_id').in('board_id', boardIds);
+    if (mErr) throw mErr;
+    // 3) Pega profiles dos membros
+    const uids = Array.from(new Set((members||[]).map(m => m.user_id).filter(Boolean)));
+    let profilesMap = {};
+    if (uids.length) {
+      const { data: profs } = await c.from('profiles').select('id, email, full_name').in('id', uids);
+      (profs||[]).forEach(p => { profilesMap[p.id] = p; });
+    }
+    // 4) Agrega
+    const boardMap = {};
+    (myBoards||[]).forEach(b => { boardMap[b.id] = { id: b.id, name: b.name || 'Board sem nome', members: [] }; });
+    (members||[]).forEach(m => {
+      if (!boardMap[m.board_id]) return;
+      const p = profilesMap[m.user_id] || {};
+      boardMap[m.board_id].members.push({ user_id: m.user_id, role: m.role, email: p.email || '', full_name: p.full_name || '' });
+    });
+    // 5) Stats globais
+    const allMembers = (members||[]);
+    const paidUserIds = new Set(allMembers.filter(m => ['admin','editor'].includes(m.role)).map(m => m.user_id));
+    const viewerCount = allMembers.filter(m => m.role === 'viewer').length;
+    const convidadoCount = allMembers.filter(m => m.role === 'convidado').length;
+    const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : { price: 0, name: '' };
+    const totalCost = (paidUserIds.size + 1) * (limits.price || 0); // +1 = owner conta como 1 seat
+    // 6) Render
+    let html = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:16px;">
+        <div style="background:var(--color-background-secondary);padding:12px;border-radius:9px;">
+          <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Seats pagos</div>
+          <div style="font-size:22px;font-weight:700;color:var(--color-text-primary);margin-top:4px;">${paidUserIds.size + 1}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary);">Você + ${paidUserIds.size} ${paidUserIds.size===1?'pessoa':'pessoas'}</div>
+        </div>
+        <div style="background:var(--color-background-secondary);padding:12px;border-radius:9px;">
+          <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Viewers</div>
+          <div style="font-size:22px;font-weight:700;color:var(--color-text-primary);margin-top:4px;">${viewerCount}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary);">Só leitura · grátis</div>
+        </div>
+        <div style="background:var(--color-background-secondary);padding:12px;border-radius:9px;">
+          <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Convidados</div>
+          <div style="font-size:22px;font-weight:700;color:var(--color-text-primary);margin-top:4px;">${convidadoCount}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary);">Externos · Faixa Preta</div>
+        </div>
+        <div style="background:#111;color:#fff;padding:12px;border-radius:9px;">
+          <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Custo mensal</div>
+          <div style="font-size:22px;font-weight:700;margin-top:4px;">R$ ${totalCost.toFixed(2).replace('.',',')}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.7);">${limits.price > 0 ? `${paidUserIds.size + 1} × R$ ${limits.price.toFixed(2).replace('.',',')}` : 'Grátis'}</div>
+        </div>
+      </div>`;
+    // Lista por board
+    html += `<div style="font-size:12px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Boards e membros</div>`;
+    const boardsArr = Object.values(boardMap);
+    boardsArr.forEach(b => {
+      const ms = b.members;
+      const editors = ms.filter(m => ['admin','editor'].includes(m.role));
+      const viewers = ms.filter(m => m.role === 'viewer');
+      const convs = ms.filter(m => m.role === 'convidado');
+      html += `
+        <div style="border:1px solid var(--color-border-tertiary);border-radius:9px;padding:12px 14px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="font-size:14px;font-weight:600;color:var(--color-text-primary);">${_esc(b.name)}</div>
+            <button class="cfg-add-col" style="font-size:11px;padding:4px 10px;" onclick="switchBoard('${b.id}');closeSettings && closeSettings();setTimeout(openShareModal,200);">👥 Compartilhar</button>
+          </div>
+          <div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:6px;line-height:1.6;">
+            ${editors.length ? `<strong>${editors.length}</strong> editor${editors.length!==1?'es':''}/admin pago${editors.length!==1?'s':''}` : '<span style="opacity:.55;">Sem editores</span>'} ·
+            ${viewers.length ? `<strong>${viewers.length}</strong> viewer${viewers.length!==1?'s':''}` : '<span style="opacity:.55;">Sem viewers</span>'}${convs.length ? ` · <strong>${convs.length}</strong> convidado${convs.length!==1?'s':''}` : ''}
+          </div>
+          ${ms.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
+            ${ms.map(m => {
+              const name = m.full_name || m.email || '?';
+              return `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--color-background-secondary);padding:3px 8px;border-radius:11px;font-size:11px;color:var(--color-text-secondary);"><span style="width:14px;height:14px;border-radius:50%;background:${avatarColor(name)};color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">${_esc(avatarInitials(name))}</span>${_esc(name)} · ${_esc(m.role)}</span>`;
+            }).join('')}
+          </div>` : ''}
+        </div>`;
+    });
+    target.innerHTML = html;
+  } catch(e) {
+    console.error('[members dashboard]', e);
+    target.innerHTML = `<div class="cfg-section-hint" style="color:var(--color-danger);">Erro ao carregar: ${_esc(e?.message || String(e))}. <button class="cfg-add-col" onclick="_loadMembersDashboard()" style="margin-left:8px;">↻ Tentar de novo</button></div>`;
+  }
+}
+
 function _settingsPlanoSection() {
   const code = getCurrentPlanCode();
   const limits = getCurrentPlanLimits();
@@ -15372,6 +15591,23 @@ document.addEventListener('click', e => {
 // ── Tabs ──
 const VIEW_TABS = ['kanban','table','checklist','gantt','calendar','dashboard','tracker'];
 function switchTab(tab) {
+  // Gating de convidado puro: bloqueia abas pessoais do owner
+  try {
+    if (window._isGuestUser) {
+      const ownsAny = supaUser && Object.values(allBoards||{}).some(b => b && b.owner_id === supaUser.id);
+      if (!ownsAny) {
+        const blocked = ['zai','okrs','registry','canvas'];
+        if (blocked.includes(tab)) {
+          if (typeof appAlert === 'function') {
+            appAlert('Acesso restrito',
+              'Como convidado externo, você só pode acessar os boards específicos que foram compartilhados com você. Módulos pessoais do owner (Zai, OKRs, Synconnect, Lab) não estão disponíveis.',
+              { icon:'🔒' });
+          }
+          tab = 'home';
+        }
+      }
+    }
+  } catch(e){}
   currentTab = tab;
   const inBoard = VIEW_TABS.includes(tab);
 
@@ -18736,8 +18972,69 @@ function supaSubscribeRealtime() {
 // — Membros do board —
 async function supaListMembers(boardId) {
   const c = _ensureSupaClient(); if(!c) return [];
-  const { data: members } = await c.from('board_members').select('*, profiles:profiles!board_members_user_id_fkey(email, full_name)').eq('board_id', boardId);
-  const { data: board } = await c.from('boards').select('owner_id, profiles:profiles!boards_owner_id_fkey(email, full_name)').eq('id', boardId).single();
+  // Função interna com timeout e fallback robusto
+  const withTimeout = (p, ms, label) => Promise.race([
+    p,
+    new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout: ${label}`)), ms)),
+  ]);
+  let members = [];
+  let board = null;
+  try {
+    // Tenta query com embed (mais rápida quando FKs estão certas)
+    const r1 = await withTimeout(
+      c.from('board_members').select('*, profiles:profiles!board_members_user_id_fkey(email, full_name)').eq('board_id', boardId),
+      5000, 'list members embed'
+    );
+    if (r1.error) throw r1.error;
+    members = r1.data || [];
+  } catch(e) {
+    console.warn('[members] embed query falhou, fallback em duas queries:', e?.message || e);
+    // Fallback: busca members + profiles separadamente
+    try {
+      const r1b = await withTimeout(
+        c.from('board_members').select('user_id, role, invited_by, created_at').eq('board_id', boardId),
+        5000, 'list members plain'
+      );
+      if (r1b.error) throw r1b.error;
+      const ms = r1b.data || [];
+      const uids = ms.map(m => m.user_id).filter(Boolean);
+      let profilesMap = {};
+      if (uids.length) {
+        const r1c = await withTimeout(
+          c.from('profiles').select('id, email, full_name').in('id', uids),
+          5000, 'list profiles'
+        );
+        if (!r1c.error) {
+          (r1c.data||[]).forEach(p => { profilesMap[p.id] = p; });
+        }
+      }
+      members = ms.map(m => ({ ...m, profiles: profilesMap[m.user_id] || null }));
+    } catch(e2) {
+      console.error('[members] fallback também falhou:', e2?.message || e2);
+      members = [];
+    }
+  }
+  try {
+    const r2 = await withTimeout(
+      c.from('boards').select('owner_id, profiles:profiles!boards_owner_id_fkey(email, full_name)').eq('id', boardId).single(),
+      5000, 'board owner embed'
+    );
+    if (!r2.error) board = r2.data;
+    else throw r2.error;
+  } catch(e) {
+    console.warn('[members] embed do owner falhou, fallback:', e?.message || e);
+    try {
+      const r2b = await withTimeout(c.from('boards').select('owner_id').eq('id', boardId).single(), 5000, 'board plain');
+      if (!r2b.error && r2b.data?.owner_id) {
+        const ownerId = r2b.data.owner_id;
+        const r2c = await withTimeout(
+          c.from('profiles').select('id, email, full_name').eq('id', ownerId).single(),
+          5000, 'owner profile'
+        );
+        board = { owner_id: ownerId, profiles: r2c.data || null };
+      }
+    } catch(e2) { console.error('[members] owner fallback falhou:', e2?.message || e2); }
+  }
   const list = [];
   if (board) list.push({ user_id: board.owner_id, role: 'owner', email: board.profiles?.email || '', full_name: board.profiles?.full_name || '' });
   (members||[]).forEach(m => list.push({ user_id: m.user_id, role: m.role, email: m.profiles?.email || '', full_name: m.profiles?.full_name || '' }));
@@ -18932,6 +19229,9 @@ async function _onSignedIn(session) {
   applyDensity();
   renderFilterBar();
   render();
+  // Carrega roles do user atual nos boards (convidado/editor/etc) e aplica
+  // gating de UI (esconde Zai/OKRs/Synconnect/Lab pra users puramente convidados)
+  _refreshMyRoles().catch(e => console.warn('[roles refresh]', e));
   // Só vai pra Home na primeira sign-in (não em token refresh ou re-auth periódico)
   if (!window._didInitialSignIn) {
     switchTab('home');
@@ -19554,35 +19854,51 @@ function _saveDataDebounced() {
   _saveDebounce = setTimeout(() => { supaUpsertCurrentBoard().catch(console.error); }, 400);
 }
 
-// — Membros: render dentro do modal de config —
+// — Membros: render reusável (modal Compartilhar e Settings) —
 let _cfgMembersBoardId = null;
-async function refreshMembersConfig() {
-  const el = document.getElementById('cfg-members'); if(!el) return;
-  if (getStorageMode() !== 'supabase' || !supaUser) { el.innerHTML = '<div class="cfg-section-hint">Disponível só em modo Supabase.</div>'; return; }
-  _cfgMembersBoardId = currentBoardId;
-  el.innerHTML = '<div class="cfg-section-hint">Carregando…</div>';
-  const list = await supaListMembers(currentBoardId);
+
+// Renderiza a UI de membros dentro de um element ID alvo. Pode ser
+// chamada de qualquer modal/aba que exiba a lista pra um board.
+async function _renderMembersInto(targetElId, boardId) {
+  const el = document.getElementById(targetElId); if(!el) return;
+  if (getStorageMode() !== 'supabase' || !supaUser) {
+    el.innerHTML = '<div class="cfg-section-hint">Disponível só em modo Supabase. Faça login ou cadastre-se pra usar membros.</div>';
+    return;
+  }
+  _cfgMembersBoardId = boardId;
+  el.innerHTML = '<div class="cfg-section-hint">Carregando membros…</div>';
+  let list;
+  try {
+    list = await supaListMembers(boardId);
+  } catch(e) {
+    console.error('[members] supaListMembers falhou:', e);
+    el.innerHTML = `<div class="cfg-section-hint" style="color:var(--color-danger);">Não consegui carregar os membros agora. <button class="cfg-add-col" onclick="_renderMembersInto('${targetElId}','${boardId}')" style="margin-left:8px;">↻ Tentar de novo</button></div>`;
+    return;
+  }
   const owner = list.find(m=>m.role==='owner');
   const isOwner = owner && owner.user_id === supaUser.id;
-  el.innerHTML = list.map(m=>{
-    const name = m.full_name || m.email;
+  // Header: contador + filtro visual
+  let html = list.map(m=>{
+    const name = m.full_name || m.email || 'Sem nome';
     const role = m.role==='owner' ? 'owner' : m.role;
     return `<div class="cfg-member-row">
       <span class="sb-account-avatar" style="background:${avatarColor(name)};">${_esc(avatarInitials(name))}</span>
-      <span class="cfg-member-name">${_esc(name)} <span class="cfg-member-email">· ${_esc(m.email)}</span></span>
+      <span class="cfg-member-name">${_esc(name)} <span class="cfg-member-email">· ${_esc(m.email||'')}</span></span>
       <span class="cfg-member-role ${role==='owner'?'owner':''}">${role}</span>
       ${isOwner && m.role!=='owner' ? `<button class="cfg-member-del" title="Remover" onclick="removeMember('${m.user_id}')">✕</button>` : ''}
     </div>`;
   }).join('');
+  if (!list.length) {
+    html = '<div class="cfg-section-hint" style="padding:14px 0;">Você ainda não tem ninguém aqui. Use o form abaixo pra convidar.</div>';
+  }
   if (isOwner) {
     const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
     const isPreta = planCode === 'faixa_preta';
-    // Conta uso atual por role
     const editorsUsed = list.filter(m => ['admin','editor'].includes(m.role)).length;
     const viewersUsed = list.filter(m => m.role === 'viewer').length;
     const convidadosUsed = list.filter(m => m.role === 'convidado').length;
     const limits = getCurrentPlanLimits();
-    el.innerHTML += `
+    html += `
       <div style="margin-top:14px;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;font-size:11.5px;color:var(--color-text-secondary);line-height:1.7;">
         <strong>Uso de membros</strong> ·
         ${editorsUsed} editor${editorsUsed!==1?'es':''}/admin${editorsUsed!==1?'s':''} pago${editorsUsed!==1?'s':''} ·
@@ -19592,7 +19908,7 @@ async function refreshMembersConfig() {
       <div class="cfg-team-add" style="margin-top:8px;">
         <input id="cfg-invite-email" type="email" placeholder="email@empresa.com"
                onkeydown="if(event.key==='Enter')inviteMember();" />
-        <select id="cfg-invite-role" class="cfg-cf-input" style="width:120px;">
+        <select id="cfg-invite-role" class="cfg-cf-input" style="width:140px;">
           <option value="editor">Editor</option>
           <option value="admin">Admin</option>
           <option value="viewer">Viewer (só lê)</option>
@@ -19605,7 +19921,38 @@ async function refreshMembersConfig() {
         <strong>Viewer</strong> só lê — incluso no plano sem cobrança extra.
         ${isPreta ? '<strong>Convidado</strong> é externo, vê apenas os 3 boards permitidos, comenta + anexa + aprova cards próprios.' : ''}
       </div>`;
+  } else {
+    html += `<div class="cfg-section-hint" style="margin-top:10px;">Apenas o owner do board pode convidar/remover membros.</div>`;
   }
+  el.innerHTML = html;
+}
+
+// Wrapper retrocompat — render no modal de config antigo (caso ainda usado)
+async function refreshMembersConfig() {
+  return _renderMembersInto('cfg-members', currentBoardId);
+}
+
+// Modal dedicado de compartilhamento (botão 👥 no header do board)
+function openShareModal() {
+  if (!currentBoardId) return;
+  if (getStorageMode() !== 'supabase' || !supaUser) {
+    appAlert('Faça login pra compartilhar', 'Membros só estão disponíveis quando você tá logado no Supabase. Faça login ou cadastre-se pra colaborar com seu time.', { icon:'🔒' });
+    return;
+  }
+  // Atualiza header com nome do board
+  try {
+    const b = allBoards[currentBoardId];
+    const name = b?.name || 'Board';
+    const nameEl = document.getElementById('share-board-name');
+    if (nameEl) nameEl.innerHTML = `Convide pessoas pra colaborar em <strong>${_esc(name)}</strong>. Editor/Admin contam como seats pagos · Viewer é grátis · Convidado externo é exclusivo da Faixa Preta.`;
+  } catch(e){}
+  // Abre modal e carrega membros
+  document.getElementById('ov-share')?.classList.add('open');
+  _renderMembersInto('share-members-area', currentBoardId);
+}
+
+function closeShareModal() {
+  document.getElementById('ov-share')?.classList.remove('open');
 }
 
 async function inviteMember() {
@@ -19685,7 +20032,12 @@ async function inviteMember() {
   if (['admin','editor'].includes(role) && !pending) {
     _updateSeatsFromMembers().catch(e => console.warn('[seats] update falhou:', e));
   }
-  refreshMembersConfig();
+  // Re-renderiza a lista no container ativo (modal Compartilhar tem prioridade)
+  if (document.getElementById('share-members-area') && document.getElementById('ov-share')?.classList.contains('open')) {
+    _renderMembersInto('share-members-area', currentBoardId);
+  } else {
+    refreshMembersConfig();
+  }
 }
 
 // Conta seats pagos em todos os boards do user e atualiza Stripe
@@ -19738,7 +20090,12 @@ async function removeMember(userId) {
   if (wasPaidSeat) {
     _updateSeatsFromMembers().catch(e => console.warn('[seats] update falhou:', e));
   }
-  refreshMembersConfig();
+  // Re-renderiza no container ativo (modal Compartilhar tem prioridade)
+  if (document.getElementById('share-members-area') && document.getElementById('ov-share')?.classList.contains('open')) {
+    _renderMembersInto('share-members-area', currentBoardId);
+  } else {
+    refreshMembersConfig();
+  }
 }
 
 // ── Configuração do Kanban ──
@@ -22959,9 +23316,13 @@ applyBoardBanner();
 
 document.addEventListener('keydown', e=>{
   if(e.key==='Escape' && document.getElementById('ov-config').classList.contains('open')) closeConfigModal();
+  if(e.key==='Escape' && document.getElementById('ov-share')?.classList.contains('open')) closeShareModal();
 });
 document.getElementById('ov-config').addEventListener('click', e=>{
   if(e.target===document.getElementById('ov-config')) closeConfigModal();
+});
+document.getElementById('ov-share')?.addEventListener('click', e=>{
+  if(e.target===document.getElementById('ov-share')) closeShareModal();
 });
 document.getElementById('ov-icon-picker').addEventListener('click', e=>{
   if(e.target===document.getElementById('ov-icon-picker')) closeIconPicker();
