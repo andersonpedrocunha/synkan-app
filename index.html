@@ -10803,12 +10803,154 @@ function maybeStartOnboarding(){
   startOnboardingTour();
 }
 
+// ─── Seed de dados de exemplo ───────────────────────────────────────
+// Popula Lab, OKRs e Synconnect com itens demo prefixados com [Exemplo].
+// Tudo facilmente identificável e deletável depois.
+// IMPORTANTE: chama de forma idempotente — se já tem dados marcados como
+// exemplo, não duplica.
+function _seedExampleData() {
+  let summary = { boards:0, canvas:0, okrs:0, contacts:0 };
+  try {
+    // ── 1. OKR de exemplo ──
+    if (typeof _okrs !== 'undefined') {
+      const hasExample = _okrs.some(o => (o.title||'').startsWith('[Exemplo]'));
+      if (!hasExample) {
+        const okr = {
+          id: 'okr_ex_' + Date.now().toString(36),
+          title: '[Exemplo] Aumentar engajamento de clientes',
+          period: (typeof _currentPeriodLabel === 'function') ? _currentPeriodLabel() : 'Q1 2026',
+          notes: 'Objetivo de exemplo — pode editar ou apagar.',
+          krs: [
+            { id:'kr_ex_1', title:'NPS médio acima de 50',           target:50, unit:'#',  current:32 },
+            { id:'kr_ex_2', title:'Reduzir tempo de resposta pra 2h', target:2,  unit:'h',  current:6  },
+            { id:'kr_ex_3', title:'95% dos cards entregues no prazo', target:95, unit:'%',  current:78 },
+          ],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        _okrs.push(okr);
+        if (typeof _saveOKRs === 'function') _saveOKRs();
+        summary.okrs = 1;
+      }
+    }
+
+    // ── 2. Contatos no Synconnect ──
+    if (typeof _contacts !== 'undefined' && Array.isArray(_contacts)) {
+      const hasExample = _contacts.some(c => (c.name||'').startsWith('[Exemplo]'));
+      if (!hasExample) {
+        const now = new Date().toISOString();
+        const sample = [
+          {
+            id:'c_ex_cliente',
+            name:'[Exemplo] Cliente Padrão',
+            type:'cliente',
+            taxId:'00.000.000/0001-00',
+            email:'cliente@exemplo.com',
+            phone:'(11) 99000-0001',
+            address:'São Paulo · SP',
+            notes:'Contato de exemplo — apague quando quiser.',
+            createdAt: now, updatedAt: now,
+          },
+          {
+            id:'c_ex_fornecedor',
+            name:'[Exemplo] Fornecedor SaaS',
+            type:'fornecedor',
+            taxId:'',
+            email:'comercial@fornecedor.com',
+            phone:'(11) 98000-0002',
+            address:'',
+            notes:'Mensalidade de software — exemplo.',
+            createdAt: now, updatedAt: now,
+          },
+          {
+            id:'c_ex_lead',
+            name:'[Exemplo] Lead Quente',
+            type:'lead',
+            taxId:'',
+            email:'lead@prospect.com',
+            phone:'(21) 97000-0003',
+            address:'Rio de Janeiro · RJ',
+            notes:'Lead de exemplo capturado via formulário.',
+            createdAt: now, updatedAt: now,
+          },
+        ];
+        sample.forEach(c => _contacts.push(c));
+        if (typeof _saveContacts === 'function') _saveContacts();
+        summary.contacts = sample.length;
+      }
+    }
+
+    // ── 3. Canvas (Lab) — note com ideias de exemplo ──
+    if (typeof _canvases === 'object' && _canvases) {
+      const hasExample = Object.values(_canvases).some(cv => (cv.name||'').startsWith('[Exemplo]'));
+      if (!hasExample) {
+        const id = 'cv_ex_' + Date.now().toString(36);
+        _canvases[id] = {
+          id, name:'[Exemplo] Brainstorm — Lançamento Q1',
+          format:'note',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          docContent: '<h2>Brainstorm — Lançamento Q1</h2><p>Use este Lab pra capturar ideias rapidinho. Quando algo virar tarefa, peça pro <strong>Mestre Kan</strong> extrair ações.</p><h3>Ideias</h3><ul><li>Webinar de lançamento (45 min, ao vivo)</li><li>Sequência de 3 emails pré-evento</li><li>Post-mortem com time de produto após 30 dias</li><li>Métricas de sucesso: 200 inscrições, 60% show-up</li></ul><h3>Riscos</h3><ul><li>Plataforma Zoom limitada — verificar plano</li><li>Convidado externo — confirmar 14 dias antes</li></ul>',
+          nodes: [], edges: [], frames: [], promoted: {},
+        };
+        if (typeof saveCanvases === 'function') saveCanvases();
+        else { try { localStorage.setItem('kanban_v8_canvases', JSON.stringify(_canvases)); } catch(e){} }
+        summary.canvas = 1;
+      }
+    }
+
+    console.log('[seed] dados de exemplo criados:', summary);
+    return summary;
+  } catch(e) {
+    console.error('[seed] falhou:', e);
+    return summary;
+  }
+}
+
+// Chamado a partir do botão "Carregar dados de exemplo" em Settings.
+async function _settingsLoadExampleData() {
+  if (typeof appConfirm !== 'function') return;
+  const ok = await appConfirm(
+    'Carregar dados de exemplo?',
+    'Vou criar 1 OKR, 3 contatos no Synconnect e 1 Lab — todos prefixados com <strong>[Exemplo]</strong>. Você pode apagar individualmente quando não precisar mais.',
+    { icon:'✨', okLabel:'Carregar exemplos' }
+  );
+  if (!ok) return;
+  const s = _seedExampleData();
+  const total = s.boards + s.canvas + s.okrs + s.contacts;
+  if (typeof appAlert === 'function') {
+    if (total > 0) {
+      appAlert('Exemplos carregados',
+        `${s.okrs ? '✓ 1 OKR · ' : ''}${s.contacts ? `${s.contacts} contatos · ` : ''}${s.canvas ? '1 Lab' : ''}`.replace(/·\s*$/,'').trim() || 'Pronto.',
+        { icon:'✓' });
+    } else {
+      appAlert('Já existem exemplos', 'Seus módulos já têm dados marcados como [Exemplo]. Apague-os antes pra recarregar.', { icon:'ℹ️' });
+    }
+  }
+  // Re-renderiza a aba atual pra mostrar os novos dados
+  if (typeof currentTab !== 'undefined') {
+    if (currentTab === 'okrs') { try { renderOKRs(); } catch(e){} }
+    if (currentTab === 'registry') { try { renderRegistry(); } catch(e){} }
+    if (currentTab === 'canvas') { try { renderCanvasIndex && renderCanvasIndex(); } catch(e){} }
+  }
+}
+
 const OB_STEPS = [
   {
     type: 'welcome',
     title: '🥋 Boas-vindas ao dojo',
-    body: 'Vou te mostrar o Synkan em <strong>9 passos rápidos</strong> — leva menos de 2 minutos.<br/><br/>A qualquer momento você pode pular e explorar por conta própria.',
+    body: 'Vou te mostrar o Synkan em <strong>10 passos rápidos</strong> — leva menos de 2 minutos.<br/><br/>A qualquer momento você pode pular e explorar por conta própria.',
     primary: 'Começar',
+  },
+  {
+    type: 'choice',
+    title: 'Como você quer começar?',
+    body: 'Pode mudar depois em Configurações.',
+    choices: [
+      { id: 'demo',  icon: '✨', title: 'Com dados de exemplo', desc: 'Vou popular Lab, OKRs e Synconnect com itens demo. Tudo prefixado com [Exemplo] — apaga quando quiser.' },
+      { id: 'empty', icon: '🥋', title: 'Vazio',                desc: 'Começo do zero, com meus próprios dados.' },
+    ],
+    primary: 'Próximo',
   },
   {
     target: '#sb-gallery',
@@ -10925,10 +11067,32 @@ function renderOnboardingStep(){
     return `<div class="ob-bar ${cls}"></div>`;
   }).join('');
 
+  // Body extra: passo do tipo "choice" mostra cards selecionáveis
+  let extraBody = '';
+  if (step.type === 'choice' && Array.isArray(step.choices)) {
+    extraBody = `
+      <div style="display:flex;flex-direction:column;gap:10px;margin:14px 0 4px;">
+        ${step.choices.map(c => `
+          <button class="ob-choice-card" data-choice-id="${c.id}"
+            onclick="_obSelectChoice('${c.id}')"
+            style="text-align:left;padding:14px 16px;border-radius:10px;border:1.5px solid var(--color-border-tertiary,#e5e5e5);background:var(--color-background-primary,#fff);color:var(--color-text-primary,#111);cursor:pointer;display:flex;gap:14px;align-items:flex-start;font-family:var(--font-sans);transition:border-color .15s,background .15s;">
+            <span style="font-size:24px;line-height:1;flex-shrink:0;">${c.icon}</span>
+            <span style="flex:1;">
+              <div style="font-weight:600;font-size:14px;margin-bottom:3px;">${c.title}</div>
+              <div style="font-size:12.5px;line-height:1.5;color:var(--color-text-secondary,#666);">${c.desc}</div>
+            </span>
+            <span class="ob-choice-tick" style="flex-shrink:0;font-size:16px;color:var(--color-text-primary);opacity:0;">✓</span>
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
   card.innerHTML = `
     ${topVisual}
     <h3>${step.title}</h3>
     <p>${step.body}</p>
+    ${extraBody}
     <div class="ob-bars" aria-hidden="true">${bars}</div>
     <div class="ob-actions">
       ${isLast ? '<span></span>' : '<button class="ob-skip" onclick="skipOnboarding()">Pular tour</button>'}
@@ -10939,6 +11103,16 @@ function renderOnboardingStep(){
     </div>
     <div class="ob-arrow"></div>
   `;
+
+  // Restaura visual da escolha selecionada (se já clicou e voltou)
+  if (step.type === 'choice' && _obState.choiceSelected) {
+    const sel = card.querySelector(`[data-choice-id="${_obState.choiceSelected}"]`);
+    if (sel) {
+      sel.style.borderColor = 'var(--color-text-primary,#111)';
+      sel.style.background = 'var(--color-background-secondary,#f4f4f4)';
+      const tick = sel.querySelector('.ob-choice-tick'); if (tick) tick.style.opacity = '1';
+    }
+  }
 
   positionOnboardingCard(step);
 }
@@ -11057,12 +11231,26 @@ function skipOnboarding(){
 }
 function finishOnboarding(){
   try { audit && audit('onboarding.completed', {}); } catch(e){}
+  // Se user escolheu "demo" no passo de choice, popula os módulos
+  if (_obState.choiceSelected === 'demo') {
+    try {
+      const s = _seedExampleData();
+      console.log('[onboarding] seed exemplos:', s);
+    } catch(e) { console.warn('[onboarding] seed falhou', e); }
+  }
   closeOnboarding();
   markOnboardingDone();
   // Direciona pra Gallery, ponto de partida natural
   if (typeof switchTab === 'function') {
     setTimeout(() => switchTab('gallery'), 300);
   }
+}
+
+// Captura escolha do passo "choice" — destaca card selecionado e armazena
+function _obSelectChoice(id){
+  _obState.choiceSelected = id;
+  // Re-render pra atualizar o highlight visual
+  renderOnboardingStep();
 }
 function closeOnboarding(){
   if (!_obState.els) return;
@@ -11462,6 +11650,18 @@ function _settingsContaSection() {
         <button class="btn-c" onclick="pickProfileAvatar()">📷 ${avatarURL?'Trocar foto':'Adicionar foto'}</button>
         ${avatarURL ? `<button class="btn-c" onclick="clearProfileAvatar()">Remover foto</button>` : ''}
         ${inSupa ? `<button class="btn-c" onclick="signOut()">Sair</button>` : ''}
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <div class="settings-card-h">
+        <span class="settings-card-title">Dados de exemplo</span>
+        <span class="settings-card-sub" style="font-size:11px;">Pra explorar o app sem começar do zero.</span>
+      </div>
+      <div class="settings-card-sub">Cria 1 OKR, 3 contatos no Synconnect e 1 Lab — todos prefixados com <strong>[Exemplo]</strong>. Você pode apagar individualmente quando não precisar mais. Útil pra testar funcionalidades ou demonstrar o app.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button class="btn-c" onclick="_settingsLoadExampleData()">✨ Carregar dados de exemplo</button>
+        <button class="btn-c" onclick="restartOnboarding()">🥋 Refazer tour de boas-vindas</button>
       </div>
     </div>
 
@@ -29552,7 +29752,10 @@ function _dojoBuildSnowGroundSVG(W, H) {
   // ── Torii (portal de dojo) — maior, mais detalhado, em primeiro plano ──
   const toriiXRel = 0.78;
   const toriiX = toriiXRel * W;
-  const toriiBaseY = baseY - 4;     // base levemente acima da neve
+  // CORRIGIDO: usa gy(toriiX) pra seguir a ondulação real da neve naquele
+  // ponto (antes usava baseY constante, daí o torii flutuava onde o chão
+  // descia). Subtrai 4 pra base ficar levemente afundada na neve.
+  const toriiBaseY = gy(toriiX) - 4;
   const toriiHeight = 165;           // 95 → 165 (75% maior)
   const toriiTopY = toriiBaseY - toriiHeight;
   const toriiHalfW = 65;             // 38 → 65 (mais largo)
