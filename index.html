@@ -10889,12 +10889,16 @@ function _obKey(){
     return uid ? (OB_DONE_KEY + '_' + uid) : OB_DONE_KEY;
   } catch(e) { return OB_DONE_KEY; }
 }
+// Limpa flag global legada (versão antiga). NÃO atribui ao user atual —
+// não sabemos QUEM viu o tour antes (pode ter sido outro user no mesmo
+// navegador). Se o user atual nunca viu, deve ver agora.
+function _migrateOnboardingFlag() {
+  try { localStorage.removeItem(OB_DONE_KEY); } catch(e){}
+}
 function isOnboardingDone(){
   try {
-    if (localStorage.getItem(_obKey()) === OB_VERSION) return true;
-    // Retrocompat: usuários que já tinham o flag global (pré per-user)
-    if (localStorage.getItem(OB_DONE_KEY) === OB_VERSION) return true;
-    return false;
+    _migrateOnboardingFlag();
+    return localStorage.getItem(_obKey()) === OB_VERSION;
   } catch(e){ return true; }
 }
 function markOnboardingDone(){
@@ -18379,7 +18383,6 @@ function _wipeAllAppLocalData(opts) {
       'kanban_v8_supabase_cfg',     // URL/anon key do Supabase (config técnica)
       'theme',                      // tema preferido (light/dark)
       'kanban_v8_theme',
-      'kanban_v8_onboarding_done',  // flag global legado (retrocompat)
       'synkan_billing_cycle',       // preferência mensal/anual (landing)
     ]);
     // Prefixos preservados — usados pra flags por-usuário que devem
