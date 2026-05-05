@@ -5550,11 +5550,22 @@ function setSupabaseConfig(cfg) {
 // em modo local (sem auth), usa "trial" (acesso completo, lembretes ocasionais).
 // Em modo Supabase, lê o plan_code da tabela subscriptions.
 const PLAN_LIMITS = {
-  trial:        { ai: 30,   boards: -1, canvas: -1, okrs: -1, unified: -1, name: 'Trial 5 dias',                price: 0     },
-  faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: -1, name: 'Faixa Azul · Pessoal',        price: 14.90 },
-  faixa_roxa:   { ai: 300,  boards: 10, canvas: 10, okrs: -1, unified: -1, name: 'Faixa Roxa · Profissional',   price: 29.90 },
-  faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1, name: 'Faixa Preta · Empresarial',   price: 79.90 },
+  trial:        { ai: 30,   boards: -1, canvas: -1, okrs: -1, unified: -1,
+                  seats: 1, viewers: 0,  convidados: 0,
+                  name: 'Trial 5 dias',                price: 0     },
+  faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: -1,
+                  seats: 1, viewers: 2,  convidados: 0,
+                  name: 'Faixa Azul · Pessoal',        price: 14.90 },
+  faixa_roxa:   { ai: 300,  boards: 10, canvas: 10, okrs: -1, unified: -1,
+                  seats: -1, viewers: 5,  convidados: 0,
+                  name: 'Faixa Roxa · Profissional',   price: 29.90 },
+  faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1,
+                  seats: -1, viewers: 20, convidados: 10,
+                  name: 'Faixa Preta · Empresarial',   price: 79.90 },
 };
+// seats     = editores/admins pagos (per-seat na Roxa/Preta; limite fixo nos demais)
+// viewers   = só leitura, INCLUSO no plano (não cobra extra)
+// convidados= externos com acesso a até 3 boards específicos (Preta only)
 
 let _currentPlan = null;          // plan_code carregado do Supabase
 let _aiUsageThisMonth = 0;        // contador local de chamadas IA neste mês
@@ -5762,7 +5773,10 @@ function getResourceUsage(resource) {
 function canCreate(resource) {
   const limits = getCurrentPlanLimits();
   // Mapeia resource (singular, como usado nos gates) pra a chave correta em PLAN_LIMITS
-  const _LIMIT_KEY = { board: 'boards', canvas: 'canvas', okr: 'okrs', ai: 'ai', unified: 'unified' };
+  const _LIMIT_KEY = {
+    board: 'boards', canvas: 'canvas', okr: 'okrs', ai: 'ai', unified: 'unified',
+    seat: 'seats', viewer: 'viewers', convidado: 'convidados',
+  };
   const key = _LIMIT_KEY[resource] || resource;
   const max = limits[key];
   if (max === -1 || max === undefined) return { ok: true, used: 0, max: -1 };
@@ -5780,11 +5794,14 @@ function canCreate(resource) {
 }
 
 const _RESOURCE_LABELS = {
-  board:   { what: 'boards',                            upgrade: 'Faixa Roxa (até 10 boards)' },
-  canvas:  { what: 'Lab/Canvas',                        upgrade: 'Faixa Roxa (até 10)' },
-  okr:     { what: 'OKRs',                              upgrade: 'Faixa Roxa (ilimitado)' },
-  unified: { what: 'boards no Board Unificado',         upgrade: 'Faixa Roxa (ilimitado)' },
-  ai:      { what: 'chamadas Mestre Kan IA este mês',   upgrade: 'Faixa Roxa (300/mês)' },
+  board:     { what: 'boards',                            upgrade: 'Faixa Roxa (até 10 boards)' },
+  canvas:    { what: 'Lab/Canvas',                        upgrade: 'Faixa Roxa (até 10)' },
+  okr:       { what: 'OKRs',                              upgrade: 'Faixa Roxa (ilimitado)' },
+  unified:   { what: 'boards no Board Unificado',         upgrade: 'Faixa Roxa (ilimitado)' },
+  ai:        { what: 'chamadas Mestre Kan IA este mês',   upgrade: 'Faixa Roxa (300/mês)' },
+  seat:      { what: 'usuários pagos (editores/admins)',  upgrade: 'Faixa Roxa (sem limite, R$ 29,90/seat)' },
+  viewer:    { what: 'viewers (só leitura)',              upgrade: 'Faixa Roxa (5) ou Preta (20)' },
+  convidado: { what: 'convidados externos',               upgrade: 'Faixa Preta (10 convidados, 3 boards cada)' },
 };
 
 function showPlanLimitModal(resource, used, max) {
@@ -18856,39 +18873,112 @@ async function refreshMembersConfig() {
     </div>`;
   }).join('');
   if (isOwner) {
+    const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+    const isPreta = planCode === 'faixa_preta';
+    // Conta uso atual por role
+    const editorsUsed = list.filter(m => ['admin','editor'].includes(m.role)).length;
+    const viewersUsed = list.filter(m => m.role === 'viewer').length;
+    const convidadosUsed = list.filter(m => m.role === 'convidado').length;
+    const limits = getCurrentPlanLimits();
     el.innerHTML += `
+      <div style="margin-top:14px;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;font-size:11.5px;color:var(--color-text-secondary);line-height:1.7;">
+        <strong>Uso de membros</strong> ·
+        ${editorsUsed} editor${editorsUsed!==1?'es':''}/admin${editorsUsed!==1?'s':''} pago${editorsUsed!==1?'s':''} ·
+        ${viewersUsed}/${limits.viewers===-1?'∞':limits.viewers} viewers ·
+        ${isPreta ? `${convidadosUsed}/${limits.convidados} convidados` : `<span style="opacity:.55;">convidados (Faixa Preta)</span>`}
+      </div>
       <div class="cfg-team-add" style="margin-top:8px;">
         <input id="cfg-invite-email" type="email" placeholder="email@empresa.com"
                onkeydown="if(event.key==='Enter')inviteMember();" />
-        <select id="cfg-invite-role" class="cfg-cf-input" style="width:100px;">
-          <option value="editor">editor</option>
-          <option value="admin">admin</option>
-          <option value="viewer">viewer</option>
+        <select id="cfg-invite-role" class="cfg-cf-input" style="width:120px;">
+          <option value="editor">Editor</option>
+          <option value="admin">Admin</option>
+          <option value="viewer">Viewer (só lê)</option>
+          ${isPreta ? '<option value="convidado">Convidado (3 boards)</option>' : ''}
         </select>
         <button class="cfg-team-add-btn" onclick="inviteMember()">Convidar</button>
+      </div>
+      <div class="settings-row-hint" style="margin-top:6px;font-size:11px;line-height:1.5;">
+        <strong>Editor/Admin</strong> são "seats" pagos (R$ ${limits.price.toFixed(2).replace('.',',')} cada/mês na ${limits.name.split(' · ')[0]}).
+        <strong>Viewer</strong> só lê — incluso no plano sem cobrança extra.
+        ${isPreta ? '<strong>Convidado</strong> é externo, vê apenas os 3 boards permitidos, comenta + anexa + aprova cards próprios.' : ''}
       </div>`;
   }
 }
 
 async function inviteMember() {
-  // GATE: Convidar membros externos no board é exclusivo da Faixa Preta
-  if (typeof getCurrentPlanCode === 'function' && getCurrentPlanCode() !== 'faixa_preta') {
-    if (typeof appAlert === 'function') {
-      appAlert('Convidados · Faixa Preta',
-        'Convidar pessoas externas (clientes, parceiros, fornecedores) para colaborar no board é exclusivo da <strong>Faixa Preta · Empresarial</strong>. Faça upgrade pra liberar convidados ilimitados com permissões granulares.',
-        { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não',
-          onOk: () => window.open(getUpgradeURL(), '_blank') });
-    }
-    return;
-  }
   const inp = document.getElementById('cfg-invite-email');
-  const role = document.getElementById('cfg-invite-role')?.value || 'editor';
+  const roleSel = document.getElementById('cfg-invite-role');
+  const role = roleSel?.value || 'editor';
   const email = (inp?.value||'').trim();
   if (!email) return;
+
+  const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+  const limits = getCurrentPlanLimits();
+
+  // GATE 1: Convidado é exclusivo da Faixa Preta
+  if (role === 'convidado' && planCode !== 'faixa_preta') {
+    appAlert('Convidados · Faixa Preta',
+      'Convidar pessoas externas (clientes, parceiros, fornecedores) com acesso restrito a 3 boards é exclusivo da <strong>Faixa Preta · Empresarial</strong>.',
+      { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não',
+        onOk: () => window.open(getUpgradeURL(), '_blank') });
+    return;
+  }
+
+  // GATE 2: Faixa Azul não pode convidar ninguém pago
+  if (planCode === 'faixa_azul' && (role === 'admin' || role === 'editor')) {
+    appAlert('Editor/Admin · Faixa Roxa+',
+      'Adicionar editores/admins pagos requer pelo menos a <strong>Faixa Roxa · Profissional</strong>. Na Faixa Azul você pode adicionar até 2 viewers (só leitura).',
+      { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não',
+        onOk: () => window.open(getUpgradeURL(), '_blank') });
+    return;
+  }
+
+  // GATE 3: Conta uso atual no board e checa contra o limite
+  const list = await supaListMembers(currentBoardId);
+  if (role === 'viewer') {
+    const used = list.filter(m => m.role === 'viewer').length;
+    if (limits.viewers !== -1 && used >= limits.viewers) {
+      appAlert(`Limite de viewers atingido (${used}/${limits.viewers})`,
+        `Sua ${limits.name} permite até ${limits.viewers} viewers. Pra adicionar mais, faça upgrade.`,
+        { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não',
+          onOk: () => window.open(getUpgradeURL(), '_blank') });
+      return;
+    }
+  }
+  if (role === 'convidado') {
+    const used = list.filter(m => m.role === 'convidado').length;
+    if (limits.convidados !== -1 && used >= limits.convidados) {
+      appAlert(`Limite de convidados atingido (${used}/${limits.convidados})`,
+        `Sua ${limits.name} permite até ${limits.convidados} convidados externos.`,
+        { icon:'🔒' });
+      return;
+    }
+  }
+
+  // Aviso pré-cobrança pra editor/admin (vai virar seat pago)
+  if (['admin','editor'].includes(role) && planCode === 'faixa_roxa' || planCode === 'faixa_preta') {
+    const seatPrice = limits.price;
+    const ok = await appConfirm('Adicionar seat pago?',
+      `Adicionar <strong>${email}</strong> como ${role} consumirá <strong>1 seat pago</strong> da ${limits.name}. ` +
+      `Custo adicional: <strong>R$ ${seatPrice.toFixed(2).replace('.',',')}/mês</strong> (cobrado pro-rata pelo Stripe na próxima fatura).<br/><br/>` +
+      `<em>Importante:</em> a cobrança automática por seat será ativada num próximo update — por enquanto, adicione e ajustaremos manualmente.`,
+      { icon:'💳', okLabel:'Adicionar', cancelLabel:'Cancelar' });
+    if (!ok) return;
+  }
+
   const { error, pending } = await supaInviteByEmail(currentBoardId, email, role);
-  if (error) { alert(error.message || String(error)); return; }
+  if (error) {
+    if (typeof appAlert === 'function') appAlert('Erro ao convidar', error.message || String(error), { icon:'⚠️' });
+    else alert(error.message || String(error));
+    return;
+  }
   inp.value = '';
-  if (pending) alert(`Convite registrado para ${email}. Quando essa pessoa criar conta com esse e-mail, ela será adicionada automaticamente.`);
+  if (pending) {
+    appAlert('Convite registrado',
+      `Quando <strong>${email}</strong> criar conta com esse endereço, será adicionado automaticamente como <strong>${role}</strong>.`,
+      { icon:'✓' });
+  }
   refreshMembersConfig();
 }
 
