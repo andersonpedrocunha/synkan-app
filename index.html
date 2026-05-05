@@ -5354,14 +5354,20 @@ body.density-compact .col{padding:7px;}
     </div>
 
     <div class="cfg-section">
-      <div class="cfg-section-title">Equipe</div>
-      <div class="cfg-section-hint">Pessoas com acesso ao board — disponíveis no campo "Responsável" de cada card.</div>
+      <div class="cfg-section-title">Equipe (responsáveis dos cards)</div>
+      <div class="cfg-section-hint">Lista local de nomes que aparecem no campo "Responsável" de cada card. Não dá acesso ao board — só pra atribuir cards.</div>
       <div id="cfg-team"></div>
       <div class="cfg-team-add">
         <input id="cfg-team-input" type="text" placeholder="Nome da pessoa..." maxlength="40"
                onkeydown="if(event.key==='Enter'){event.preventDefault();addTeamMember();}" />
         <button class="cfg-team-add-btn" onclick="addTeamMember()">+ adicionar</button>
       </div>
+    </div>
+
+    <div class="cfg-section" id="cfg-members-section">
+      <div class="cfg-section-title">Membros do board (acesso via login)</div>
+      <div class="cfg-section-hint">Convide pessoas com email pra colaborar neste board. Editor/Admin = seats pagos · Viewer = grátis (só leitura) · Convidado = externo na Faixa Preta (até 3 boards cada).</div>
+      <div id="cfg-members"></div>
     </div>
 
     <div class="cfg-section">
