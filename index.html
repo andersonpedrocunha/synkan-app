@@ -18113,9 +18113,11 @@ function _wipeAllAppLocalData() {
   try {
     // Configs que ficam por máquina (não vinculadas ao user)
     const KEEP_KEYS = new Set([
-      'kanban_v8_supabase_cfg',  // URL/anon key do Supabase (config técnica)
-      'theme',                   // tema preferido (light/dark)
+      'kanban_v8_supabase_cfg',     // URL/anon key do Supabase (config técnica)
+      'theme',                      // tema preferido (light/dark)
       'kanban_v8_theme',
+      'kanban_v8_onboarding_done',  // tour já visto neste navegador
+      'synkan_billing_cycle',       // preferência mensal/anual (landing)
     ]);
     // Coleta todas as keys e remove tudo exceto as preservadas
     const toRemove = [];
