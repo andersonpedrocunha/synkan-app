@@ -17999,8 +17999,8 @@ async function forgotPasswordFlow() {
     });
     if (error) throw error;
     await appAlert('Link enviado ✓',
-      `Confira o email <strong>${email}</strong> nos próximos minutos. O link expira em 1 hora.<br/><br/>Se não chegar, verifique a pasta de spam.`,
-      { icon:'✉️' });
+      `Confira o email <strong>${_esc(email)}</strong> nos próximos minutos. O link expira em 1 hora.<br/><br/>Se não chegar, verifique a pasta de spam.`,
+      { icon:'✉️', html:true });
   } catch(e) {
     await appAlert('Erro ao enviar', e?.message || 'Tente de novo em alguns segundos.', { icon:'⚠️' });
   }
@@ -18610,7 +18610,7 @@ async function _maybeRedirectToPlanCheckout() {
   const ok = await appConfirm(
     `Assinar ${planNames[plan]}?`,
     `Você vai ser redirecionado pro Stripe pra completar a assinatura <strong>${cycleLabel}</strong> da <strong>${planNames[plan]}</strong>.`,
-    { icon:'💳', okLabel:'Ir pro pagamento', cancelLabel:'Agora não' }
+    { icon:'💳', okLabel:'Ir pro pagamento', cancelLabel:'Agora não', html:true }
   );
   if (!ok) return;
   try {
@@ -19151,7 +19151,7 @@ async function inviteMember() {
   if (role === 'convidado' && planCode !== 'faixa_preta') {
     appAlert('Convidados · Faixa Preta',
       'Convidar pessoas externas (clientes, parceiros, fornecedores) com acesso restrito a 3 boards é exclusivo da <strong>Faixa Preta · Empresarial</strong>.',
-      { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não',
+      { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não', html:true,
         onOk: () => window.open(getUpgradeURL(), '_blank') });
     return;
   }
@@ -19160,7 +19160,7 @@ async function inviteMember() {
   if (planCode === 'faixa_azul' && (role === 'admin' || role === 'editor')) {
     appAlert('Editor/Admin · Faixa Roxa+',
       'Adicionar editores/admins pagos requer pelo menos a <strong>Faixa Roxa · Profissional</strong>. Na Faixa Azul você pode adicionar até 2 viewers (só leitura).',
-      { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não',
+      { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não', html:true,
         onOk: () => window.open(getUpgradeURL(), '_blank') });
     return;
   }
@@ -19191,10 +19191,10 @@ async function inviteMember() {
   if (['admin','editor'].includes(role) && planCode === 'faixa_roxa' || planCode === 'faixa_preta') {
     const seatPrice = limits.price;
     const ok = await appConfirm('Adicionar seat pago?',
-      `Adicionar <strong>${email}</strong> como ${role} consumirá <strong>1 seat pago</strong> da ${limits.name}. ` +
+      `Adicionar <strong>${_esc(email)}</strong> como ${_esc(role)} consumirá <strong>1 seat pago</strong> da ${_esc(limits.name)}. ` +
       `Custo adicional: <strong>R$ ${seatPrice.toFixed(2).replace('.',',')}/mês</strong> (cobrado pro-rata pelo Stripe na próxima fatura).<br/><br/>` +
       `<em>Importante:</em> a cobrança automática por seat será ativada num próximo update — por enquanto, adicione e ajustaremos manualmente.`,
-      { icon:'💳', okLabel:'Adicionar', cancelLabel:'Cancelar' });
+      { icon:'💳', okLabel:'Adicionar', cancelLabel:'Cancelar', html:true });
     if (!ok) return;
   }
 
@@ -19207,8 +19207,8 @@ async function inviteMember() {
   inp.value = '';
   if (pending) {
     appAlert('Convite registrado',
-      `Quando <strong>${email}</strong> criar conta com esse endereço, será adicionado automaticamente como <strong>${role}</strong>.`,
-      { icon:'✓' });
+      `Quando <strong>${_esc(email)}</strong> criar conta com esse endereço, será adicionado automaticamente como <strong>${_esc(role)}</strong>.`,
+      { icon:'✓', html:true });
   }
   // Se foi editor/admin (seat pago), atualiza quantity no Stripe
   if (['admin','editor'].includes(role) && !pending) {
@@ -28639,10 +28639,12 @@ function _appDialogShow(html, onMount) {
 function appAlert(title, message, opts) {
   opts = opts || {};
   const icon = opts.icon || 'ℹ️';
+  // opts.html === true → renderiza HTML cru no message (cuidado com XSS, use só com strings controladas)
+  const msgHTML = opts.html === true ? (message||'') : _esc(message||'');
   return _appDialogShow(`
     <div class="app-dialog-icon">${icon}</div>
     <h3 class="app-dialog-title">${_esc(title||'')}</h3>
-    ${message?`<p class="app-dialog-msg">${_esc(message)}</p>`:''}
+    ${message?`<p class="app-dialog-msg">${msgHTML}</p>`:''}
     <div class="app-dialog-actions">
       <button class="app-dialog-btn is-primary" id="app-dlg-ok">${_esc(opts.okLabel||'OK')}</button>
     </div>
@@ -28659,10 +28661,11 @@ function appConfirm(title, message, opts) {
   const okLabel = _esc(opts.okLabel || (opts.danger ? 'Excluir' : 'Confirmar'));
   const cancelLabel = _esc(opts.cancelLabel || 'Cancelar');
   const okClass = opts.danger ? 'is-danger' : 'is-primary';
+  const msgHTML = opts.html === true ? (message||'') : _esc(message||'');
   return _appDialogShow(`
     <div class="app-dialog-icon">${icon}</div>
     <h3 class="app-dialog-title">${_esc(title||'')}</h3>
-    ${message?`<p class="app-dialog-msg">${_esc(message)}</p>`:''}
+    ${message?`<p class="app-dialog-msg">${msgHTML}</p>`:''}
     <div class="app-dialog-actions">
       <button class="app-dialog-btn" id="app-dlg-cancel">${cancelLabel}</button>
       <button class="app-dialog-btn ${okClass}" id="app-dlg-ok">${okLabel}</button>
