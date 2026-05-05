@@ -18091,10 +18091,16 @@ async function submitAuth() {
   const btn = document.getElementById('auth-submit'); btn.disabled = true;
   try {
     if (_authMode === 'signup') {
-      const { error } = await c.auth.signUp({ email, password, options: { data: { full_name: fullName || email } } });
+      const { data, error } = await c.auth.signUp({ email, password, options: { data: { full_name: fullName || email } } });
       if (error) throw error;
-      _setAuthMsg('Conta criada! Verifique o e-mail se a confirmação estiver ativada, ou já entre abaixo.', 'ok');
-      setAuthMode('login');
+      // Supabase cria o user. Se confirmação está ativa, ele NÃO está logado ainda.
+      // Mostra tela bonita pedindo pra confirmar o email.
+      if (data?.user && !data.session) {
+        _showConfirmEmailScreen(email);
+      } else {
+        // Confirmação desativada → user já tá logado, segue
+        _setAuthMsg('Bem-vindo! Carregando seus boards…', 'ok');
+      }
     } else {
       const { error } = await c.auth.signInWithPassword({ email, password });
       if (error) throw error;
@@ -18102,9 +18108,106 @@ async function submitAuth() {
       // o onAuthStateChange dispara onSignedIn automaticamente
     }
   } catch(e) {
-    _setAuthMsg(e.message || String(e), 'error');
+    // Mensagens amigáveis pros erros mais comuns
+    const msg = (e?.message || '').toLowerCase();
+    if (msg.includes('email not confirmed') || msg.includes('email_not_confirmed')) {
+      _showConfirmEmailScreen(email, /*resent=*/false);
+    } else if (msg.includes('invalid login') || msg.includes('invalid credentials')) {
+      _setAuthMsg('Email ou senha incorretos. Confira e tenta de novo.', 'error');
+    } else if (msg.includes('user already registered') || msg.includes('already registered')) {
+      _setAuthMsg('Esse email já tem conta. Tenta entrar em vez de criar.', 'error');
+    } else if (msg.includes('rate limit') || msg.includes('too many')) {
+      _setAuthMsg('Muitas tentativas. Aguarde alguns segundos e tente de novo.', 'error');
+    } else {
+      _setAuthMsg(e.message || String(e), 'error');
+    }
   }
   btn.disabled = false;
+}
+
+// Tela cheia "Confirme seu email" mostrada após signup ou ao tentar logar sem confirmar.
+function _showConfirmEmailScreen(email, alreadyResent) {
+  // Esconde o card de auth padrão e mostra um overlay próprio
+  const authCard = document.querySelector('.auth-overlay .auth-card');
+  if (authCard) authCard.style.display = 'none';
+  // Remove tela anterior se houver
+  document.getElementById('confirm-email-screen')?.remove();
+  const overlay = document.querySelector('.auth-overlay');
+  if (!overlay) return;
+  const screen = document.createElement('div');
+  screen.id = 'confirm-email-screen';
+  screen.style.cssText = 'background:#fff;border:1px solid var(--color-border-tertiary,#e5e5e5);border-radius:16px;padding:36px 32px;max-width:440px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.06);';
+  screen.innerHTML = `
+    <div style="font-size:54px;line-height:1;margin-bottom:18px;">✉️</div>
+    <h2 style="margin:0 0 10px;font-size:22px;font-weight:700;color:#111;letter-spacing:-.01em;">Confirme seu email</h2>
+    <p style="margin:0 0 18px;font-size:14.5px;line-height:1.6;color:#5C5C5C;">
+      Enviamos um link de confirmação pra<br/>
+      <strong style="color:#111;font-size:15px;">${_esc(email)}</strong>
+    </p>
+    <p style="margin:0 0 22px;font-size:13.5px;line-height:1.6;color:#6B6B6B;">
+      Abra o email e clique em <strong>"Confirmar meu e-mail"</strong> pra ativar sua conta. Depois disso, volte aqui pra entrar.
+    </p>
+    <div style="margin:18px 0 22px;padding:12px 14px;background:#FBF1E0;border:1px solid #E5C285;border-radius:8px;font-size:12.5px;color:#6B4309;line-height:1.55;text-align:left;">
+      <strong style="color:#5C3F08;">⏱ Não chegou em 1-2 minutos?</strong>
+      <ul style="margin:6px 0 0;padding-left:22px;line-height:1.7;">
+        <li>Verifique a pasta de <strong>spam</strong> ou <strong>promoções</strong></li>
+        <li>Confira se o email está digitado correto</li>
+        <li>Clique abaixo pra reenviar</li>
+      </ul>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <button id="confirm-resend-btn" class="btn-c" style="background:#111;color:#fff;border-color:#111;padding:9px 16px;font-size:13px;border-radius:8px;border:1px solid;cursor:pointer;font-weight:500;font-family:inherit;">
+        ↻ Reenviar email
+      </button>
+      <button id="confirm-back-btn" class="btn-c" style="background:transparent;color:#6B6B6B;border:1px solid var(--color-border-tertiary,#e5e5e5);padding:9px 16px;font-size:13px;border-radius:8px;cursor:pointer;font-weight:500;font-family:inherit;">
+        ← Voltar pro login
+      </button>
+    </div>
+    <p style="margin:18px 0 0;font-size:11.5px;color:#A0A0A0;line-height:1.5;">
+      Email errado? Volte e crie a conta de novo com o endereço correto.
+    </p>`;
+  overlay.appendChild(screen);
+  // Wire dos botões
+  screen.querySelector('#confirm-back-btn').onclick = () => {
+    screen.remove();
+    if (authCard) authCard.style.display = '';
+    setAuthMode('login');
+  };
+  screen.querySelector('#confirm-resend-btn').onclick = async (ev) => {
+    const btn = ev.currentTarget;
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    try {
+      const c = _ensureSupaClient();
+      if (!c) throw new Error('Supabase não configurado');
+      const { error } = await c.auth.resend({ type: 'signup', email });
+      if (error) throw error;
+      btn.textContent = '✓ Reenviado';
+      btn.style.background = '#16A34A';
+      btn.style.borderColor = '#16A34A';
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = '↻ Reenviar email';
+        btn.style.background = '#111';
+        btn.style.borderColor = '#111';
+      }, 4000);
+    } catch(e) {
+      const msg = (e?.message || '').toLowerCase();
+      if (msg.includes('rate limit') || msg.includes('too many')) {
+        btn.textContent = 'Aguarde 1 min';
+        btn.style.background = '#F09595';
+        btn.style.borderColor = '#F09595';
+      } else {
+        btn.textContent = 'Erro · tenta de novo';
+      }
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = '↻ Reenviar email';
+        btn.style.background = '#111';
+        btn.style.borderColor = '#111';
+      }, 4000);
+    }
+  };
 }
 // ─── Wipe completo de localStorage do user (mantém só configs gerais da máquina) ───
 // Usado em (a) sign-out e (b) detecção de troca de user no mesmo browser.
