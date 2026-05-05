@@ -5494,6 +5494,21 @@ body.density-compact .col{padding:7px;}
 const STORAGE_KEY = 'kanban_v8_data';
 const SUPABASE_CFG_KEY = 'kanban_v8_supabase_cfg';
 
+// Snapshot de URL params ANTES do Supabase processar a URL e limpar (PKCE/token_hash).
+// Usado pra detectar se essa aba veio de um link de confirmação de email
+// (e mostrar splash "Email confirmado" em vez de renderizar app duplicado).
+window.__INITIAL_HAD_AUTH_PARAMS = (() => {
+  try {
+    const s = location.search || '';
+    const h = location.hash || '';
+    return /[?&]code=/.test(s)
+      || /[?&]token_hash=/.test(s)
+      || /\btype=(signup|email_change|invite|recovery)\b/.test(s)
+      || /\btype=(signup|email_change|invite|recovery)\b/.test(h)
+      || /[#&]access_token=/.test(h);
+  } catch(e) { return false; }
+})();
+
 // ── URLs de serviço (auto-detect dev/prod) ───────────────────────────
 // Em produção (synkan.com.br ou *.synkan.com.br): usa api.synkan.com.br
 // Em dev (localhost / 127.0.0.1 / file://): usa servidor local Python
@@ -10845,17 +10860,32 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Onboarding tour (primeiro acesso) ────────────────────────────────
+// Flag é POR USUÁRIO (suffix com user_id) pra que cada conta nova no mesmo
+// navegador veja o tour uma vez. Antes era global (`kanban_v8_onboarding_done`)
+// — mantido aqui pra retrocompat: se existir, conta como visto.
 const OB_DONE_KEY = 'kanban_v8_onboarding_done';
 const OB_VERSION = '1';
 
+function _obKey(){
+  try {
+    const uid = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) ? supaUser.id : null;
+    return uid ? (OB_DONE_KEY + '_' + uid) : OB_DONE_KEY;
+  } catch(e) { return OB_DONE_KEY; }
+}
 function isOnboardingDone(){
-  try { return localStorage.getItem(OB_DONE_KEY) === OB_VERSION; } catch(e){ return true; }
+  try {
+    if (localStorage.getItem(_obKey()) === OB_VERSION) return true;
+    // Retrocompat: usuários que já tinham o flag global (pré per-user)
+    if (localStorage.getItem(OB_DONE_KEY) === OB_VERSION) return true;
+    return false;
+  } catch(e){ return true; }
 }
 function markOnboardingDone(){
-  try { localStorage.setItem(OB_DONE_KEY, OB_VERSION); } catch(e){}
+  try { localStorage.setItem(_obKey(), OB_VERSION); } catch(e){}
   try { audit && audit('onboarding.done', {}); } catch(e){}
 }
 function resetOnboarding(){
+  try { localStorage.removeItem(_obKey()); } catch(e){}
   try { localStorage.removeItem(OB_DONE_KEY); } catch(e){}
 }
 
@@ -18133,6 +18163,10 @@ async function submitAuth() {
 
 // Tela cheia "Confirme seu email" mostrada após signup ou ao tentar logar sem confirmar.
 function _showConfirmEmailScreen(email, alreadyResent) {
+  // Marca em localStorage que essa aba (Tab A) tá esperando confirmação por email.
+  // Quando a Tab B (aberta pelo link do email) logar, ela detecta esse flag e
+  // mostra splash "Email confirmado" em vez de renderizar o app duplicado.
+  try { localStorage.setItem('synkan_awaiting_email_confirmation', email); } catch(e){}
   // Esconde o card de auth padrão e mostra um overlay próprio
   const authCard = document.querySelector('.auth-overlay .auth-card');
   if (authCard) authCard.style.display = 'none';
@@ -18225,15 +18259,21 @@ function _wipeAllAppLocalData() {
       'kanban_v8_supabase_cfg',     // URL/anon key do Supabase (config técnica)
       'theme',                      // tema preferido (light/dark)
       'kanban_v8_theme',
-      'kanban_v8_onboarding_done',  // tour já visto neste navegador
+      'kanban_v8_onboarding_done',  // flag global legado (retrocompat)
       'synkan_billing_cycle',       // preferência mensal/anual (landing)
     ]);
+    // Prefixos preservados — usados pra flags por-usuário que devem
+    // sobreviver troca de conta pra cada user manter seu próprio estado.
+    const KEEP_PREFIXES = [
+      'kanban_v8_onboarding_done_', // tour visto por este user_id
+    ];
     // Coleta todas as keys e remove tudo exceto as preservadas
     const toRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k) continue;
       if (KEEP_KEYS.has(k)) continue;
+      if (KEEP_PREFIXES.some(p => k.startsWith(p))) continue;
       // Wipa qualquer chave que pareça do app: kanban_v8_*, synkan_*, sb-*, supabase.*
       if (
         k.startsWith('kanban_v8') ||
@@ -18599,6 +18639,33 @@ async function supaRemoveMember(boardId, userId) {
 // mesmo user já logado e, se for, só atualiza UI sem reset de tab.
 let _lastSignedInUserId = null;
 async function _onSignedIn(session) {
+  // ─── DETECÇÃO DE "ABA DO LINK DE EMAIL" ───
+  // Se essa aba foi aberta clicando no link de confirmação de email
+  // (URL tinha params de auth) E a aba original tá esperando confirmação
+  // (flag em localStorage), mostra splash "Email confirmado" em vez de
+  // renderizar o app aqui — a aba original vai logar sozinha via storage
+  // event e renderizar normalmente. Evita duplicação de abas.
+  try {
+    const awaitingEmail = localStorage.getItem('synkan_awaiting_email_confirmation');
+    if (awaitingEmail && window.__INITIAL_HAD_AUTH_PARAMS) {
+      // Essa é a Tab B → mostra splash e NÃO renderiza app
+      try { localStorage.removeItem('synkan_awaiting_email_confirmation'); } catch(e){}
+      // Limpa params da URL pra não disparar de novo se recarregar
+      try {
+        const url = new URL(location.href);
+        ['code','token_hash','type'].forEach(k => url.searchParams.delete(k));
+        url.hash = '';
+        window.history.replaceState({}, '', url.toString());
+      } catch(e){}
+      _showEmailConfirmedSplash(awaitingEmail);
+      return; // não continua boot do app nessa aba
+    }
+    // Tab A logando normal (sem params na URL) → limpa o flag pra próximas vezes
+    if (awaitingEmail && !window.__INITIAL_HAD_AUTH_PARAMS) {
+      try { localStorage.removeItem('synkan_awaiting_email_confirmation'); } catch(e){}
+    }
+  } catch(e) { console.warn('email-confirm-tab check', e); }
+
   // ─── DETECÇÃO DE TROCA DE USER NO MESMO BROWSER ───
   // CRÍTICO: dados de user A não podem vazar pra user B na mesma máquina.
   // Persistimos o user_id em localStorage. Se o user que está logando agora
@@ -18765,6 +18832,71 @@ function _showResetPasswordBackdrop() {
 }
 function _hideResetPasswordBackdrop() {
   document.getElementById('reset-pw-backdrop')?.remove();
+}
+
+// Splash exibido na "aba do link de email" — quando o user clica no link
+// de confirmação enviado por email e cai aqui. A aba original (Tab A) vai
+// receber o SIGNED_IN via storage event e renderizar o app normalmente.
+// Essa aba apenas confirma e oferece pra fechar ou continuar por aqui.
+function _showEmailConfirmedSplash(email) {
+  // Esconde overlay de auth se tiver
+  const ov = document.querySelector('.auth-overlay');
+  if (ov) ov.style.display = 'none';
+  // Cria splash full-screen
+  if (document.getElementById('email-confirmed-splash')) return;
+  const bd = document.createElement('div');
+  bd.id = 'email-confirmed-splash';
+  bd.style.cssText = 'position:fixed;inset:0;background:linear-gradient(180deg,#fafafa 0%,#f3f3f3 100%);z-index:700;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif);padding:24px;';
+  bd.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <img src="synkan-icon-512.png" alt="Synkan" style="width:42px;height:42px;border-radius:9px;display:block;" onerror="this.style.display='none'" />
+      <span style="font-size:20px;font-weight:700;color:#111;letter-spacing:-.01em;">Synkan</span>
+      <span style="font-size:14px;color:#6B6B6B;">Management Lab</span>
+    </div>
+    <div style="background:#fff;border:1px solid #E5E5E2;border-radius:16px;padding:36px 32px;max-width:460px;width:100%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.06);">
+      <div style="width:64px;height:64px;border-radius:50%;background:#E8F5E9;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:32px;color:#16A34A;">✓</div>
+      <h2 style="margin:0 0 10px;font-size:22px;font-weight:700;color:#111;letter-spacing:-.01em;">Email confirmado!</h2>
+      <p style="margin:0 0 8px;font-size:14.5px;line-height:1.6;color:#5C5C5C;">
+        ${_esc(email||'Sua conta')} está ativa.
+      </p>
+      <p style="margin:0 0 22px;font-size:13.5px;line-height:1.6;color:#6B6B6B;">
+        <strong style="color:#111;">Volte pra aba original</strong> que abriu antes — ela já entrou automaticamente no app.
+      </p>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button id="email-confirmed-close-btn" style="background:#111;color:#fff;border:1px solid #111;padding:10px 18px;font-size:13px;border-radius:8px;cursor:pointer;font-weight:500;font-family:inherit;">
+          Fechar essa aba
+        </button>
+        <button id="email-confirmed-continue-btn" style="background:transparent;color:#6B6B6B;border:1px solid #E5E5E2;padding:10px 18px;font-size:13px;border-radius:8px;cursor:pointer;font-weight:500;font-family:inherit;">
+          Continuar nesta aba
+        </button>
+      </div>
+      <p style="margin:18px 0 0;font-size:11.5px;color:#A0A0A0;line-height:1.5;">
+        Se a outra aba não abriu sozinha, clique em "Continuar nesta aba".
+      </p>
+    </div>`;
+  document.body.appendChild(bd);
+  document.getElementById('email-confirmed-close-btn').onclick = () => {
+    // Tenta fechar a aba. Se o browser bloquear (caso comum quando a aba
+    // não foi aberta via window.open), redireciona pra app limpa.
+    try { window.close(); } catch(e){}
+    setTimeout(() => {
+      // Se ainda tá aberta, mostra mensagem
+      const stillOpen = document.getElementById('email-confirmed-splash');
+      if (stillOpen) {
+        const msg = stillOpen.querySelector('p:last-of-type');
+        if (msg) {
+          msg.style.color = '#B45309';
+          msg.innerHTML = 'Seu navegador não permitiu fechar essa aba automaticamente. Feche manualmente (Ctrl/Cmd+W) ou clique em "Continuar nesta aba".';
+        }
+      }
+    }, 400);
+  };
+  document.getElementById('email-confirmed-continue-btn').onclick = () => {
+    // Remove splash e força reload limpo (sem params) → fluxo normal
+    document.getElementById('email-confirmed-splash')?.remove();
+    if (ov) ov.style.display = '';
+    location.replace(location.origin + location.pathname);
+  };
 }
 
 // Detecta ?plan=...&cycle=... na URL ou em localStorage (caso veio antes de logar)
