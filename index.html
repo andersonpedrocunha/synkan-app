@@ -3629,6 +3629,16 @@ body.density-compact .col{padding:7px;}
 .canvas-node:hover{box-shadow:0 8px 22px rgba(20,20,40,.10), 0 2px 4px rgba(0,0,0,.04);transform:translateY(-1px);border-color:var(--color-border-secondary);}
 .canvas-node:active{cursor:grabbing;}
 .canvas-node.selected{border-color:#7B61FF;box-shadow:0 0 0 1px #7B61FF, 0 8px 22px rgba(123,97,255,.18);}
+/* Handle de resize livre (image/textbox). Aparece no hover/selected. */
+.canvas-resize-handle{
+  position:absolute;bottom:-3px;right:-3px;width:14px;height:14px;
+  background:#7B61FF;border:2px solid #fff;border-radius:50%;
+  cursor:nwse-resize;z-index:10;
+  opacity:0;transition:opacity .12s;
+  box-shadow:0 1px 4px rgba(0,0,0,.2);
+}
+.canvas-node:hover .canvas-resize-handle,
+.canvas-node.selected .canvas-resize-handle{opacity:1;}
 /* Image node: sem padding, sem ::before, sem fundo branco — só a imagem */
 .canvas-node.is-image-node{padding:0;background:transparent;border-radius:8px;border:1px dashed transparent;min-width:80px;min-height:60px;max-width:none;}
 .canvas-node.is-image-node::before{display:none;}
@@ -22492,6 +22502,7 @@ let _canvasConnectFrom = null;
 let _canvasMode = 'select'; // 'select' | 'connect'
 let _canvasDrag = null;
 let _canvasFrameResize = null;
+let _canvasNodeResize = null; // resize livre de nodes (image, textbox)
 let _canvasPan = null;
 let _canvasIconCounter = 0;
 
@@ -24835,11 +24846,18 @@ function _wireCanvasStage() {
   });
   document.addEventListener('mousemove', _canvasGlobalMove);
   document.addEventListener('mouseup', _canvasGlobalUp);
-  // zoom com cmd/ctrl + wheel
+  // Zoom com scroll do mouse — sempre. Shift+scroll faz pan horizontal.
+  // (Antes exigia Ctrl/Cmd; user pediu zoom direto, padrão Miro/Figma.)
   stage.addEventListener('wheel', e => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const delta = -Math.sign(e.deltaY) * 0.1;
+    e.preventDefault();
+    if (e.shiftKey) {
+      // Shift = pan horizontal
+      _canvasViewport.x -= e.deltaY * 0.5;
+      _applyViewportTransform();
+    } else {
+      // Default = zoom; granular pra trackpad/mouse
+      const factor = Math.abs(e.deltaY) > 50 ? 0.10 : 0.04;
+      const delta = -Math.sign(e.deltaY) * factor;
       canvasZoom(delta, e.clientX, e.clientY);
     }
   }, { passive: false });
@@ -24905,6 +24923,26 @@ function _canvasGlobalMove(e) {
       f.h = Math.max(80, _canvasFrameResize.oh + dy);
       _updateFrameDOM(f);
     }
+  } else if (_canvasNodeResize) {
+    const cv = _curCanvas(); if (!cv) return;
+    const dx = (e.clientX - _canvasNodeResize.startX) / _canvasViewport.zoom;
+    const dy = (e.clientY - _canvasNodeResize.startY) / _canvasViewport.zoom;
+    const n = cv.nodes.find(x => x.id === _canvasNodeResize.id);
+    if (n) {
+      const minW = 60, minH = 30;
+      let newW = Math.max(minW, _canvasNodeResize.ow + dx);
+      let newH = Math.max(minH, _canvasNodeResize.oh + dy);
+      // Pra IMAGEM: mantém proporção (a menos que segure Shift pra distorcer)
+      if (n.type === 'image' && !e.shiftKey && _canvasNodeResize.ow > 0 && _canvasNodeResize.oh > 0) {
+        const ratio = _canvasNodeResize.ow / _canvasNodeResize.oh;
+        if (Math.abs(dx) >= Math.abs(dy)) newH = newW / ratio;
+        else newW = newH * ratio;
+      }
+      n.w = Math.round(newW);
+      n.h = Math.round(newH);
+      _updateNodeDOM(n);
+      _renderCanvasEdges();
+    }
   }
 }
 function _canvasGlobalUp(e) {
@@ -24912,11 +24950,41 @@ function _canvasGlobalUp(e) {
     _canvasPan = null;
     document.getElementById('canvas-stage')?.classList.remove('is-panning');
   }
-  if (_canvasDrag || _canvasFrameResize) {
+  if (_canvasDrag || _canvasFrameResize || _canvasNodeResize) {
     const cv = _curCanvas();
     if (cv) { cv.updatedAt = new Date().toISOString(); _saveCanvases(); }
-    _canvasDrag = null; _canvasFrameResize = null;
+    _canvasDrag = null; _canvasFrameResize = null; _canvasNodeResize = null;
   }
+}
+
+// Inicia resize livre de um node (image/textbox)
+function _startNodeResize(e, nodeId) {
+  e.preventDefault();
+  e.stopPropagation();
+  const cv = _curCanvas(); if (!cv) return;
+  const n = cv.nodes.find(x => x.id === nodeId); if (!n) return;
+  _canvasNodeResize = {
+    id: nodeId,
+    startX: e.clientX, startY: e.clientY,
+    ow: n.w || 200, oh: n.h || 80,
+  };
+  _selectCanvasNode(nodeId);
+}
+
+// Entra em modo de edição de texto no textbox (ativado por dblclick)
+function _textboxStartEdit(el) {
+  if (!el) return;
+  el.contentEditable = 'true';
+  el.style.cursor = 'text';
+  el.focus();
+  // Seleciona todo o conteúdo pra facilitar substituição
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } catch(err){}
 }
 
 function _applyViewportTransform() {
@@ -25203,14 +25271,21 @@ function _nodeDOM(n) {
     el.classList.add('is-image-node');
     el.innerHTML = `
       <img src="${_esc(n.imgData)}" alt="" style="display:block;width:100%;height:100%;object-fit:contain;border-radius:8px;pointer-events:none;user-select:none;-webkit-user-drag:none;" draggable="false"/>
+      <div class="canvas-resize-handle" onmousedown="_startNodeResize(event, '${n.id}')" title="Arraste pra redimensionar (Shift = livre)"></div>
       <button class="cn-actions-trigger" onclick="event.stopPropagation();_cnOpenPopover('${n.id}', this)" title="Mais ações">⋯</button>
     `;
   } else if (n.type === 'textbox') {
     el.classList.add('is-textbox-node');
     const ts = n.textStyle || {};
-    const textStyle = `font-size:${ts.fontSize||16}px;font-weight:${ts.fontWeight||400};font-style:${ts.fontStyle||'normal'};color:${ts.color||'#111'};text-align:${ts.align||'left'};line-height:1.4;padding:8px 10px;`;
+    const textStyle = `font-size:${ts.fontSize||16}px;font-weight:${ts.fontWeight||400};font-style:${ts.fontStyle||'normal'};color:${ts.color||'#111'};text-align:${ts.align||'left'};line-height:1.4;padding:8px 10px;cursor:move;`;
+    // contenteditable=false por padrão → click no textbox arrasta o nó.
+    // Double-click ativa edição (chama _textboxStartEdit). On blur volta a 'false'.
     el.innerHTML = `
-      <div class="canvas-node-text" contenteditable="true" spellcheck="false" style="${textStyle}">${_esc(n.text||'Texto livre')}</div>
+      <div class="canvas-node-text" contenteditable="false" spellcheck="false" style="${textStyle}"
+           ondblclick="event.stopPropagation();_textboxStartEdit(this)"
+           onblur="this.contentEditable='false';this.style.cursor='move';"
+           title="Duplo-clique pra editar · arraste pra mover">${_esc(n.text||'Texto livre')}</div>
+      <div class="canvas-resize-handle" onmousedown="_startNodeResize(event, '${n.id}')" title="Arraste pra redimensionar"></div>
       <button class="cn-actions-trigger" onclick="event.stopPropagation();_cnOpenPopover('${n.id}', this)" title="Mais ações · estilo">⋯</button>
     `;
   } else {
@@ -25230,12 +25305,17 @@ function _nodeDOM(n) {
   // drag + connect
   el.addEventListener('mousedown', e => {
     const t = e.target;
-    // Detecta clique em QUALQUER elemento interativo dentro do card (incluindo
-    // descendentes de button/select/input — antes só checava o tagName direto)
+    // Detecta clique em elemento INTERATIVO que deve bloquear drag
+    // (botões/selects/inputs sempre; resize handle bloqueia pra ele tomar conta)
+    // Pra texto editável: só bloqueia drag SE estiver em modo de edição ativa
+    // (contenteditable === 'true'). Textbox em estado normal tem 'false' → drag livre.
+    const textEl = t.classList.contains('canvas-node-text') ? t : t.closest('.canvas-node-text');
+    const textInEdit = textEl && (textEl.contentEditable === 'true' || textEl.getAttribute && textEl.getAttribute('contenteditable') === 'true');
     const isInteractive =
       t.tagName === 'BUTTON' || t.tagName === 'SELECT' || t.tagName === 'INPUT' ||
       t.closest('button') || t.closest('select') || t.closest('input') ||
-      t.classList.contains('canvas-node-text') || t.closest('.canvas-node-text');
+      t.classList.contains('canvas-resize-handle') ||
+      textInEdit;
 
     if (_canvasMode === 'connect') {
       // No modo conectar, ignora cliques em controles interativos (não conecta neles)
