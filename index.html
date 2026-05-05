@@ -10962,18 +10962,22 @@ function _seedExampleData() {
           const today = new Date();
           const fmtDate = (d) => d.toISOString().slice(0,10);
           const inDays = (n) => { const d = new Date(today); d.setDate(d.getDate()+n); return fmtDate(d); };
-          // Cards de exemplo: 2 entradas, 3 saídas, em colunas variadas
+          // Cards de exemplo: 2 receitas, 3 saídas, tipos variados.
+          // ZAI_TYPES válidos: 'income' (receita), 'fixed' (custo recorrente), 'variable' (custo pontual).
+          // Valores SEMPRE positivos — o tipo determina o sinal no cálculo.
+          // IMPORTANTE: deadline é campo nativo do card (usado no dashboard),
+          // cf_data é redundante (mesmo valor, pra exibir em campo customizado).
           const exampleCards = [
             { id:1, name:'Mensalidade SaaS · Software',  priority:'media', col:'planejado',  tagIds:['t1'],
-              moneyType:'expense', cfv:{ cf_valor:-450,  cf_data:inDays(7),  cf_categoria:'Software',     cf_fornecedor:'Provedor X' } },
+              deadline: inDays(7),  moneyType:'fixed',    cfv:{ cf_valor:450,   cf_data:inDays(7),  cf_categoria:'Software',     cf_fornecedor:'Provedor X' } },
             { id:2, name:'Pagamento freela · designer',  priority:'alta',  col:'aguardando', tagIds:['t1'],
-              moneyType:'expense', cfv:{ cf_valor:-2200, cf_data:inDays(3),  cf_categoria:'Marketing',    cf_fornecedor:'Maria Silva' } },
+              deadline: inDays(3),  moneyType:'variable', cfv:{ cf_valor:2200,  cf_data:inDays(3),  cf_categoria:'Marketing',    cf_fornecedor:'Maria Silva' } },
             { id:3, name:'Recebível cliente A',          priority:'alta',  col:'planejado',  tagIds:['t1'],
-              moneyType:'income',  cfv:{ cf_valor:8500,  cf_data:inDays(14), cf_categoria:'Operacional',  cf_fornecedor:'Cliente A' } },
+              deadline: inDays(14), moneyType:'income',   cfv:{ cf_valor:8500,  cf_data:inDays(14), cf_categoria:'Operacional',  cf_fornecedor:'Cliente A' } },
             { id:4, name:'Aporte mensal · pró-labore',   priority:'media', col:'aprovado',   tagIds:['t3'],
-              moneyType:'expense', cfv:{ cf_valor:-5000, cf_data:inDays(2),  cf_categoria:'Pessoal',      cf_fornecedor:'Você' } },
-            { id:5, name:'Recebível assinatura ano',     priority:'baixa', col:'pago',       tagIds:['t1'],
-              moneyType:'income',  cfv:{ cf_valor:18000, cf_data:inDays(-5), cf_categoria:'Operacional',  cf_fornecedor:'Cliente B' } },
+              deadline: inDays(2),  moneyType:'fixed',    cfv:{ cf_valor:5000,  cf_data:inDays(2),  cf_categoria:'Pessoal',      cf_fornecedor:'Você' } },
+            { id:5, name:'Recebível assinatura ano',     priority:'baixa', col:'planejado',  tagIds:['t1'],
+              deadline: inDays(60), moneyType:'income',   cfv:{ cf_valor:18000, cf_data:inDays(60), cf_categoria:'Operacional',  cf_fornecedor:'Cliente B' } },
           ].map(c => ({
             ...c,
             tagIds: c.tagIds || [],
