@@ -5509,6 +5509,23 @@ window.__INITIAL_HAD_AUTH_PARAMS = (() => {
   } catch(e) { return false; }
 })();
 
+// Captura erros que o Supabase retorna no hash (ex: link expirado/já usado).
+// Format: #error=access_denied&error_code=otp_expired&error_description=...
+window.__INITIAL_AUTH_ERROR = (() => {
+  try {
+    const h = (location.hash || '').replace(/^#/, '');
+    if (!h.includes('error=')) return null;
+    const params = new URLSearchParams(h);
+    const err = params.get('error');
+    if (!err) return null;
+    return {
+      error: err,
+      code: params.get('error_code') || '',
+      description: (params.get('error_description') || '').replace(/\+/g, ' '),
+    };
+  } catch(e) { return null; }
+})();
+
 // ── URLs de serviço (auto-detect dev/prod) ───────────────────────────
 // Em produção (synkan.com.br ou *.synkan.com.br): usa api.synkan.com.br
 // Em dev (localhost / 127.0.0.1 / file://): usa servidor local Python
@@ -17975,7 +17992,104 @@ function showAuthOverlay(show) {
   const o = document.getElementById('auth-overlay'); if(!o) return;
   o.classList.toggle('open', !!show);
   // Quando abre o overlay, atualiza o banner de plano (se user veio da landing)
-  if (show) _updateAuthPlanBanner();
+  if (show) {
+    _updateAuthPlanBanner();
+    // Detecta erros que vieram do Supabase no hash (link expirado etc)
+    _maybeShowAuthLinkError();
+  }
+}
+
+// Mostra mensagem amigável + form de reenvio quando o link de email
+// expirou ou já foi usado. Captura via window.__INITIAL_AUTH_ERROR.
+function _maybeShowAuthLinkError() {
+  const err = window.__INITIAL_AUTH_ERROR;
+  if (!err) return;
+  // Limpa o hash da URL pra não reaparecer em refresh
+  try {
+    const url = new URL(location.href);
+    url.hash = '';
+    window.history.replaceState({}, '', url.toString());
+  } catch(e){}
+  // Marca como tratado
+  window.__INITIAL_AUTH_ERROR = null;
+  // Hooks no card existente
+  const overlay = document.querySelector('.auth-overlay');
+  if (!overlay) return;
+  const authCard = overlay.querySelector('.auth-card');
+  if (!authCard) return;
+  // Se já existe banner anterior, remove
+  document.getElementById('auth-link-error-banner')?.remove();
+  // Mensagens amigáveis
+  let title = '⚠️ Link inválido ou expirado';
+  let subtitle = 'Esse link de email não é mais válido. Eles expiram em 24h e só podem ser usados uma vez.';
+  if (err.code === 'otp_expired') {
+    title = '⏱ Link expirado';
+    subtitle = 'O link do email expirou (válido por 24h). Insira seu email abaixo e enviamos um novo.';
+  } else if (err.error === 'access_denied') {
+    title = '⚠️ Link já usado ou inválido';
+    subtitle = 'Esse link não é mais válido — provavelmente já foi usado ou expirou. Reenvie um novo abaixo.';
+  }
+  const banner = document.createElement('div');
+  banner.id = 'auth-link-error-banner';
+  banner.style.cssText = 'background:#FBF1E0;border:1px solid #E5C285;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:13.5px;color:#6B4309;line-height:1.55;';
+  banner.innerHTML = `
+    <strong style="color:#5C3F08;display:block;margin-bottom:4px;">${title}</strong>
+    ${subtitle}
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+      <input id="auth-resend-email" type="email" placeholder="seu@email.com" style="flex:1;min-width:180px;padding:8px 10px;font-size:13px;border:1px solid #E5C285;border-radius:6px;background:#fff;font-family:inherit;color:#111;" />
+      <button id="auth-resend-btn" style="background:#5C3F08;color:#fff;border:1px solid #5C3F08;padding:8px 14px;font-size:12.5px;font-weight:600;border-radius:6px;cursor:pointer;font-family:inherit;">Reenviar link</button>
+    </div>
+    <div id="auth-resend-msg" style="margin-top:8px;font-size:12px;color:#6B4309;display:none;"></div>`;
+  // Insere antes do form de login
+  authCard.insertBefore(banner, authCard.firstChild);
+  // Hook no botão
+  const btn = banner.querySelector('#auth-resend-btn');
+  const inp = banner.querySelector('#auth-resend-email');
+  const msg = banner.querySelector('#auth-resend-msg');
+  // Pré-preenche se tiver flag awaiting (user veio da Tab A)
+  try {
+    const pending = localStorage.getItem('synkan_awaiting_email_confirmation');
+    if (pending) inp.value = pending;
+  } catch(e){}
+  btn.onclick = async () => {
+    const email = (inp.value || '').trim();
+    if (!email || !email.includes('@')) {
+      msg.style.display = 'block';
+      msg.style.color = '#B45309';
+      msg.textContent = 'Digite um email válido.';
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    msg.style.display = 'none';
+    try {
+      const c = _ensureSupaClient();
+      if (!c) throw new Error('Supabase não configurado');
+      const { error } = await c.auth.resend({ type: 'signup', email });
+      if (error) throw error;
+      btn.textContent = '✓ Enviado';
+      msg.style.display = 'block';
+      msg.style.color = '#16A34A';
+      msg.textContent = 'Novo link enviado! Verifique seu email (e a pasta de spam).';
+      // Marca pra Tab B detectar de novo
+      try { localStorage.setItem('synkan_awaiting_email_confirmation', email); } catch(e){}
+    } catch(e) {
+      const m = (e?.message || '').toLowerCase();
+      btn.disabled = false;
+      btn.textContent = 'Reenviar link';
+      msg.style.display = 'block';
+      msg.style.color = '#B45309';
+      if (m.includes('rate limit') || m.includes('too many')) {
+        msg.textContent = 'Muitas tentativas. Aguarde 1 minuto.';
+      } else if (m.includes('user not found') || m.includes('not found')) {
+        msg.textContent = 'Não encontramos esse email. Crie uma conta na aba "Criar conta".';
+      } else {
+        msg.textContent = e?.message || 'Erro ao enviar. Tenta de novo em alguns segundos.';
+      }
+    }
+  };
+  // Enter no input dispara o botão
+  inp.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); btn.click(); } };
 }
 
 // Lê plan/cycle da URL ou localStorage (caso veio da landing) e mostra banner
