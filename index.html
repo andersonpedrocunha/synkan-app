@@ -1360,8 +1360,10 @@ body.density-compact .card-cf-row{font-size:10px;}
 .energy-option-meta{font-size:11px;color:var(--color-text-tertiary);margin-left:auto;}
 
 /* Cards "above-budget" ficam esmaecidos no Focus Mode */
-.card.energy-over-budget{opacity:.30;filter:grayscale(.4);transition:opacity .25s, filter .25s;}
-.card.energy-over-budget:hover{opacity:.55;filter:grayscale(.2);}
+/* Modo Foco: cards above budget são ESCONDIDOS (filtro de verdade), não só dimmed.
+   Esconde também o wrapper .card-wrap pra evitar espaço vazio na coluna. */
+.card.energy-over-budget,
+.card-wrap:has(> .card.energy-over-budget){display:none !important;}
 
 /* Badge de effort no card (sutil) */
 .card-effort{
@@ -16766,7 +16768,7 @@ function _renderEnergyToolbar() {
         <div class="energy-option${energy===2?' is-active':''}" onclick="setFocusEnergy(2)">
           <span class="energy-option-emoji">中</span>
           <div><div>Energia média</div>
-          <div style="font-size:11px;color:var(--color-text-tertiary);">Leves e médias. Pesadas esmaecidas.</div></div>
+          <div style="font-size:11px;color:var(--color-text-tertiary);">Leves e médias. Pesadas escondidas.</div></div>
         </div>
         <div class="energy-option${energy===1?' is-active':''}" onclick="setFocusEnergy(1)">
           <span class="energy-option-emoji">軽</span>
@@ -30059,10 +30061,11 @@ function renderDojo() {
   const sortFn = (a,b) => {
     const ua = unlocked.includes(a.id) ? 0 : 1;
     const ub = unlocked.includes(b.id) ? 0 : 1;
-    if (ua !== ub) return ua - ub;
-    // BUG fix: usar ?? em vez de || porque legendary tem peso 0 (falsy).
-    // Antes: (0 || 9) = 9 → lendário virava o último em vez do primeiro.
-    const order = {legendary:0, epic:1, rare:2, common:3};
+    if (ua !== ub) return ua - ub;  // desbloqueadas primeiro (sempre)
+    // Ordem progressiva: Comum → Raro → Épico → Lendário (fácil → difícil).
+    // Mais motivador pra user novo: vê primeiro o que está perto de alcançar
+    // ("Conclua seu primeiro card") em vez do longe ("Faixa Preta").
+    const order = {common:0, rare:1, epic:2, legendary:3};
     const rA = order[a.rarity] ?? 9;
     const rB = order[b.rarity] ?? 9;
     return rA - rB;
