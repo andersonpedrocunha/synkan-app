@@ -5309,6 +5309,8 @@ body.density-compact .col{padding:7px;}
       <span class="auth-brand-mark"><img src="synkan-icon-512.png" alt="Synkan" style="width:32px;height:32px;display:block;border-radius:7px;" /></span>
       <span class="auth-brand-text">Synkan <span style="font-weight:500;font-size:13px;color:var(--color-text-tertiary);margin-left:4px;">Management Lab</span></span>
     </div>
+    <!-- Banner que aparece quando user veio da landing com plan param -->
+    <div id="auth-plan-banner" style="display:none;margin:12px 0 16px;padding:12px 14px;background:#FBF1E0;border:1px solid #E5C285;border-radius:8px;font-size:13px;color:#5C3F08;line-height:1.5;"></div>
     <div class="auth-tabs">
       <button class="auth-tab active" id="auth-tab-login"  onclick="setAuthMode('login')">Entrar</button>
       <button class="auth-tab"        id="auth-tab-signup" onclick="setAuthMode('signup')">Criar conta</button>
@@ -5330,6 +5332,9 @@ body.density-compact .col{padding:7px;}
     <button class="auth-submit" id="auth-submit" onclick="submitAuth()">Entrar</button>
     <div class="auth-foot">
       <span id="auth-foot-text">Não tem conta? <a onclick="setAuthMode('signup')">Crie agora</a></span>
+      <div style="margin-top:6px;">
+        <a id="auth-forgot-link" onclick="forgotPasswordFlow()" style="font-size:12px;cursor:pointer;">🔑 Esqueci a senha</a>
+      </div>
       <div style="margin-top:8px;">
         <a onclick="exitSupabaseMode()" style="font-size:11px;">⌫ voltar para modo local</a>
       </div>
@@ -17933,6 +17938,92 @@ function _setAuthMsg(text, kind) {
 function showAuthOverlay(show) {
   const o = document.getElementById('auth-overlay'); if(!o) return;
   o.classList.toggle('open', !!show);
+  // Quando abre o overlay, atualiza o banner de plano (se user veio da landing)
+  if (show) _updateAuthPlanBanner();
+}
+
+// Lê plan/cycle da URL ou localStorage (caso veio da landing) e mostra banner
+function _updateAuthPlanBanner() {
+  const banner = document.getElementById('auth-plan-banner');
+  if (!banner) return;
+  let plan = null, cycle = 'monthly';
+  try {
+    const params = new URLSearchParams(location.search);
+    plan = params.get('plan');
+    cycle = params.get('cycle') || 'monthly';
+  } catch(e){}
+  if (!plan) {
+    try {
+      const pending = JSON.parse(localStorage.getItem('synkan_pending_plan') || 'null');
+      if (pending) { plan = pending.plan; cycle = pending.cycle || 'monthly'; }
+    } catch(e){}
+  }
+  const validPlans = ['faixa_azul','faixa_roxa','faixa_preta'];
+  if (!validPlans.includes(plan)) { banner.style.display = 'none'; return; }
+  const planNames = { faixa_azul:'Faixa Azul', faixa_roxa:'Faixa Roxa', faixa_preta:'Faixa Preta' };
+  const prices    = { faixa_azul:'R$ 14,90/mês', faixa_roxa:'R$ 29,90/usuário/mês', faixa_preta:'R$ 79,90/usuário/mês' };
+  const annualP   = { faixa_azul:'R$ 161/ano (10% off)', faixa_roxa:'R$ 323/usuário/ano (10% off)', faixa_preta:'R$ 863/usuário/ano (10% off)' };
+  const priceLabel = cycle === 'annual' ? annualP[plan] : prices[plan];
+  banner.style.display = 'block';
+  banner.innerHTML = `<strong>📦 Você escolheu ${planNames[plan]}</strong> · ${priceLabel}<br/>Faça login (ou crie conta) e seguimos pro pagamento.`;
+  // Default: signup, já que veio da landing (provável user novo)
+  if (!localStorage.getItem('kanban_v8_seen_login')) {
+    setAuthMode('signup');
+  }
+}
+
+// Fluxo de "esqueci a senha" — usa Supabase resetPasswordForEmail
+async function forgotPasswordFlow() {
+  const c = _ensureSupaClient();
+  if (!c) { _setAuthMsg('Configuração Supabase ausente.'); return; }
+  const emailField = document.getElementById('auth-email');
+  let email = (emailField?.value || '').trim();
+  if (!email) {
+    email = await appPrompt('Recuperar senha', {
+      icon: '🔑',
+      message: 'Digite o email da sua conta. Vamos enviar um link pra você criar uma senha nova.',
+      placeholder: 'voce@empresa.com',
+      type: 'email',
+      okLabel: 'Enviar link',
+    });
+    if (!email) return;
+    email = email.trim();
+  }
+  if (!/.+@.+\..+/.test(email)) {
+    await appAlert('Email inválido', 'Digite um email no formato correto.', { icon:'⚠️' });
+    return;
+  }
+  try {
+    const { error } = await c.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://app.synkan.com.br/?reset_password=1',
+    });
+    if (error) throw error;
+    await appAlert('Link enviado ✓',
+      `Confira o email <strong>${email}</strong> nos próximos minutos. O link expira em 1 hora.<br/><br/>Se não chegar, verifique a pasta de spam.`,
+      { icon:'✉️' });
+  } catch(e) {
+    await appAlert('Erro ao enviar', e?.message || 'Tente de novo em alguns segundos.', { icon:'⚠️' });
+  }
+}
+
+// Detecta `?reset_password=1` na URL após o user clicar no link de recuperação
+async function _maybeHandlePasswordReset() {
+  try {
+    const params = new URLSearchParams(location.search);
+    if (params.get('reset_password') !== '1') return;
+    if (!supaUser) return; // só roda se Supabase já autenticou via magic link
+    // Limpa param da URL
+    const url = new URL(location.href);
+    url.searchParams.delete('reset_password');
+    history.replaceState(null, '', url.toString());
+    // Pede senha nova
+    if (typeof changePasswordFlow === 'function') {
+      await appAlert('Definir nova senha',
+        'Você acabou de chegar pelo link de recuperação. Vamos definir a nova senha agora.',
+        { icon:'🔑' });
+      changePasswordFlow();
+    }
+  } catch(e) { console.warn('reset password flow failed', e); }
 }
 async function submitAuth() {
   const c = _ensureSupaClient(); if (!c) return _setAuthMsg('Configuração Supabase ausente.');
@@ -18471,6 +18562,8 @@ async function _onSignedIn(session) {
   supaSubscribeRealtime();
   // Se chegou da landing com ?plan=...&cycle=..., dispara checkout
   try { _maybeRedirectToPlanCheckout(); } catch(e) { console.warn('plan checkout', e); }
+  // Se chegou pelo link de recuperação de senha, abre o flow
+  try { _maybeHandlePasswordReset(); } catch(e) { console.warn('reset pw flow', e); }
 }
 
 // Detecta ?plan=...&cycle=... na URL ou em localStorage (caso veio antes de logar)
