@@ -18252,7 +18252,13 @@ function _showConfirmEmailScreen(email, alreadyResent) {
 // ─── Wipe completo de localStorage do user (mantém só configs gerais da máquina) ───
 // Usado em (a) sign-out e (b) detecção de troca de user no mesmo browser.
 // CRÍTICO: sem isso, dados de um user vazam pra outro na mesma máquina.
-function _wipeAllAppLocalData() {
+// _wipeAllAppLocalData(opts)
+//   opts.preserveAuth = true → não apaga sb-*, supabase.*, *-auth-token
+//   Usado durante user-change em _onSignedIn — a sessão do user novo é o
+//   que acabou de chegar, não pode ser apagada antes do reload.
+function _wipeAllAppLocalData(opts) {
+  opts = opts || {};
+  const preserveAuth = opts.preserveAuth === true;
   try {
     // Configs que ficam por máquina (não vinculadas ao user)
     const KEEP_KEYS = new Set([
@@ -18274,6 +18280,12 @@ function _wipeAllAppLocalData() {
       if (!k) continue;
       if (KEEP_KEYS.has(k)) continue;
       if (KEEP_PREFIXES.some(p => k.startsWith(p))) continue;
+      // Preserva tokens de auth quando solicitado (user-change wipe)
+      if (preserveAuth && (
+        k.startsWith('sb-')         ||
+        k.startsWith('supabase.')   ||
+        k.includes('-auth-token')
+      )) continue;
       // Wipa qualquer chave que pareça do app: kanban_v8_*, synkan_*, sb-*, supabase.*
       if (
         k.startsWith('kanban_v8') ||
@@ -18286,7 +18298,7 @@ function _wipeAllAppLocalData() {
       }
     }
     toRemove.forEach(k => localStorage.removeItem(k));
-    console.log(`[wipe] removidas ${toRemove.length} keys do localStorage`);
+    console.log(`[wipe] removidas ${toRemove.length} keys do localStorage${preserveAuth ? ' (auth preservado)' : ''}`);
   } catch(e) { console.warn('[wipe] falhou:', e); }
 }
 
@@ -18678,7 +18690,9 @@ async function _onSignedIn(session) {
   const currentUid = session.user.id;
   if (lastUidPersisted && lastUidPersisted !== currentUid) {
     console.warn(`[auth] user mudou (${lastUidPersisted.slice(0,8)}… → ${currentUid.slice(0,8)}…). Wipando dados do user anterior.`);
-    _wipeAllAppLocalData();
+    // CRÍTICO: preservar auth porque a sessão que ACABOU de chegar é o
+    // que disparou esse fluxo. Wipar sb-* aqui derruba o user pra login.
+    _wipeAllAppLocalData({ preserveAuth: true });
     // Marca o novo user e recarrega — assim allBoards/canvases/state em memória
     // são reinicializados do zero a partir do remoto.
     try { localStorage.setItem(PERSISTED_UID_KEY, currentUid); } catch(e){}
