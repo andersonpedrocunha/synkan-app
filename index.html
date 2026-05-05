@@ -18933,6 +18933,13 @@ async function _onSignedIn(session) {
   if (!window._didInitialSignIn) {
     switchTab('home');
     window._didInitialSignIn = true;
+    // Tour de boas-vindas: dispara DEPOIS do app totalmente renderizado.
+    // O setTimeout do boot inicial (600ms) pode rodar antes do auth-overlay
+    // fechar ou antes do supaUser ser setado, perdendo o disparo. Aqui é
+    // o momento certo: user logado, overlay fechado, tab home renderizado.
+    setTimeout(() => {
+      try { maybeStartOnboarding(); } catch(e) { console.warn('onboarding (post-signin)', e); }
+    }, 800);
   }
   supaSubscribeRealtime();
   // Se chegou da landing com ?plan=...&cycle=..., dispara checkout
