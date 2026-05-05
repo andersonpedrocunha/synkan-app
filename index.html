@@ -18606,6 +18606,18 @@ async function _onSignedIn(session) {
   // Processa fila de retry (writes que falharam em sessões anteriores)
   try { if (typeof _processRetryQueue === 'function') _processRetryQueue(); } catch(e) { console.warn('retry queue', e); }
 
+  // Se chegou pelo link de recuperação de senha, NÃO renderiza o app — só
+  // mostra o flow de troca de senha em cima de um backdrop opaco. Após
+  // terminar/cancelar, recarrega e o user volta pra tela de login.
+  try {
+    const params = new URLSearchParams(location.search);
+    if (params.get('reset_password') === '1') {
+      _showResetPasswordBackdrop();
+      _maybeHandlePasswordReset();
+      return; // não continua boot do app
+    }
+  } catch(e) { console.warn('reset pw check', e); }
+
   refreshAccountUI();
   refreshSidebarBoardLabel();
   applyDensity();
@@ -18619,8 +18631,29 @@ async function _onSignedIn(session) {
   supaSubscribeRealtime();
   // Se chegou da landing com ?plan=...&cycle=..., dispara checkout
   try { _maybeRedirectToPlanCheckout(); } catch(e) { console.warn('plan checkout', e); }
-  // Se chegou pelo link de recuperação de senha, abre o flow
-  try { _maybeHandlePasswordReset(); } catch(e) { console.warn('reset pw flow', e); }
+}
+
+// Backdrop opaco que cobre o app inteiro durante o flow de recuperação de senha.
+// Evita que o user veja o dashboard "logado" antes de definir a senha nova.
+function _showResetPasswordBackdrop() {
+  if (document.getElementById('reset-pw-backdrop')) return;
+  const bd = document.createElement('div');
+  bd.id = 'reset-pw-backdrop';
+  bd.style.cssText = 'position:fixed;inset:0;background:linear-gradient(180deg,#fafafa 0%,#f3f3f3 100%);z-index:600;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;font-family:var(--font-sans);';
+  bd.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <img src="synkan-icon-512.png" alt="Synkan" style="width:42px;height:42px;border-radius:9px;display:block;" />
+      <span style="font-size:20px;font-weight:700;color:#111;letter-spacing:-.01em;">Synkan</span>
+      <span style="font-size:14px;color:#6B6B6B;">Management Lab</span>
+    </div>
+    <div style="text-align:center;color:var(--color-text-secondary);font-size:14px;line-height:1.6;max-width:340px;padding:0 20px;">
+      <strong style="color:var(--color-text-primary);font-size:15px;display:block;margin-bottom:6px;">🔑 Modo de recuperação</strong>
+      Defina uma nova senha pra continuar.<br/><span style="color:var(--color-text-tertiary);font-size:12px;">Por segurança, você precisará entrar com a senha nova depois.</span>
+    </div>`;
+  document.body.appendChild(bd);
+}
+function _hideResetPasswordBackdrop() {
+  document.getElementById('reset-pw-backdrop')?.remove();
 }
 
 // Detecta ?plan=...&cycle=... na URL ou em localStorage (caso veio antes de logar)
