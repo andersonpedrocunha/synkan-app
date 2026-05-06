@@ -17701,14 +17701,34 @@ function render() {
           const stPct=stTotal?Math.round(stDone/stTotal*100):0;
           const F = kanbanConfig.cardFields;
           const respLine = (F.responsavel && c.responsavel) ? `<div class="card-resp">👤 ${c.responsavel}${c.recurrence?'  <span style="color:var(--color-text-tertiary);font-size:10px;">🔁 '+(c.recurrence.frequency==='daily'?'diário':c.recurrence.frequency==='weekly'?'semanal':'mensal')+'</span>':''}</div>` : (c.recurrence ? `<div class="card-resp">🔁 ${c.recurrence.frequency==='daily'?'Diário':c.recurrence.frequency==='weekly'?'Semanal':'Mensal'}</div>` : '');
-          // Atribuído a (membro real do board) — pill com avatar + nome
+          // Atribuído a (membro real do board) — pill com avatar + nome.
+          // Resolve nome via cache de membros (qualquer cache, não só do board atual)
+          // E como fallback final, usa o próprio supaUser se for ele mesmo. Assim
+          // o avatar não some quando o cache está temporariamente vazio.
           let assignedLine = '';
-          if ((F.assignedUser !== false) && c.assignedUserId && _boardMembersCache.boardId === currentBoardId) {
-            const m = (_boardMembersCache.members || []).find(x => x.user_id === c.assignedUserId);
-            if (m) {
-              const name = m.full_name || m.email || 'Membro';
-              assignedLine = `<div class="card-resp" style="display:flex;align-items:center;gap:6px;"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:${avatarColor(name)};color:#fff;font-size:9px;font-weight:700;flex-shrink:0;">${_esc(avatarInitials(name))}</span><span style="font-size:11.5px;color:var(--color-text-secondary);">${_esc(name)}</span></div>`;
+          if ((F.assignedUser !== false) && c.assignedUserId) {
+            let resolvedName = null;
+            // 1) Cache de membros (qualquer board carregado)
+            if (Array.isArray(_boardMembersCache?.members)) {
+              const m = _boardMembersCache.members.find(x => x.user_id === c.assignedUserId);
+              if (m) resolvedName = m.full_name || m.email || null;
             }
+            // 2) Próprio user logado
+            if (!resolvedName && supaUser?.id === c.assignedUserId) {
+              resolvedName = supaUser.user_metadata?.full_name || supaUser.email || 'Você';
+            }
+            // 3) Fallback: usa primeiros 8 chars do uuid + dispara load em bg
+            if (!resolvedName) {
+              resolvedName = c.assignedUserId.slice(0, 8) + '…';
+              // Best-effort: agenda load do cache pra próximo render (uma vez)
+              if (typeof _loadBoardMembersForCard === 'function' && currentBoardId
+                  && _boardMembersCache?.boardId !== currentBoardId) {
+                _loadBoardMembersForCard(currentBoardId).then(list => {
+                  if (list && list.length && typeof render === 'function') render();
+                }).catch(()=>{});
+              }
+            }
+            assignedLine = `<div class="card-resp" style="display:flex;align-items:center;gap:6px;"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:${avatarColor(resolvedName)};color:#fff;font-size:9px;font-weight:700;flex-shrink:0;">${_esc(avatarInitials(resolvedName))}</span><span style="font-size:11.5px;color:var(--color-text-secondary);">${_esc(resolvedName)}</span></div>`;
           }
           // Cadastro vinculado (lead/cliente/fornecedor) — pill no card, com score se for lead
           let contactLine = '';
