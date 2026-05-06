@@ -18951,6 +18951,12 @@ function _boardToRow(b) {
     team: b.team || [],
     custom_fields: b.customFields || [],
     global_tags: b.globalTags || [],
+    // Campos Zai (e metadados de board)
+    zai_enabled: !!b.zaiEnabled,
+    is_zai_board: !!b.isZaiBoard,
+    icon: b.icon || null,
+    shadow_balance: typeof b.shadowBalance === 'number' ? b.shadowBalance : 0,
+    ai_ocr: !!b.aiOCR,
   };
 }
 function _cardToRow(c, boardId) {
@@ -18970,9 +18976,13 @@ function _cardToRow(c, boardId) {
     position: typeof c.position === 'number' ? c.position : 0,
     created_at: c.createdAt || new Date().toISOString(),
     done_at: c.doneAt || null,
+    money_type: c.moneyType || null,
   };
 }
 function _rowToBoard(r, cardsArr) {
+  // Heurística de fallback pra detectar Zai mesmo se zai_enabled vier null
+  // (boards antigos antes da migration de Zai fields).
+  const isZaiByTemplate = r.source_template_id === 'zai-financeiro';
   return {
     id: r.id,
     name: r.name,
@@ -18987,6 +18997,12 @@ function _rowToBoard(r, cardsArr) {
     nTag: Math.max(5, ((r.global_tags||[]).length + 1)),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    // Campos Zai (com fallback pelo source_template_id)
+    zaiEnabled: r.zai_enabled === true || (r.zai_enabled == null && isZaiByTemplate),
+    isZaiBoard: r.is_zai_board === true || (r.is_zai_board == null && isZaiByTemplate),
+    icon: r.icon || (isZaiByTemplate ? '財' : undefined),
+    shadowBalance: typeof r.shadow_balance === 'number' ? r.shadow_balance : 0,
+    aiOCR: r.ai_ocr === true,
   };
 }
 function _rowToCard(r) {
@@ -19006,6 +19022,7 @@ function _rowToCard(r) {
     position: r.position || 0,
     createdAt: r.created_at,
     doneAt: r.done_at,
+    moneyType: r.money_type || undefined,
   };
 }
 
