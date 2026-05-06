@@ -14820,12 +14820,26 @@ async function _loadMembersDashboard(_retry = false) {
   }
   try {
     // PASSO 1: pega boards do owner (precisamos dos IDs antes)
-    const { data: myBoards, error: bErr } = await withTimeout(
+    const { data: dbBoards, error: bErr } = await withTimeout(
       c.from('boards').select('id, name').eq('owner_id', supaUser.id),
       8000, 'list owner boards'
     );
     if (bErr) throw bErr;
-    const boardIds = (myBoards||[]).map(b => b.id);
+    // FILTRO: só mostra boards que estão visíveis no app (localStorage),
+    // não-arquivados. Boards no banco mas não em allBoards são "fantasmas"
+    // (legado, dessincronizados, etc) — não confunde o usuário com eles.
+    let myBoards = dbBoards || [];
+    try {
+      if (typeof allBoards === 'object' && allBoards) {
+        const visibleIds = new Set(
+          Object.keys(allBoards).filter(k => allBoards[k] && !allBoards[k].archived)
+        );
+        if (visibleIds.size > 0) {
+          myBoards = myBoards.filter(b => visibleIds.has(b.id));
+        }
+      }
+    } catch(_) {}
+    const boardIds = myBoards.map(b => b.id);
     if (!boardIds.length) {
       target.innerHTML = `<div style="text-align:center;padding:32px 16px;color:var(--color-text-secondary);"><div style="font-size:36px;margin-bottom:8px;">📋</div><div style="font-size:14px;">Você ainda não tem boards.</div><div style="font-size:12px;margin-top:4px;color:var(--color-text-tertiary);">Crie um em <strong>My boards</strong> pra começar a convidar pessoas.</div></div>`;
       return;
