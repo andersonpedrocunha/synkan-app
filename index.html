@@ -11005,11 +11005,22 @@ function _migrateOnboardingFlag() {
 function isOnboardingDone(){
   try {
     _migrateOnboardingFlag();
-    return localStorage.getItem(_obKey()) === OB_VERSION;
+    // Lê chave com uid e chave global como fallback — se QUALQUER uma indica
+    // visto, considera done. Defesa contra race condition onde o supaUser
+    // ainda não populou e markOnboardingDone() salvou na chave global.
+    const userKey = _obKey();
+    if (localStorage.getItem(userKey) === OB_VERSION) return true;
+    if (userKey !== OB_DONE_KEY && localStorage.getItem(OB_DONE_KEY) === OB_VERSION) return true;
+    return false;
   } catch(e){ return true; }
 }
 function markOnboardingDone(){
-  try { localStorage.setItem(_obKey(), OB_VERSION); } catch(e){}
+  try {
+    // Salva em AMBAS as chaves pra garantir que próxima sessão não dispara
+    // tour de novo, independente de quando supaUser populou.
+    localStorage.setItem(_obKey(), OB_VERSION);
+    localStorage.setItem(OB_DONE_KEY, OB_VERSION);
+  } catch(e){}
   try { audit && audit('onboarding.done', {}); } catch(e){}
 }
 function resetOnboarding(){
@@ -11021,6 +11032,10 @@ function maybeStartOnboarding(){
   if (isOnboardingDone()) return;
   // Não inicia em telas de auth ou popups abertos
   if (document.querySelector('.auth-overlay.open, .ov.open')) return;
+  // Marca como done LOGO no início — se user fechar sem clicar em
+  // "Pular tour" ou "Concluir" (ex: refresh, fechar aba), próxima
+  // sessão não dispara de novo. User pode refazer pelo Settings.
+  markOnboardingDone();
   startOnboardingTour();
 }
 
