@@ -14762,6 +14762,50 @@ function _settingsMembrosSection() {
       </div>
     </div>
 
+    <div style="padding:16px 18px;background:var(--color-background-secondary);border-radius:10px;border:1px solid var(--color-border-tertiary);margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Comparação por plano</div>
+      ${(() => {
+        const myPlan = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+        const plans = [
+          { code:'trial',       label:'Trial 5d',     price:'Grátis',     priceSub:'5 dias',
+            admins:'só você',   editors:'—',          viewers:'1 board' },
+          { code:'faixa_azul',  label:'Faixa Azul',   price:'R$ 14,90',   priceSub:'/mês',
+            admins:'só você',   editors:'3 boards',   viewers:'5 boards' },
+          { code:'faixa_roxa',  label:'Faixa Roxa',   price:'R$ 29,90',   priceSub:'/mês',
+            admins:'ilimitado', editors:'3 boards',   viewers:'5 boards' },
+          { code:'faixa_preta', label:'Faixa Preta',  price:'R$ 79,90',   priceSub:'/mês',
+            admins:'ilimitado', editors:'5 boards',   viewers:'10 boards'},
+        ];
+        const cell = (txt, isCur) => `<td style="padding:8px 10px;font-size:12.5px;color:${isCur?'var(--color-text-primary)':'var(--color-text-secondary)'};border-bottom:1px solid var(--color-border-tertiary);text-align:center;${isCur?'font-weight:600;background:rgba(60,52,137,.04);':''}">${txt}</td>`;
+        const labelCell = (txt, hint) => `<td style="padding:8px 10px;font-size:12.5px;color:var(--color-text-primary);font-weight:500;border-bottom:1px solid var(--color-border-tertiary);">${txt}${hint?`<div style="font-size:10px;color:var(--color-text-tertiary);font-weight:400;margin-top:2px;">${hint}</div>`:''}</td>`;
+        const headerCell = (p) => {
+          const isCur = p.code === myPlan;
+          return `<th style="padding:10px;text-align:center;font-size:12px;font-weight:600;color:var(--color-text-primary);border-bottom:2px solid var(--color-border-secondary);${isCur?'background:rgba(60,52,137,.08);position:relative;':''}">
+            ${p.label}
+            ${isCur?'<div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);background:#3C3489;color:#fff;font-size:8.5px;padding:2px 8px;border-radius:99px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;">Seu plano</div>':''}
+            <div style="font-size:11.5px;color:var(--color-text-secondary);font-weight:500;margin-top:2px;">${p.price}</div>
+            <div style="font-size:10px;color:var(--color-text-tertiary);font-weight:400;">${p.priceSub}</div>
+          </th>`;
+        };
+        return `
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;min-width:520px;">
+            <thead><tr><th style="padding:10px;text-align:left;font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid var(--color-border-secondary);">Recurso</th>${plans.map(headerCell).join('')}</tr></thead>
+            <tbody>
+              <tr>${labelCell('Admin (seat pago)','acesso total · cobra mesmo valor do plano')}${plans.map(p => cell(p.admins, p.code===myPlan)).join('')}</tr>
+              <tr>${labelCell('Editor (externo/cliente)','grátis · vê só boards onde foi adicionado')}${plans.map(p => cell(p.editors, p.code===myPlan)).join('')}</tr>
+              <tr>${labelCell('Viewer (só leitura)','grátis')}${plans.map(p => cell(p.viewers, p.code===myPlan)).join('')}</tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--color-text-tertiary);line-height:1.6;">
+          <strong>Editor</strong> e <strong>Viewer</strong>: o número é quantos boards seus cada pessoa pode acessar. Pessoas convidadas: ilimitado.
+        </div>
+        ${myPlan !== 'faixa_preta' ? `<div style="margin-top:12px;text-align:center;"><button class="btn-c" onclick="_goToPlanTab && _goToPlanTab()" style="font-size:12px;padding:7px 18px;">Ver planos completos →</button></div>` : ''}
+        `;
+      })()}
+    </div>
+
     <div style="padding:16px 18px;background:var(--color-background-secondary);border-radius:10px;border:1px solid var(--color-border-tertiary);margin-bottom:22px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
         <div style="min-width:0;flex:1;">
