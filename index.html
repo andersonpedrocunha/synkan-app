@@ -14641,28 +14641,26 @@ function _settingsMembrosSection() {
   const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
   const limits = getCurrentPlanLimits();
   return `
-    <div class="settings-section">
-      <div class="settings-section-h">Visão geral</div>
-      <div class="settings-section-d">Resumo de quem tem acesso aos seus boards e impacto no plano.</div>
-      <div id="membros-dashboard" style="margin-top:14px;">
-        <div class="cfg-section-hint">Carregando seus boards e membros…</div>
+    <div id="membros-dashboard" style="margin-top:6px;">
+      ${_membersSkeletonHTML()}
+    </div>
+
+    <div style="margin-top:28px;padding:16px 18px;background:var(--color-background-secondary);border-radius:10px;border:1px solid var(--color-border-tertiary);">
+      <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Como funciona a cobrança</div>
+      <div style="font-size:13px;line-height:1.7;color:var(--color-text-secondary);">
+        <strong style="color:var(--color-text-primary);">Editor</strong> e <strong style="color:var(--color-text-primary);">Admin</strong> são seats pagos — cada um soma <strong style="color:var(--color-text-primary);">R$ ${(limits.price||0).toFixed(2).replace('.',',')}/mês</strong> na sua ${_esc(limits.name||'fatura')}.<br/>
+        <strong style="color:var(--color-text-primary);">Viewer</strong> só lê — incluso no plano (limite por plano).<br/>
+        <strong style="color:var(--color-text-primary);">Convidado</strong> é externo (cliente, fornecedor, parceiro) — exclusivo da Faixa Preta, vê só 3 boards autorizados.
       </div>
     </div>
-    <div class="settings-section">
-      <div class="settings-section-h">Como funciona a cobrança per-seat</div>
-      <div class="settings-section-d" style="line-height:1.7;">
-        <strong>Editor</strong> e <strong>Admin</strong> são "seats" pagos — cada um soma <strong>R$ ${(limits.price||0).toFixed(2).replace('.',',')}/mês</strong> na sua ${_esc(limits.name||'fatura')}.<br/>
-        <strong>Viewer</strong> só lê — incluso no plano sem custo extra (limite por plano).<br/>
-        <strong>Convidado</strong> é externo (cliente, fornecedor, parceiro) — exclusivo da Faixa Preta, vê só os 3 boards autorizados.<br/><br/>
-        Pra adicionar/remover membros use o botão <strong>👥 Compartilhar</strong> no header de cada board.
-      </div>
-    </div>
-    <div class="settings-section">
-      <div class="settings-section-h">Pagamento e assinatura</div>
-      <div class="settings-section-d">Gerencie cartão, histórico de faturas, cancelamento e dados fiscais direto no portal seguro do Stripe.</div>
-      <div style="margin-top:12px;">
-        <button class="btn-c" onclick="openStripePortal(this)" style="font-size:13px;padding:8px 16px;">💳 Gerenciar pagamento</button>
-        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:6px;">Abre o Stripe Customer Portal em nova aba.</div>
+
+    <div style="margin-top:14px;padding:16px 18px;background:var(--color-background-secondary);border-radius:10px;border:1px solid var(--color-border-tertiary);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Pagamento</div>
+          <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.5;">Cartão, faturas, cancelamento e dados fiscais.</div>
+        </div>
+        <button class="btn-c" onclick="openStripePortal(this)" style="font-size:12px;padding:7px 14px;flex-shrink:0;">💳 Gerenciar pagamento</button>
       </div>
     </div>`;
 }
