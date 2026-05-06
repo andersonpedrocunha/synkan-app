@@ -5517,6 +5517,23 @@ const STORAGE_KEY = 'kanban_v8_data';
 const SUPABASE_CFG_KEY = 'kanban_v8_supabase_cfg';
 
 // Snapshot de URL params ANTES do Supabase processar a URL e limpar (PKCE/token_hash).
+// Captura ?invite=<token> da URL no boot — se tiver, salva em sessionStorage
+// pra processar depois do login (caso o user não esteja logado ainda) e
+// limpa da URL pra não poluir o histórico.
+(function _captureInviteToken(){
+  try {
+    const params = new URLSearchParams(location.search);
+    const inviteId = params.get('invite');
+    if (inviteId) {
+      sessionStorage.setItem('synkan_pending_invite', inviteId);
+      params.delete('invite');
+      const newSearch = params.toString();
+      const newUrl = location.pathname + (newSearch ? '?' + newSearch : '') + location.hash;
+      window.history.replaceState({}, '', newUrl);
+    }
+  } catch(e) {}
+})();
+
 // Usado pra detectar se essa aba veio de um link de confirmação de email
 // (e mostrar splash "Email confirmado" em vez de renderizar app duplicado).
 window.__INITIAL_HAD_AUTH_PARAMS = (() => {
@@ -14765,18 +14782,14 @@ async function _makeIsolatedSupaClient() {
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
     },
     realtime: { params: { eventsPerSecond: 0 } },
+    // Header global Authorization é suficiente — setSession é redundante e
+    // pode travar (descartado). RLS funciona porque PostgREST extrai
+    // auth.uid() do JWT do header.
     global: tokens?.access_token ? { headers: { Authorization: `Bearer ${tokens.access_token}` } } : undefined,
   });
-  // Também faz setSession pra que queries que dependem de session interna funcionem
-  if (tokens?.access_token && tokens?.refresh_token) {
-    try {
-      await Promise.race([
-        iso.auth.setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token }),
-        new Promise(r => setTimeout(r, 1500)), // não bloqueia se setSession travar
-      ]);
-      // Atualiza supaUser se ainda estiver null
-      if ((!supaUser || !supaUser.id) && tokens.user?.id) supaUser = tokens.user;
-    } catch(e) { console.warn('[isolated client] setSession falhou:', e); }
+  // Hidrata supaUser local se ainda não populou (do JWT decodificado)
+  if ((!supaUser || !supaUser.id) && tokens?.user?.id) {
+    supaUser = tokens.user;
   }
   return iso;
 }
@@ -19254,6 +19267,77 @@ async function supaListMembers(boardId) {
   return list;
 }
 
+// Processa convite pendente capturado da URL (?invite=<id>) no boot.
+// Lê do sessionStorage, busca o invite no banco, confere se o email bate
+// com o user logado, adiciona como member do board e abre o board.
+async function _processPendingInvite() {
+  let inviteId = null;
+  try { inviteId = sessionStorage.getItem('synkan_pending_invite'); } catch(_) {}
+  if (!inviteId) return;
+  // Limpa imediatamente pra não processar 2x
+  try { sessionStorage.removeItem('synkan_pending_invite'); } catch(_) {}
+  if (!supaUser || !supaUser.id) return;
+  let c = (typeof _getOrCreateIsolatedClient === 'function')
+    ? await _getOrCreateIsolatedClient()
+    : _ensureSupaClient();
+  if (!c) return;
+  const withTimeout = (p, ms, label) => Promise.race([
+    p, new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout: ${label}`)), ms)),
+  ]);
+  try {
+    // Busca o invite
+    const { data: inv, error } = await withTimeout(
+      c.from('board_invites').select('id, board_id, email, role, accepted_at').eq('id', inviteId).maybeSingle(),
+      6000, 'invite: lookup'
+    );
+    if (error || !inv) {
+      appAlert('Convite inválido', 'O link de convite não foi encontrado ou já expirou.', { icon:'⚠️' });
+      return;
+    }
+    // Confere email
+    if ((inv.email||'').toLowerCase() !== (supaUser.email||'').toLowerCase()) {
+      appAlert('Convite pra outro email',
+        `Este convite foi enviado pra <strong>${_esc(inv.email)}</strong>, mas você está logado como <strong>${_esc(supaUser.email)}</strong>. Faça login com a conta correta.`,
+        { icon:'⚠️', html:true });
+      return;
+    }
+    if (inv.accepted_at) {
+      // Já aceito antes — só abre o board
+      try { switchBoard(inv.board_id, {goTo:'kanban'}); } catch(_) {}
+      return;
+    }
+    // Adiciona como member
+    const { error: memErr } = await withTimeout(
+      c.from('board_members').upsert({
+        board_id: inv.board_id,
+        user_id: supaUser.id,
+        role: inv.role || 'editor',
+        invited_by: supaUser.id,
+      }),
+      6000, 'invite: accept'
+    );
+    if (memErr) {
+      appAlert('Erro ao aceitar convite', memErr.message || String(memErr), { icon:'⚠️' });
+      return;
+    }
+    // Marca aceito
+    try {
+      await withTimeout(
+        c.from('board_invites').update({ accepted_at: new Date().toISOString() }).eq('id', inviteId),
+        4000, 'invite: mark accepted'
+      );
+    } catch(_) { /* ignora */ }
+    // Abre o board
+    try { switchBoard(inv.board_id, {goTo:'kanban'}); } catch(_) {}
+    appAlert('Convite aceito ✓',
+      `Você agora é <strong>${_esc(inv.role)}</strong> deste board. Bem-vindo!`,
+      { icon:'🎉', html:true });
+  } catch(eI) {
+    console.error('[_processPendingInvite]', eI);
+    appAlert('Erro ao processar convite', eI?.message || String(eI), { icon:'⚠️' });
+  }
+}
+
 async function supaInviteByEmail(boardId, email, role) {
   // Cliente isolado pra evitar Multiple GoTrueClient travamento
   let c = (typeof _getOrCreateIsolatedClient === 'function')
@@ -19265,24 +19349,54 @@ async function supaInviteByEmail(boardId, email, role) {
     p, new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout: ${label}`)), ms)),
   ]);
   try {
-    // 1) procura usuário existente com esse e-mail
-    const { data: profiles } = await withTimeout(
-      c.from('profiles').select('id, email').eq('email', email.trim()).limit(1),
-      6000, 'invite: lookup profile'
-    );
-    if (profiles && profiles.length) {
-      const { error } = await withTimeout(
-        c.from('board_members').upsert({ board_id: boardId, user_id: profiles[0].id, role: role || 'editor', invited_by: supaUser.id }),
-        6000, 'invite: upsert member'
+    const cleanEmail = email.trim();
+    const finalRole  = role || 'editor';
+    // 1) SEMPRE cria entry em board_invites (gera token = id) — assim TODO
+    //    convite tem link rastreável. Se já existe pra mesmo email+board,
+    //    delete o antigo e cria novo (refresh do token).
+    try {
+      await withTimeout(
+        c.from('board_invites').delete().eq('board_id', boardId).eq('email', cleanEmail),
+        4000, 'invite: cleanup old'
       );
-      return { error };
-    }
-    // 2) salva convite pendente — ele vira membro ao se cadastrar (pode ser feito via Edge Function depois)
-    const { error } = await withTimeout(
-      c.from('board_invites').insert({ board_id: boardId, email: email.trim(), role: role || 'editor', invited_by: supaUser.id }),
-      6000, 'invite: insert pending'
+    } catch(_) { /* ignora se falhar */ }
+    const { data: invite, error: invErr } = await withTimeout(
+      c.from('board_invites').insert({
+        board_id: boardId,
+        email: cleanEmail,
+        role: finalRole,
+        invited_by: supaUser.id,
+      }).select('id').single(),
+      6000, 'invite: insert'
     );
-    return { error, pending: true };
+    if (invErr) return { error: invErr };
+    const inviteId = invite?.id || null;
+
+    // 2) Procura user existente — se tem profile, ja adiciona como member
+    //    direto (não precisa esperar aceite)
+    let pending = true;
+    try {
+      const { data: profiles } = await withTimeout(
+        c.from('profiles').select('id').eq('email', cleanEmail).limit(1),
+        6000, 'invite: lookup profile'
+      );
+      if (profiles && profiles.length) {
+        const { error: memErr } = await withTimeout(
+          c.from('board_members').upsert({
+            board_id: boardId,
+            user_id: profiles[0].id,
+            role: finalRole,
+            invited_by: supaUser.id,
+          }),
+          6000, 'invite: upsert member'
+        );
+        if (memErr) return { error: memErr, inviteId };
+        pending = false;
+      }
+    } catch(eP) {
+      console.warn('[invite] profile lookup falhou — tratando como pending:', eP?.message || eP);
+    }
+    return { error: null, pending, inviteId };
   } catch(e) {
     return { error: e?.message || String(e) };
   }
@@ -19377,6 +19491,13 @@ async function _onSignedIn(session) {
     return;
   }
   _lastSignedInUserId = currentUid;
+
+  // PROCESSA INVITE PENDENTE (capturado de ?invite=<id> no boot)
+  try {
+    if (typeof _processPendingInvite === 'function') {
+      _processPendingInvite();
+    }
+  } catch(eI) { console.warn('[invite] processo falhou:', eI); }
 
   // Atualiza profile (caso falte full_name)
   const c = _ensureSupaClient();
@@ -20259,18 +20380,62 @@ async function inviteMember() {
     if (!ok) return;
   }
 
-  const { error, pending } = await supaInviteByEmail(currentBoardId, email, role);
+  const { error, pending, inviteId } = await supaInviteByEmail(currentBoardId, email, role);
   if (error) {
     if (typeof appAlert === 'function') appAlert('Erro ao convidar', error.message || String(error), { icon:'⚠️' });
     else alert(error.message || String(error));
     return;
   }
   inp.value = '';
-  if (pending) {
-    appAlert('Convite registrado',
-      `Quando <strong>${_esc(email)}</strong> criar conta com esse endereço, será adicionado automaticamente como <strong>${_esc(role)}</strong>.`,
-      { icon:'✓', html:true });
+
+  // Dispara email + monta link copiável (em paralelo, sem bloquear UI)
+  let emailSent = false;
+  let acceptUrl = inviteId ? `${location.origin}/?invite=${inviteId}` : '';
+  if (inviteId) {
+    try {
+      const billingBase = (typeof SYNKAN_BILLING_BASE !== 'undefined') ? SYNKAN_BILLING_BASE : 'https://billing.synkan.com.br';
+      const boardName = (allBoards[currentBoardId]?.name) || 'Board';
+      const inviterName = supaUser?.user_metadata?.full_name || supaUser?.email?.split('@')[0] || 'Alguém';
+      const r = await fetch(billingBase + '/api/billing/send-invite-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invite_id: inviteId,
+          email: email,
+          role: role,
+          board_name: boardName,
+          inviter_name: inviterName,
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      emailSent = !!data.email_sent;
+      if (data.accept_url) acceptUrl = data.accept_url;
+    } catch(eM) {
+      console.warn('[invite] envio de email falhou:', eM?.message || eM);
+    }
   }
+
+  // Modal de sucesso com link copiável
+  const linkBox = acceptUrl ? `
+    <div style="margin-top:14px;">
+      <div style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Link do convite</div>
+      <div style="display:flex;gap:6px;align-items:stretch;">
+        <input id="invite-link-input" type="text" readonly value="${_esc(acceptUrl)}" style="flex:1;min-width:0;padding:8px 10px;font-size:11.5px;border:1px solid #e7e5e4;border-radius:6px;background:#fafaf9;font-family:ui-monospace,Menlo,monospace;color:#0f0f0f;" onclick="this.select()" />
+        <button onclick="(async()=>{try{await navigator.clipboard.writeText(document.getElementById('invite-link-input').value);this.textContent='✓ Copiado';setTimeout(()=>{this.textContent='Copiar';},1800);}catch(e){const i=document.getElementById('invite-link-input');i.select();document.execCommand('copy');this.textContent='✓ Copiado';setTimeout(()=>{this.textContent='Copiar';},1800);}})()" style="padding:8px 14px;font-size:11.5px;font-weight:500;background:#0f0f0f;color:#fff;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;">Copiar</button>
+      </div>
+      <div style="font-size:10.5px;color:#a8a29e;margin-top:6px;">Esse link só funciona pra <strong>${_esc(email)}</strong>.</div>
+    </div>
+  ` : '';
+
+  const statusMsg = pending
+    ? `Quando <strong>${_esc(email)}</strong> criar conta com esse endereço, será adicionado como <strong>${_esc(role)}</strong>.`
+    : `<strong>${_esc(email)}</strong> foi adicionado ao board como <strong>${_esc(role)}</strong>.`;
+
+  const emailMsg = emailSent
+    ? `<div style="margin-top:10px;font-size:12.5px;color:#16a34a;">✓ Email de convite enviado</div>`
+    : (inviteId ? `<div style="margin-top:10px;font-size:12.5px;color:#a16207;">⚠ Email não foi enviado — compartilhe o link abaixo manualmente</div>` : '');
+
+  appAlert('Convite enviado', statusMsg + emailMsg + linkBox, { icon:'✓', html:true });
   // Se foi editor/admin (seat pago), atualiza quantity no Stripe
   if (['admin','editor'].includes(role) && !pending) {
     _updateSeatsFromMembers().catch(e => console.warn('[seats] update falhou:', e));
