@@ -5371,8 +5371,8 @@ body.density-compact .col{padding:7px;}
 
     <div class="cfg-section" id="cfg-members-section">
       <div class="cfg-section-title">Membros do board</div>
-      <div class="cfg-section-hint">Pra convidar pessoas pra colaborar neste board, use o botão <strong>👥 Compartilhar</strong> no topo do board. Lá você gerencia editores, admins, viewers e convidados externos.</div>
-      <button class="cfg-add-col" onclick="closeConfigModal();setTimeout(openShareModal,150);" style="margin-top:6px;">👥 Abrir compartilhamento →</button>
+      <div class="cfg-section-hint">Pra convidar pessoas pra colaborar neste board, use o botão <strong style="display:inline-flex;align-items:center;gap:4px;vertical-align:-2px;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Compartilhar</strong> no topo do board. Lá você gerencia editores, admins, viewers e convidados externos.</div>
+      <button class="cfg-add-col" onclick="closeConfigModal();setTimeout(openShareModal,150);" style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Abrir compartilhamento →</button>
     </div>
 
     <div class="cfg-section">
@@ -5445,7 +5445,8 @@ body.density-compact .col{padding:7px;}
 <div class="ov" id="ov-share">
   <div class="modal" style="width:560px;max-width:96vw;max-height:88vh;overflow-y:auto;">
     <div class="mh" style="display:flex;align-items:center;gap:8px;">
-      👥 <span>Compartilhar board</span>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>Compartilhar board</span>
     </div>
     <div class="cfg-section-hint" id="share-board-name" style="margin-bottom:14px;"></div>
     <div id="share-members-area">
@@ -14893,7 +14894,7 @@ async function _loadMembersDashboard(_retry = false) {
           <div style="border:1px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:var(--color-background-primary,#fff);">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
               <div style="font-size:14px;font-weight:600;color:var(--color-text-primary);min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(b.name)}</div>
-              <button class="btn-share-modern" style="flex-shrink:0;" onclick="switchBoard('${b.id}');switchTab('home');setTimeout(()=>{ if(typeof openShareModal==='function') openShareModal(); },300);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Compartilhar</button>
+              <button class="btn-share-modern" style="flex-shrink:0;" onclick="switchBoard('${b.id}', {goTo:'kanban'});setTimeout(()=>{ if(typeof openShareModal==='function') openShareModal(); },300);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Compartilhar</button>
             </div>
             ${ms.length ? `
             <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
