@@ -17827,7 +17827,19 @@ function render() {
               ${F.subtasks && stTotal?`<div style="margin-top:5px;display:flex;align-items:center;gap:5px;"><span class="st-bar"><span class="st-bar-fill" style="width:${stPct}%;"></span></span><span class="st-badge${stDone===stTotal?' active':''}">${stDone}/${stTotal}</span></div>`:''}
               ${F.deadline?deadlineBadge(c.deadline, isDone):''}
               ${F.time && ttd?`<div class="ttd-badge${ttd.type==='open'?' ttd-open':''}">⏱ ${ttd.duration}</div>`:''}
-              ${(c.timeEntries||[]).length ? `<div class="ttd-badge" style="background:#EEEDFE;color:#3C3489;">⏱ tracked ${_formatTime(_totalTimeMs(c))}${_activeTimer(c)?' ●':''}</div>`:''}
+              ${(() => {
+                const tEntries = c.timeEntries || [];
+                if (!tEntries.length) return '';
+                const totalMs = _totalTimeMs(c);
+                const activeNow = (typeof _activeUsers === 'function' ? _activeUsers(c).length : (_activeTimer(c) ? 1 : 0));
+                const dot = activeNow > 0
+                  ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#16a34a;margin-right:4px;animation:pulse 2s infinite;"></span>`
+                  : '';
+                const peopleHint = activeNow > 0
+                  ? `<span style="opacity:.75;font-weight:500;margin-left:4px;">· ${activeNow} ativo${activeNow!==1?'s':''}</span>`
+                  : '';
+                return `<div class="ttd-badge" style="background:#EEEDFE;color:#3C3489;display:inline-flex;align-items:center;" title="${activeNow > 0 ? activeNow+' pessoa(s) trabalhando agora' : 'Tempo total trackeado'}">${dot}⏱ ${_formatTime(totalMs)}${peopleHint}</div>`;
+              })()}
               ${showFoot?`<div class="card-foot">
                 ${showFootLeft?`<span class="pbadge p-${c.priority}">${pLbl(c.priority)}</span>`:'<span></span>'}
                 <div style="display:flex;align-items:center;gap:6px;">
@@ -21263,7 +21275,7 @@ const CARD_FIELDS_META = [
   {key:'tags',         icon:'🏷️', label:'Marcadores'},
   {key:'priority',     icon:'⚑',  label:'Prioridade'},
   {key:'deadline',     icon:'📅', label:'Deadline'},
-  {key:'time',         icon:'⏱',  label:'Tempo (em aberto / concluído)'},
+  {key:'time',         icon:'⏱',  label:'Lead-time (tempo em aberto / concluído)'},
   {key:'subtasks',     icon:'☑',  label:'Subtarefas (barra de progresso)'},
   {key:'attachments',  icon:'📎', label:'Anexos (contagem)'},
   {key:'threads',      icon:'💬', label:'Notas (contagem)'},
@@ -22385,6 +22397,11 @@ function exportTrackerPDF() {
   const periodLabel = periodLabels[_trackerPeriod] || 'Período';
   const boardName = (allBoards[currentBoardId]?.name) || 'Board';
   const generated = new Date().toLocaleString('pt-BR');
+  // Empresa do user (configurada em Settings → Empresa)
+  const company = (typeof getCompanyInfo === 'function') ? getCompanyInfo() : {};
+  const companyName = (company.name || '').trim() || 'Sua empresa';
+  const companyLogo = (company.logo || '').trim();
+  const companySubtitle = (company.subtitle || '').trim();
 
   // Linhas da tabela de entries
   const entriesRows = [];
@@ -22451,9 +22468,13 @@ function exportTrackerPDF() {
         <span>Pré-visualização do relatório · clique pra imprimir/salvar como PDF</span>
         <button class="print-btn" onclick="window.print()">⬇ Salvar como PDF</button>
       </div>
-      <div class="header">
-        <div class="brand">Synkan</div>
-        <div class="brand-sub">道場 · Relatório de tempo</div>
+      <div class="header" style="display:flex;align-items:center;gap:16px;">
+        ${companyLogo ? `<img src="${_esc(companyLogo)}" alt="${_esc(companyName)}" style="width:56px;height:56px;object-fit:contain;border-radius:10px;flex-shrink:0;" />` : ''}
+        <div style="flex:1;min-width:0;">
+          <div class="brand" style="font-size:22pt;">${_esc(companyName)}</div>
+          ${companySubtitle ? `<div style="font-size:10pt;color:#666;margin-top:1px;">${_esc(companySubtitle)}</div>` : ''}
+          <div class="brand-sub" style="margin-top:4px;">道場 · Relatório de tempo</div>
+        </div>
       </div>
       <h1>${_esc(boardName)}</h1>
       <div class="meta">${periodLabel} · gerado em ${generated}</div>
@@ -22509,8 +22530,9 @@ function exportTrackerPDF() {
         </table>
       ` : '<p style="color:#888;font-size:10pt;">Nenhuma entry no período selecionado.</p>'}
 
-      <div class="footer">
-        Relatório gerado automaticamente pelo Synkan · app.synkan.com.br
+      <div class="footer" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+        <img src="https://synkan.com.br/synkan-icon-512.png" width="16" height="16" alt="Synkan" style="border-radius:4px;flex-shrink:0;" />
+        <span>Relatório gerado automaticamente pelo Synkan · app.synkan.com.br</span>
       </div>
     </body>
     </html>
