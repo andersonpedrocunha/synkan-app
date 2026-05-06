@@ -14819,26 +14819,42 @@ async function _loadMembersDashboard(_retry = false) {
     return;
   }
   try {
-    // PASSO 1: pega boards do owner (precisamos dos IDs antes)
+    // PASSO 1: pega boards do owner do banco — SOURCE OF TRUTH
     const { data: dbBoards, error: bErr } = await withTimeout(
       c.from('boards').select('id, name').eq('owner_id', supaUser.id),
       8000, 'list owner boards'
     );
     if (bErr) throw bErr;
-    // FILTRO: só mostra boards que estão visíveis no app (localStorage),
-    // não-arquivados. Boards no banco mas não em allBoards são "fantasmas"
-    // (legado, dessincronizados, etc) — não confunde o usuário com eles.
-    let myBoards = dbBoards || [];
+    const myBoards = dbBoards || [];
+    const dbIds = new Set(myBoards.map(b => b.id));
+
+    // SYNC AUTO: remove do localStorage os boards que NÃO existem mais
+    // no banco (ex: deletados via SQL Editor). Mantém o app consistente
+    // com a fonte da verdade. Não toca em boards do allBoards que não
+    // são do owner atual (pode ser board onde sou viewer/editor).
+    let cleanedLocal = 0;
     try {
       if (typeof allBoards === 'object' && allBoards) {
-        const visibleIds = new Set(
-          Object.keys(allBoards).filter(k => allBoards[k] && !allBoards[k].archived)
-        );
-        if (visibleIds.size > 0) {
-          myBoards = myBoards.filter(b => visibleIds.has(b.id));
+        Object.keys(allBoards).forEach(localId => {
+          const lb = allBoards[localId];
+          // Só remove se o board era do owner atual (heurística: se tem
+          // owner_id local, compara; se não, assume owner se está em myBoards
+          // ou se não bate com nenhum board no banco)
+          const isOwner = !lb?.owner_id || lb.owner_id === supaUser.id;
+          if (isOwner && !dbIds.has(localId) && localId !== 'unified') {
+            delete allBoards[localId];
+            cleanedLocal++;
+          }
+        });
+        if (cleanedLocal > 0) {
+          // Persiste mudança e re-renderiza outras telas que dependem de allBoards
+          try { if (typeof saveData === 'function') saveData(); } catch(_) {}
+          try { if (typeof renderBoardsList === 'function') renderBoardsList(); } catch(_) {}
+          console.log(`[members dashboard] sincronizado: ${cleanedLocal} board(s) fantasma removido(s) do localStorage`);
         }
       }
     } catch(_) {}
+
     const boardIds = myBoards.map(b => b.id);
     if (!boardIds.length) {
       target.innerHTML = `<div style="text-align:center;padding:32px 16px;color:var(--color-text-secondary);"><div style="font-size:36px;margin-bottom:8px;">📋</div><div style="font-size:14px;">Você ainda não tem boards.</div><div style="font-size:12px;margin-top:4px;color:var(--color-text-tertiary);">Crie um em <strong>My boards</strong> pra começar a convidar pessoas.</div></div>`;
