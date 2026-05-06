@@ -14746,13 +14746,25 @@ async function _makeIsolatedSupaClient() {
   return iso;
 }
 
-// Carrega assincronamente: lista boards do owner + members + agrega
+// Skeleton loader pro dashboard de Membros — barras animadas em vez de "Carregando..."
+function _membersSkeletonHTML() {
+  const card = `<div style="background:var(--color-background-secondary);padding:14px 16px;border-radius:10px;height:78px;background:linear-gradient(110deg,var(--color-background-secondary) 8%,var(--color-background-tertiary,#eee) 18%,var(--color-background-secondary) 33%);background-size:200% 100%;animation:_skl 1.4s infinite;"></div>`;
+  const row  = `<div style="height:54px;border-radius:10px;margin-bottom:8px;background:linear-gradient(110deg,var(--color-background-secondary) 8%,var(--color-background-tertiary,#eee) 18%,var(--color-background-secondary) 33%);background-size:200% 100%;animation:_skl 1.4s infinite;"></div>`;
+  return `
+    <style>@keyframes _skl{0%{background-position:200% 0;}100%{background-position:-200% 0;}}</style>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px;">
+      ${card}${card}${card}${card}
+    </div>
+    ${row}${row}${row}
+  `;
+}
+
+// Carrega assincronamente: lista boards do owner + members em PARALELO + agrega
 async function _loadMembersDashboard(_retry = false) {
   const target = document.getElementById('membros-dashboard');
   if (!target) return;
-  // USA SEMPRE o cliente isolado (cacheado) — bypassa o conflito de Multiple
-  // GoTrueClient sem sofrer 6s de timeout. Read-only, então não precisa do
-  // cliente principal com realtime/auto-refresh.
+  target.innerHTML = _membersSkeletonHTML();
+  // USA SEMPRE o cliente isolado (cacheado, pre-warmed no boot).
   let c = await _getOrCreateIsolatedClient();
   if (!c) {
     c = _ensureSupaClient();
@@ -14760,12 +14772,11 @@ async function _loadMembersDashboard(_retry = false) {
       target.innerHTML = '<div class="cfg-section-hint">Sem cliente Supabase.</div>'; return;
     }
   }
-  // Helper de timeout
   const withTimeout = (p, ms, label) => Promise.race([
     p,
     new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout (${ms}ms): ${label}`)), ms)),
   ]);
-  // Hidrata supaUser via JWT do localStorage (síncrono, sem getSession travado)
+  // Hidrata supaUser via JWT do localStorage (síncrono)
   if (!supaUser || !supaUser.id) {
     try {
       const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
@@ -14773,130 +14784,102 @@ async function _loadMembersDashboard(_retry = false) {
       if (tokens?.user?.id) supaUser = tokens.user;
     } catch(_) {}
   }
-  // Fallback: se ainda não tem, tenta via getSession do cliente isolado (pode estar OK)
   if (!supaUser || !supaUser.id) {
-    try {
-      const { data: { session } = {} } = await withTimeout(c.auth.getSession(), 3000, 'getSession');
-      if (session && session.user) {
-        supaUser = session.user;
-      }
-    } catch(eS) {
-      console.warn('[members dashboard] getSession falhou:', eS?.message || eS);
-    }
-  }
-  if (!supaUser || !supaUser.id) {
-    target.innerHTML = `<div class="cfg-section-hint">Sessão não está pronta. <button class="cfg-add-col" onclick="location.reload()" style="margin-left:8px;">↻ Recarregar página</button></div>`;
+    target.innerHTML = `<div class="cfg-section-hint">Sessão não está pronta. <button class="cfg-add-col" onclick="location.reload()" style="margin-left:8px;">↻ Recarregar</button></div>`;
     return;
   }
   try {
-    // 1) Pega boards onde sou owner
+    // PASSO 1: pega boards do owner (precisamos dos IDs antes)
     const { data: myBoards, error: bErr } = await withTimeout(
       c.from('boards').select('id, name').eq('owner_id', supaUser.id),
-      6000, 'list owner boards'
+      8000, 'list owner boards'
     );
     if (bErr) throw bErr;
     const boardIds = (myBoards||[]).map(b => b.id);
     if (!boardIds.length) {
-      target.innerHTML = '<div class="cfg-section-hint">Você ainda não tem boards. Crie um pra começar a convidar pessoas.</div>';
+      target.innerHTML = `<div style="text-align:center;padding:32px 16px;color:var(--color-text-secondary);"><div style="font-size:36px;margin-bottom:8px;">📋</div><div style="font-size:14px;">Você ainda não tem boards.</div><div style="font-size:12px;margin-top:4px;color:var(--color-text-tertiary);">Crie um em <strong>My boards</strong> pra começar a convidar pessoas.</div></div>`;
       return;
     }
-    // 2) Pega members de todos eles
-    const { data: members, error: mErr } = await withTimeout(
-      c.from('board_members').select('user_id, role, board_id').in('board_id', boardIds),
-      6000, 'list board_members'
-    );
-    if (mErr) throw mErr;
-    // 3) Pega profiles dos membros
-    const uids = Array.from(new Set((members||[]).map(m => m.user_id).filter(Boolean)));
-    let profilesMap = {};
-    if (uids.length) {
-      try {
-        const { data: profs } = await withTimeout(
-          c.from('profiles').select('id, email, full_name').in('id', uids),
-          6000, 'list profiles'
-        );
-        (profs||[]).forEach(p => { profilesMap[p.id] = p; });
-      } catch(eP) {
-        console.warn('[members dashboard] profiles timeout, seguindo sem nomes:', eP?.message || eP);
-      }
-    }
-    // 4) Agrega
+    // PASSO 2: members + profiles em PARALELO (não sequencial)
+    const [membersRes, profsRes] = await Promise.all([
+      withTimeout(c.from('board_members').select('user_id, role, board_id').in('board_id', boardIds), 8000, 'list board_members')
+        .catch(e => ({ data: [], error: e })),
+      // Profiles é "best effort" — se travar, segue sem nomes
+      withTimeout(c.from('profiles').select('id, email, full_name').limit(1000), 5000, 'list profiles')
+        .catch(e => ({ data: [], error: e })),
+    ]);
+    if (membersRes.error && !membersRes.data) throw membersRes.error;
+    const members = membersRes.data || [];
+    const profilesMap = {};
+    (profsRes.data||[]).forEach(p => { profilesMap[p.id] = p; });
+    // Agrega
     const boardMap = {};
-    (myBoards||[]).forEach(b => { boardMap[b.id] = { id: b.id, name: b.name || 'Board sem nome', members: [] }; });
-    (members||[]).forEach(m => {
+    (myBoards||[]).forEach(b => { boardMap[b.id] = { id: b.id, name: b.name || 'Sem nome', members: [] }; });
+    members.forEach(m => {
       if (!boardMap[m.board_id]) return;
       const p = profilesMap[m.user_id] || {};
       boardMap[m.board_id].members.push({ user_id: m.user_id, role: m.role, email: p.email || '', full_name: p.full_name || '' });
     });
-    // 5) Stats globais
-    const allMembers = (members||[]);
-    const paidUserIds = new Set(allMembers.filter(m => ['admin','editor'].includes(m.role)).map(m => m.user_id));
-    const viewerCount = allMembers.filter(m => m.role === 'viewer').length;
-    const convidadoCount = allMembers.filter(m => m.role === 'convidado').length;
+    // Stats globais
+    const paidUserIds = new Set(members.filter(m => ['admin','editor'].includes(m.role)).map(m => m.user_id));
+    const viewerCount = members.filter(m => m.role === 'viewer').length;
+    const convidadoCount = members.filter(m => m.role === 'convidado').length;
     const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : { price: 0, name: '' };
-    const totalCost = (paidUserIds.size + 1) * (limits.price || 0); // +1 = owner conta como 1 seat
-    // 6) Render
-    let html = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:16px;">
-        <div style="background:var(--color-background-secondary);padding:12px;border-radius:9px;">
-          <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Seats pagos</div>
-          <div style="font-size:22px;font-weight:700;color:var(--color-text-primary);margin-top:4px;">${paidUserIds.size + 1}</div>
-          <div style="font-size:11px;color:var(--color-text-secondary);">Você + ${paidUserIds.size} ${paidUserIds.size===1?'pessoa':'pessoas'}</div>
-        </div>
-        <div style="background:var(--color-background-secondary);padding:12px;border-radius:9px;">
-          <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Viewers</div>
-          <div style="font-size:22px;font-weight:700;color:var(--color-text-primary);margin-top:4px;">${viewerCount}</div>
-          <div style="font-size:11px;color:var(--color-text-secondary);">Só leitura · grátis</div>
-        </div>
-        <div style="background:var(--color-background-secondary);padding:12px;border-radius:9px;">
-          <div style="font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Convidados</div>
-          <div style="font-size:22px;font-weight:700;color:var(--color-text-primary);margin-top:4px;">${convidadoCount}</div>
-          <div style="font-size:11px;color:var(--color-text-secondary);">Externos · Faixa Preta</div>
-        </div>
-        <div style="background:#111;color:#fff;padding:12px;border-radius:9px;">
-          <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Custo mensal</div>
-          <div style="font-size:22px;font-weight:700;margin-top:4px;">R$ ${totalCost.toFixed(2).replace('.',',')}</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.7);">${limits.price > 0 ? `${paidUserIds.size + 1} × R$ ${limits.price.toFixed(2).replace('.',',')}` : 'Grátis'}</div>
-        </div>
+    const seatTotal = paidUserIds.size + 1; // +1 = owner
+    const totalCost = seatTotal * (limits.price || 0);
+    const fmtBRL = v => (v||0).toFixed(2).replace('.', ',');
+    // Render — UI clean
+    const statCard = (label, value, sub, accent) => `
+      <div style="background:${accent || 'var(--color-background-secondary)'};${accent?'color:#fff;':''}padding:14px 16px;border-radius:10px;border:1px solid ${accent?'transparent':'var(--color-border-tertiary)'};">
+        <div style="font-size:10.5px;${accent?'color:rgba(255,255,255,.7)':'color:var(--color-text-tertiary)'};text-transform:uppercase;letter-spacing:.06em;font-weight:600;">${label}</div>
+        <div style="font-size:24px;font-weight:700;${accent?'':'color:var(--color-text-primary);'}margin-top:4px;line-height:1.1;">${value}</div>
+        <div style="font-size:11px;${accent?'color:rgba(255,255,255,.7)':'color:var(--color-text-secondary)'};margin-top:2px;">${sub}</div>
       </div>`;
-    // Lista por board
-    html += `<div style="font-size:12px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Boards e membros</div>`;
+    let html = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px;">
+        ${statCard('Seats pagos', seatTotal, `Você + ${paidUserIds.size} ${paidUserIds.size===1?'pessoa':'pessoas'}`)}
+        ${statCard('Viewers', viewerCount, 'Só leitura · grátis')}
+        ${statCard('Convidados', convidadoCount, 'Externos · Faixa Preta')}
+        ${statCard('Custo mensal', `R$ ${fmtBRL(totalCost)}`, limits.price > 0 ? `${seatTotal} × R$ ${fmtBRL(limits.price)}` : 'Grátis', '#111')}
+      </div>
+    `;
+    // Lista por board — layout limpo
     const boardsArr = Object.values(boardMap);
-    boardsArr.forEach(b => {
-      const ms = b.members;
-      const editors = ms.filter(m => ['admin','editor'].includes(m.role));
-      const viewers = ms.filter(m => m.role === 'viewer');
-      const convs = ms.filter(m => m.role === 'convidado');
-      html += `
-        <div style="border:1px solid var(--color-border-tertiary);border-radius:9px;padding:12px 14px;margin-bottom:8px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-            <div style="font-size:14px;font-weight:600;color:var(--color-text-primary);">${_esc(b.name)}</div>
-            <button class="cfg-add-col" style="font-size:11px;padding:4px 10px;" onclick="switchBoard('${b.id}');closeSettings && closeSettings();setTimeout(openShareModal,200);">👥 Compartilhar</button>
-          </div>
-          <div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:6px;line-height:1.6;">
-            ${editors.length ? `<strong>${editors.length}</strong> editor${editors.length!==1?'es':''}/admin pago${editors.length!==1?'s':''}` : '<span style="opacity:.55;">Sem editores</span>'} ·
-            ${viewers.length ? `<strong>${viewers.length}</strong> viewer${viewers.length!==1?'s':''}` : '<span style="opacity:.55;">Sem viewers</span>'}${convs.length ? ` · <strong>${convs.length}</strong> convidado${convs.length!==1?'s':''}` : ''}
-          </div>
-          ${ms.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
-            ${ms.map(m => {
-              const name = m.full_name || m.email || '?';
-              return `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--color-background-secondary);padding:3px 8px;border-radius:11px;font-size:11px;color:var(--color-text-secondary);"><span style="width:14px;height:14px;border-radius:50%;background:${avatarColor(name)};color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">${_esc(avatarInitials(name))}</span>${_esc(name)} · ${_esc(m.role)}</span>`;
-            }).join('')}
-          </div>` : ''}
-        </div>`;
-    });
+    if (boardsArr.length) {
+      html += `<div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;">Boards · ${boardsArr.length}</div>`;
+      const roleStyle = role => {
+        const colors = { owner:'#7c3aed', admin:'#2563eb', editor:'#0891b2', viewer:'#64748b', convidado:'#d97706' };
+        return `background:${colors[role]||'#94a3b8'}1a;color:${colors[role]||'#475569'};`;
+      };
+      boardsArr.forEach(b => {
+        const ms = b.members;
+        html += `
+          <div style="border:1px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:var(--color-background-primary,#fff);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+              <div style="font-size:14px;font-weight:600;color:var(--color-text-primary);min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(b.name)}</div>
+              <button class="btn-c" style="font-size:11px;padding:6px 12px;flex-shrink:0;" onclick="switchBoard('${b.id}');switchTab('home');setTimeout(()=>{ if(typeof openShareModal==='function') openShareModal(); },300);">👥 Compartilhar</button>
+            </div>
+            ${ms.length ? `
+            <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
+              ${ms.map(m => {
+                const name = m.full_name || m.email || 'Sem nome';
+                return `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;font-size:11.5px;${roleStyle(m.role)}font-weight:500;"><span style="width:16px;height:16px;border-radius:50%;background:${avatarColor(name)};color:#fff;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">${_esc(avatarInitials(name))}</span>${_esc(name)} <span style="opacity:.7;font-size:10px;">${_esc(m.role)}</span></span>`;
+              }).join('')}
+            </div>` : `<div style="margin-top:8px;font-size:11.5px;color:var(--color-text-tertiary);">Sem outros membros · só você</div>`}
+          </div>`;
+      });
+    }
     target.innerHTML = html;
   } catch(e) {
-    console.error('[members dashboard]' + (_retry ? ' (retry com cliente isolado)' : ''), e);
+    console.error('[members dashboard]' + (_retry ? ' (retry)' : ''), e);
     const isTimeout = /timeout/i.test(e?.message || '');
-    // Auto-retry 1x com cliente ISOLADO (storageKey único, sem realtime,
-    // sem persist) — bypassa qualquer briga de Multiple GoTrueClient.
     if (isTimeout && !_retry) {
-      console.warn('[members dashboard] timeout — tentando com cliente isolado…');
-      target.innerHTML = '<div class="cfg-section-hint">Conexão travou — usando sessão isolada pra contornar conflito de instâncias…</div>';
+      console.warn('[members dashboard] timeout — recriando cliente isolado e retry…');
+      _invalidateIsolatedClient();
+      target.innerHTML = _membersSkeletonHTML();
       return _loadMembersDashboard(true);
     }
-    target.innerHTML = `<div class="cfg-section-hint" style="color:var(--color-danger);">Erro ao carregar: ${_esc(e?.message || String(e))}. <button class="cfg-add-col" onclick="_loadMembersDashboard()" style="margin-left:8px;">↻ Tentar de novo</button></div>`;
+    target.innerHTML = `<div class="cfg-section-hint" style="color:var(--color-danger);padding:12px;border:1px solid #fca5a5;border-radius:8px;background:#fef2f2;">⚠ ${_esc(e?.message || String(e))} <button class="btn-c" onclick="_loadMembersDashboard()" style="margin-left:8px;font-size:11px;padding:4px 10px;">↻ Tentar de novo</button></div>`;
   }
 }
 
@@ -19308,6 +19291,14 @@ async function _onSignedIn(session) {
   showAuthOverlay(false);
   // Cache JWT recém-recebido (evita corrida pelo lock no próximo REST call)
   try { _capInvalidateJWTCache && _capInvalidateJWTCache(); } catch(e){}
+  // PRE-WARM do cliente isolado em background (usado pelo dashboard de Membros).
+  // Cria 1x logo após login pra que clicar em Settings → Membros seja instantâneo
+  // (sem esperar 1.5s do setSession na hora). Não bloqueia o boot.
+  try {
+    if (typeof _getOrCreateIsolatedClient === 'function') {
+      setTimeout(() => { _getOrCreateIsolatedClient().catch(()=>{}); }, 500);
+    }
+  } catch(e) {}
 
   // ATUALIZA O WIDGET DA SIDEBAR IMEDIATAMENTE — antes do supaUser estar setado,
   // o sidebar mostrava "Convidado". Agora que sabemos quem é o user, mostra
