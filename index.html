@@ -5640,21 +5640,25 @@ function setSupabaseConfig(cfg) {
 // Em modo Supabase, lê o plan_code da tabela subscriptions.
 const PLAN_LIMITS = {
   trial:        { ai: 30,   boards: -1, canvas: -1, okrs: -1, unified: -1,
-                  seats: 1, viewers: 0,  convidados: 0,
+                  seats: 1, editors: 0, viewers: 1,
                   name: 'Trial 5 dias',                price: 0     },
   faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: -1,
-                  seats: 1, viewers: 2,  convidados: 0,
+                  seats: -1, editors: 3, viewers: 5,
                   name: 'Faixa Azul · Pessoal',        price: 14.90 },
   faixa_roxa:   { ai: 300,  boards: 10, canvas: 10, okrs: -1, unified: -1,
-                  seats: -1, viewers: 5,  convidados: 0,
+                  seats: -1, editors: 3, viewers: 5,
                   name: 'Faixa Roxa · Profissional',   price: 29.90 },
   faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1,
-                  seats: -1, viewers: 20, convidados: 10,
+                  seats: -1, editors: 5, viewers: 10,
                   name: 'Faixa Preta · Empresarial',   price: 79.90 },
 };
-// seats     = editores/admins pagos (per-seat na Roxa/Preta; limite fixo nos demais)
-// viewers   = só leitura, INCLUSO no plano (não cobra extra)
-// convidados= externos com acesso a até 3 boards específicos (Preta only)
+// seats   = ADMINS pagos (mesmo valor do plano; -1 = ilimitado).
+//           Trial = 1 (só o owner, não pode adicionar admin pago).
+// editors = EXTERNOS/CLIENTES, GRÁTIS, só veem o board compartilhado.
+//           Trial = 1 (chefe), Faixa Azul/Roxa = 3, Faixa Preta = 5.
+// viewers = só leitura, GRÁTIS (Trial = 0, Azul/Roxa = 5, Preta = 10).
+// convidados foi REMOVIDO — Editor cobre essa função em todos os planos.
+// Mantida chave 'convidados' como alias de 'editors' pra retrocompat (código legacy).
 
 let _currentPlan = null;          // plan_code carregado do Supabase
 let _aiUsageThisMonth = 0;        // contador local de chamadas IA neste mês
@@ -14729,9 +14733,9 @@ function _settingsMembrosSection() {
     <div style="padding:16px 18px;background:var(--color-background-secondary);border-radius:10px;border:1px solid var(--color-border-tertiary);margin-bottom:14px;">
       <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Como funciona a cobrança</div>
       <div style="font-size:13px;line-height:1.7;color:var(--color-text-secondary);">
-        <strong style="color:var(--color-text-primary);">Editor</strong> e <strong style="color:var(--color-text-primary);">Admin</strong> são seats pagos — cada um soma <strong style="color:var(--color-text-primary);">R$ ${(limits.price||0).toFixed(2).replace('.',',')}/mês</strong> na sua ${_esc(limits.name||'fatura')}.<br/>
-        <strong style="color:var(--color-text-primary);">Viewer</strong> só lê — incluso no plano (limite por plano).<br/>
-        <strong style="color:var(--color-text-primary);">Convidado</strong> é externo (cliente, fornecedor, parceiro) — exclusivo da Faixa Preta, vê só 3 boards autorizados.
+        <strong style="color:var(--color-text-primary);">Admin</strong> tem acesso total e é <strong>seat pago</strong> — cada um soma <strong style="color:var(--color-text-primary);">R$ ${(limits.price||0).toFixed(2).replace('.',',')}/mês</strong> (mesmo valor do plano).<br/>
+        <strong style="color:var(--color-text-primary);">Editor</strong> é <strong>externo/cliente</strong> — vê só os boards onde foi adicionado, <strong>grátis</strong>. Limite: ${(limits.editors === -1) ? 'ilimitado' : limits.editors} por board.<br/>
+        <strong style="color:var(--color-text-primary);">Viewer</strong> só lê, <strong>grátis</strong>. Limite: ${(limits.viewers === -1) ? 'ilimitado' : limits.viewers} por board.
       </div>
     </div>
 
@@ -14950,12 +14954,12 @@ async function _loadMembersDashboard(_retry = false) {
       const p = profilesMap[m.user_id] || {};
       boardMap[m.board_id].members.push({ user_id: m.user_id, role: m.role, email: p.email || '', full_name: p.full_name || '' });
     });
-    // Stats globais
-    const paidUserIds = new Set(members.filter(m => ['admin','editor'].includes(m.role)).map(m => m.user_id));
+    // Stats globais (regras novas: só Admin é pago; Editor virou externo grátis)
+    const adminUserIds = new Set(members.filter(m => m.role === 'admin').map(m => m.user_id));
+    const editorCount = members.filter(m => m.role === 'editor').length;
     const viewerCount = members.filter(m => m.role === 'viewer').length;
-    const convidadoCount = members.filter(m => m.role === 'convidado').length;
     const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : { price: 0, name: '' };
-    const seatTotal = paidUserIds.size + 1; // +1 = owner
+    const seatTotal = adminUserIds.size + 1; // +1 = owner conta como 1 seat pago
     const totalCost = seatTotal * (limits.price || 0);
     const fmtBRL = v => (v||0).toFixed(2).replace('.', ',');
     // Render — UI clean
@@ -14967,9 +14971,9 @@ async function _loadMembersDashboard(_retry = false) {
       </div>`;
     let html = `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px;">
-        ${statCard('Seats pagos', seatTotal, `Você + ${paidUserIds.size} ${paidUserIds.size===1?'pessoa':'pessoas'}`)}
+        ${statCard('Admins (pagos)', seatTotal, `Você + ${adminUserIds.size} ${adminUserIds.size===1?'admin':'admins'}`)}
+        ${statCard('Editores externos', editorCount, 'Clientes/colab · grátis')}
         ${statCard('Viewers', viewerCount, 'Só leitura · grátis')}
-        ${statCard('Convidados', convidadoCount, 'Externos · Faixa Preta')}
         ${statCard('Custo mensal', `R$ ${fmtBRL(totalCost)}`, limits.price > 0 ? `${seatTotal} × R$ ${fmtBRL(limits.price)}` : 'Grátis', '#111')}
       </div>
     `;
@@ -20507,33 +20511,34 @@ async function _renderMembersInto(targetElId, boardId) {
   }
   if (isOwner) {
     const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
-    const isPreta = planCode === 'faixa_preta';
-    const editorsUsed = list.filter(m => ['admin','editor'].includes(m.role)).length;
+    const isTrial = planCode === 'trial';
+    const adminsUsed  = list.filter(m => m.role === 'admin').length;
+    const editorsUsed = list.filter(m => m.role === 'editor').length;
     const viewersUsed = list.filter(m => m.role === 'viewer').length;
-    const convidadosUsed = list.filter(m => m.role === 'convidado').length;
     const limits = getCurrentPlanLimits();
+    const fmt = (used, lim) => lim === -1 ? `${used}/∞` : `${used}/${lim}`;
     html += `
       <div style="margin-top:14px;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;font-size:11.5px;color:var(--color-text-secondary);line-height:1.7;">
-        <strong>Uso de membros</strong> ·
-        ${editorsUsed} editor${editorsUsed!==1?'es':''}/admin${editorsUsed!==1?'s':''} pago${editorsUsed!==1?'s':''} ·
-        ${viewersUsed}/${limits.viewers===-1?'∞':limits.viewers} viewers ·
-        ${isPreta ? `${convidadosUsed}/${limits.convidados} convidados` : `<span style="opacity:.55;">convidados (Faixa Preta)</span>`}
+        <strong>Uso de membros neste board</strong> ·
+        ${adminsUsed} admin${adminsUsed!==1?'s':''} pago${adminsUsed!==1?'s':''} ·
+        ${fmt(editorsUsed, limits.editors)} editores externos ·
+        ${fmt(viewersUsed, limits.viewers)} viewers
       </div>
       <div class="cfg-team-add" style="margin-top:8px;">
         <input id="cfg-invite-email" type="email" placeholder="email@empresa.com"
                onkeydown="if(event.key==='Enter')inviteMember();" />
-        <select id="cfg-invite-role" class="cfg-cf-input" style="width:140px;">
-          <option value="editor">Editor</option>
-          <option value="admin">Admin</option>
-          <option value="viewer">Viewer (só lê)</option>
-          ${isPreta ? '<option value="convidado">Convidado (3 boards)</option>' : ''}
+        <select id="cfg-invite-role" class="cfg-cf-input" style="width:160px;">
+          <option value="viewer"${isTrial ? ' selected' : ''}>Viewer (só lê · grátis)</option>
+          <option value="editor"${isTrial ? ' disabled' : ''}>Editor (externo · grátis)${isTrial ? ' — upgrade' : ''}</option>
+          <option value="admin"${isTrial ? ' disabled' : ''}>Admin (seat pago)${isTrial ? ' — upgrade' : ''}</option>
         </select>
         <button class="cfg-team-add-btn" onclick="inviteMember()">Convidar</button>
       </div>
       <div class="settings-row-hint" style="margin-top:6px;font-size:11px;line-height:1.5;">
-        <strong>Editor/Admin</strong> são "seats" pagos (R$ ${limits.price.toFixed(2).replace('.',',')} cada/mês na ${limits.name.split(' · ')[0]}).
-        <strong>Viewer</strong> só lê — incluso no plano sem cobrança extra.
-        ${isPreta ? '<strong>Convidado</strong> é externo, vê apenas os 3 boards permitidos, comenta + anexa + aprova cards próprios.' : ''}
+        <strong>Admin</strong> tem acesso total e é seat pago (R$ ${limits.price.toFixed(2).replace('.',',')}/mês).
+        <strong>Editor</strong> é externo/cliente — vê só este board, grátis.
+        <strong>Viewer</strong> só lê, grátis.
+        ${isTrial ? '<br/><span style="color:#8b6800;">Trial: você pode convidar apenas 1 Viewer (pra mostrar o app). Pra Editor/Admin, faça upgrade.</span>' : ''}
       </div>`;
   } else {
     html += `<div class="cfg-section-hint" style="margin-top:10px;">Apenas o owner do board pode convidar/remover membros.</div>`;
@@ -20558,7 +20563,7 @@ function openShareModal() {
     const b = allBoards[currentBoardId];
     const name = b?.name || 'Board';
     const nameEl = document.getElementById('share-board-name');
-    if (nameEl) nameEl.innerHTML = `Convide pessoas pra colaborar em <strong>${_esc(name)}</strong>. Editor/Admin contam como seats pagos · Viewer é grátis · Convidado externo é exclusivo da Faixa Preta.`;
+    if (nameEl) nameEl.innerHTML = `Convide pessoas pra colaborar em <strong>${_esc(name)}</strong>. <strong>Admin</strong> é seat pago · <strong>Editor</strong> é externo grátis · <strong>Viewer</strong> só lê.`;
   } catch(e){}
   // Abre modal e carrega membros
   document.getElementById('ov-share')?.classList.add('open');
@@ -20579,54 +20584,73 @@ async function inviteMember() {
   const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
   const limits = getCurrentPlanLimits();
 
-  // GATE 1: Convidado é exclusivo da Faixa Preta
-  if (role === 'convidado' && planCode !== 'faixa_preta') {
-    appAlert('Convidados · Faixa Preta',
-      'Convidar pessoas externas (clientes, parceiros, fornecedores) com acesso restrito a 3 boards é exclusivo da <strong>Faixa Preta · Empresarial</strong>.',
-      { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não', html:true,
-        onOk: () => window.open(getUpgradeURL(), '_blank') });
-    return;
-  }
+  // GATE legado: 'convidado' agora é tratado como 'editor' (Convidado foi removido)
+  if (role === 'convidado') role = 'editor';
 
-  // GATE 2: Faixa Azul não pode convidar ninguém pago
-  if (planCode === 'faixa_azul' && (role === 'admin' || role === 'editor')) {
-    appAlert('Editor/Admin · Faixa Roxa+',
-      'Adicionar editores/admins pagos requer pelo menos a <strong>Faixa Roxa · Profissional</strong>. Na Faixa Azul você pode adicionar até 2 viewers (só leitura).',
-      { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não', html:true,
-        onOk: () => window.open(getUpgradeURL(), '_blank') });
-    return;
-  }
-
-  // GATE 3: Conta uso atual no board e checa contra o limite
+  // Conta uso atual no board (precisamos pra todos os limites)
   const list = await supaListMembers(currentBoardId);
+
+  // GATE 1: TRIAL — só permite 1 Viewer (chefe pra mostrar o app), bloqueia Admin e Editor
+  if (planCode === 'trial') {
+    if (role === 'admin' || role === 'editor') {
+      appAlert('Compartilhamento limitado no Trial',
+        'No <strong>Trial 5 dias</strong> você pode convidar apenas <strong>1 Viewer</strong> (alguém pra ver o app). Pra adicionar Editor (cliente/colaborador) ou Admin, escolha um plano.',
+        { icon:'🔒', okLabel:'Ver planos', cancelLabel:'Agora não', html:true,
+          onOk: () => window.open(getUpgradeURL(), '_blank') });
+      return;
+    }
+    if (role === 'viewer') {
+      const usedViewers = list.filter(m => m.role === 'viewer').length;
+      if (usedViewers >= 1) {
+        appAlert('Trial: limite de 1 Viewer',
+          'Você já convidou 1 Viewer neste board. No Trial o limite é de <strong>1 Viewer</strong>. Faça upgrade pra ter mais membros.',
+          { icon:'🔒', okLabel:'Ver planos', cancelLabel:'Agora não', html:true,
+            onOk: () => window.open(getUpgradeURL(), '_blank') });
+        return;
+      }
+    }
+  }
+
+  // GATE 2: VIEWER — limite por plano (Trial=0, Azul/Roxa=5, Preta=10)
   if (role === 'viewer') {
     const used = list.filter(m => m.role === 'viewer').length;
     if (limits.viewers !== -1 && used >= limits.viewers) {
       appAlert(`Limite de viewers atingido (${used}/${limits.viewers})`,
-        `Sua ${limits.name} permite até ${limits.viewers} viewers. Pra adicionar mais, faça upgrade.`,
-        { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não',
+        `Sua ${limits.name} permite até <strong>${limits.viewers}</strong> viewer${limits.viewers!==1?'s':''}. Pra adicionar mais, faça upgrade.`,
+        { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não', html:true,
           onOk: () => window.open(getUpgradeURL(), '_blank') });
       return;
     }
   }
-  if (role === 'convidado') {
-    const used = list.filter(m => m.role === 'convidado').length;
-    if (limits.convidados !== -1 && used >= limits.convidados) {
-      appAlert(`Limite de convidados atingido (${used}/${limits.convidados})`,
-        `Sua ${limits.name} permite até ${limits.convidados} convidados externos.`,
-        { icon:'🔒' });
+
+  // GATE 3: EDITOR — externo grátis, limite por plano (Azul/Roxa=3, Preta=5)
+  if (role === 'editor' && planCode !== 'trial') {
+    const used = list.filter(m => m.role === 'editor').length;
+    if (limits.editors !== -1 && used >= limits.editors) {
+      appAlert(`Limite de editores externos atingido (${used}/${limits.editors})`,
+        `Sua ${limits.name} permite até <strong>${limits.editors}</strong> editores externos (clientes/colaboradores). Pra adicionar mais, faça upgrade.`,
+        { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não', html:true,
+          onOk: () => window.open(getUpgradeURL(), '_blank') });
       return;
     }
   }
 
-  // Aviso pré-cobrança pra editor/admin (vai virar seat pago)
-  if (['admin','editor'].includes(role) && planCode === 'faixa_roxa' || planCode === 'faixa_preta') {
+  // GATE 4: ADMIN — seat pago. Confirma cobrança pro-rata.
+  if (role === 'admin') {
+    const usedAdmins = list.filter(m => m.role === 'admin').length;
+    if (limits.seats !== -1 && (usedAdmins + 1 /*+ owner*/) > limits.seats) {
+      appAlert('Limite de Admins atingido',
+        `Sua ${limits.name} não permite adicionar Admin extra. Faça upgrade pra ter Admins ilimitados.`,
+        { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não', html:true,
+          onOk: () => window.open(getUpgradeURL(), '_blank') });
+      return;
+    }
     const seatPrice = limits.price;
-    const ok = await appConfirm('Adicionar seat pago?',
-      `Adicionar <strong>${_esc(email)}</strong> como ${_esc(role)} consumirá <strong>1 seat pago</strong> da ${_esc(limits.name)}. ` +
-      `Custo adicional: <strong>R$ ${seatPrice.toFixed(2).replace('.',',')}/mês</strong> (cobrado pro-rata pelo Stripe na próxima fatura).<br/><br/>` +
-      `<em>Importante:</em> a cobrança automática por seat será ativada num próximo update — por enquanto, adicione e ajustaremos manualmente.`,
-      { icon:'💳', okLabel:'Adicionar', cancelLabel:'Cancelar', html:true });
+    const ok = await appConfirm('Adicionar Admin (seat pago)?',
+      `Adicionar <strong>${_esc(email)}</strong> como <strong>Admin</strong> consumirá <strong>1 seat pago</strong> da ${_esc(limits.name)}.<br/><br/>` +
+      `Custo adicional: <strong>R$ ${seatPrice.toFixed(2).replace('.',',')}/mês</strong> (mesmo valor do seu plano).<br/><br/>` +
+      `<em>Importante:</em> a cobrança automática será ativada num próximo update — por enquanto adicione e ajustaremos manualmente.`,
+      { icon:'💳', okLabel:'Adicionar Admin', cancelLabel:'Cancelar', html:true });
     if (!ok) return;
   }
 
@@ -20686,8 +20710,8 @@ async function inviteMember() {
     : (inviteId ? `<div style="margin-top:10px;font-size:12.5px;color:#a16207;">⚠ Email não foi enviado — compartilhe o link abaixo manualmente</div>` : '');
 
   appAlert('Convite enviado', statusMsg + emailMsg + linkBox, { icon:'✓', html:true });
-  // Se foi editor/admin (seat pago), atualiza quantity no Stripe
-  if (['admin','editor'].includes(role) && !pending) {
+  // Se foi admin (seat pago), atualiza quantity no Stripe
+  if (role === 'admin' && !pending) {
     _updateSeatsFromMembers().catch(e => console.warn('[seats] update falhou:', e));
   }
   // Re-renderiza a lista no container ativo (modal Compartilhar tem prioridade)
@@ -20698,16 +20722,17 @@ async function inviteMember() {
   }
 }
 
-// Conta seats pagos em todos os boards do user e atualiza Stripe
+// Conta seats pagos (apenas Admins) em todos os boards do user e atualiza Stripe.
+// Editor virou externo gratuito (não conta como seat pago).
 async function _updateSeatsFromMembers() {
   if (!supaUser || !supaClient) return;
   try {
-    // Conta unique users com role pago (admin/editor) em boards onde sou owner
+    // Conta unique users com role 'admin' em boards onde sou owner
     const { data, error } = await supaClient
       .from('board_members')
       .select('user_id, role, board_id, boards!inner(owner_id)')
       .eq('boards.owner_id', supaUser.id)
-      .in('role', ['admin', 'editor']);
+      .eq('role', 'admin');
     if (error) { console.warn('[seats] query falhou:', error); return; }
     const uniqueUsers = new Set((data||[]).map(m => m.user_id));
     const quantity = Math.max(1, uniqueUsers.size + 1); // +1 = o owner
