@@ -1048,6 +1048,10 @@ body.density-compact .card-cf-row{font-size:10px;}
 .btn-c{background:transparent;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:7px 16px;font-size:13px;color:var(--color-text-secondary);cursor:pointer;}
 .btn-s{background:var(--color-text-primary);border:none;border-radius:var(--border-radius-md);padding:7px 18px;font-size:13px;color:var(--color-background-primary);cursor:pointer;}
 .btn-c:hover{background:var(--color-background-secondary);}
+.btn-share-modern{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:12.5px;font-weight:500;border:1px solid var(--color-border-secondary);background:var(--color-background-primary,#fff);color:var(--color-text-primary);border-radius:8px;cursor:pointer;transition:all 0.15s ease;line-height:1;min-height:32px;}
+.btn-share-modern:hover{background:var(--color-text-primary);color:var(--color-background-primary,#fff);border-color:var(--color-text-primary);transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+.btn-share-modern svg{width:14px;height:14px;flex-shrink:0;}
+.btn-share-modern:active{transform:translateY(0);}
 .btn-del{background:transparent;border:0.5px solid #F09595;border-radius:var(--border-radius-md);padding:7px 16px;font-size:13px;color:#A32D2D;cursor:pointer;margin-right:auto;}
 .btn-del:hover{background:#FCEBEB;}
 .btn-dup{background:transparent;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:7px 14px;font-size:13px;color:var(--color-text-secondary);cursor:pointer;}
@@ -14917,7 +14921,7 @@ async function _loadMembersDashboard(_retry = false) {
           <div style="border:1px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:var(--color-background-primary,#fff);">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
               <div style="font-size:14px;font-weight:600;color:var(--color-text-primary);min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(b.name)}</div>
-              <button class="btn-c" style="font-size:11px;padding:6px 12px;flex-shrink:0;" onclick="switchBoard('${b.id}');switchTab('home');setTimeout(()=>{ if(typeof openShareModal==='function') openShareModal(); },300);">👥 Compartilhar</button>
+              <button class="btn-share-modern" style="flex-shrink:0;" onclick="switchBoard('${b.id}');switchTab('home');setTimeout(()=>{ if(typeof openShareModal==='function') openShareModal(); },300);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Compartilhar</button>
             </div>
             ${ms.length ? `
             <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
