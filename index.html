@@ -14667,42 +14667,69 @@ function _settingsMembrosSection() {
     </div>`;
 }
 
+// Lê o JWT do supabase-js DIRETO do localStorage (síncrono, sempre funciona
+// mesmo com o cliente principal travado em getSession()).
+function _readSupaTokensFromLocalStorage(supaUrl) {
+  try {
+    // O storageKey padrão é "sb-<project-ref>-auth-token". Project ref é o
+    // subdomínio do supabaseUrl (ex: iycojmhbqfjnupxrrofa).
+    const m = (supaUrl || '').match(/https?:\/\/([^.]+)\.supabase\.co/i);
+    if (!m) return null;
+    const ref = m[1];
+    const raw = localStorage.getItem(`sb-${ref}-auth-token`);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    // Formato pode ser {access_token, refresh_token, ...} OU array [accessToken, refreshToken, ...] (versões antigas)
+    if (obj && obj.access_token && obj.refresh_token) {
+      return { access_token: obj.access_token, refresh_token: obj.refresh_token, user: obj.user || null };
+    }
+    if (Array.isArray(obj) && obj[0] && obj[1]) {
+      return { access_token: obj[0], refresh_token: obj[1], user: obj[2] || null };
+    }
+    // Algumas versões aninhamː {currentSession: {...}} ou similar
+    if (obj?.currentSession?.access_token) {
+      return {
+        access_token: obj.currentSession.access_token,
+        refresh_token: obj.currentSession.refresh_token,
+        user: obj.currentSession.user || null,
+      };
+    }
+    return null;
+  } catch(e) {
+    console.warn('[supa tokens] parse falhou:', e?.message || e);
+    return null;
+  }
+}
+
 // Cria um cliente Supabase ISOLADO (storageKey único, sem persist, sem realtime).
 // Usado como fallback quando o cliente principal trava por conflito de
-// "Multiple GoTrueClient instances". Restaura a sessão manualmente.
+// "Multiple GoTrueClient instances". Restaura a sessão lendo o JWT direto
+// do localStorage (síncrono, funciona mesmo com getSession() travado).
 async function _makeIsolatedSupaClient() {
   const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
   if (!cfg || !cfg.url || !cfg.anonKey) return null;
   if (!window.supabase || !window.supabase.createClient) return null;
-  // Pega session do cliente principal (se existir) antes de criar o isolado
-  let savedSession = null;
-  try {
-    if (supaClient) {
-      const { data } = await Promise.race([
-        supaClient.auth.getSession(),
-        new Promise(r => setTimeout(() => r({ data: { session: null } }), 2000)),
-      ]);
-      savedSession = data?.session || null;
-    }
-  } catch(_) {}
+  const tokens = _readSupaTokensFromLocalStorage(cfg.url);
   const isoKey = 'sb-isolated-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
   const iso = window.supabase.createClient(cfg.url, cfg.anonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
       storageKey: isoKey,
-      // Storage in-memory dummy: garante zero leitura/escrita em localStorage
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
     },
     realtime: { params: { eventsPerSecond: 0 } },
+    global: tokens?.access_token ? { headers: { Authorization: `Bearer ${tokens.access_token}` } } : undefined,
   });
-  // Restaura tokens manualmente — assim queries vão com auth válido
-  if (savedSession?.access_token && savedSession?.refresh_token) {
+  // Também faz setSession pra que queries que dependem de session interna funcionem
+  if (tokens?.access_token && tokens?.refresh_token) {
     try {
-      await iso.auth.setSession({
-        access_token: savedSession.access_token,
-        refresh_token: savedSession.refresh_token,
-      });
+      await Promise.race([
+        iso.auth.setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token }),
+        new Promise(r => setTimeout(r, 1500)), // não bloqueia se setSession travar
+      ]);
+      // Atualiza supaUser se ainda estiver null
+      if ((!supaUser || !supaUser.id) && tokens.user?.id) supaUser = tokens.user;
     } catch(e) { console.warn('[isolated client] setSession falhou:', e); }
   }
   return iso;
