@@ -5171,6 +5171,7 @@ body.density-compact .col{padding:7px;}
       <span class="lbl-hint">(0 = infinito)</span>
     </div>
     <div class="field"><label>Responsável <span class="lbl-hint">(gerencie a equipe pela engrenagem ⚙)</span></label><select id="inp-responsavel"></select></div>
+    <div class="field"><label>Atribuído a <span class="lbl-hint">(membro real do board — convide pelo botão Compartilhar)</span></label><select id="inp-assigned-user"></select></div>
     <div class="field"><label>Cadastro vinculado <span class="lbl-hint">(lead, cliente ou fornecedor — gerencie em Synconnect)</span></label>
       <div style="display:flex;gap:6px;align-items:stretch;">
         <select id="inp-contact" style="flex:1;" onchange="_updateCardContactBtn()"></select>
@@ -18166,6 +18167,77 @@ function fillResponsavelSelect(currentValue) {
   else if (!cur) sel.value = '';
 }
 
+// Cache de membros do board atual (carregado preguiçosamente quando precisa)
+let _boardMembersCache = { boardId: null, members: [], loadedAt: 0 };
+
+async function _loadBoardMembersForCard(boardId) {
+  // Cache valido por 60s
+  if (_boardMembersCache.boardId === boardId
+      && Date.now() - _boardMembersCache.loadedAt < 60000) {
+    return _boardMembersCache.members;
+  }
+  let c = (typeof _getOrCreateIsolatedClient === 'function')
+    ? await _getOrCreateIsolatedClient()
+    : null;
+  if (!c) c = _ensureSupaClient();
+  if (!c || !boardId) return [];
+  const withTimeout = (p, ms) => Promise.race([
+    p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout: '+ms+'ms')), ms)),
+  ]);
+  try {
+    const list = (typeof supaListMembers === 'function')
+      ? await withTimeout(supaListMembers(boardId), 6000)
+      : [];
+    _boardMembersCache = { boardId, members: list, loadedAt: Date.now() };
+    return list;
+  } catch(e) {
+    console.warn('[card members] load falhou:', e?.message || e);
+    return _boardMembersCache.members || [];
+  }
+}
+
+// Popula select Atribuído a com membros reais do board (do Supabase)
+async function fillAssignedUserSelect(currentUserId) {
+  const sel = document.getElementById('inp-assigned-user');
+  if (!sel) return;
+  const cur = (currentUserId || '').trim();
+  // Estado inicial: opção "ninguém" + placeholder "carregando"
+  sel.innerHTML = `<option value="">— ninguém atribuído —</option>`;
+  if (typeof getStorageMode === 'function' && getStorageMode() !== 'supabase') {
+    sel.disabled = true;
+    sel.innerHTML = `<option value="">— disponível só em modo Cloud —</option>`;
+    return;
+  }
+  sel.disabled = false;
+  // Adiciona opção placeholder se já tem valor mas ainda não carregamos
+  if (cur) {
+    sel.innerHTML += `<option value="${_esc(cur)}" selected>(carregando…)</option>`;
+  }
+  // Carrega membros do board atual
+  const list = await _loadBoardMembersForCard(currentBoardId);
+  let html = `<option value="">— ninguém atribuído —</option>`;
+  // Owner primeiro, depois admins/editors, depois viewers/convidados
+  const ROLE_ORDER = { owner:0, admin:1, editor:2, viewer:3, convidado:4 };
+  const sorted = [...list].sort((a, b) => {
+    const ra = ROLE_ORDER[a.role] ?? 9;
+    const rb = ROLE_ORDER[b.role] ?? 9;
+    if (ra !== rb) return ra - rb;
+    return (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '', 'pt-BR');
+  });
+  sorted.forEach(m => {
+    if (!m.user_id) return;
+    const display = m.full_name || m.email || m.user_id.slice(0, 8);
+    const sub = m.role ? ` · ${m.role}` : '';
+    const selected = m.user_id === cur ? ' selected' : '';
+    html += `<option value="${_esc(m.user_id)}"${selected}>${_esc(display)}${_esc(sub)}</option>`;
+  });
+  // Se cur não foi achado entre os membros (legacy/removido), mantém com label de aviso
+  if (cur && !sorted.some(m => m.user_id === cur)) {
+    html += `<option value="${_esc(cur)}" selected>${_esc(cur.slice(0,8))}… (não está mais no board)</option>`;
+  }
+  sel.innerHTML = html;
+}
+
 function openModal(colId) {
   editId=null;cTagIds=[];selColor=COLORS[0];cAttachments=[];cSubtasks=[];cCustomValues={};
   document.getElementById('mh-title').textContent='Novo card';
@@ -18181,6 +18253,7 @@ function openModal(colId) {
   document.getElementById('inp-rec-count').value=0;
   document.getElementById('recurrence-extra').style.display='none';
   fillResponsavelSelect('');
+  fillAssignedUserSelect('');
   fillContactSelect('');
   renderModalCustomFields();
   document.getElementById('thread-field').style.display='none';
@@ -18216,6 +18289,7 @@ function editCard(id) {
   document.getElementById('inp-rec-count').value = rec?.remainingCount ?? 0;
   document.getElementById('recurrence-extra').style.display = rec && rec.frequency!=='none' ? 'flex' : 'none';
   fillResponsavelSelect(card.responsavel||'');
+  fillAssignedUserSelect(card.assignedUserId||'');
   fillContactSelect(card.contactId||'');
   renderModalCustomFields();
   document.getElementById('thread-field').style.display='block';
@@ -18319,6 +18393,7 @@ function saveCard() {
   const col=document.getElementById('inp-col').value;
   const deadline=document.getElementById('inp-deadline').value||null;
   const responsavel=(document.getElementById('inp-responsavel').value||'').trim()||null;
+  const assignedUserId=(document.getElementById('inp-assigned-user')?.value||'').trim()||null;
   const contactId=(document.getElementById('inp-contact')?.value||'').trim()||null;
   const recFreq = document.getElementById('inp-recurrence').value;
   const recurrence = (recFreq && recFreq !== 'none') ? {
@@ -18354,7 +18429,7 @@ function saveCard() {
     }
     const movedToDone = card.col !== col && col === TERMINAL_COL;
     const _prevName = card.name, _prevDeadline = card.deadline, _prevValor = card.customFieldValues?.cf_valor;
-    Object.assign(card,{name,priority,col,tagIds,deadline,responsavel,contactId,recurrence,attachments:[...cAttachments],subtasks:[...cSubtasks],customFieldValues:{...cCustomValues}});
+    Object.assign(card,{name,priority,col,tagIds,deadline,responsavel,assignedUserId,contactId,recurrence,attachments:[...cAttachments],subtasks:[...cSubtasks],customFieldValues:{...cCustomValues}});
     audit('card.updated', { cardId: card.id, name, col });
     fireWebhook('card.updated', { cardId: card.id, name, col, priority, deadline, responsavel });
     if (typeof _calSyncCardEvent === 'function') _calSyncCardEvent(card, 'upsert');
@@ -18391,7 +18466,7 @@ function saveCard() {
     if (movedToDone && card.recurrence) _spawnRecurrence(card);
   } else {
     const now=new Date().toISOString();
-    const newCard={id:nCard++,name,priority,col,tagIds,deadline,responsavel,contactId,recurrence,threads:[],attachments:[],subtasks:[],customFieldValues:{...cCustomValues},createdAt:now,doneAt:col===TERMINAL_COL?now:null};
+    const newCard={id:nCard++,name,priority,col,tagIds,deadline,responsavel,assignedUserId,contactId,recurrence,threads:[],attachments:[],subtasks:[],customFieldValues:{...cCustomValues},createdAt:now,doneAt:col===TERMINAL_COL?now:null};
     audit('card.created', { cardId: newCard.id, name, col });
     fireWebhook('card.created', { cardId: newCard.id, name, col, priority, deadline, responsavel });
     if (typeof _calSyncCardEvent === 'function') _calSyncCardEvent(newCard, 'upsert');
@@ -19041,6 +19116,7 @@ function _cardToRow(c, boardId) {
     created_at: c.createdAt || new Date().toISOString(),
     done_at: c.doneAt || null,
     money_type: c.moneyType || null,
+    assigned_user_id: c.assignedUserId || null,
   };
 }
 function _rowToBoard(r, cardsArr) {
@@ -19087,6 +19163,7 @@ function _rowToCard(r) {
     createdAt: r.created_at,
     doneAt: r.done_at,
     moneyType: r.money_type || undefined,
+    assignedUserId: r.assigned_user_id || null,
   };
 }
 
