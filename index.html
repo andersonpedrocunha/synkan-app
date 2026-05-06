@@ -12690,9 +12690,12 @@ async function _granatumLoadConfig() {
       { timeoutMs: 6000 }
     );
     _granatumConfig = (Array.isArray(rows) && rows.length) ? rows[0] : null;
-    console.log('[granatum] loadConfig:', _granatumConfig
-      ? { hasToken: !!_granatumConfig.access_token, tokenLen: (_granatumConfig.access_token||'').length, last_test_ok: _granatumConfig.last_test_ok, last_test_at: _granatumConfig.last_test_at }
-      : 'null (nenhum registro em granatum_configs pra esse user)');
+    // Log silencioso — só loga se DEBUG explícito ligado, evita poluir console
+    if (window.__SYNKAN_DEBUG_GRANATUM) {
+      console.log('[granatum] loadConfig:', _granatumConfig
+        ? { hasToken: !!_granatumConfig.access_token, tokenLen: (_granatumConfig.access_token||'').length, last_test_ok: _granatumConfig.last_test_ok, last_test_at: _granatumConfig.last_test_at }
+        : 'null (nenhum registro em granatum_configs pra esse user)');
+    }
     // Re-render Settings se já está aberta (evita race entre boot e UI)
     if (typeof currentTab !== 'undefined' && currentTab === 'settings' && typeof _settingsTab !== 'undefined' && _settingsTab === 'sync') {
       if (typeof renderSettings === 'function') renderSettings();
@@ -19139,7 +19142,13 @@ function supaSubscribeRealtime() {
 
 // — Membros do board —
 async function supaListMembers(boardId) {
-  const c = _ensureSupaClient(); if(!c) return [];
+  // USA cliente isolado (cacheado, pre-warmed) — bypassa o conflito de
+  // Multiple GoTrueClient. Fallback pro principal se isolado falhar.
+  let c = (typeof _getOrCreateIsolatedClient === 'function')
+    ? await _getOrCreateIsolatedClient()
+    : null;
+  if (!c) c = _ensureSupaClient();
+  if (!c) return [];
   // Função interna com timeout e fallback robusto
   const withTimeout = (p, ms, label) => Promise.race([
     p,
