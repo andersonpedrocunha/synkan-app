@@ -6615,7 +6615,12 @@ function formatDuration(ms) {
 function timeToDone(card) {
   if(!card.createdAt) return null;
   const createdAt = new Date(card.createdAt);
-  if(card.col === 'done') {
+  // Considera concluído também colunas terminais alternativas do Granatum
+  // ('pago_hoje' e 'historico'), pra não exibir lead-time eternamente.
+  const isConcluded = (typeof _isCardConcluded === 'function')
+    ? _isCardConcluded(card)
+    : (card.col === 'done');
+  if (isConcluded) {
     if(!card.doneAt) return null; // card antigo sem rastreio — não exibir
     const doneAt = new Date(card.doneAt);
     return { type:'done', duration: formatDuration(doneAt - createdAt), createdAt, doneAt };
@@ -6639,7 +6644,9 @@ function getCardAgeInColumnMs(card) {
 // Limites configuráveis por board no kanbanConfig.aging (em dias úteis):
 //   warn (default 3) | stale (default 7) | critical (default 14)
 function getCardAgingLevel(card) {
-  if (!card || card.col === TERMINAL_COL) return null;
+  if (!card) return null;
+  // Cards concluídos (done OU pago_hoje/historico em Granatum) não envelhecem
+  if (typeof _isCardConcluded === 'function' ? _isCardConcluded(card) : card.col === TERMINAL_COL) return null;
   const ageMs = getCardAgeInColumnMs(card);
   if (ageMs <= 0) return 'fresh';
   const days = ageMs / 86400000;
@@ -7144,9 +7151,24 @@ function renderModalEffort(cardId) {
 // Quando um card bloqueador atrasa (deadline passou ou aging stale+),
 // calcula o impacto em cascata nos cards dependentes.
 
+// Helper: card está concluído? Considera 'done' (todos boards) + 'pago_hoje'
+// e 'historico' (boards Granatum). Evita mostrar atraso em cards já pagos.
+function _isCardConcluded(card) {
+  if (!card) return false;
+  if (card.col === TERMINAL_COL) return true;
+  if (card.col === 'pago_hoje' || card.col === 'historico') {
+    // Confere se é board Granatum (tem essas colunas reservadas)
+    const b = (typeof allBoards !== 'undefined' && allBoards) ? allBoards[currentBoardId] : null;
+    if (b?.granatum_linked) return true;
+    // Fallback: se a coluna existe no COLS atual, é Granatum
+    if (Array.isArray(COLS) && COLS.some(c => c.id === 'historico')) return true;
+  }
+  return false;
+}
+
 // Retorna ms de atraso de um card (positivo se atrasado, 0 se ok)
 function getCardDelayMs(card) {
-  if (!card || !card.deadline || card.col === TERMINAL_COL) return 0;
+  if (!card || !card.deadline || _isCardConcluded(card)) return 0;
   const dl = new Date(card.deadline + 'T23:59:59').getTime();
   const today = Date.now();
   return Math.max(0, today - dl);
@@ -7155,7 +7177,7 @@ function getCardDelayMs(card) {
 // Retorna ms equivalente ao "atraso projetado" em função de aging crítico
 // Quando um card está há muito tempo na coluna, projetamos como atraso suposto
 function getCardProjectedDelayMs(card) {
-  if (!card || card.col === TERMINAL_COL) return 0;
+  if (!card || _isCardConcluded(card)) return 0;
   const direct = getCardDelayMs(card);
   if (direct > 0) return direct;
   // Aging só conta a partir de "stale" (~7d)
@@ -12786,7 +12808,7 @@ function _settingsGranatumSection() {
     return `
       <div class="settings-card" style="border:1px solid #1f2937;background:linear-gradient(135deg,#fefefe 0%,#f5f5f7 100%);">
         <div class="settings-card-h">
-          <span class="settings-card-title">財 Granatum · Sincronização financeira <span style="font-size:10px;font-weight:600;background:#1f2937;color:#f9fafb;padding:2px 8px;border-radius:999px;letter-spacing:.04em;text-transform:uppercase;margin-left:6px;">Faixa Preta</span></span>
+          <span class="settings-card-title">Granatum · Sincronização financeira <span style="font-size:10px;font-weight:600;background:#1f2937;color:#f9fafb;padding:2px 8px;border-radius:999px;letter-spacing:.04em;text-transform:uppercase;margin-left:6px;">Faixa Preta</span></span>
           <span class="settings-status-pill off">requer upgrade</span>
         </div>
         <div class="settings-card-sub">Sincroniza lançamentos do <a href="https://www.granatum.com.br" target="_blank" rel="noopener" style="text-decoration:underline;">Granatum</a> com seus boards Zai. Cards refletem contas a pagar/receber. Drag-drop atualiza status no Granatum automaticamente.</div>
@@ -12828,7 +12850,7 @@ function _settingsGranatumSection() {
   return `
     <div class="settings-card" style="border:1px solid #A32D2D;background:linear-gradient(135deg,#fdfcfb 0%,#fff5f0 100%);">
       <div class="settings-card-h">
-        <span class="settings-card-title">財 Granatum · Sincronização financeira</span>
+        <span class="settings-card-title">Granatum · Sincronização financeira</span>
         ${statusPill}
       </div>
       <div class="settings-card-sub">Sincroniza lançamentos do <a href="https://www.granatum.com.br" target="_blank" rel="noopener" style="text-decoration:underline;">Granatum</a> com seus boards Zai do Synkan. Cards refletem contas a pagar/receber. Drag-drop atualiza status no Granatum automaticamente.</div>
