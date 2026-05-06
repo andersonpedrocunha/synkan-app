@@ -14823,13 +14823,14 @@ async function _loadMembersDashboard(_retry = false) {
     return;
   }
   try {
-    // PASSO 1: pega boards do owner do banco — SOURCE OF TRUTH
-    const { data: dbBoards, error: bErr } = await withTimeout(
-      c.from('boards').select('id, name').eq('owner_id', supaUser.id),
-      8000, 'list owner boards'
-    );
-    if (bErr) throw bErr;
-    const myBoards = dbBoards || [];
+    // FONTE DA VERDADE: allBoards (localStorage) — mesmo conjunto do My boards.
+    // Garante que as duas telas estão SEMPRE sincronizadas.
+    let myBoards = [];
+    if (typeof allBoards === 'object' && allBoards) {
+      myBoards = Object.keys(allBoards)
+        .filter(id => allBoards[id] && !allBoards[id].archived && id !== 'unified')
+        .map(id => ({ id, name: allBoards[id].name || 'Sem nome' }));
+    }
     const boardIds = myBoards.map(b => b.id);
     if (!boardIds.length) {
       target.innerHTML = `<div style="text-align:center;padding:32px 16px;color:var(--color-text-secondary);"><div style="font-size:36px;margin-bottom:8px;">📋</div><div style="font-size:14px;">Você ainda não tem boards.</div><div style="font-size:12px;margin-top:4px;color:var(--color-text-tertiary);">Crie um em <strong>My boards</strong> pra começar a convidar pessoas.</div></div>`;
