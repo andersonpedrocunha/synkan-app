@@ -14680,6 +14680,22 @@ async function _loadMembersDashboard() {
     p,
     new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout (${ms}ms): ${label}`)), ms)),
   ]);
+  // Hidrata supaUser se ainda não estiver pronto (race condition após refresh:
+  // _loadMembersDashboard pode rodar antes do getSession() popular supaUser).
+  if (!supaUser || !supaUser.id) {
+    try {
+      const { data: { session } = {} } = await withTimeout(c.auth.getSession(), 4000, 'getSession');
+      if (session && session.user) {
+        supaUser = session.user;
+      }
+    } catch(eS) {
+      console.warn('[members dashboard] getSession falhou:', eS?.message || eS);
+    }
+  }
+  if (!supaUser || !supaUser.id) {
+    target.innerHTML = `<div class="cfg-section-hint">Sessão não está pronta. <button class="cfg-add-col" onclick="location.reload()" style="margin-left:8px;">↻ Recarregar página</button></div>`;
+    return;
+  }
   try {
     // 1) Pega boards onde sou owner
     const { data: myBoards, error: bErr } = await withTimeout(
