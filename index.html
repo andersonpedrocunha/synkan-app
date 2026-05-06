@@ -14611,20 +14611,14 @@ async function clearWebhookFromUI() {
 
 // — Settings → Membros (dashboard agregado de seats em todos os boards) —
 // ── Stripe Customer Portal: helper único reutilizável ─────────────
-// Cria sessão do portal via /api/billing/portal e abre em nova aba.
+// Cria sessão do portal via /api/billing/portal e redireciona a aba atual.
 // Usa o stripe_customer_id da subscription do usuário logado.
-// IMPORTANTE: usa cliente ISOLADO (mesmo do dashboard) pra bypass do
-// Multiple GoTrueClient. Caso contrário a query de subscriptions trava.
+// IMPORTANTE: usa cliente ISOLADO pra bypass do Multiple GoTrueClient.
 async function openStripePortal(btn) {
   const original = btn ? btn.innerHTML : null;
-  // Abre uma janela ANTES da query — se deixar pra abrir depois do await,
-  // o navegador bloqueia popup por não estar no contexto do click. Carregamos
-  // about:blank e depois trocamos pra portal_url.
-  let popup = null;
-  try { popup = window.open('about:blank', '_blank', 'noopener,noreferrer'); } catch(_) {}
   if (btn) { btn.disabled = true; btn.innerHTML = 'Abrindo portal…'; }
   try {
-    // Hidrata supaUser se ainda não populou (mesma estratégia do dashboard)
+    // Hidrata supaUser se ainda não populou
     if (!supaUser || !supaUser.id) {
       try {
         const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
@@ -14664,22 +14658,17 @@ async function openStripePortal(btn) {
     if (!r.ok || !data.portal_url) {
       throw new Error(data.error || `Erro ${r.status} ao criar sessão do portal.`);
     }
-    // Redireciona o popup já aberto (sem bloqueio do navegador)
-    if (popup && !popup.closed) {
-      try { popup.location.href = data.portal_url; }
-      catch(_) { window.open(data.portal_url, '_blank', 'noopener'); }
-    } else {
-      window.open(data.portal_url, '_blank', 'noopener');
-    }
+    // Redireciona a aba ATUAL pro portal — quando o user voltar do Stripe,
+    // a return_url do portal traz ele de volta pro app (?from=portal).
+    // Sem popup blocker, sem about:blank, sem complicação.
+    window.location.href = data.portal_url;
   } catch(e) {
     console.error('[openStripePortal]', e);
-    if (popup && !popup.closed) { try { popup.close(); } catch(_) {} }
     if (typeof appAlert === 'function') {
       appAlert('Não consegui abrir o portal', e?.message || String(e), { icon:'⚠️' });
     } else {
       alert('Não consegui abrir o portal: ' + (e?.message || String(e)));
     }
-  } finally {
     if (btn && original) { btn.innerHTML = original; btn.disabled = false; }
   }
 }
@@ -14708,7 +14697,7 @@ function _settingsMembrosSection() {
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
         <div style="min-width:0;flex:1;">
           <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Pagamento</div>
-          <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.5;">Cartão, faturas, cancelamento e dados fiscais.</div>
+          <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.5;">Cartão, faturas, cancelamento e dados fiscais (Stripe).</div>
         </div>
         <button class="btn-c" onclick="openStripePortal(this)" style="font-size:12px;padding:7px 14px;flex-shrink:0;">💳 Gerenciar pagamento</button>
       </div>
