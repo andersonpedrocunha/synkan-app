@@ -14668,10 +14668,10 @@ function _settingsMembrosSection() {
 }
 
 // Carrega assincronamente: lista boards do owner + members + agrega
-async function _loadMembersDashboard() {
+async function _loadMembersDashboard(_retry = false) {
   const target = document.getElementById('membros-dashboard');
   if (!target) return;
-  const c = _ensureSupaClient(); if (!c) {
+  let c = _ensureSupaClient(); if (!c) {
     target.innerHTML = '<div class="cfg-section-hint">Sem cliente Supabase.</div>'; return;
   }
   // Helper de timeout — se uma query do Supabase pendurar (RLS, rede, etc),
@@ -14796,6 +14796,24 @@ async function _loadMembersDashboard() {
     target.innerHTML = html;
   } catch(e) {
     console.error('[members dashboard]', e);
+    const isTimeout = /timeout/i.test(e?.message || '');
+    // Auto-retry 1x: se for timeout (cliente Supabase travado por Multiple
+    // GoTrueClient ou estado preso), recria o cliente do zero, restaura
+    // sessão e tenta de novo automaticamente.
+    if (isTimeout && !_retry) {
+      console.warn('[members dashboard] timeout detectado — recriando cliente Supabase…');
+      target.innerHTML = '<div class="cfg-section-hint">Conexão travou — recriando sessão e tentando de novo…</div>';
+      try {
+        if (supaClient) { try { supaClient.auth.stopAutoRefresh && supaClient.auth.stopAutoRefresh(); } catch(_){} }
+        supaClient = null;
+        const cNew = _ensureSupaClient();
+        if (cNew) {
+          const { data: { session } = {} } = await cNew.auth.getSession();
+          if (session && session.user) supaUser = session.user;
+        }
+      } catch(eR) { console.warn('[members dashboard] recreate falhou:', eR); }
+      return _loadMembersDashboard(true);
+    }
     target.innerHTML = `<div class="cfg-section-hint" style="color:var(--color-danger);">Erro ao carregar: ${_esc(e?.message || String(e))}. <button class="cfg-add-col" onclick="_loadMembersDashboard()" style="margin-left:8px;">↻ Tentar de novo</button></div>`;
   }
 }
