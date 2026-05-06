@@ -14667,12 +14667,58 @@ function _settingsMembrosSection() {
     </div>`;
 }
 
+// Cria um cliente Supabase ISOLADO (storageKey único, sem persist, sem realtime).
+// Usado como fallback quando o cliente principal trava por conflito de
+// "Multiple GoTrueClient instances". Restaura a sessão manualmente.
+async function _makeIsolatedSupaClient() {
+  const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+  if (!cfg || !cfg.url || !cfg.anonKey) return null;
+  if (!window.supabase || !window.supabase.createClient) return null;
+  // Pega session do cliente principal (se existir) antes de criar o isolado
+  let savedSession = null;
+  try {
+    if (supaClient) {
+      const { data } = await Promise.race([
+        supaClient.auth.getSession(),
+        new Promise(r => setTimeout(() => r({ data: { session: null } }), 2000)),
+      ]);
+      savedSession = data?.session || null;
+    }
+  } catch(_) {}
+  const isoKey = 'sb-isolated-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+  const iso = window.supabase.createClient(cfg.url, cfg.anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      storageKey: isoKey,
+      // Storage in-memory dummy: garante zero leitura/escrita em localStorage
+      storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+    },
+    realtime: { params: { eventsPerSecond: 0 } },
+  });
+  // Restaura tokens manualmente — assim queries vão com auth válido
+  if (savedSession?.access_token && savedSession?.refresh_token) {
+    try {
+      await iso.auth.setSession({
+        access_token: savedSession.access_token,
+        refresh_token: savedSession.refresh_token,
+      });
+    } catch(e) { console.warn('[isolated client] setSession falhou:', e); }
+  }
+  return iso;
+}
+
 // Carrega assincronamente: lista boards do owner + members + agrega
 async function _loadMembersDashboard(_retry = false) {
   const target = document.getElementById('membros-dashboard');
   if (!target) return;
   let c = _ensureSupaClient(); if (!c) {
     target.innerHTML = '<div class="cfg-section-hint">Sem cliente Supabase.</div>'; return;
+  }
+  // Se for retry, usa cliente isolado pra evitar conflito
+  if (_retry) {
+    const iso = await _makeIsolatedSupaClient();
+    if (iso) c = iso;
   }
   // Helper de timeout — se uma query do Supabase pendurar (RLS, rede, etc),
   // mostramos erro visível em vez de "Carregando…" eterno.
@@ -14795,23 +14841,13 @@ async function _loadMembersDashboard(_retry = false) {
     });
     target.innerHTML = html;
   } catch(e) {
-    console.error('[members dashboard]', e);
+    console.error('[members dashboard]' + (_retry ? ' (retry com cliente isolado)' : ''), e);
     const isTimeout = /timeout/i.test(e?.message || '');
-    // Auto-retry 1x: se for timeout (cliente Supabase travado por Multiple
-    // GoTrueClient ou estado preso), recria o cliente do zero, restaura
-    // sessão e tenta de novo automaticamente.
+    // Auto-retry 1x com cliente ISOLADO (storageKey único, sem realtime,
+    // sem persist) — bypassa qualquer briga de Multiple GoTrueClient.
     if (isTimeout && !_retry) {
-      console.warn('[members dashboard] timeout detectado — recriando cliente Supabase…');
-      target.innerHTML = '<div class="cfg-section-hint">Conexão travou — recriando sessão e tentando de novo…</div>';
-      try {
-        if (supaClient) { try { supaClient.auth.stopAutoRefresh && supaClient.auth.stopAutoRefresh(); } catch(_){} }
-        supaClient = null;
-        const cNew = _ensureSupaClient();
-        if (cNew) {
-          const { data: { session } = {} } = await cNew.auth.getSession();
-          if (session && session.user) supaUser = session.user;
-        }
-      } catch(eR) { console.warn('[members dashboard] recreate falhou:', eR); }
+      console.warn('[members dashboard] timeout — tentando com cliente isolado…');
+      target.innerHTML = '<div class="cfg-section-hint">Conexão travou — usando sessão isolada pra contornar conflito de instâncias…</div>';
       return _loadMembersDashboard(true);
     }
     target.innerHTML = `<div class="cfg-section-hint" style="color:var(--color-danger);">Erro ao carregar: ${_esc(e?.message || String(e))}. <button class="cfg-add-col" onclick="_loadMembersDashboard()" style="margin-left:8px;">↻ Tentar de novo</button></div>`;
