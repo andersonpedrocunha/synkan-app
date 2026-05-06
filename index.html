@@ -19403,8 +19403,39 @@ async function supaInviteByEmail(boardId, email, role) {
 }
 
 async function supaRemoveMember(boardId, userId) {
-  const c = _ensureSupaClient(); if(!c) return;
-  await c.from('board_members').delete().eq('board_id', boardId).eq('user_id', userId);
+  // Cliente isolado pra evitar Multiple GoTrueClient travamento
+  let c = (typeof _getOrCreateIsolatedClient === 'function')
+    ? await _getOrCreateIsolatedClient()
+    : null;
+  if (!c) c = _ensureSupaClient();
+  if (!c) return { error: 'sem cliente' };
+  const withTimeout = (p, ms, label) => Promise.race([
+    p, new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout: ${label}`)), ms)),
+  ]);
+  try {
+    // Remove member
+    const { error } = await withTimeout(
+      c.from('board_members').delete().eq('board_id', boardId).eq('user_id', userId),
+      6000, 'remove member'
+    );
+    if (error) return { error };
+    // Limpa também invites pendentes desse user (se ele tiver email no profile)
+    try {
+      const { data: prof } = await withTimeout(
+        c.from('profiles').select('email').eq('id', userId).maybeSingle(),
+        4000, 'remove: lookup email'
+      );
+      if (prof?.email) {
+        await withTimeout(
+          c.from('board_invites').delete().eq('board_id', boardId).eq('email', prof.email),
+          4000, 'remove: cleanup invite'
+        );
+      }
+    } catch(_) { /* ignora */ }
+    return { error: null };
+  } catch(e) {
+    return { error: e?.message || String(e) };
+  }
 }
 
 // — Boot routing —
@@ -20493,7 +20524,11 @@ async function removeMember(userId) {
 
   const ok = await appConfirm('Remover do board', 'Remover essa pessoa do board?', { danger:true, okLabel:'Remover' });
   if (!ok) return;
-  await supaRemoveMember(currentBoardId, userId);
+  const result = await supaRemoveMember(currentBoardId, userId);
+  if (result?.error) {
+    appAlert('Erro ao remover', result.error.message || String(result.error), { icon:'⚠️' });
+    return;
+  }
   // Se removeu um seat pago, recalcula no Stripe
   if (wasPaidSeat) {
     _updateSeatsFromMembers().catch(e => console.warn('[seats] update falhou:', e));
