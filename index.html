@@ -11042,15 +11042,12 @@ function _obKey(){
     return uid ? (OB_DONE_KEY + '_' + uid) : OB_DONE_KEY;
   } catch(e) { return OB_DONE_KEY; }
 }
-// Limpa flag global legada (versão antiga). NÃO atribui ao user atual —
-// não sabemos QUEM viu o tour antes (pode ter sido outro user no mesmo
-// navegador). Se o user atual nunca viu, deve ver agora.
-function _migrateOnboardingFlag() {
-  try { localStorage.removeItem(OB_DONE_KEY); } catch(e){}
-}
+// REMOVIDA: a antiga _migrateOnboardingFlag() limpava a chave global toda vez
+// que isOnboardingDone() rodava — bug que fazia o tour reabrir em refresh
+// quando supaUser ainda não tinha populado. Hoje markOnboardingDone() salva
+// em AMBAS as chaves (com uid + global), então não precisa migrar nada.
 function isOnboardingDone(){
   try {
-    _migrateOnboardingFlag();
     // Lê chave com uid e chave global como fallback — se QUALQUER uma indica
     // visto, considera done. Defesa contra race condition onde o supaUser
     // ainda não populou e markOnboardingDone() salvou na chave global.
