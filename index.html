@@ -22376,6 +22376,158 @@ function setTrackerPeriod(p) {
   if (typeof renderTracker === 'function') renderTracker();
 }
 
+// Export PDF: monta HTML formatado em popup e dispara print do navegador.
+// User pode "Salvar como PDF" no diálogo de impressão (Cmd+P padrão).
+function exportTrackerPDF() {
+  const range = _trackerPeriodRange();
+  const stats = _aggregateTrackedTime(cards);
+  const periodLabels = { today:'Hoje', '7d':'Últimos 7 dias', '30d':'Últimos 30 dias', all:'Todos os períodos' };
+  const periodLabel = periodLabels[_trackerPeriod] || 'Período';
+  const boardName = (allBoards[currentBoardId]?.name) || 'Board';
+  const generated = new Date().toLocaleString('pt-BR');
+
+  // Linhas da tabela de entries
+  const entriesRows = [];
+  for (const c of cards || []) {
+    for (const e of (c.timeEntries || [])) {
+      const start = new Date(e.start).getTime();
+      const end = e.end ? new Date(e.end).getTime() : Date.now();
+      const fStart = Math.max(start, range.start);
+      const fEnd = Math.min(end, range.end);
+      if (fEnd <= fStart) continue;
+      entriesRows.push({
+        card: c.name || '',
+        col: (COLS.find(x => x.id === c.col)?.title) || c.col || '',
+        user: _trackerResolveName(e),
+        start: new Date(e.start).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}),
+        end: e.end ? new Date(e.end).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '<em>rodando</em>',
+        duration: _formatTime(fEnd - fStart),
+        source: e.source === 'auto-column' ? 'Automático' : 'Manual',
+      });
+    }
+  }
+  entriesRows.sort((a, b) => b.start.localeCompare(a.start));
+
+  // Sumário por pessoa
+  const peopleArr = Array.from(stats.byPerson.entries()).sort((a,b)=>b[1]-a[1]);
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="utf-8" />
+      <title>Relatório de tempo · ${_esc(boardName)}</title>
+      <style>
+        @page { size: A4; margin: 18mm 14mm; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; color:#1a1a1a; font-size:11pt; line-height:1.5; margin:0; }
+        .header { border-bottom: 2px solid #0f0f0f; padding-bottom: 12px; margin-bottom: 18px; }
+        .brand { font-size:20pt; font-weight:700; letter-spacing:-0.02em; }
+        .brand-sub { font-size:9pt; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin-top:2px; }
+        h1 { font-size:18pt; margin:18px 0 4px; }
+        .meta { font-size:9.5pt; color:#666; margin-bottom:18px; }
+        .stats-row { display:flex; gap:16px; margin-bottom:22px; flex-wrap:wrap; }
+        .stat { background:#fafaf9; border:1px solid #e7e5e4; border-radius:8px; padding:12px 16px; flex:1; min-width:140px; }
+        .stat-label { font-size:8.5pt; color:#888; text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
+        .stat-value { font-size:18pt; font-weight:700; margin-top:2px; }
+        h2 { font-size:13pt; margin:22px 0 8px; padding-bottom:4px; border-bottom:1px solid #e7e5e4; }
+        table { width:100%; border-collapse: collapse; font-size:9.5pt; }
+        th { text-align:left; background:#fafaf9; padding:8px 10px; font-weight:600; font-size:8.5pt; text-transform:uppercase; letter-spacing:.04em; color:#525252; border-bottom:1.5px solid #d4d4d2; }
+        td { padding:7px 10px; border-bottom:1px solid #ededed; vertical-align:top; }
+        tr:last-child td { border-bottom:none; }
+        .person-row { display:flex; justify-content:space-between; padding:7px 10px; border-bottom:1px solid #ededed; }
+        .person-name { font-weight:500; }
+        .person-time { font-variant-numeric:tabular-nums; font-weight:600; color:#3C3489; }
+        .footer { margin-top:30px; padding-top:12px; border-top:1px solid #e7e5e4; font-size:8.5pt; color:#999; text-align:center; }
+        @media print { .no-print { display:none !important; } }
+        .print-bar { position:fixed; top:0; left:0; right:0; background:#0f0f0f; color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; z-index:9999; }
+        .print-btn { background:#fff; color:#0f0f0f; border:none; padding:7px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; }
+        body { padding-top:50px; padding-left:20px; padding-right:20px; padding-bottom:20px; }
+        @media print { body { padding:0; } }
+      </style>
+    </head>
+    <body>
+      <div class="print-bar no-print">
+        <span>Pré-visualização do relatório · clique pra imprimir/salvar como PDF</span>
+        <button class="print-btn" onclick="window.print()">⬇ Salvar como PDF</button>
+      </div>
+      <div class="header">
+        <div class="brand">Synkan</div>
+        <div class="brand-sub">道場 · Relatório de tempo</div>
+      </div>
+      <h1>${_esc(boardName)}</h1>
+      <div class="meta">${periodLabel} · gerado em ${generated}</div>
+
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-label">Total trackeado</div>
+          <div class="stat-value">${_formatTimeLong(stats.totalMs)}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Cards</div>
+          <div class="stat-value">${stats.cardsWithTime}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Pessoas</div>
+          <div class="stat-value">${stats.byPerson.size}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Entries</div>
+          <div class="stat-value">${entriesRows.length}</div>
+        </div>
+      </div>
+
+      ${peopleArr.length ? `
+        <h2>Tempo por pessoa</h2>
+        <div>
+          ${peopleArr.map(([name, ms]) => {
+            const pct = stats.totalMs > 0 ? Math.round((ms/stats.totalMs)*100) : 0;
+            return `<div class="person-row"><span class="person-name">${_esc(name)}</span><span class="person-time">${_formatTime(ms)} · ${pct}%</span></div>`;
+          }).join('')}
+        </div>
+      ` : ''}
+
+      ${entriesRows.length ? `
+        <h2>Detalhamento (${entriesRows.length} entries)</h2>
+        <table>
+          <thead>
+            <tr><th>Card</th><th>Coluna</th><th>Usuário</th><th>Início</th><th>Fim</th><th>Duração</th><th>Tipo</th></tr>
+          </thead>
+          <tbody>
+            ${entriesRows.map(r => `
+              <tr>
+                <td>${_esc(r.card)}</td>
+                <td>${_esc(r.col)}</td>
+                <td>${_esc(r.user)}</td>
+                <td>${r.start}</td>
+                <td>${r.end}</td>
+                <td><strong>${r.duration}</strong></td>
+                <td>${r.source}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      ` : '<p style="color:#888;font-size:10pt;">Nenhuma entry no período selecionado.</p>'}
+
+      <div class="footer">
+        Relatório gerado automaticamente pelo Synkan · app.synkan.com.br
+      </div>
+    </body>
+    </html>
+  `;
+
+  const w = window.open('', '_blank');
+  if (!w) {
+    alert('Permita popups pra exportar PDF, ou use Cmd+P na página do tracker.');
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  // Auto-dispara print depois que carregar (user pode salvar como PDF)
+  setTimeout(() => { try { w.focus(); } catch(_) {} }, 100);
+}
+
 // Export CSV das entries (período atual)
 function exportTrackerCSV() {
   const range = _trackerPeriodRange();
@@ -22560,12 +22712,69 @@ function renderTracker() {
             return `<button onclick="setTrackerPeriod('${p}')" style="background:${active?'#fff':'transparent'};color:${active?'#3C3489':'#fff'};border:none;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;transition:all .15s;">${labels[p]}</button>`;
           }).join('')}
         </div>
-        <div style="display:flex;gap:8px;">
-          <button class="tracker-cta-bill" style="background:rgba(255,255,255,0.15);box-shadow:none;" onclick="exportTrackerCSV()" title="Exportar entries do período como CSV">⬇ Exportar CSV</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="tracker-cta-bill" style="background:rgba(255,255,255,0.15);box-shadow:none;" onclick="exportTrackerPDF()" title="Exportar como PDF (via diálogo de impressão do navegador)">📄 Exportar PDF</button>
+          <button class="tracker-cta-bill" style="background:rgba(255,255,255,0.15);box-shadow:none;" onclick="exportTrackerCSV()" title="Exportar entries do período como CSV (Excel/Sheets)">⬇ Exportar CSV</button>
           <button class="tracker-cta-bill" onclick="openBillingPanel()"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M8 1.7v12.6"/><path d="M11.3 4.6H6.5a1.9 1.9 0 0 0 0 3.8h3a1.9 1.9 0 0 1 0 3.8H4.7"/></svg> Adicionar cobrança</button>
         </div>
       </div>
     </div>
+
+    <details class="tracker-card" style="margin:0;">
+      <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;padding:4px 2px;">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span style="display:inline-flex;width:24px;height:24px;border-radius:50%;background:#EEEDFE;color:#3C3489;font-size:13px;align-items:center;justify-content:center;font-weight:700;">?</span>
+          <span style="font-size:14px;font-weight:600;color:var(--color-text-primary);">Como trackear o tempo das tasks</span>
+        </span>
+        <span style="font-size:11px;color:var(--color-text-tertiary);">clique pra expandir ↓</span>
+      </summary>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--color-border-tertiary);font-size:13px;line-height:1.7;color:var(--color-text-secondary);">
+        <p style="margin:0 0 14px;"><strong style="color:var(--color-text-primary);">O Synkan tem 2 modos de trackear tempo</strong> — manual e automático. Cada usuário tem o próprio timer no card, e você pode ter várias pessoas trabalhando ao mesmo tempo na mesma task.</p>
+
+        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;margin-bottom:12px;">
+          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">▶ Modo manual</div>
+          <ol style="margin:0;padding-left:18px;">
+            <li>Abra qualquer card no Kanban</li>
+            <li>Role até a seção <strong style="color:var(--color-text-primary);">Tempo trabalhado</strong></li>
+            <li>Clique em <strong style="color:var(--color-text-primary);">▶ Iniciar meu timer</strong> pra começar</li>
+            <li>Pause com <strong style="color:var(--color-text-primary);">⏸ Pausar meu timer</strong> ou ao mudar de task</li>
+          </ol>
+        </div>
+
+        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;margin-bottom:12px;">
+          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">⚡ Modo automático (recomendado)</div>
+          <ol style="margin:0;padding-left:18px;">
+            <li>No board, clique na engrenagem <strong style="color:var(--color-text-primary);">⚙</strong> no canto superior direito</li>
+            <li>Role até a seção <strong style="color:var(--color-text-primary);">Time tracking automático</strong></li>
+            <li>Marque quais colunas <strong style="color:var(--color-text-primary);">▶ iniciam</strong> o tracker (ex: "Em andamento")</li>
+            <li>Marque quais <strong style="color:var(--color-text-primary);">⏸ param</strong> (ex: "Concluído", "Em produção")</li>
+            <li>No card, defina <strong style="color:var(--color-text-primary);">Atribuído a</strong> apontando pra um membro real do board</li>
+            <li>Quando você (ou alguém atribuído) mover o card pra coluna que inicia, o timer dispara sozinho</li>
+          </ol>
+        </div>
+
+        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;margin-bottom:12px;">
+          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">👥 Trabalho em equipe</div>
+          <ul style="margin:0;padding-left:18px;">
+            <li>Várias pessoas podem ter timers ativos no mesmo card simultaneamente</li>
+            <li>Cada pessoa controla só o próprio timer (não interfere nos outros)</li>
+            <li>O card mostra <strong style="color:var(--color-text-primary);">"X pessoas trabalhando agora"</strong> quando há múltiplos ativos</li>
+            <li>Pra adicionar membros: botão <strong style="color:var(--color-text-primary);">👥 Compartilhar</strong> no header do board</li>
+          </ul>
+        </div>
+
+        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;">
+          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">📊 Relatórios e exportação</div>
+          <ul style="margin:0;padding-left:18px;">
+            <li>Use os filtros <strong style="color:var(--color-text-primary);">Hoje / 7 dias / 30 dias / Tudo</strong> no topo desta página</li>
+            <li>Veja tempo agregado <strong style="color:var(--color-text-primary);">por pessoa</strong>, <strong style="color:var(--color-text-primary);">por coluna</strong> e <strong style="color:var(--color-text-primary);">por card</strong> nos painéis abaixo</li>
+            <li><strong style="color:var(--color-text-primary);">📄 Exportar PDF</strong> — gera relatório formatado pra imprimir/salvar (ideal pra cliente)</li>
+            <li><strong style="color:var(--color-text-primary);">⬇ Exportar CSV</strong> — baixa entries individuais pra Excel/Sheets/timesheet</li>
+            <li><strong style="color:var(--color-text-primary);">$ Adicionar cobrança</strong> — converte tempo em fatura</li>
+          </ul>
+        </div>
+      </div>
+    </details>
 
     <div class="tracker-stat-grid">
       <div class="tracker-stat">
