@@ -14701,6 +14701,17 @@ function _readSupaTokensFromLocalStorage(supaUrl) {
   }
 }
 
+// Cache do cliente isolado — criado 1x por sessão, reusado.
+// Invalidado ao trocar de conta (ver _onSignedOut).
+let _supaIsolatedClient = null;
+function _invalidateIsolatedClient() { _supaIsolatedClient = null; }
+
+async function _getOrCreateIsolatedClient() {
+  if (_supaIsolatedClient) return _supaIsolatedClient;
+  _supaIsolatedClient = await _makeIsolatedSupaClient();
+  return _supaIsolatedClient;
+}
+
 // Cria um cliente Supabase ISOLADO (storageKey único, sem persist, sem realtime).
 // Usado como fallback quando o cliente principal trava por conflito de
 // "Multiple GoTrueClient instances". Restaura a sessão lendo o JWT direto
@@ -14739,25 +14750,33 @@ async function _makeIsolatedSupaClient() {
 async function _loadMembersDashboard(_retry = false) {
   const target = document.getElementById('membros-dashboard');
   if (!target) return;
-  let c = _ensureSupaClient(); if (!c) {
-    target.innerHTML = '<div class="cfg-section-hint">Sem cliente Supabase.</div>'; return;
+  // USA SEMPRE o cliente isolado (cacheado) — bypassa o conflito de Multiple
+  // GoTrueClient sem sofrer 6s de timeout. Read-only, então não precisa do
+  // cliente principal com realtime/auto-refresh.
+  let c = await _getOrCreateIsolatedClient();
+  if (!c) {
+    c = _ensureSupaClient();
+    if (!c) {
+      target.innerHTML = '<div class="cfg-section-hint">Sem cliente Supabase.</div>'; return;
+    }
   }
-  // Se for retry, usa cliente isolado pra evitar conflito
-  if (_retry) {
-    const iso = await _makeIsolatedSupaClient();
-    if (iso) c = iso;
-  }
-  // Helper de timeout — se uma query do Supabase pendurar (RLS, rede, etc),
-  // mostramos erro visível em vez de "Carregando…" eterno.
+  // Helper de timeout
   const withTimeout = (p, ms, label) => Promise.race([
     p,
     new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout (${ms}ms): ${label}`)), ms)),
   ]);
-  // Hidrata supaUser se ainda não estiver pronto (race condition após refresh:
-  // _loadMembersDashboard pode rodar antes do getSession() popular supaUser).
+  // Hidrata supaUser via JWT do localStorage (síncrono, sem getSession travado)
   if (!supaUser || !supaUser.id) {
     try {
-      const { data: { session } = {} } = await withTimeout(c.auth.getSession(), 4000, 'getSession');
+      const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+      const tokens = cfg ? _readSupaTokensFromLocalStorage(cfg.url) : null;
+      if (tokens?.user?.id) supaUser = tokens.user;
+    } catch(_) {}
+  }
+  // Fallback: se ainda não tem, tenta via getSession do cliente isolado (pode estar OK)
+  if (!supaUser || !supaUser.id) {
+    try {
+      const { data: { session } = {} } = await withTimeout(c.auth.getSession(), 3000, 'getSession');
       if (session && session.user) {
         supaUser = session.user;
       }
@@ -19582,6 +19601,7 @@ async function _onSignedOut() {
   _lastSignedInUserId = null;
   window._didInitialSignIn = false; // permite switchTab('home') no próximo login real
   try { _capInvalidateJWTCache && _capInvalidateJWTCache(); } catch(e){}
+  try { _invalidateIsolatedClient && _invalidateIsolatedClient(); } catch(e){}
   if (supaRealtimeCh && supaClient) { supaClient.removeChannel(supaRealtimeCh); supaRealtimeCh = null; }
   showAuthOverlay(true);
   refreshAccountUI();
