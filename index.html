@@ -5654,11 +5654,14 @@ const PLAN_LIMITS = {
 };
 // seats   = ADMINS pagos (mesmo valor do plano; -1 = ilimitado).
 //           Trial = 1 (só o owner, não pode adicionar admin pago).
-// editors = EXTERNOS/CLIENTES, GRÁTIS, só veem o board compartilhado.
-//           Trial = 1 (chefe), Faixa Azul/Roxa = 3, Faixa Preta = 5.
-// viewers = só leitura, GRÁTIS (Trial = 0, Azul/Roxa = 5, Preta = 10).
-// convidados foi REMOVIDO — Editor cobre essa função em todos os planos.
-// Mantida chave 'convidados' como alias de 'editors' pra retrocompat (código legacy).
+// editors = LIMITE DE BOARDS POR EDITOR — cada editor (externo/cliente) pode
+//           acessar no máximo N boards do owner. GRÁTIS.
+//           Faixa Azul/Roxa = 3 boards/pessoa, Faixa Preta = 5 boards/pessoa.
+// viewers = LIMITE DE BOARDS POR VIEWER — cada viewer pode acessar no máximo N
+//           boards do owner. GRÁTIS.
+//           Trial = 1 (chefe), Azul/Roxa = 5, Preta = 10.
+// O número total de pessoas convidadas é ilimitado — só limita quantos boards
+// cada pessoa específica pode ver.
 
 let _currentPlan = null;          // plan_code carregado do Supabase
 let _aiUsageThisMonth = 0;        // contador local de chamadas IA neste mês
@@ -14734,8 +14737,9 @@ function _settingsMembrosSection() {
       <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Como funciona a cobrança</div>
       <div style="font-size:13px;line-height:1.7;color:var(--color-text-secondary);">
         <strong style="color:var(--color-text-primary);">Admin</strong> tem acesso total e é <strong>seat pago</strong> — cada um soma <strong style="color:var(--color-text-primary);">R$ ${(limits.price||0).toFixed(2).replace('.',',')}/mês</strong> (mesmo valor do plano).<br/>
-        <strong style="color:var(--color-text-primary);">Editor</strong> é <strong>externo/cliente</strong> — vê só os boards onde foi adicionado, <strong>grátis</strong>. Limite: ${(limits.editors === -1) ? 'ilimitado' : limits.editors} por board.<br/>
-        <strong style="color:var(--color-text-primary);">Viewer</strong> só lê, <strong>grátis</strong>. Limite: ${(limits.viewers === -1) ? 'ilimitado' : limits.viewers} por board.
+        <strong style="color:var(--color-text-primary);">Editor</strong> é <strong>externo/cliente</strong>, <strong>grátis</strong> — pode ser adicionado em até <strong style="color:var(--color-text-primary);">${(limits.editors === -1) ? '∞' : limits.editors}</strong> ${limits.editors===1?'board seu':'boards seus'}.<br/>
+        <strong style="color:var(--color-text-primary);">Viewer</strong> só lê, <strong>grátis</strong> — pode ser adicionado em até <strong style="color:var(--color-text-primary);">${(limits.viewers === -1) ? '∞' : limits.viewers}</strong> ${limits.viewers===1?'board seu':'boards seus'}.<br/>
+        <span style="font-size:11.5px;opacity:.85;">O limite é por <strong>pessoa</strong> (não por board) — você convida quantas pessoas quiser.</span>
       </div>
     </div>
 
@@ -19561,6 +19565,62 @@ async function _processPendingInvite() {
   }
 }
 
+// Conta em quantos boards do owner atual (supaUser) o email/user já é membro
+// com a role indicada. Usado pelos GATEs de Viewer/Editor (limite POR PESSOA).
+// Considera convites pendentes em board_invites também — pessoa que tem invite
+// mas ainda não aceitou já ocupa um "slot".
+async function _countBoardsForMemberByRole(email, role) {
+  if (!email || !role || !supaUser?.id) return 0;
+  let c = (typeof _getOrCreateIsolatedClient === 'function')
+    ? await _getOrCreateIsolatedClient() : null;
+  if (!c) c = _ensureSupaClient();
+  if (!c) return 0;
+  const withTimeout = (p, ms, label) => Promise.race([
+    p, new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout: ${label}`)), ms)),
+  ]);
+  const cleanEmail = String(email).trim().toLowerCase();
+  let userId = null;
+  try {
+    // Procura user_id do email
+    const { data: profs } = await withTimeout(
+      c.from('profiles').select('id').eq('email', cleanEmail).limit(1),
+      5000, 'count: lookup profile'
+    );
+    userId = profs?.[0]?.id || null;
+  } catch(_) {}
+
+  let countMembers = 0;
+  if (userId) {
+    try {
+      // Boards onde sou owner E user já é membro com essa role
+      const { data: rows } = await withTimeout(
+        c.from('board_members')
+          .select('board_id, boards!inner(owner_id)')
+          .eq('user_id', userId)
+          .eq('role', role)
+          .eq('boards.owner_id', supaUser.id),
+        5000, 'count: members by role'
+      );
+      countMembers = (rows || []).length;
+    } catch(_) {}
+  }
+  let countInvites = 0;
+  try {
+    // Convites pendentes (não aceitos ainda) pra esse email com essa role
+    const { data: invs } = await withTimeout(
+      c.from('board_invites')
+        .select('board_id, role, accepted_at, boards!inner(owner_id)')
+        .eq('email', cleanEmail)
+        .eq('role', role)
+        .is('accepted_at', null)
+        .eq('boards.owner_id', supaUser.id),
+      5000, 'count: pending invites'
+    );
+    countInvites = (invs || []).length;
+  } catch(_) {}
+  return countMembers + countInvites;
+}
+
 async function supaInviteByEmail(boardId, email, role) {
   // Cliente isolado pra evitar Multiple GoTrueClient travamento
   let c = (typeof _getOrCreateIsolatedClient === 'function')
@@ -20516,13 +20576,12 @@ async function _renderMembersInto(targetElId, boardId) {
     const editorsUsed = list.filter(m => m.role === 'editor').length;
     const viewersUsed = list.filter(m => m.role === 'viewer').length;
     const limits = getCurrentPlanLimits();
-    const fmt = (used, lim) => lim === -1 ? `${used}/∞` : `${used}/${lim}`;
     html += `
       <div style="margin-top:14px;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;font-size:11.5px;color:var(--color-text-secondary);line-height:1.7;">
-        <strong>Uso de membros neste board</strong> ·
-        ${adminsUsed} admin${adminsUsed!==1?'s':''} pago${adminsUsed!==1?'s':''} ·
-        ${fmt(editorsUsed, limits.editors)} editores externos ·
-        ${fmt(viewersUsed, limits.viewers)} viewers
+        <strong>Neste board</strong> · ${adminsUsed} admin${adminsUsed!==1?'s':''} pago${adminsUsed!==1?'s':''} ·
+        ${editorsUsed} editor${editorsUsed!==1?'es':''} externo${editorsUsed!==1?'s':''} ·
+        ${viewersUsed} viewer${viewersUsed!==1?'s':''}
+        <br/><span style="font-size:10.5px;opacity:.8;">Limite por pessoa: Editor pode ver ${limits.editors===-1?'∞':limits.editors} boards · Viewer pode ver ${limits.viewers===-1?'∞':limits.viewers} boards</span>
       </div>
       <div class="cfg-team-add" style="margin-top:8px;">
         <input id="cfg-invite-email" type="email" placeholder="email@empresa.com"
@@ -20611,27 +20670,24 @@ async function inviteMember() {
     }
   }
 
-  // GATE 2: VIEWER — limite por plano (Trial=0, Azul/Roxa=5, Preta=10)
-  if (role === 'viewer') {
-    const used = list.filter(m => m.role === 'viewer').length;
-    if (limits.viewers !== -1 && used >= limits.viewers) {
-      appAlert(`Limite de viewers atingido (${used}/${limits.viewers})`,
-        `Sua ${limits.name} permite até <strong>${limits.viewers}</strong> viewer${limits.viewers!==1?'s':''}. Pra adicionar mais, faça upgrade.`,
-        { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não', html:true,
-          onOk: () => window.open(getUpgradeURL(), '_blank') });
-      return;
-    }
-  }
-
-  // GATE 3: EDITOR — externo grátis, limite por plano (Azul/Roxa=3, Preta=5)
-  if (role === 'editor' && planCode !== 'trial') {
-    const used = list.filter(m => m.role === 'editor').length;
-    if (limits.editors !== -1 && used >= limits.editors) {
-      appAlert(`Limite de editores externos atingido (${used}/${limits.editors})`,
-        `Sua ${limits.name} permite até <strong>${limits.editors}</strong> editores externos (clientes/colaboradores). Pra adicionar mais, faça upgrade.`,
-        { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não', html:true,
-          onOk: () => window.open(getUpgradeURL(), '_blank') });
-      return;
+  // GATE 2 e 3: VIEWER e EDITOR — limite POR PESSOA (em quantos boards do owner
+  // essa pessoa específica já tem acesso com essa role).
+  // Trial já foi tratado acima; aqui é Azul/Roxa/Preta.
+  if (planCode !== 'trial' && (role === 'viewer' || role === 'editor')) {
+    const limit = role === 'viewer' ? limits.viewers : limits.editors;
+    if (limit !== -1) {
+      // Conta quantos boards do owner (supaUser) essa pessoa já é membro com essa role
+      const userBoardsCount = await _countBoardsForMemberByRole(email, role);
+      if (userBoardsCount >= limit) {
+        const roleLabel = role === 'viewer' ? 'Viewer' : 'Editor';
+        appAlert(`Limite de boards atingido pra ${roleLabel}`,
+          `<strong>${_esc(email)}</strong> já é ${_esc(roleLabel)} em <strong>${userBoardsCount}</strong> ${userBoardsCount===1?'board seu':'boards seus'}. ` +
+          `Sua ${_esc(limits.name)} permite que cada ${_esc(roleLabel)} acesse no máximo <strong>${limit}</strong> ${limit===1?'board':'boards'}. ` +
+          `Pra dar acesso a mais boards, remova de algum board ou faça upgrade.`,
+          { icon:'🔒', okLabel:'Fazer upgrade', cancelLabel:'Agora não', html:true,
+            onOk: () => window.open(getUpgradeURL(), '_blank') });
+        return;
+      }
     }
   }
 
