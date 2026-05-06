@@ -19255,16 +19255,37 @@ async function supaListMembers(boardId) {
 }
 
 async function supaInviteByEmail(boardId, email, role) {
-  const c = _ensureSupaClient(); if(!c) return { error: 'sem cliente' };
-  // 1) procura usuário existente com esse e-mail
-  const { data: profiles } = await c.from('profiles').select('id, email').eq('email', email.trim()).limit(1);
-  if (profiles && profiles.length) {
-    const { error } = await c.from('board_members').upsert({ board_id: boardId, user_id: profiles[0].id, role: role || 'editor', invited_by: supaUser.id });
-    return { error };
+  // Cliente isolado pra evitar Multiple GoTrueClient travamento
+  let c = (typeof _getOrCreateIsolatedClient === 'function')
+    ? await _getOrCreateIsolatedClient()
+    : null;
+  if (!c) c = _ensureSupaClient();
+  if (!c) return { error: 'sem cliente' };
+  const withTimeout = (p, ms, label) => Promise.race([
+    p, new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout: ${label}`)), ms)),
+  ]);
+  try {
+    // 1) procura usuário existente com esse e-mail
+    const { data: profiles } = await withTimeout(
+      c.from('profiles').select('id, email').eq('email', email.trim()).limit(1),
+      6000, 'invite: lookup profile'
+    );
+    if (profiles && profiles.length) {
+      const { error } = await withTimeout(
+        c.from('board_members').upsert({ board_id: boardId, user_id: profiles[0].id, role: role || 'editor', invited_by: supaUser.id }),
+        6000, 'invite: upsert member'
+      );
+      return { error };
+    }
+    // 2) salva convite pendente — ele vira membro ao se cadastrar (pode ser feito via Edge Function depois)
+    const { error } = await withTimeout(
+      c.from('board_invites').insert({ board_id: boardId, email: email.trim(), role: role || 'editor', invited_by: supaUser.id }),
+      6000, 'invite: insert pending'
+    );
+    return { error, pending: true };
+  } catch(e) {
+    return { error: e?.message || String(e) };
   }
-  // 2) salva convite pendente — ele vira membro ao se cadastrar (pode ser feito via Edge Function depois)
-  const { error } = await c.from('board_invites').insert({ board_id: boardId, email: email.trim(), role: role || 'editor', invited_by: supaUser.id });
-  return { error, pending: true };
 }
 
 async function supaRemoveMember(boardId, userId) {
