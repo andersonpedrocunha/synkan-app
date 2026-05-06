@@ -14585,6 +14585,51 @@ async function clearWebhookFromUI() {
 }
 
 // — Settings → Membros (dashboard agregado de seats em todos os boards) —
+// ── Stripe Customer Portal: helper único reutilizável ─────────────
+// Cria sessão do portal via /api/billing/portal e abre em nova aba.
+// Usa o stripe_customer_id da subscription do usuário logado.
+async function openStripePortal(btn) {
+  const original = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = 'Abrindo portal…'; }
+  try {
+    if (typeof supaUser === 'undefined' || !supaUser || !supaUser.id) {
+      throw new Error('Você precisa estar logado.');
+    }
+    const c = _ensureSupaClient();
+    if (!c) throw new Error('Sem cliente Supabase.');
+    const { data: sub, error } = await c
+      .from('subscriptions')
+      .select('stripe_customer_id')
+      .eq('user_id', supaUser.id)
+      .maybeSingle();
+    if (error) throw error;
+    const customerId = sub && sub.stripe_customer_id;
+    if (!customerId) {
+      throw new Error('Você ainda não tem assinatura ativa. Faça upgrade primeiro pra abrir o portal.');
+    }
+    const billingBase = (typeof SYNKAN_BILLING_BASE !== 'undefined') ? SYNKAN_BILLING_BASE : 'https://billing.synkan.com.br';
+    const r = await fetch(billingBase + '/api/billing/portal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stripe_customer_id: customerId }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.portal_url) {
+      throw new Error(data.error || `Erro ${r.status} ao criar sessão do portal.`);
+    }
+    window.open(data.portal_url, '_blank', 'noopener');
+  } catch(e) {
+    console.error('[openStripePortal]', e);
+    if (typeof appAlert === 'function') {
+      appAlert('Não consegui abrir o portal', e?.message || String(e), { icon:'⚠️' });
+    } else {
+      alert('Não consegui abrir o portal: ' + (e?.message || String(e)));
+    }
+  } finally {
+    if (btn && original) { btn.innerHTML = original; btn.disabled = false; }
+  }
+}
+
 function _settingsMembrosSection() {
   if (getStorageMode() !== 'supabase' || !supaUser) {
     return `
@@ -14610,6 +14655,14 @@ function _settingsMembrosSection() {
         <strong>Viewer</strong> só lê — incluso no plano sem custo extra (limite por plano).<br/>
         <strong>Convidado</strong> é externo (cliente, fornecedor, parceiro) — exclusivo da Faixa Preta, vê só os 3 boards autorizados.<br/><br/>
         Pra adicionar/remover membros use o botão <strong>👥 Compartilhar</strong> no header de cada board.
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-h">Pagamento e assinatura</div>
+      <div class="settings-section-d">Gerencie cartão, histórico de faturas, cancelamento e dados fiscais direto no portal seguro do Stripe.</div>
+      <div style="margin-top:12px;">
+        <button class="btn-c" onclick="openStripePortal(this)" style="font-size:13px;padding:8px 16px;">💳 Gerenciar pagamento</button>
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:6px;">Abre o Stripe Customer Portal em nova aba.</div>
       </div>
     </div>`;
 }
@@ -14786,7 +14839,6 @@ function _settingsPlanoSection() {
       </div>
       ${(() => {
         const subSt = (typeof _currentSubscriptionStatus !== 'undefined') ? _currentSubscriptionStatus : null;
-        const portalUrl = 'https://billing.stripe.com/p/login/test_4gw5lu3R6dCs5bidQQ'; // fallback (substituir pela URL real do customer portal)
         // Status "incomplete" = pagamento ficou pendente (3DS, cartão recusado)
         if (subSt === 'incomplete' || subSt === 'incomplete_expired') {
           return `
@@ -14794,7 +14846,7 @@ function _settingsPlanoSection() {
           <strong style="color:#991b1b;font-size:13px;">⚠ Pagamento pendente (status Stripe: <code>${_esc(subSt)}</code>)</strong>
           <p style="margin:6px 0 8px;line-height:1.6;">A assinatura foi criada mas o pagamento <strong>não foi concluído</strong>. Causas comuns: confirmação 3DS não aprovada, cartão recusado, ou autenticação expirou.</p>
           <p style="margin:0 0 8px;line-height:1.6;">Pra resolver: abra o Stripe Customer Portal pra atualizar cartão ou completar o pagamento.</p>
-          <a href="https://billing.stripe.com/p/login/test_4gw5lu3R6dCs5bidQQ" target="_blank" style="display:inline-block;padding:7px 14px;background:#991b1b;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:12px;">→ Abrir Stripe Customer Portal</a>
+          <button onclick="openStripePortal(this)" style="display:inline-block;padding:7px 14px;background:#991b1b;color:#fff;border:none;cursor:pointer;border-radius:6px;font-weight:600;font-size:12px;">→ Abrir Stripe Customer Portal</button>
           <span style="margin-left:8px;font-size:11px;">Ou contate <a href="mailto:contato@synkan.com.br?subject=Pagamento%20pendente&body=User%20ID%3A%20${typeof supaUser !== 'undefined' && supaUser ? supaUser.id : ''}%0AStatus%3A%20${_esc(subSt)}" style="color:#7f1d1d;text-decoration:underline;font-weight:600;">contato@synkan.com.br</a></span>
         </div>`;
         }
@@ -14802,7 +14854,7 @@ function _settingsPlanoSection() {
           return `
         <div style="margin-top:10px;padding:12px;background:#fff8e1;border:1px solid #ffd54f;border-radius:8px;font-size:12.5px;color:#5d4e00;">
           <strong style="color:#8b6800;">⚠ Cobrança em atraso (status: <code>${_esc(subSt)}</code>)</strong> — atualize o cartão antes que a assinatura seja cancelada.
-          <div style="margin-top:8px;"><a href="https://billing.stripe.com/p/login/test_4gw5lu3R6dCs5bidQQ" target="_blank" style="display:inline-block;padding:6px 12px;background:#8b6800;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;font-size:12px;">→ Atualizar pagamento</a></div>
+          <div style="margin-top:8px;"><button onclick="openStripePortal(this)" style="display:inline-block;padding:6px 12px;background:#8b6800;color:#fff;border:none;cursor:pointer;border-radius:6px;font-weight:600;font-size:12px;">→ Atualizar pagamento</button></div>
         </div>`;
         }
         if (code === 'trial') {
