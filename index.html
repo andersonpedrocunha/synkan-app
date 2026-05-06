@@ -11866,16 +11866,23 @@ function pickProfileAvatar() {
     if (file.size > 4*1024*1024) { alert('Imagem muito grande (máximo 4MB). Tente uma menor ou comprimida.'); return; }
     try {
       const dataURL = await _resizeImageToDataURL(file, 256, 0.85);
+      // 1) Salva local + atualiza supaUser em memória IMEDIATAMENTE
       const local = getLocalProfile(); local.avatar = dataURL; setLocalProfile(local);
-      if (getStorageMode()==='supabase' && supaClient && supaUser) {
-        try {
-          await supaClient.auth.updateUser({ data: { avatar_url: dataURL } });
-          supaUser.user_metadata = { ...(supaUser.user_metadata||{}), avatar_url: dataURL };
-        } catch(err) { console.warn('updateUser avatar failed', err); }
+      if (supaUser) {
+        supaUser.user_metadata = { ...(supaUser.user_metadata||{}), avatar_url: dataURL };
       }
       audit('profile.avatar', { size: dataURL.length });
+      // 2) Re-renderiza UI ANTES da chamada Supabase — usuário vê o avatar na hora
       if (typeof refreshAccountUI === 'function') refreshAccountUI();
       if (currentTab === 'settings') renderSettings();
+      // 3) Sync pro Supabase em background com timeout — não bloqueia a UI.
+      //    Se travar (Multiple GoTrueClient, rede), só loga warning. Local persiste.
+      if (getStorageMode()==='supabase' && supaClient && supaUser) {
+        Promise.race([
+          supaClient.auth.updateUser({ data: { avatar_url: dataURL } }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (5s) updateUser avatar')), 5000)),
+        ]).catch(err => console.warn('[avatar] sync supabase falhou (avatar permanece local):', err?.message || err));
+      }
     } catch(err) {
       alert('Não consegui processar essa imagem: ' + (err?.message || err));
     }
@@ -11911,12 +11918,15 @@ function _resizeImageToDataURL(file, maxSize, quality) {
 async function clearProfileAvatar() {
   const ok = await appConfirm('Remover foto', 'Remover foto de perfil?', { danger:true, okLabel:'Remover' });
   if (!ok) return;
+  // Atualiza local + memória ANTES da chamada remota
   const local = getLocalProfile(); delete local.avatar; setLocalProfile(local);
+  if (supaUser?.user_metadata) delete supaUser.user_metadata.avatar_url;
+  // Sync pro Supabase em background com timeout (não bloqueia UI)
   if (getStorageMode()==='supabase' && supaClient && supaUser) {
-    try {
-      await supaClient.auth.updateUser({ data: { avatar_url: null } });
-      if (supaUser.user_metadata) delete supaUser.user_metadata.avatar_url;
-    } catch(e){}
+    Promise.race([
+      supaClient.auth.updateUser({ data: { avatar_url: null } }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (5s) updateUser')), 5000)),
+    ]).catch(e => console.warn('[avatar] sync remoção falhou (local OK):', e?.message || e));
   }
   audit('profile.avatar.removed', {});
   if (typeof refreshAccountUI === 'function') refreshAccountUI();
