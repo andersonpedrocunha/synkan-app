@@ -5424,6 +5424,12 @@ body.density-compact .col{padding:7px;}
     </div>
 
     <div class="cfg-section">
+      <div class="cfg-section-title">Time tracking automático</div>
+      <div class="cfg-section-hint">Inicia/para o timer automaticamente quando o card muda de coluna. Auto-start dispara só pra quem está em <strong>Atribuído a</strong>. Override manual sempre funciona.</div>
+      <div id="cfg-tracker" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="cfg-section">
       <div class="cfg-section-title">Auto-arquivar concluídos</div>
       <div class="cfg-row">
         <label class="cfg-toggle">
@@ -16962,7 +16968,10 @@ function tblSetCol(id, newCol) {
   const movedFromDone = card.col === TERMINAL_COL && newCol !== TERMINAL_COL;
   const oldTitle = COLS.find(x=>x.id===card.col)?.title || card.col;
   const newTitle = COLS.find(x=>x.id===newCol)?.title || newCol;
+  const oldColId = card.col;
   card.col = newCol;
+  // Hook tracker: auto-start/auto-stop baseado em config do board
+  if (typeof _onCardColChanged === 'function') _onCardColChanged(card, oldColId, newCol);
   card.colChangedAt = new Date().toISOString();   // aging WIP tracking
   if (movedToDone) card.doneAt = new Date().toISOString();
   else if (movedFromDone) card.doneAt = null;
@@ -21243,8 +21252,68 @@ const CARD_FIELDS_META = [
   {key:'contact',      icon:'🔗', label:'Cadastro vinculado (lead/cliente/forn.)'},
 ];
 
+// Render do painel "Time tracking automático" no Settings da engrenagem.
+// Lista cada coluna com 2 checkboxes: ▶ Inicia tracker / ⏸ Para tracker.
+function renderCfgTracker() {
+  const el = document.getElementById('cfg-tracker'); if (!el) return;
+  if (!kanbanConfig.tracker) {
+    kanbanConfig.tracker = { enabled: true, autoStart: [], autoStop: [] };
+  }
+  const tcfg = kanbanConfig.tracker;
+  const enabled = tcfg.enabled !== false;
+  const autoStart = new Set(tcfg.autoStart || []);
+  const autoStop = new Set(tcfg.autoStop || []);
+
+  let html = `
+    <label class="cfg-toggle" style="margin-bottom:10px;">
+      <input type="checkbox" ${enabled?'checked':''} onchange="toggleTrackerEnabled(this.checked)" />
+      <span>Habilitar time tracking automático neste board</span>
+    </label>
+    <div style="font-size:11px;color:var(--color-text-tertiary);margin:8px 0;">
+      Marque qual coluna inicia (▶) ou para (⏸) o tracker quando um card chega nela:
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;font-size:12px;">
+      <div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;">Coluna</div>
+      <div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;text-align:center;width:60px;">▶ Inicia</div>
+      <div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;text-align:center;width:60px;">⏸ Para</div>
+  `;
+  COLS.forEach(col => {
+    const isStart = autoStart.has(col.id);
+    const isStop = autoStop.has(col.id);
+    html += `
+      <div style="font-size:12.5px;color:var(--color-text-primary);padding:4px 0;border-top:1px solid var(--color-border-tertiary);">${_esc(col.title)}</div>
+      <div style="text-align:center;border-top:1px solid var(--color-border-tertiary);padding:4px 0;">
+        <input type="checkbox" ${isStart?'checked':''} ${!enabled?'disabled':''} onchange="toggleTrackerCol('${col.id}','autoStart',this.checked)" />
+      </div>
+      <div style="text-align:center;border-top:1px solid var(--color-border-tertiary);padding:4px 0;">
+        <input type="checkbox" ${isStop?'checked':''} ${!enabled?'disabled':''} onchange="toggleTrackerCol('${col.id}','autoStop',this.checked)" />
+      </div>
+    `;
+  });
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+function toggleTrackerEnabled(on) {
+  if (!kanbanConfig.tracker) kanbanConfig.tracker = { enabled: true, autoStart: [], autoStop: [] };
+  kanbanConfig.tracker.enabled = !!on;
+  saveData();
+  renderCfgTracker();
+}
+
+function toggleTrackerCol(colId, key, on) {
+  if (!kanbanConfig.tracker) kanbanConfig.tracker = { enabled: true, autoStart: [], autoStop: [] };
+  const list = new Set(kanbanConfig.tracker[key] || []);
+  if (on) list.add(colId); else list.delete(colId);
+  kanbanConfig.tracker[key] = [...list];
+  saveData();
+  renderCfgTracker();
+}
+
 function renderCfgFields() {
   const el = document.getElementById('cfg-fields'); if(!el) return;
+  // Sempre re-renderiza o tracker config (estão na mesma engrenagem)
+  try { renderCfgTracker(); } catch(e) {}
   // 1) Campos nativos (sempre disponíveis)
   const builtIns = CARD_FIELDS_META.map(f=>{
     const on = !!kanbanConfig.cardFields[f.key];
@@ -21871,6 +21940,7 @@ function n_markRead(id) {
 }
 
 // ── Time tracking ────────────────────────────────────────────────────
+// Total de TODOS os usuários (todas as entries do card)
 function _totalTimeMs(card) {
   let total = 0;
   (card.timeEntries||[]).forEach(e => {
@@ -21878,6 +21948,37 @@ function _totalTimeMs(card) {
     else total += (Date.now() - new Date(e.start));
   });
   return total;
+}
+// Total de UM usuário específico
+function _totalTimeMsByUser(card, userId) {
+  if (!userId) return 0;
+  let total = 0;
+  (card.timeEntries||[]).forEach(e => {
+    if ((e.userId || e.user_id) !== userId) return;
+    if (e.end) total += (new Date(e.end) - new Date(e.start));
+    else total += (Date.now() - new Date(e.start));
+  });
+  return total;
+}
+// Mapeia userId → totalMs (pra tabela colaborativa)
+function _totalTimeMsByAllUsers(card) {
+  const map = {};
+  (card.timeEntries||[]).forEach(e => {
+    const uid = e.userId || e.user_id || 'legacy';
+    const dur = e.end
+      ? (new Date(e.end) - new Date(e.start))
+      : (Date.now() - new Date(e.start));
+    map[uid] = (map[uid] || 0) + dur;
+  });
+  return map;
+}
+// Lista de userIds com timer ativo agora (sem ended_at)
+function _activeUsers(card) {
+  const set = new Set();
+  (card.timeEntries||[]).forEach(e => {
+    if (!e.end) set.add(e.userId || e.user_id || 'legacy');
+  });
+  return [...set];
 }
 function _formatTime(ms) {
   const sec = Math.floor(ms/1000);
@@ -22185,14 +22286,38 @@ function exportBillingPDF() {
 }
 
 // Agrega tempo cronometrado por card, responsável (entry.by) e coluna
+// Filtro global de período do tracker — 'today' | '7d' | '30d' | 'all'
+let _trackerPeriod = 'all';
+function _trackerPeriodRange() {
+  const now = Date.now();
+  if (_trackerPeriod === 'today') {
+    const d = new Date(); d.setHours(0,0,0,0);
+    return { start: d.getTime(), end: now };
+  }
+  if (_trackerPeriod === '7d')  return { start: now - 7*86400000, end: now };
+  if (_trackerPeriod === '30d') return { start: now - 30*86400000, end: now };
+  return { start: 0, end: now };
+}
+
+// Resolve nome de user (membro do board) ou fallback pro 'by' legacy
+function _trackerResolveName(entry) {
+  const uid = entry.userId || entry.user_id;
+  if (uid && Array.isArray(_boardMembersCache?.members)) {
+    const m = _boardMembersCache.members.find(x => x.user_id === uid);
+    if (m) return m.full_name || m.email || uid.slice(0, 8);
+  }
+  return entry.userName || entry.by || 'Anônimo';
+}
+
 function _aggregateTrackedTime(cardsArr) {
+  const range = _trackerPeriodRange();
   const out = {
     totalMs: 0,
-    activeCount: 0,         // quantos timers rodando agora
-    cardsWithTime: 0,       // cards que tiveram pelo menos uma entrada
-    byPerson: new Map(),    // who -> ms
-    byColumn: new Map(),    // colId -> ms
-    byCard: [],             // [{id, name, ms, active}]
+    activeCount: 0,
+    cardsWithTime: 0,
+    byPerson: new Map(),
+    byColumn: new Map(),
+    byCard: [],
   };
   for (const c of cardsArr || []) {
     const entries = c.timeEntries || [];
@@ -22202,37 +22327,86 @@ function _aggregateTrackedTime(cardsArr) {
     for (const e of entries) {
       const start = new Date(e.start).getTime();
       const end = e.end ? new Date(e.end).getTime() : Date.now();
-      const dt = Math.max(0, end - start);
+      // Aplica filtro de período (interseção)
+      const fStart = Math.max(start, range.start);
+      const fEnd = Math.min(end, range.end);
+      if (fEnd <= fStart) continue;
+      const dt = fEnd - fStart;
       cardMs += dt;
       if (!e.end) active = true;
-      const who = e.by || 'sem dono';
+      const who = _trackerResolveName(e);
       out.byPerson.set(who, (out.byPerson.get(who) || 0) + dt);
     }
-    out.totalMs += cardMs;
-    out.cardsWithTime++;
-    if (active) out.activeCount++;
-    const colKey = c.col || 'backlog';
-    out.byColumn.set(colKey, (out.byColumn.get(colKey) || 0) + cardMs);
-    out.byCard.push({ id: c.id, name: c.name, ms: cardMs, active, col: c.col });
+    if (cardMs > 0) {
+      out.totalMs += cardMs;
+      out.cardsWithTime++;
+      if (active) out.activeCount++;
+      const colKey = c.col || 'backlog';
+      out.byColumn.set(colKey, (out.byColumn.get(colKey) || 0) + cardMs);
+      out.byCard.push({ id: c.id, name: c.name, ms: cardMs, active, col: c.col });
+    }
   }
-  // Ordena top cards
   out.byCard.sort((a,b) => b.ms - a.ms);
   return out;
 }
 
+// Setter pra UI trocar período (chamado por botões)
+function setTrackerPeriod(p) {
+  _trackerPeriod = p;
+  if (typeof renderTracker === 'function') renderTracker();
+}
+
+// Export CSV das entries (período atual)
+function exportTrackerCSV() {
+  const range = _trackerPeriodRange();
+  const rows = [['Card', 'Coluna', 'User', 'Início', 'Fim', 'Duração (s)', 'Source']];
+  for (const c of cards || []) {
+    for (const e of (c.timeEntries || [])) {
+      const start = new Date(e.start).getTime();
+      const end = e.end ? new Date(e.end).getTime() : Date.now();
+      const fStart = Math.max(start, range.start);
+      const fEnd = Math.min(end, range.end);
+      if (fEnd <= fStart) continue;
+      const dur = Math.round((fEnd - fStart) / 1000);
+      rows.push([
+        c.name || '',
+        (COLS.find(x => x.id === c.col)?.title) || c.col || '',
+        _trackerResolveName(e),
+        new Date(e.start).toISOString(),
+        e.end ? new Date(e.end).toISOString() : 'rodando',
+        String(dur),
+        e.source || 'manual',
+      ]);
+    }
+  }
+  const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tracker-${_trackerPeriod}-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+}
+
 // ── Tracker (aba dedicada) ───────────────────────────────────────
 function _allTimeEntries(cardsArr) {
-  // Lista achatada de entries com referência ao card
+  // Lista achatada de entries com referência ao card, filtrada pelo período atual
+  const range = _trackerPeriodRange();
   const out = [];
   for (const c of cardsArr || []) {
     for (const e of (c.timeEntries||[])) {
       const start = new Date(e.start).getTime();
       const end = e.end ? new Date(e.end).getTime() : Date.now();
+      const fStart = Math.max(start, range.start);
+      const fEnd = Math.min(end, range.end);
+      if (fEnd <= fStart) continue;
       out.push({
         cardId: c.id, cardName: c.name, col: c.col,
         start, end, isActive: !e.end,
-        ms: Math.max(0, end - start),
-        by: e.by || '—',
+        ms: fEnd - fStart,
+        by: _trackerResolveName(e),
       });
     }
   }
@@ -22358,8 +22532,18 @@ function renderTracker() {
         <span class="tracker-hero-total">${_formatTimeLong(stats.totalMs)}</span>
         <span class="tracker-hero-sub">${heroSub}</span>
       </div>
-      <div class="tracker-hero-actions">
-        <button class="tracker-cta-bill" onclick="openBillingPanel()"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M8 1.7v12.6"/><path d="M11.3 4.6H6.5a1.9 1.9 0 0 0 0 3.8h3a1.9 1.9 0 0 1 0 3.8H4.7"/></svg> Adicionar cobrança</button>
+      <div class="tracker-hero-actions" style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+        <div style="display:inline-flex;background:rgba(255,255,255,0.15);border-radius:9px;padding:3px;gap:2px;">
+          ${['today','7d','30d','all'].map(p => {
+            const labels = { today:'Hoje', '7d':'7 dias', '30d':'30 dias', all:'Tudo' };
+            const active = _trackerPeriod === p;
+            return `<button onclick="setTrackerPeriod('${p}')" style="background:${active?'#fff':'transparent'};color:${active?'#3C3489':'#fff'};border:none;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;transition:all .15s;">${labels[p]}</button>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="tracker-cta-bill" style="background:rgba(255,255,255,0.15);box-shadow:none;" onclick="exportTrackerCSV()" title="Exportar entries do período como CSV">⬇ Exportar CSV</button>
+          <button class="tracker-cta-bill" onclick="openBillingPanel()"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M8 1.7v12.6"/><path d="M11.3 4.6H6.5a1.9 1.9 0 0 0 0 3.8h3a1.9 1.9 0 0 1 0 3.8H4.7"/></svg> Adicionar cobrança</button>
+        </div>
       </div>
     </div>
 
@@ -22430,25 +22614,132 @@ function renderTracker() {
   `;
 }
 
+// Retorna a entry ativa do CARD (legado — primeira sem end). Mantido pra
+// retrocompat. Use _activeTimerForUser pra checar timer DO USER LOGADO.
 function _activeTimer(card) {
   return (card.timeEntries||[]).find(e => !e.end);
 }
-function startTimer(cardId) {
-  const card = cards.find(c=>c.id===cardId); if(!card) return;
-  if (_activeTimer(card)) return; // já rodando
-  card.timeEntries = card.timeEntries || [];
-  card.timeEntries.push({ start: new Date().toISOString(), end: null, by: (supaUser?.user_metadata?.full_name || supaUser?.email || 'eu') });
-  saveData();
-  renderModalTime(cardId);
-  render();
+// Retorna a entry ativa de UM usuário específico no card
+function _activeTimerForUser(card, userId) {
+  if (!userId) return null;
+  return (card.timeEntries||[]).find(e => !e.end && (e.userId || e.user_id) === userId);
 }
-function stopTimer(cardId) {
+
+// Inicia timer pro usuário logado (se já tiver, no-op)
+async function startTimer(cardId, opts) {
   const card = cards.find(c=>c.id===cardId); if(!card) return;
-  const t = _activeTimer(card); if (!t) return;
-  t.end = new Date().toISOString();
+  const userId = supaUser?.id;
+  if (!userId) {
+    if (typeof appAlert === 'function') appAlert('Faça login pra usar tracker', 'O time tracking só funciona em modo Cloud, com user logado.', { icon:'🔒' });
+    return;
+  }
+  if (_activeTimerForUser(card, userId)) return; // já rodando pra esse user
+  card.timeEntries = card.timeEntries || [];
+  const entry = {
+    id: 'tte_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,6),
+    userId: userId,
+    userName: supaUser?.user_metadata?.full_name || supaUser?.email || 'eu',
+    start: new Date().toISOString(),
+    end: null,
+    source: (opts && opts.source) || 'manual',
+    colWhenStarted: card.col || null,
+  };
+  card.timeEntries.push(entry);
   saveData();
-  renderModalTime(cardId);
-  render();
+  // Sync pro Supabase em background (best effort)
+  _supaInsertTimeEntry(card, entry).catch(e => console.warn('[tracker] insert falhou:', e?.message || e));
+  if (typeof renderModalTime === 'function') renderModalTime(cardId);
+  if (typeof render === 'function') render();
+}
+
+// Para timer DO USUÁRIO LOGADO
+async function stopTimer(cardId) {
+  const card = cards.find(c=>c.id===cardId); if(!card) return;
+  const userId = supaUser?.id;
+  if (!userId) return;
+  const entry = _activeTimerForUser(card, userId);
+  if (!entry) return;
+  entry.end = new Date().toISOString();
+  saveData();
+  _supaUpdateTimeEntry(card, entry).catch(e => console.warn('[tracker] update falhou:', e?.message || e));
+  if (typeof renderModalTime === 'function') renderModalTime(cardId);
+  if (typeof render === 'function') render();
+}
+
+// Hook: chamado quando card muda de coluna. Dispara auto-start/auto-stop
+// baseado em kanbanConfig.tracker = { autoStart:[colIds], autoStop:[colIds], enabled:bool }.
+async function _onCardColChanged(card, oldCol, newCol) {
+  if (!card || oldCol === newCol) return;
+  const cfg = (kanbanConfig && kanbanConfig.tracker) || null;
+  if (!cfg || cfg.enabled === false) return;
+  const auto = (cfg.autoStart || []).includes(newCol);
+  const stop = (cfg.autoStop || []).includes(newCol);
+  // Auto-stop sempre roda primeiro (qualquer um trabalhando para)
+  if (stop) {
+    await _stopAllTimersOnCard(card.id, 'auto-column');
+  }
+  // Auto-start: inicia pra quem está atribuído (assignedUserId)
+  if (auto && card.assignedUserId) {
+    const target = card.assignedUserId;
+    // Só inicia se for o user logado (timers de outros users só eles podem iniciar)
+    if (supaUser?.id === target && !_activeTimerForUser(card, target)) {
+      await startTimer(card.id, { source: 'auto-column' });
+    }
+  }
+}
+
+// Auto-stop pra TODOS os usuários ativos (usado em mudança de coluna)
+async function _stopAllTimersOnCard(cardId, source) {
+  const card = cards.find(c=>c.id===cardId); if(!card) return 0;
+  let count = 0;
+  const now = new Date().toISOString();
+  (card.timeEntries||[]).forEach(e => {
+    if (!e.end) {
+      e.end = now;
+      if (source) e.stopSource = source;
+      count++;
+      _supaUpdateTimeEntry(card, e).catch(()=>{});
+    }
+  });
+  if (count > 0) {
+    saveData();
+    if (typeof renderModalTime === 'function') renderModalTime(cardId);
+    if (typeof render === 'function') render();
+  }
+  return count;
+}
+
+// Helpers de sync com Supabase (best effort, não bloqueiam UI)
+async function _supaInsertTimeEntry(card, entry) {
+  if (typeof getStorageMode === 'function' && getStorageMode() !== 'supabase') return;
+  if (!card._supaId) return; // card ainda não sincronizou
+  let c = (typeof _getOrCreateIsolatedClient === 'function')
+    ? await _getOrCreateIsolatedClient() : null;
+  if (!c) c = _ensureSupaClient();
+  if (!c) return;
+  await c.from('card_time_entries').insert({
+    card_id: card._supaId,
+    user_id: entry.userId,
+    started_at: entry.start,
+    ended_at: entry.end || null,
+    col_when_started: entry.colWhenStarted || null,
+    source: entry.source || 'manual',
+  });
+}
+
+async function _supaUpdateTimeEntry(card, entry) {
+  if (typeof getStorageMode === 'function' && getStorageMode() !== 'supabase') return;
+  if (!card._supaId || !entry.userId) return;
+  let c = (typeof _getOrCreateIsolatedClient === 'function')
+    ? await _getOrCreateIsolatedClient() : null;
+  if (!c) c = _ensureSupaClient();
+  if (!c) return;
+  // Atualiza pelo (card_id, user_id, started_at) — chave natural pra entry
+  await c.from('card_time_entries')
+    .update({ ended_at: entry.end || null })
+    .eq('card_id', card._supaId)
+    .eq('user_id', entry.userId)
+    .eq('started_at', entry.start);
 }
 async function clearTimer(cardId) {
   const card = cards.find(c=>c.id===cardId); if(!card) return;
@@ -22465,32 +22756,91 @@ function renderModalTime(cardId) {
   const panel = document.getElementById('modal-time-panel'); if(!panel) return;
   const card = cards.find(c=>c.id===cardId); if(!card) return;
   const total = _totalTimeMs(card);
-  const active = _activeTimer(card);
+  const myUserId = supaUser?.id || null;
+  const myActive = myUserId ? _activeTimerForUser(card, myUserId) : null;
+  const totalsByUser = _totalTimeMsByUser ? null : null; // ensure func exists
+  const totalsMap = (typeof _totalTimeMsByAllUsers === 'function') ? _totalTimeMsByAllUsers(card) : {};
+  const activeUsers = (typeof _activeUsers === 'function') ? _activeUsers(card) : [];
   const entries = (card.timeEntries||[]).slice().reverse();
+
+  // Resolve nomes (member cache + entry.userName fallback)
+  const memberById = {};
+  if (Array.isArray(_boardMembersCache?.members)) {
+    _boardMembersCache.members.forEach(m => { if (m.user_id) memberById[m.user_id] = m; });
+  }
+  const nameOf = (uid) => {
+    if (uid === 'legacy') return 'Registros antigos';
+    if (memberById[uid]) return memberById[uid].full_name || memberById[uid].email || uid.slice(0,8);
+    // Fallback: pega de uma entry desse user
+    const e = (card.timeEntries||[]).find(x => (x.userId||x.user_id) === uid);
+    return e?.userName || (uid === myUserId ? 'Você' : uid.slice(0,8));
+  };
+
+  // Linhas por user (sumário colaborativo)
+  const userIds = Object.keys(totalsMap).sort((a, b) => totalsMap[b] - totalsMap[a]);
+  const tableRows = userIds.map(uid => {
+    const isMe = uid === myUserId;
+    const isRunning = activeUsers.includes(uid);
+    return `
+      <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--color-border-tertiary);">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${avatarColor(nameOf(uid))};color:#fff;font-size:10px;font-weight:700;flex-shrink:0;">${_esc(avatarInitials(nameOf(uid)))}</span>
+          <span style="font-size:12.5px;font-weight:500;color:var(--color-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(nameOf(uid))}${isMe?' <span style="opacity:.6;font-weight:400;">(você)</span>':''}</span>
+          ${isRunning ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;background:#dcfce7;color:#15803d;font-size:10px;font-weight:600;animation:pulse 2s infinite;">● Rodando</span>' : ''}
+        </div>
+        <strong style="font-size:13px;font-variant-numeric:tabular-nums;color:var(--color-text-secondary);">${_formatTime(totalsMap[uid])}</strong>
+      </div>
+    `;
+  }).join('');
+
   panel.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;margin-bottom:8px;">
-      <span style="font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;" id="time-total-${cardId}">${_formatTime(total)}</span>
-      <span style="font-size:11px;color:var(--color-text-tertiary);">total</span>
-      <div style="flex:1;"></div>
-      ${active
-        ? `<button class="btn-c" style="background:#FCEBEB;color:#A32D2D;" onclick="stopTimer(${cardId})">⏸ Pausar</button>`
-        : `<button class="btn-s" onclick="startTimer(${cardId})">▶ Iniciar</button>`}
-      ${entries.length?`<button class="btn-c" onclick="clearTimer(${cardId})" title="Limpar">✕</button>`:''}
+    <div style="background:var(--color-background-secondary);border-radius:10px;padding:14px 16px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:10.5px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;">Total trabalhado</div>
+          <div style="font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--color-text-primary);line-height:1.1;margin-top:2px;" id="time-total-${cardId}">${_formatTime(total)}</div>
+          ${activeUsers.length ? `<div style="font-size:11px;color:#15803d;margin-top:3px;">● ${activeUsers.length} ${activeUsers.length===1?'pessoa':'pessoas'} trabalhando agora</div>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          ${myUserId
+            ? (myActive
+                ? `<button class="btn-c" style="background:#FCEBEB;color:#A32D2D;border-color:#fca5a5;" onclick="stopTimer(${cardId})">⏸ Pausar meu timer</button>`
+                : `<button class="btn-s" onclick="startTimer(${cardId})">▶ Iniciar meu timer</button>`)
+            : '<span style="font-size:11px;color:var(--color-text-tertiary);">Faça login pra usar</span>'}
+        </div>
+      </div>
     </div>
-    ${entries.length ? `<div style="font-size:11px;color:var(--color-text-tertiary);max-height:120px;overflow-y:auto;">${
-      entries.slice(0,8).map(e => {
-        const dur = e.end ? (new Date(e.end)-new Date(e.start)) : 0;
-        const when = new Date(e.start).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-        return `<div style="padding:3px 0;display:flex;justify-content:space-between;">
-          <span>${when}${e.end?' — '+new Date(e.end).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):' — em andamento'}</span>
-          <strong style="color:var(--color-text-secondary);font-variant-numeric:tabular-nums;">${e.end ? _formatTime(dur) : '⏵'}</strong>
-        </div>`;
-      }).join('')
-    }</div>` : '<div style="font-size:11px;color:var(--color-text-tertiary);">Nenhum registro ainda. Clique ▶ Iniciar para começar.</div>'}
+
+    ${userIds.length ? `
+      <div style="border:1px solid var(--color-border-tertiary);border-radius:9px;overflow:hidden;margin-bottom:10px;">
+        <div style="padding:7px 12px;background:var(--color-background-secondary);font-size:10.5px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;">Tempo por pessoa</div>
+        ${tableRows}
+      </div>
+    ` : '<div style="font-size:11.5px;color:var(--color-text-tertiary);padding:8px 4px;">Nenhum registro ainda. Clique ▶ Iniciar pra começar.</div>'}
+
+    ${entries.length ? `
+      <details style="margin-top:8px;">
+        <summary style="cursor:pointer;font-size:11px;color:var(--color-text-tertiary);padding:4px 0;">Histórico (${entries.length} ${entries.length===1?'entry':'entries'})</summary>
+        <div style="font-size:11px;color:var(--color-text-tertiary);max-height:200px;overflow-y:auto;margin-top:6px;">
+          ${entries.slice(0, 20).map(e => {
+            const uid = e.userId || e.user_id;
+            const userName = uid ? nameOf(uid) : (e.userName || e.by || 'Anônimo');
+            const dur = e.end ? (new Date(e.end)-new Date(e.start)) : (Date.now()-new Date(e.start));
+            const when = new Date(e.start).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+            const sourceTag = e.source === 'auto-column' ? ' <span style="opacity:.5;font-size:9.5px;">(auto)</span>' : '';
+            return `<div style="padding:4px 0;display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--color-border-tertiary);">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;"><strong style="color:var(--color-text-secondary);">${_esc(userName)}</strong> · ${when}${e.end?' → '+new Date(e.end).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):' → rodando'}${sourceTag}</span>
+              <strong style="color:var(--color-text-secondary);font-variant-numeric:tabular-nums;flex-shrink:0;">${e.end ? _formatTime(dur) : '⏵ '+_formatTime(dur)}</strong>
+            </div>`;
+          }).join('')}
+        </div>
+      </details>
+    ` : ''}
   `;
-  // Live update do total enquanto está rodando
+
+  // Live update enquanto QUALQUER user tem timer ativo
   if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
-  if (active) {
+  if (activeUsers.length > 0) {
     _timerInterval = setInterval(() => {
       const el = document.getElementById('time-total-'+cardId);
       if (el) el.textContent = _formatTime(_totalTimeMs(card));
