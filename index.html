@@ -19247,8 +19247,9 @@ async function supaLoadAllBoards() {
 async function supaUpsertCurrentBoard() {
   const c = _ensureSupaClient(); if(!c) return;
   const b = allBoards[currentBoardId]; if(!b) return;
-  // 1) upsert board
-  const row = _boardToRow({ ...b, id: currentBoardId });
+  if (!supaUser?.id) { console.warn('[supa] upsertCurrentBoard sem supaUser — abortando'); return; }
+  // 1) upsert board (precisa de owner_id pra passar pela policy RLS)
+  const row = { ..._boardToRow({ ...b, id: currentBoardId }), owner_id: supaUser.id };
   const { error: bErr } = await c.from('boards').upsert(row);
   if (bErr) { console.error('upsert board', bErr); return; }
   // 2) upsert cards (pelo (board_id, local_id) único)
@@ -22584,6 +22585,65 @@ function exportTrackerCSV() {
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
 }
 
+// Card "Como trackear" — sempre expandido. Usado tanto no estado vazio
+// quanto no estado com dados, pra ser referência sempre disponível.
+function _trackerHowToCardHTML() {
+  return `
+    <div class="tracker-card" style="margin:0 0 14px;">
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 2px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--color-border-tertiary);">
+        <span style="display:inline-flex;width:24px;height:24px;border-radius:50%;background:#EEEDFE;color:#3C3489;font-size:13px;align-items:center;justify-content:center;font-weight:700;">?</span>
+        <span style="font-size:14px;font-weight:600;color:var(--color-text-primary);">Como trackear o tempo das tasks</span>
+      </div>
+      <div style="font-size:13px;line-height:1.7;color:var(--color-text-secondary);">
+        <p style="margin:0 0 14px;"><strong style="color:var(--color-text-primary);">O Synkan tem 2 modos de trackear tempo</strong> — manual e automático. Cada usuário tem o próprio timer no card, e você pode ter várias pessoas trabalhando ao mesmo tempo na mesma task.</p>
+
+        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;margin-bottom:12px;">
+          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">▶ Modo manual</div>
+          <ol style="margin:0;padding-left:18px;">
+            <li>Abra qualquer card no Kanban</li>
+            <li>Role até a seção <strong style="color:var(--color-text-primary);">Tempo trabalhado</strong></li>
+            <li>Clique em <strong style="color:var(--color-text-primary);">▶ Iniciar meu timer</strong> pra começar</li>
+            <li>Pause com <strong style="color:var(--color-text-primary);">⏸ Pausar meu timer</strong> ou ao mudar de task</li>
+          </ol>
+        </div>
+
+        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;margin-bottom:12px;">
+          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">⚡ Modo automático (recomendado)</div>
+          <ol style="margin:0;padding-left:18px;">
+            <li>No board, clique na engrenagem <strong style="color:var(--color-text-primary);">⚙</strong> no canto superior direito</li>
+            <li>Role até a seção <strong style="color:var(--color-text-primary);">Time tracking automático</strong></li>
+            <li>Marque quais colunas <strong style="color:var(--color-text-primary);">▶ iniciam</strong> o tracker (ex: "Em andamento")</li>
+            <li>Marque quais <strong style="color:var(--color-text-primary);">⏸ param</strong> (ex: "Concluído", "Em produção")</li>
+            <li>No card, defina <strong style="color:var(--color-text-primary);">Atribuído a</strong> apontando pra um membro real do board</li>
+            <li>Quando você (ou alguém atribuído) mover o card pra coluna que inicia, o timer dispara sozinho</li>
+          </ol>
+        </div>
+
+        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;margin-bottom:12px;">
+          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">👥 Trabalho em equipe</div>
+          <ul style="margin:0;padding-left:18px;">
+            <li>Várias pessoas podem ter timers ativos no mesmo card simultaneamente</li>
+            <li>Cada pessoa controla só o próprio timer (não interfere nos outros)</li>
+            <li>O card mostra <strong style="color:var(--color-text-primary);">"X pessoas trabalhando agora"</strong> quando há múltiplos ativos</li>
+            <li>Pra adicionar membros: botão <strong style="color:var(--color-text-primary);">👥 Compartilhar</strong> no header do board</li>
+          </ul>
+        </div>
+
+        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;">
+          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">📊 Relatórios e exportação</div>
+          <ul style="margin:0;padding-left:18px;">
+            <li>Use os filtros <strong style="color:var(--color-text-primary);">Hoje / 7 dias / 30 dias / Tudo</strong> no topo desta página</li>
+            <li>Veja tempo agregado <strong style="color:var(--color-text-primary);">por pessoa</strong>, <strong style="color:var(--color-text-primary);">por coluna</strong> e <strong style="color:var(--color-text-primary);">por card</strong> nos painéis abaixo</li>
+            <li><strong style="color:var(--color-text-primary);">📄 Exportar PDF</strong> — gera relatório formatado pra imprimir/salvar (ideal pra cliente)</li>
+            <li><strong style="color:var(--color-text-primary);">⬇ Exportar CSV</strong> — baixa entries individuais pra Excel/Sheets/timesheet</li>
+            <li><strong style="color:var(--color-text-primary);">$ Adicionar cobrança</strong> — converte tempo em fatura</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 // ── Tracker (aba dedicada) ───────────────────────────────────────
 function _allTimeEntries(cardsArr) {
   // Lista achatada de entries com referência ao card, filtrada pelo período atual
@@ -22641,6 +22701,7 @@ function renderTracker() {
         <strong>Nenhum tempo trackeado ainda</strong>
         Abra um card e clique em ▶ no painel de tempo pra começar a cronometrar. O histórico, cobrança e exportações aparecem aqui.
       </div>
+      ${_trackerHowToCardHTML()}
     `;
     return;
   }
@@ -22742,61 +22803,7 @@ function renderTracker() {
       </div>
     </div>
 
-    <details class="tracker-card" style="margin:0;">
-      <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;padding:4px 2px;">
-        <span style="display:flex;align-items:center;gap:8px;">
-          <span style="display:inline-flex;width:24px;height:24px;border-radius:50%;background:#EEEDFE;color:#3C3489;font-size:13px;align-items:center;justify-content:center;font-weight:700;">?</span>
-          <span style="font-size:14px;font-weight:600;color:var(--color-text-primary);">Como trackear o tempo das tasks</span>
-        </span>
-        <span style="font-size:11px;color:var(--color-text-tertiary);">clique pra expandir ↓</span>
-      </summary>
-      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--color-border-tertiary);font-size:13px;line-height:1.7;color:var(--color-text-secondary);">
-        <p style="margin:0 0 14px;"><strong style="color:var(--color-text-primary);">O Synkan tem 2 modos de trackear tempo</strong> — manual e automático. Cada usuário tem o próprio timer no card, e você pode ter várias pessoas trabalhando ao mesmo tempo na mesma task.</p>
-
-        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;margin-bottom:12px;">
-          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">▶ Modo manual</div>
-          <ol style="margin:0;padding-left:18px;">
-            <li>Abra qualquer card no Kanban</li>
-            <li>Role até a seção <strong style="color:var(--color-text-primary);">Tempo trabalhado</strong></li>
-            <li>Clique em <strong style="color:var(--color-text-primary);">▶ Iniciar meu timer</strong> pra começar</li>
-            <li>Pause com <strong style="color:var(--color-text-primary);">⏸ Pausar meu timer</strong> ou ao mudar de task</li>
-          </ol>
-        </div>
-
-        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;margin-bottom:12px;">
-          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">⚡ Modo automático (recomendado)</div>
-          <ol style="margin:0;padding-left:18px;">
-            <li>No board, clique na engrenagem <strong style="color:var(--color-text-primary);">⚙</strong> no canto superior direito</li>
-            <li>Role até a seção <strong style="color:var(--color-text-primary);">Time tracking automático</strong></li>
-            <li>Marque quais colunas <strong style="color:var(--color-text-primary);">▶ iniciam</strong> o tracker (ex: "Em andamento")</li>
-            <li>Marque quais <strong style="color:var(--color-text-primary);">⏸ param</strong> (ex: "Concluído", "Em produção")</li>
-            <li>No card, defina <strong style="color:var(--color-text-primary);">Atribuído a</strong> apontando pra um membro real do board</li>
-            <li>Quando você (ou alguém atribuído) mover o card pra coluna que inicia, o timer dispara sozinho</li>
-          </ol>
-        </div>
-
-        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;margin-bottom:12px;">
-          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">👥 Trabalho em equipe</div>
-          <ul style="margin:0;padding-left:18px;">
-            <li>Várias pessoas podem ter timers ativos no mesmo card simultaneamente</li>
-            <li>Cada pessoa controla só o próprio timer (não interfere nos outros)</li>
-            <li>O card mostra <strong style="color:var(--color-text-primary);">"X pessoas trabalhando agora"</strong> quando há múltiplos ativos</li>
-            <li>Pra adicionar membros: botão <strong style="color:var(--color-text-primary);">👥 Compartilhar</strong> no header do board</li>
-          </ul>
-        </div>
-
-        <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;">
-          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:6px;">📊 Relatórios e exportação</div>
-          <ul style="margin:0;padding-left:18px;">
-            <li>Use os filtros <strong style="color:var(--color-text-primary);">Hoje / 7 dias / 30 dias / Tudo</strong> no topo desta página</li>
-            <li>Veja tempo agregado <strong style="color:var(--color-text-primary);">por pessoa</strong>, <strong style="color:var(--color-text-primary);">por coluna</strong> e <strong style="color:var(--color-text-primary);">por card</strong> nos painéis abaixo</li>
-            <li><strong style="color:var(--color-text-primary);">📄 Exportar PDF</strong> — gera relatório formatado pra imprimir/salvar (ideal pra cliente)</li>
-            <li><strong style="color:var(--color-text-primary);">⬇ Exportar CSV</strong> — baixa entries individuais pra Excel/Sheets/timesheet</li>
-            <li><strong style="color:var(--color-text-primary);">$ Adicionar cobrança</strong> — converte tempo em fatura</li>
-          </ul>
-        </div>
-      </div>
-    </details>
+    ${_trackerHowToCardHTML()}
 
     <div class="tracker-stat-grid">
       <div class="tracker-stat">
