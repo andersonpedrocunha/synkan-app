@@ -22595,16 +22595,31 @@ function exportTrackerCSV() {
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
 }
 
-// Card "Como trackear" — sempre expandido. Usado tanto no estado vazio
-// quanto no estado com dados, pra ser referência sempre disponível.
+// Card "Como trackear" — colapsável. User pode ocultar/expandir.
+// Default = oculto. Preferência persiste em localStorage.
+const TRACKER_HOWTO_KEY = 'kanban_v8_tracker_howto_open';
+function _trackerHowToOpen() {
+  try { return localStorage.getItem(TRACKER_HOWTO_KEY) === '1'; }
+  catch(e) { return false; }
+}
+function toggleTrackerHowTo() {
+  const cur = _trackerHowToOpen();
+  try { localStorage.setItem(TRACKER_HOWTO_KEY, cur ? '0' : '1'); } catch(e){}
+  if (typeof renderTracker === 'function') renderTracker();
+}
+
 function _trackerHowToCardHTML() {
+  const open = _trackerHowToOpen();
   return `
     <div class="tracker-card" style="margin:0 0 14px;">
-      <div style="display:flex;align-items:center;gap:8px;padding:4px 2px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--color-border-tertiary);">
-        <span style="display:inline-flex;width:24px;height:24px;border-radius:50%;background:#EEEDFE;color:#3C3489;font-size:13px;align-items:center;justify-content:center;font-weight:700;">?</span>
-        <span style="font-size:14px;font-weight:600;color:var(--color-text-primary);">Como trackear o tempo das tasks</span>
+      <div onclick="toggleTrackerHowTo()" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 2px;cursor:pointer;${open ? 'margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--color-border-tertiary);' : ''}">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span style="display:inline-flex;width:24px;height:24px;border-radius:50%;background:#EEEDFE;color:#3C3489;font-size:13px;align-items:center;justify-content:center;font-weight:700;">?</span>
+          <span style="font-size:14px;font-weight:600;color:var(--color-text-primary);">Como trackear o tempo das tasks</span>
+        </span>
+        <span style="font-size:11px;color:var(--color-text-tertiary);user-select:none;">${open ? '↑ ocultar' : '↓ mostrar'}</span>
       </div>
-      <div style="font-size:13px;line-height:1.7;color:var(--color-text-secondary);">
+      ${!open ? '' : `<div style="font-size:13px;line-height:1.7;color:var(--color-text-secondary);">
         <p style="margin:0 0 14px;"><strong style="color:var(--color-text-primary);">O Synkan tem 2 modos de trackear tempo</strong> — manual e automático. Cada usuário tem o próprio timer no card, e você pode ter várias pessoas trabalhando ao mesmo tempo na mesma task.</p>
 
         <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px 16px;margin-bottom:12px;">
@@ -22650,6 +22665,7 @@ function _trackerHowToCardHTML() {
           </ul>
         </div>
       </div>
+      </div>`}
     </div>
   `;
 }
