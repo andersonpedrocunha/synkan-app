@@ -14674,9 +14674,18 @@ async function _loadMembersDashboard() {
   const c = _ensureSupaClient(); if (!c) {
     target.innerHTML = '<div class="cfg-section-hint">Sem cliente Supabase.</div>'; return;
   }
+  // Helper de timeout — se uma query do Supabase pendurar (RLS, rede, etc),
+  // mostramos erro visível em vez de "Carregando…" eterno.
+  const withTimeout = (p, ms, label) => Promise.race([
+    p,
+    new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout (${ms}ms): ${label}`)), ms)),
+  ]);
   try {
     // 1) Pega boards onde sou owner
-    const { data: myBoards, error: bErr } = await c.from('boards').select('id, name').eq('owner_id', supaUser.id);
+    const { data: myBoards, error: bErr } = await withTimeout(
+      c.from('boards').select('id, name').eq('owner_id', supaUser.id),
+      6000, 'list owner boards'
+    );
     if (bErr) throw bErr;
     const boardIds = (myBoards||[]).map(b => b.id);
     if (!boardIds.length) {
@@ -14684,14 +14693,24 @@ async function _loadMembersDashboard() {
       return;
     }
     // 2) Pega members de todos eles
-    const { data: members, error: mErr } = await c.from('board_members').select('user_id, role, board_id').in('board_id', boardIds);
+    const { data: members, error: mErr } = await withTimeout(
+      c.from('board_members').select('user_id, role, board_id').in('board_id', boardIds),
+      6000, 'list board_members'
+    );
     if (mErr) throw mErr;
     // 3) Pega profiles dos membros
     const uids = Array.from(new Set((members||[]).map(m => m.user_id).filter(Boolean)));
     let profilesMap = {};
     if (uids.length) {
-      const { data: profs } = await c.from('profiles').select('id, email, full_name').in('id', uids);
-      (profs||[]).forEach(p => { profilesMap[p.id] = p; });
+      try {
+        const { data: profs } = await withTimeout(
+          c.from('profiles').select('id, email, full_name').in('id', uids),
+          6000, 'list profiles'
+        );
+        (profs||[]).forEach(p => { profilesMap[p.id] = p; });
+      } catch(eP) {
+        console.warn('[members dashboard] profiles timeout, seguindo sem nomes:', eP?.message || eP);
+      }
     }
     // 4) Agrega
     const boardMap = {};
