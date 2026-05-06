@@ -14591,20 +14591,42 @@ async function clearWebhookFromUI() {
 // ── Stripe Customer Portal: helper único reutilizável ─────────────
 // Cria sessão do portal via /api/billing/portal e abre em nova aba.
 // Usa o stripe_customer_id da subscription do usuário logado.
+// IMPORTANTE: usa cliente ISOLADO (mesmo do dashboard) pra bypass do
+// Multiple GoTrueClient. Caso contrário a query de subscriptions trava.
 async function openStripePortal(btn) {
   const original = btn ? btn.innerHTML : null;
+  // Abre uma janela ANTES da query — se deixar pra abrir depois do await,
+  // o navegador bloqueia popup por não estar no contexto do click. Carregamos
+  // about:blank e depois trocamos pra portal_url.
+  let popup = null;
+  try { popup = window.open('about:blank', '_blank', 'noopener,noreferrer'); } catch(_) {}
   if (btn) { btn.disabled = true; btn.innerHTML = 'Abrindo portal…'; }
   try {
-    if (typeof supaUser === 'undefined' || !supaUser || !supaUser.id) {
+    // Hidrata supaUser se ainda não populou (mesma estratégia do dashboard)
+    if (!supaUser || !supaUser.id) {
+      try {
+        const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+        const tokens = cfg ? _readSupaTokensFromLocalStorage(cfg.url) : null;
+        if (tokens?.user?.id) supaUser = tokens.user;
+      } catch(_) {}
+    }
+    if (!supaUser || !supaUser.id) {
       throw new Error('Você precisa estar logado.');
     }
-    const c = _ensureSupaClient();
+    // Cliente isolado (cacheado) > principal travado
+    let c = (typeof _getOrCreateIsolatedClient === 'function')
+      ? await _getOrCreateIsolatedClient()
+      : null;
+    if (!c) c = _ensureSupaClient();
     if (!c) throw new Error('Sem cliente Supabase.');
-    const { data: sub, error } = await c
-      .from('subscriptions')
-      .select('stripe_customer_id')
-      .eq('user_id', supaUser.id)
-      .maybeSingle();
+    // Timeout pra não pendurar
+    const withTimeout = (p, ms, label) => Promise.race([
+      p, new Promise((_, rej) => setTimeout(() => rej(new Error(`timeout: ${label}`)), ms)),
+    ]);
+    const { data: sub, error } = await withTimeout(
+      c.from('subscriptions').select('stripe_customer_id').eq('user_id', supaUser.id).maybeSingle(),
+      6000, 'fetch subscriptions'
+    );
     if (error) throw error;
     const customerId = sub && sub.stripe_customer_id;
     if (!customerId) {
@@ -14620,9 +14642,16 @@ async function openStripePortal(btn) {
     if (!r.ok || !data.portal_url) {
       throw new Error(data.error || `Erro ${r.status} ao criar sessão do portal.`);
     }
-    window.open(data.portal_url, '_blank', 'noopener');
+    // Redireciona o popup já aberto (sem bloqueio do navegador)
+    if (popup && !popup.closed) {
+      try { popup.location.href = data.portal_url; }
+      catch(_) { window.open(data.portal_url, '_blank', 'noopener'); }
+    } else {
+      window.open(data.portal_url, '_blank', 'noopener');
+    }
   } catch(e) {
     console.error('[openStripePortal]', e);
+    if (popup && !popup.closed) { try { popup.close(); } catch(_) {} }
     if (typeof appAlert === 'function') {
       appAlert('Não consegui abrir o portal', e?.message || String(e), { icon:'⚠️' });
     } else {
@@ -14644,11 +14673,7 @@ function _settingsMembrosSection() {
   const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
   const limits = getCurrentPlanLimits();
   return `
-    <div id="membros-dashboard" style="margin-top:6px;">
-      ${_membersSkeletonHTML()}
-    </div>
-
-    <div style="margin-top:28px;padding:16px 18px;background:var(--color-background-secondary);border-radius:10px;border:1px solid var(--color-border-tertiary);">
+    <div style="padding:16px 18px;background:var(--color-background-secondary);border-radius:10px;border:1px solid var(--color-border-tertiary);margin-bottom:14px;">
       <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Como funciona a cobrança</div>
       <div style="font-size:13px;line-height:1.7;color:var(--color-text-secondary);">
         <strong style="color:var(--color-text-primary);">Editor</strong> e <strong style="color:var(--color-text-primary);">Admin</strong> são seats pagos — cada um soma <strong style="color:var(--color-text-primary);">R$ ${(limits.price||0).toFixed(2).replace('.',',')}/mês</strong> na sua ${_esc(limits.name||'fatura')}.<br/>
@@ -14657,7 +14682,7 @@ function _settingsMembrosSection() {
       </div>
     </div>
 
-    <div style="margin-top:14px;padding:16px 18px;background:var(--color-background-secondary);border-radius:10px;border:1px solid var(--color-border-tertiary);">
+    <div style="padding:16px 18px;background:var(--color-background-secondary);border-radius:10px;border:1px solid var(--color-border-tertiary);margin-bottom:22px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
         <div style="min-width:0;flex:1;">
           <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Pagamento</div>
@@ -14665,6 +14690,10 @@ function _settingsMembrosSection() {
         </div>
         <button class="btn-c" onclick="openStripePortal(this)" style="font-size:12px;padding:7px 14px;flex-shrink:0;">💳 Gerenciar pagamento</button>
       </div>
+    </div>
+
+    <div id="membros-dashboard">
+      ${_membersSkeletonHTML()}
     </div>`;
 }
 
