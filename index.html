@@ -14826,14 +14826,63 @@ async function _loadMembersDashboard(_retry = false) {
     return;
   }
   try {
-    // FONTE DA VERDADE: allBoards (localStorage) — mesmo conjunto do My boards.
-    // Garante que as duas telas estão SEMPRE sincronizadas.
-    let myBoards = [];
-    if (typeof allBoards === 'object' && allBoards) {
-      myBoards = Object.keys(allBoards)
-        .filter(id => allBoards[id] && !allBoards[id].archived && id !== 'unified')
-        .map(id => ({ id, name: allBoards[id].name || 'Sem nome' }));
+    // FONTE DA VERDADE: BANCO (boards do user). E sincroniza o localStorage:
+    // remove de allBoards os boards locais que não existem mais no banco
+    // (fantasmas — boards deletados externamente via SQL/outro device).
+    // Salvaguarda: só remove se o board foi criado há > 5 min (não apaga
+    // boards recém-criados que ainda não sincronizaram).
+    const { data: dbBoards } = await withTimeout(
+      c.from('boards').select('id, name').eq('owner_id', supaUser.id),
+      8000, 'list owner boards'
+    ).catch(e => ({ data: null, error: e }));
+
+    const dbIds = new Set((dbBoards || []).map(b => b.id));
+    const FIVE_MIN_AGO = Date.now() - 5*60*1000;
+    let cleanedCount = 0;
+
+    if (typeof allBoards === 'object' && allBoards && dbBoards) {
+      Object.keys(allBoards).forEach(localId => {
+        if (localId === 'unified') return;
+        const lb = allBoards[localId];
+        if (!lb) return;
+        // Se está no banco, OK
+        if (dbIds.has(localId)) return;
+        // Se não está no banco, verifica idade
+        const createdAt = lb.createdAt ? new Date(lb.createdAt).getTime() : 0;
+        const isOldEnough = createdAt > 0 && createdAt < FIVE_MIN_AGO;
+        if (isOldEnough) {
+          // Fantasma confirmado: existia no banco, foi deletado, ainda no local
+          delete allBoards[localId];
+          cleanedCount++;
+        }
+      });
+      if (cleanedCount > 0) {
+        try { if (typeof saveData === 'function') saveData(); } catch(_) {}
+        try { if (typeof renderBoardsList === 'function') renderBoardsList(); } catch(_) {}
+        console.log(`[members dashboard] sync: ${cleanedCount} board(s) fantasma removido(s) do localStorage`);
+      }
     }
+
+    // Lista a renderizar = INTERSEÇÃO de banco e local (depois do cleanup).
+    // Banco como source of truth + boards muito novos do local que ainda não
+    // sincronizaram (mostra com nome local).
+    const myBoards = [];
+    (dbBoards || []).forEach(b => {
+      const localName = allBoards?.[b.id]?.name;
+      if (allBoards?.[b.id]?.archived) return; // respeita arquivamento local
+      myBoards.push({ id: b.id, name: localName || b.name || 'Sem nome' });
+    });
+    // Adiciona boards muito novos do local que ainda não estão no banco
+    if (typeof allBoards === 'object' && allBoards) {
+      Object.keys(allBoards).forEach(localId => {
+        if (localId === 'unified') return;
+        if (dbIds.has(localId)) return;
+        const lb = allBoards[localId];
+        if (!lb || lb.archived) return;
+        myBoards.push({ id: localId, name: lb.name || 'Sem nome' });
+      });
+    }
+
     const boardIds = myBoards.map(b => b.id);
     if (!boardIds.length) {
       target.innerHTML = `<div style="text-align:center;padding:32px 16px;color:var(--color-text-secondary);"><div style="font-size:36px;margin-bottom:8px;">📋</div><div style="font-size:14px;">Você ainda não tem boards.</div><div style="font-size:12px;margin-top:4px;color:var(--color-text-tertiary);">Crie um em <strong>My boards</strong> pra começar a convidar pessoas.</div></div>`;
