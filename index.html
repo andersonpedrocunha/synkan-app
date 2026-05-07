@@ -5053,8 +5053,10 @@ body.density-compact .col{padding:7px;}
 .chat-msg-actions button{background:transparent;border:none;cursor:pointer;font-size:13px;padding:5px 8px;border-radius:5px;color:var(--color-text-secondary);}
 .chat-msg-actions button:hover{background:var(--color-background-secondary);color:var(--color-text-primary);}
 
-/* Composer */
-.chat-composer{padding:12px 20px 16px;border-top:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);flex-shrink:0;}
+/* Composer — padding direita maior pra não bater com os FABs flutuantes
+   (Pomodoro 集中 + Voice Cards mic) que ficam em position:fixed bottom-right */
+.chat-composer{padding:12px 88px 16px 20px;border-top:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);flex-shrink:0;}
+@media(max-width:760px){.chat-composer{padding:12px 80px 16px 16px;}}
 .chat-composer-input{width:100%;padding:10px 12px;border:1px solid var(--color-border-secondary);border-radius:9px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:13.5px;line-height:1.45;resize:vertical;outline:none;min-height:48px;max-height:160px;transition:border-color .12s;}
 .chat-composer-input:focus{border-color:var(--color-text-primary);}
 .chat-composer-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:7px;}
