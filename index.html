@@ -5127,12 +5127,12 @@ body.density-compact .col{padding:7px;}
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M6.4 1.8h3.2"/><path d="M6.8 1.8v4.4L3.4 12.6a1.4 1.4 0 0 0 1.2 2H11.4a1.4 1.4 0 0 0 1.2-2L9.2 6.2V1.8"/><path d="M5.4 9.4h5.2"/><circle cx="6.5" cy="11.4" r="0.55" fill="currentColor"/><circle cx="9.2" cy="12.2" r="0.45" fill="currentColor"/></svg></span><span>Lab</span></button>
     <button class="sb-item" id="sb-zai" onclick="switchTab('zai')">
       <span class="sb-icon" style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:-.04em;color:#BC002D;">財</span><span>Zai</span></button>
+    <button class="sb-item" id="sb-chat" onclick="switchTab('chat')">
+      <span class="sb-icon" style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:-.04em;color:#3C3489;">会</span><span>Kai</span><span class="sb-chat-badge" id="sb-chat-badge" style="display:none;"></span></button>
     <button class="sb-item" id="sb-okrs" onclick="switchTab('okrs')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></span><span>OKRs</span></button>
     <button class="sb-item" id="sb-registry" onclick="switchTab('registry')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5.5 4V2.8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V4"/><rect x="2" y="4" width="12" height="9.2" rx="1.4"/><path d="M2 8h12"/><path d="M7 7.5v1"/><path d="M9 7.5v1"/></svg></span><span>Synconnect</span></button>
-    <button class="sb-item" id="sb-chat" onclick="switchTab('chat')">
-      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1 -1.5 1.5h-6L4 14v-2H3a1.5 1.5 0 0 1 -1.5 -1.5v-5.5A1.5 1.5 0 0 1 3 3.5z"/><line x1="5" y1="6.4" x2="11" y2="6.4"/><line x1="5" y1="8.7" x2="9" y2="8.7"/></svg></span><span>Chat</span><span class="sb-chat-badge" id="sb-chat-badge" style="display:none;"></span></button>
     <div id="sb-views-section" style="display:none;">
       <div class="sb-divider"></div>
       <div class="sb-section-label" id="sb-current-board"></div>
@@ -37984,10 +37984,22 @@ async function _chatGetClient() {
   return _ensureSupaClient && _ensureSupaClient();
 }
 
-// Helper: user pode usar chat? (Faixa Roxa+ ativa)
+// Helper: user pode criar canais/DMs no Kai?
+// Liberado pra: Trial ativo (5 dias), Faixa Roxa, Faixa Preta.
+// Faixa Azul não tem Kai (só vê canais que foram compartilhados como
+// board_member). Trial pode usar enquanto o trial não expirou.
 function _chatUserCanCreate() {
   const code = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
-  return code === 'faixa_roxa' || code === 'faixa_preta';
+  if (code === 'faixa_roxa' || code === 'faixa_preta') return true;
+  if (code === 'trial') {
+    // Verifica se o trial ainda não expirou
+    if (typeof _trialDaysLeft === 'function') {
+      const days = _trialDaysLeft();
+      return (days !== null && days > 0);
+    }
+    return true; // Sem helper de trial, libera (o gate fino tá no _checkTrialOrBlock)
+  }
+  return false;
 }
 
 // ── Render principal ─────────────────────────────────────────────────
@@ -37997,10 +38009,10 @@ async function renderChat() {
   if (getStorageMode() !== 'supabase' || !supaUser) {
     root.innerHTML = `
       <div style="padding:48px 24px;text-align:center;color:var(--color-text-secondary);">
-        <div style="font-size:42px;margin-bottom:12px;">💬</div>
-        <h2 style="margin:0 0 8px;font-size:20px;color:var(--color-text-primary);">Chat requer modo Cloud</h2>
+        <div style="font-size:42px;margin-bottom:12px;font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;color:#3C3489;">会</div>
+        <h2 style="margin:0 0 8px;font-size:20px;color:var(--color-text-primary);">Kai requer modo Cloud</h2>
         <p style="margin:0 0 16px;font-size:13px;line-height:1.6;max-width:380px;margin-left:auto;margin-right:auto;">
-          O chat funciona em tempo real com Supabase. Faça login na sua conta pra começar.
+          O Kai é a sala de conversa do dojo — funciona em tempo real com Supabase. Faça login na sua conta pra começar.
         </p>
         <button class="btn-s" onclick="switchTab('settings');setSettingsTab('sync');">Configurar conta</button>
       </div>`;
@@ -38080,8 +38092,8 @@ function _chatRenderShell(channels) {
 
   const upgradeNudge = !canCreate ? `
     <div style="padding:14px 12px;margin:12px 8px 4px;background:linear-gradient(135deg,#3C3489,#1a1a2e);color:#fff;border-radius:9px;font-size:11.5px;line-height:1.5;">
-      <div style="font-weight:600;margin-bottom:4px;">Chat requer Faixa Roxa+</div>
-      <div style="opacity:.85;margin-bottom:8px;">Você pode participar dos canais que te convidaram, mas precisa do Roxa pra criar canais e DMs.</div>
+      <div style="font-weight:600;margin-bottom:4px;">Kai requer Trial ativo, Roxa ou Preta</div>
+      <div style="opacity:.85;margin-bottom:8px;">Você pode participar dos canais que te convidaram, mas precisa de Trial ou plano pago pra criar canais e DMs.</div>
       <button onclick="_goToPlanTab && _goToPlanTab()" style="padding:5px 10px;background:#fff;color:#3C3489;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;">Ver planos →</button>
     </div>
   ` : '';
@@ -38090,8 +38102,8 @@ function _chatRenderShell(channels) {
     <div class="chat-layout">
       <aside class="chat-sidebar">
         <div class="chat-sb-h">
-          <h2>Chat</h2>
-          <p>Conversa em tempo real, vira card num clique.</p>
+          <h2><span style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;color:#3C3489;font-weight:600;margin-right:6px;">会</span>Kai</h2>
+          <p>A sala de conversa do dojo. Tempo real, vira card num clique.</p>
         </div>
         ${upgradeNudge}
         <div class="chat-sb-section">
@@ -38130,11 +38142,11 @@ function _chatRenderEmptyState() {
   const canCreate = _chatUserCanCreate();
   return `
     <div style="padding:64px 32px;text-align:center;color:var(--color-text-secondary);">
-      <div style="font-size:48px;margin-bottom:14px;">💬</div>
-      <h2 style="margin:0 0 8px;font-size:22px;color:var(--color-text-primary);font-weight:600;">Bem-vindo ao Chat</h2>
+      <div style="font-size:64px;margin-bottom:14px;font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;color:#3C3489;font-weight:300;line-height:1;">会</div>
+      <h2 style="margin:0 0 8px;font-size:22px;color:var(--color-text-primary);font-weight:600;">Bem-vindo ao Kai</h2>
       <p style="margin:0 0 18px;font-size:13px;line-height:1.6;max-width:420px;margin-left:auto;margin-right:auto;">
         ${canCreate
-          ? 'Vamos criar o primeiro canal pra você começar. Cada board ganha um canal automático conforme você convida pessoas.'
+          ? 'Kai é a sala de conversa do dojo — onde o time troca ideia, decide e tira ações. Vamos criar o primeiro canal pra você começar.'
           : 'Você ainda não tem acesso a nenhum canal. Quando alguém te convidar pra um board, o canal aparecerá aqui.'}
       </p>
       ${canCreate ? `<button class="btn-s" onclick="_chatCreateChannelFlow('workspace')">+ Criar primeiro canal</button>` : ''}
@@ -38674,7 +38686,9 @@ async function _chatDeleteMessage(messageId) {
 // ── Criar canal (workspace) ──────────────────────────────────────────
 async function _chatCreateChannelFlow(type) {
   if (!_chatUserCanCreate()) {
-    appAlert('Faixa Roxa+ requerida', 'Criar canais é exclusivo das Faixas Roxa e Preta. Quer ver os planos?', { icon: '🔒' });
+    appAlert('Trial ou plano pago requerido',
+      'Criar canais no Kai é exclusivo de quem tá no Trial ativo ou nas Faixas Roxa/Preta. Quer ver os planos?',
+      { icon: '🔒' });
     return;
   }
   const name = await appPrompt('Novo canal', {
@@ -38706,7 +38720,9 @@ async function _chatCreateChannelFlow(type) {
 // ── Criar DM ─────────────────────────────────────────────────────────
 async function _chatCreateDMFlow() {
   if (!_chatUserCanCreate()) {
-    appAlert('Faixa Roxa+ requerida', 'DMs são exclusivas das Faixas Roxa e Preta.', { icon: '🔒' });
+    appAlert('Trial ou plano pago requerido',
+      'DMs no Kai são exclusivas do Trial ativo, Faixa Roxa ou Faixa Preta.',
+      { icon: '🔒' });
     return;
   }
   // Lista membros dos boards do user
