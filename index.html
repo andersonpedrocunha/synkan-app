@@ -9979,6 +9979,8 @@ async function renameZaiBoardFromHub(boardId) {
 
 // Cria um board novo a partir do ZAI_TEMPLATE (acessado pelo hub Zai)
 async function createZaiBoardFromHub() {
+  // Trial expirado: soft block de criação
+  if (typeof _checkTrialOrBlock === 'function' && !_checkTrialOrBlock('board')) return;
   // Gate: respeita limite de boards do plano
   if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('board')) return;
   const userName = await appPrompt('Novo board Zai', {
@@ -9989,7 +9991,8 @@ async function createZaiBoardFromHub() {
     okLabel: 'Criar board',
   });
   if (userName === null) return;
-  const finalName = _ensureZaiPrefix(userName);
+  // Aplica prefixo Zai E garante nome único (incrementa sufixo se já existe)
+  const finalName = _uniqueBoardName(_ensureZaiPrefix(userName));
   // Reusa o template Zai mas com nome customizado
   const tpl = ZAI_TEMPLATE;
   const id = _genBoardId();
