@@ -10165,7 +10165,7 @@ function promoteKaizenAction(cardId) {
     if (typeof appAlert === 'function') {
       appAlert('Sem boards destino', 'Você precisa ter pelo menos outro board normal pra promover esta ação.', { icon:'📋', okLabel:'OK' });
     } else {
-      alert('Crie outro board antes de promover esta ação.');
+      appAlert('Sem boards de destino', 'Crie outro board antes de promover esta ação. Você precisa de pelo menos um board diferente da Retrospectiva pra promover.', { icon:'ℹ️' });
     }
     return;
   }
@@ -10281,7 +10281,7 @@ function closeIconPicker() {
 
 function saveIconPickerCustom() {
   const v = (document.getElementById('icon-picker-custom').value || '').trim();
-  if (!v) { alert('Digite ou cole um emoji.'); return; }
+  if (!v) { appAlert('Emoji obrigatório', 'Digite ou cole um emoji pra usar como ícone do board.', { icon:'✏️' }); return; }
   if (!_iconPickerBoardId) return;
   setBoardIcon(_iconPickerBoardId, v);
   closeIconPicker();
@@ -14654,12 +14654,12 @@ function saveWebhookFromUI() {
   const events = Array.from(document.querySelectorAll('.webhook-evt:checked')).map(el => el.value);
   setWebhookCfg({ url, events });
   audit('webhook.configured', { url: url ? '(set)' : '(cleared)', events });
-  alert('Webhook salvo.');
+  appAlert('Webhook salvo ✓', 'Sua URL de webhook foi salva com sucesso.', { icon:'✓' });
   if (currentTab === 'settings') renderSettings();
 }
 async function testWebhookFromUI() {
   const url = (document.getElementById('webhook-url')?.value || '').trim();
-  if (!url) { alert('Informe a URL do webhook primeiro.'); return; }
+  if (!url) { appAlert('URL obrigatória', 'Informe a URL do webhook primeiro pra fazer o teste.', { icon:'⚠️' }); return; }
   // salva temporariamente para que fireWebhook use
   const prev = getWebhookCfg();
   setWebhookCfg({ url, events: ['card.created','card.updated','card.moved','card.completed','card.deleted','board.created','mention'] });
@@ -17678,7 +17678,10 @@ function _granatumEnsureContact(pessoaNome, pessoaDocumento, pessoaTipo) {
 
 async function _granatumClearToken() {
   if (!supaUser) return;
-  if (!confirm('Remover token Granatum? Você precisará colar de novo pra usar.')) return;
+  const ok = await appConfirm('Remover token Granatum?',
+    'Você precisará colar o token de novo pra reconectar com o Granatum.',
+    { icon:'⚠️', danger:true, okLabel:'Remover token' });
+  if (!ok) return;
   try {
     await _capRESTCall(`granatum_configs?user_id=eq.${encodeURIComponent(supaUser.id)}`, {
       method: 'PATCH',
@@ -18682,6 +18685,10 @@ document.addEventListener('keydown',e=>{
 let supaClient = null;
 let supaUser   = null;
 let supaRealtimeCh = null;
+// Forward declarations: variáveis do módulo Gamificação (atribuídas mais
+// abaixo no script). Declarar aqui evita TDZ — acesso precoce vira undefined
+// em vez de ReferenceError. Os usos têm guards defensivos (?.).
+let _gamif, _gamifCfg;
 let _saveDebounce = null;
 let _suppressNextSave = false;   // quando estamos aplicando uma atualização vinda do realtime
 
@@ -20226,10 +20233,11 @@ function _refreshAccountUIInternal() {
   const unread = (typeof notifications !== 'undefined' && Array.isArray(notifications))
     ? notifications.filter(n=>!n.read).length : 0;
   const dotHTML = unread > 0 ? '<span class="sb-account-dot" title="'+unread+' nova(s) notificação(ões)"></span>' : '';
-  // Faixa atual + streak — try/catch porque _gamif pode estar em TDZ se chamado antes
-  // da inicialização do bloco de gamificação (acontece em alguns paths de auto-render)
+  // Faixa atual + streak (com fallback gracioso se ainda não inicializou)
   let gst = null;
-  try { if (typeof _gamifGetState === 'function') gst = _gamifGetState(); } catch(e) { gst = null; }
+  if (typeof _gamifGetState === 'function') {
+    try { gst = _gamifGetState(); } catch(e) { gst = null; }
+  }
   const beltCol  = gst?.color  || '#E1DFDA';
   const beltCol2 = gst?.color2 || '#CFCDC8';
   const beltClass = gst?.idx >= 7 ? ' belt-preta' : '';
@@ -20245,10 +20253,9 @@ function _refreshAccountUIInternal() {
     ? `<div class="sb-account-title"><strong>${_esc(gst.name)}</strong> · ${_esc(gst.title)}${gst.next?` · <span style="opacity:.7;">${gst.xp}/${gst.next.threshold} XP</span>`:` · ${gst.xp} XP`}</div>`
     : '';
   const notifBadgeHTML = unread > 0 ? `<span class="sb-account-menu-badge">${unread > 99 ? '99+' : unread}</span>` : '';
-  // _gamifCfg pode estar em TDZ se chamado antes da inicialização do módulo
   let dojoItem = '';
   try {
-    if (typeof _gamifCfg !== 'undefined' && _gamifCfg && _gamifCfg.enabled) {
+    if (_gamifCfg && _gamifCfg.enabled) {
       dojoItem = `
       <button class="sb-account-menu-item" onclick="closeAccountMenu();switchTab('dojo');">
         <span class="sb-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.8 Q3 3 4 3.2 L12 3.2 Q13 3 14 3.8"/><path d="M3 5.6 L13 5.6"/><line x1="5" y1="3.2" x2="5" y2="13.8"/><line x1="11" y1="3.2" x2="11" y2="13.8"/><line x1="3.5" y1="13.8" x2="6.5" y2="13.8"/><line x1="9.5" y1="13.8" x2="12.5" y2="13.8"/></svg></span><span>Dojo</span>
@@ -21340,7 +21347,7 @@ async function restoreFromJson(input) {
 }
 
 async function importLocalDataToSupabase() {
-  if (!supaUser) return alert('Faça login primeiro.');
+  if (!supaUser) { appAlert('Faça login primeiro', 'Você precisa estar logado pra usar essa função.', { icon:'🔒' }); return; }
   let raw;
   try { raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { raw = {}; }
   const localBoards = raw && raw.boards ? raw.boards : null;
@@ -21769,7 +21776,7 @@ function _icsDateTime(iso) {
 }
 function exportCalendarICS() {
   const allCards = _allCardsAcrossBoards().filter(c => c.deadline);
-  if (!allCards.length) { alert('Nenhum card com deadline pra exportar.'); return; }
+  if (!allCards.length) { appAlert('Sem deadlines pra exportar', 'Nenhum card tem deadline definido. Adicione deadlines aos seus cards e tente de novo.', { icon:'ℹ️' }); return; }
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -21833,7 +21840,7 @@ function audit(action, details) {
 }
 
 function exportAuditLogCSV() {
-  if (!auditLog.length) { alert('Sem registros de auditoria.'); return; }
+  if (!auditLog.length) { appAlert('Sem registros', 'Não há nenhum registro de auditoria pra exportar ainda.', { icon:'ℹ️' }); return; }
   const headers = ['when','who','board','action','details'];
   const escape = v => `"${String(v).replace(/"/g,'""')}"`;
   const rows = auditLog.map(e => [
@@ -21916,7 +21923,7 @@ async function deleteAllUserData() {
 let _mfaEnrollment = null;
 async function start2FAEnroll() {
   const c = _ensureSupaClient(); if (!c) return alert('2FA requer modo Supabase.');
-  if (!supaUser) return alert('Faça login primeiro.');
+  if (!supaUser) { appAlert('Faça login primeiro', 'Você precisa estar logado pra usar essa função.', { icon:'🔒' }); return; }
   try {
     const { data, error } = await c.auth.mfa.enroll({ factorType: 'totp' });
     if (error) throw error;
@@ -23280,7 +23287,7 @@ function renderModalTime(cardId) {
 // ── AI suggest pro card (preenche prioridade/deadline/tags/responsável) ──
 async function aiSuggestForCard() {
   const name = (document.getElementById('inp-name').value||'').trim();
-  if (!name) { alert('Digite o nome do card antes de pedir sugestões.'); return; }
+  if (!name) { appAlert('Nome obrigatório', 'Digite o nome do card antes de pedir sugestões pro Mestre Kan.', { icon:'✏️' }); return; }
   const out = document.getElementById('ai-suggest-out');
   const btn = document.getElementById('btn-ai-suggest');
   if (out) { out.style.display = 'block'; out.innerHTML = '<img class="kan-avatar md is-meditating" src="mestre_kan_avatar.png?v=6" alt="" style="vertical-align:-14px;margin-right:8px;"/>Mestre Kan medita…'; }
@@ -31006,7 +31013,7 @@ const GAMIF_DEFAULTS = {
   // Animações (toast + confete + modal de subida)
   animations: true,
 };
-let _gamifCfg = JSON.parse(JSON.stringify(GAMIF_DEFAULTS));
+_gamifCfg = JSON.parse(JSON.stringify(GAMIF_DEFAULTS));
 try {
   const raw = localStorage.getItem(GAMIF_CFG_KEY);
   if (raw) {
@@ -31144,7 +31151,7 @@ function _settingsDojoSection() {
   `;
 }
 
-let _gamif = {
+_gamif = {
   xp: 0,
   belt: 0,
   streak: { count: 0, longest: 0, lastDate: null },
