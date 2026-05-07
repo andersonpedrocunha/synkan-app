@@ -9983,6 +9983,20 @@ async function createZaiBoardFromHub() {
   if (typeof _checkTrialOrBlock === 'function' && !_checkTrialOrBlock('board')) return;
   // Gate: respeita limite de boards do plano
   if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('board')) return;
+
+  // 1) Pergunta como quer começar: zerado ou com dados de exemplo
+  const seedChoice = await appChoice('Como quer começar?', [
+    { id: 'empty',  icon: '◯', label: 'Board zerado',           meta: 'Sem cards' },
+    { id: 'sample', icon: '✦', label: 'Com dados de exemplo',   meta: 'Pra explorar' },
+  ], {
+    icon: '財',
+    message: 'Você escolhe: começar do zero ou ver o Zai funcionando com cards de demonstração.',
+    allowClear: false,
+  });
+  if (!seedChoice || seedChoice === '__clear__') return;
+  const seedEmpty = (seedChoice === 'empty');
+
+  // 2) Pede o nome
   const userName = await appPrompt('Novo board Zai', {
     icon: '財',
     message: 'Dê um nome ao board financeiro. O prefixo "Zai ·" entra automático.',
@@ -9997,7 +10011,11 @@ async function createZaiBoardFromHub() {
   const tpl = ZAI_TEMPLATE;
   const id = _genBoardId();
   const tagsOut = tpl.tags.map((t,i)=>({ id:'t'+(i+1), text:t.text, color:COLORS[t.colorIdx % COLORS.length] }));
-  const { cards: tplCards, nCard } = _instantiateTemplateCards(tpl, 1);
+  // Se "zerado", board sem cards e nCard começa em 1.
+  // Se "sample", instancia os cards do ZAI_TEMPLATE.
+  const { cards: tplCards, nCard } = seedEmpty
+    ? { cards: [], nCard: 1 }
+    : _instantiateTemplateCards(tpl, 1);
   allBoards[id] = {
     name: finalName,
     icon: tpl.icon || '財',
