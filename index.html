@@ -5022,6 +5022,9 @@ body.density-compact .col{padding:7px;}
 .chat-channel-h-help{width:28px;height:28px;border-radius:50%;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .12s;font-family:var(--font-sans);}
 .chat-channel-h-help:hover{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary);}
 
+/* Wrapper das mensagens — recebe drag/drop overlay */
+.chat-msgs-wrap{flex:1;position:relative;display:flex;flex-direction:column;overflow:hidden;}
+
 /* Lista de mensagens */
 .chat-msgs{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px;}
 .chat-msgs-empty{text-align:center;color:var(--color-text-tertiary);padding:48px 20px;font-size:13px;}
@@ -5074,6 +5077,41 @@ body.density-compact .col{padding:7px;}
 .chat-msg-text .chat-list li{margin:2px 0;}
 .chat-msg-text .chat-inline-code{background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--color-text-primary);border:0.5px solid var(--color-border-tertiary);}
 .chat-msg-text .chat-code-block{background:var(--color-background-secondary);padding:10px 12px;border-radius:6px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--color-text-primary);border:0.5px solid var(--color-border-tertiary);margin:6px 0;overflow-x:auto;white-space:pre;line-height:1.45;}
+
+/* ── Anexos: pending (antes de enviar) ─────────────────────────── */
+.chat-pending-atts{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0 8px;}
+.chat-att-pending{display:flex;align-items:center;gap:8px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 8px 6px 6px;max-width:260px;position:relative;}
+.chat-att-prev{width:36px;height:36px;border-radius:5px;background:var(--color-background-primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;}
+.chat-att-prev img{width:100%;height:100%;object-fit:cover;}
+.chat-att-icon{font-size:18px;}
+.chat-att-info{flex:1;min-width:0;}
+.chat-att-name{font-size:12px;font-weight:500;color:var(--color-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chat-att-meta{font-size:11px;color:var(--color-text-tertiary);display:flex;gap:6px;align-items:center;}
+.chat-att-uploading{color:#3C3489;font-weight:500;}
+.chat-att-error{color:#A32D2D;font-weight:500;}
+.chat-att-ok{color:#16a34a;font-weight:500;}
+.chat-att-remove{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#1a1a1a;color:#fff;border:none;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;font-weight:600;}
+.chat-att-remove:hover{background:#A32D2D;}
+
+/* ── Anexos: rendered na mensagem ───────────────────────────────── */
+.chat-msg-atts{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+.chat-msg-att-img{display:block;border-radius:8px;overflow:hidden;max-width:340px;max-height:280px;border:0.5px solid var(--color-border-tertiary);transition:transform .12s;}
+.chat-msg-att-img:hover{transform:scale(1.01);}
+.chat-msg-att-img img{display:block;max-width:100%;max-height:280px;width:auto;height:auto;}
+.chat-msg-att-file{display:flex;align-items:center;gap:10px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px 12px 8px 10px;text-decoration:none;color:var(--color-text-primary);max-width:340px;transition:border-color .12s,transform .12s;}
+.chat-msg-att-file:hover{border-color:var(--color-text-primary);transform:translateY(-1px);}
+.chat-msg-att-icon{font-size:22px;flex-shrink:0;}
+.chat-msg-att-info{flex:1;min-width:0;display:flex;flex-direction:column;}
+.chat-msg-att-name{font-size:12.5px;font-weight:500;color:var(--color-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chat-msg-att-meta{font-size:11px;color:var(--color-text-tertiary);}
+
+/* ── Drag & drop overlay sobre o painel de mensagens ───────────── */
+.chat-drop-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(60,52,137,.18);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:50;pointer-events:none;}
+.chat-drop-overlay.is-active{display:flex;}
+.chat-drop-overlay-inner{background:var(--color-background-primary);border:2px dashed #3C3489;border-radius:12px;padding:32px 40px;text-align:center;color:#3C3489;}
+.chat-drop-icon{font-size:42px;line-height:1;margin-bottom:8px;}
+.chat-drop-text{font-size:16px;font-weight:600;margin-bottom:4px;}
+.chat-drop-hint{font-size:12px;color:var(--color-text-tertiary);}
 .chat-composer-input{width:100%;padding:10px 12px;border:1px solid var(--color-border-secondary);border-radius:9px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:13.5px;line-height:1.45;resize:vertical;outline:none;min-height:48px;max-height:160px;transition:border-color .12s;}
 .chat-composer-input:focus{border-color:var(--color-text-primary);}
 .chat-composer-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:7px;}
@@ -37995,7 +38033,14 @@ let _chatState = {
   userMap: {},
   loading: false,
   upgradeNeeded: false,
+  // Anexos em fila — fica acima do textarea até o usuário enviar a mensagem.
+  // Cada item: { tempId, name, size, mime_type, url?, path?, thumb?, uploading, error }
+  pendingAttachments: [],
 };
+
+// Limites e config dos anexos
+const _CHAT_MAX_FILE_SIZE = 10 * 1024 * 1024;          // 10 MB
+const _CHAT_BUCKET = 'chat-attachments';
 
 // Helper: cliente Supabase (usa o isolado quando possível)
 async function _chatGetClient() {
@@ -38425,7 +38470,19 @@ function _chatRenderMessagesView() {
 
   pane.innerHTML = `
     ${headerHTML}
-    <div class="chat-msgs" id="chat-msgs">${messagesHTML}</div>
+    <div class="chat-msgs-wrap" id="chat-msgs-wrap"
+         ondragover="_chatDragOver(event)"
+         ondragleave="_chatDragLeave(event)"
+         ondrop="_chatDrop(event)">
+      <div class="chat-msgs" id="chat-msgs">${messagesHTML}</div>
+      <div class="chat-drop-overlay" id="chat-drop-overlay">
+        <div class="chat-drop-overlay-inner">
+          <div class="chat-drop-icon">⤓</div>
+          <div class="chat-drop-text">Solte aqui pra anexar</div>
+          <div class="chat-drop-hint">Até 10 MB por arquivo · imagens, PDFs, docs, etc</div>
+        </div>
+      </div>
+    </div>
     <div class="chat-composer">
       <div class="chat-composer-toolbar">
         <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('bold')"      title="Negrito (**texto**)" style="font-weight:700;">B</button>
@@ -38439,14 +38496,20 @@ function _chatRenderMessagesView() {
         <span class="chat-fmt-divider"></span>
         <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('code')"      title="Código inline (\`código\`)" style="font-family:ui-monospace,monospace;">&lt;/&gt;</button>
         <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('codeblock')" title="Bloco de código (\`\`\`)" style="font-family:ui-monospace,monospace;">{ }</button>
+        <span class="chat-fmt-divider"></span>
+        <button type="button" class="chat-fmt-btn" onclick="_chatPickFile()" title="Anexar arquivo (até 10 MB)" style="font-weight:600;">+ Anexar</button>
+        <input type="file" id="chat-file-input" multiple style="display:none;" onchange="_chatHandleFiles(this.files);this.value='';"/>
       </div>
-      <textarea id="chat-composer-input" class="chat-composer-input" rows="2" placeholder="Mensagem em #${_esc(ch.name)}… (use /kanban pra criar card · /resumo pra Mestre Kan resumir)" onkeydown="_chatComposerKeydown(event)"></textarea>
+      <div id="chat-pending-attachments" class="chat-pending-atts" style="display:none;"></div>
+      <textarea id="chat-composer-input" class="chat-composer-input" rows="2" placeholder="Mensagem em #${_esc(ch.name)}… (arraste arquivos aqui · /kanban pra criar card · /resumo pra Mestre Kan)" onkeydown="_chatComposerKeydown(event)"></textarea>
       <div class="chat-composer-actions">
-        <span class="chat-composer-hint">Enter envia · Shift+Enter quebra linha</span>
+        <span class="chat-composer-hint">Enter envia · Shift+Enter quebra linha · arraste arquivos pro chat</span>
         <button class="chat-composer-send" onclick="_chatSendFromComposer()">Enviar →</button>
       </div>
     </div>
   `;
+  // Re-renderiza pending atts caso ainda existam de antes
+  _chatRenderPendingAttachments();
   _chatScrollToBottom();
 }
 
@@ -38478,6 +38541,12 @@ function _chatRenderMessage(m, isThreadReply) {
   const isMine = m.user_id === supaUser.id;
   const editedTag = m.edited_at ? '<span class="chat-msg-edited">(editado)</span>' : '';
 
+  const attachmentsHTML = _chatRenderMessageAttachments(m.attachments);
+  // Esconde o body div se body vazio mas tem anexos
+  const bodyHTML = m.body
+    ? `<div class="chat-msg-text">${_chatRenderBody(m.body)}</div>`
+    : '';
+
   return `
     <div class="chat-msg" data-msg-id="${m.id}">
       ${avatar}
@@ -38487,7 +38556,8 @@ function _chatRenderMessage(m, isThreadReply) {
           <span class="chat-msg-time">${time}</span>
           ${editedTag}
         </div>
-        <div class="chat-msg-text">${_chatRenderBody(m.body)}</div>
+        ${bodyHTML}
+        ${attachmentsHTML}
         ${cardLinksHTML}
         ${reactionsHTML}
         ${replyBadge}
@@ -38648,28 +38718,31 @@ async function _chatSendFromComposer() {
   const input = document.getElementById('chat-composer-input');
   if (!input) return;
   const text = (input.value || '').trim();
-  if (!text) return;
+  const hasAttachments = _chatState.pendingAttachments.some(a => !a.uploading && !a.error && a.url);
+  if (!text && !hasAttachments) return;
 
-  // Slash commands
-  if (text.startsWith('/kanban') || text.startsWith('/card')) {
-    const body = text.replace(/^\/(kanban|card)\s*/, '').trim();
-    if (body) await _chatVirarCardFromText(body);
-    input.value = '';
-    return;
-  }
-  if (text.startsWith('/resumo') || text.startsWith('/summary')) {
-    input.value = '';
-    return _chatMestreKanModal('summary');
-  }
-  if (text === '/help' || text === '/ajuda') {
-    input.value = '';
-    appAlert('Comandos do chat',
-      '<strong>/kanban [texto]</strong> · cria card a partir do texto<br/><strong>/resumo</strong> · Mestre Kan resume a conversa<br/><strong>/ajuda</strong> · esta lista',
-      { html: true, icon: '⌨' });
-    return;
+  // Slash commands (só processa se NÃO houver anexos — comando + anexo é estranho)
+  if (!hasAttachments) {
+    if (text.startsWith('/kanban') || text.startsWith('/card')) {
+      const body = text.replace(/^\/(kanban|card)\s*/, '').trim();
+      if (body) await _chatVirarCardFromText(body);
+      input.value = '';
+      return;
+    }
+    if (text.startsWith('/resumo') || text.startsWith('/summary')) {
+      input.value = '';
+      return _chatMestreKanModal('summary');
+    }
+    if (text === '/help' || text === '/ajuda') {
+      input.value = '';
+      appAlert('Comandos do chat',
+        '<strong>/kanban [texto]</strong> · cria card a partir do texto<br/><strong>/resumo</strong> · Mestre Kan resume a conversa<br/><strong>/ajuda</strong> · esta lista',
+        { html: true, icon: '⌨' });
+      return;
+    }
   }
 
-  // Envia mensagem normal
+  // Envia mensagem (texto + anexos, ou só um dos dois)
   await _chatSendMessage(text);
   input.value = '';
 }
@@ -38679,21 +38752,42 @@ async function _chatSendMessage(body, parentId) {
   if (!c) return;
   const channelId = _chatState.currentChannelId;
   if (!channelId) return;
+
+  // Anexos prontos (uploaded sem erro). Os que ainda estão subindo ou com
+  // erro ficam de fora — o user vê o status na fila e decide.
+  const attachmentsReady = _chatState.pendingAttachments
+    .filter(a => !a.uploading && !a.error && a.url)
+    .map(a => ({
+      url: a.url, path: a.path, name: a.name, size: a.size, mime_type: a.mime_type,
+    }));
+
+  // Verifica se tem itens ainda subindo — avisa
+  const stillUploading = _chatState.pendingAttachments.some(a => a.uploading);
+  if (stillUploading) {
+    appAlert('Aguarde', 'Tem arquivo ainda subindo. Espera terminar antes de enviar.', { icon: '⏳' });
+    return;
+  }
+
+  // Mensagem só pode estar vazia se houver pelo menos 1 anexo
+  if (!body && attachmentsReady.length === 0) return;
+
   try {
-    // Insere e pede de volta a linha completa (.select().single())
     const { data: inserted, error } = await c.from('chat_messages').insert({
       channel_id: channelId,
       user_id: supaUser.id,
       parent_id: parentId || null,
-      body,
+      body: body || '',
       mentions: _chatExtractMentions(body),
+      attachments: attachmentsReady,
     }).select().single();
     if (error) throw error;
 
+    // Limpa fila de anexos (já foram pra mensagem)
+    _chatState.pendingAttachments = [];
+    _chatRenderPendingAttachments();
+
     // Optimistic: adiciona na lista local na hora (antes do realtime ecoar).
-    // Se for mensagem raiz do canal atual, aparece direto.
     if (inserted && !inserted.parent_id && _chatState.currentChannelId === channelId) {
-      // Evita duplicar caso realtime ecoe (filtro por id)
       if (!_chatState.messages.find(x => x.id === inserted.id)) {
         inserted._reactions = {};
         inserted._replyCount = 0;
@@ -39084,6 +39178,166 @@ async function _chatVirarCardFromText(text, sourceMessageId) {
     }
   }
   if (typeof showToastMsg === 'function') showToastMsg('Card criado em "' + board.name + '" ✓');
+}
+
+// ── Anexos: upload + preview + render ────────────────────────────────
+
+// Botão "+ Anexar" — abre seletor de arquivo
+function _chatPickFile() {
+  const inp = document.getElementById('chat-file-input');
+  if (inp) inp.click();
+}
+
+// Handler do <input type=file> e do drop
+async function _chatHandleFiles(fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  for (const file of files) {
+    // Valida tamanho
+    if (file.size > _CHAT_MAX_FILE_SIZE) {
+      appAlert('Arquivo grande demais', `"${file.name}" tem ${_chatFormatSize(file.size)}. Limite: 10 MB por arquivo.`, { icon: '⚠️' });
+      continue;
+    }
+    const tempId = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    const item = {
+      tempId,
+      name: file.name,
+      size: file.size,
+      mime_type: file.type || 'application/octet-stream',
+      url: null, path: null, thumb: null,
+      uploading: true, error: null,
+    };
+    // Thumb local pra imagens (mostra preview enquanto sobe)
+    if (file.type && file.type.startsWith('image/')) {
+      try { item.thumb = URL.createObjectURL(file); } catch(_) {}
+    }
+    _chatState.pendingAttachments.push(item);
+    _chatRenderPendingAttachments();
+    // Sobe em paralelo (não bloqueia próximos arquivos)
+    _chatUploadAttachment(file, tempId);
+  }
+}
+
+async function _chatUploadAttachment(file, tempId) {
+  try {
+    const c = await _chatGetClient();
+    if (!c || !c.storage) throw new Error('Storage indisponível');
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const path = `${supaUser.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error: upErr } = await c.storage.from(_CHAT_BUCKET).upload(path, file, {
+      cacheControl: '3600', upsert: false,
+    });
+    if (upErr) throw upErr;
+    const { data: urlData } = c.storage.from(_CHAT_BUCKET).getPublicUrl(path);
+    const item = _chatState.pendingAttachments.find(a => a.tempId === tempId);
+    if (!item) return; // user removeu antes de subir
+    item.url = urlData.publicUrl;
+    item.path = path;
+    item.uploading = false;
+    _chatRenderPendingAttachments();
+  } catch(e) {
+    console.error('[chat] upload:', e);
+    const item = _chatState.pendingAttachments.find(a => a.tempId === tempId);
+    if (item) {
+      item.uploading = false;
+      item.error = e?.message || String(e);
+    }
+    _chatRenderPendingAttachments();
+  }
+}
+
+function _chatRemovePending(tempId) {
+  _chatState.pendingAttachments = _chatState.pendingAttachments.filter(a => a.tempId !== tempId);
+  _chatRenderPendingAttachments();
+}
+
+function _chatRenderPendingAttachments() {
+  const wrap = document.getElementById('chat-pending-attachments');
+  if (!wrap) return;
+  if (!_chatState.pendingAttachments.length) {
+    wrap.innerHTML = '';
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = '';
+  wrap.innerHTML = _chatState.pendingAttachments.map(a => {
+    const isImg = a.mime_type.startsWith('image/');
+    const status = a.error ? `<span class="chat-att-error" title="${_esc(a.error)}">⚠ erro</span>`
+                  : a.uploading ? `<span class="chat-att-uploading">subindo…</span>`
+                  : `<span class="chat-att-ok">✓</span>`;
+    const preview = isImg && a.thumb
+      ? `<img src="${_esc(a.thumb)}" alt=""/>`
+      : `<span class="chat-att-icon">${_chatFileIcon(a.mime_type, a.name)}</span>`;
+    return `
+      <div class="chat-att-pending">
+        <div class="chat-att-prev">${preview}</div>
+        <div class="chat-att-info">
+          <div class="chat-att-name">${_esc(a.name)}</div>
+          <div class="chat-att-meta">${_chatFormatSize(a.size)} · ${status}</div>
+        </div>
+        <button class="chat-att-remove" onclick="_chatRemovePending('${a.tempId}')" title="Remover">×</button>
+      </div>`;
+  }).join('');
+}
+
+function _chatFileIcon(mime, name) {
+  if (mime.startsWith('image/')) return '🖼';
+  if (mime.startsWith('video/')) return '🎬';
+  if (mime.startsWith('audio/')) return '🎵';
+  if (mime === 'application/pdf') return '📄';
+  if (mime.includes('zip') || mime.includes('rar') || mime.includes('tar')) return '🗜';
+  if (mime.includes('sheet') || mime.includes('excel') || (name||'').match(/\.(xlsx?|csv)$/i)) return '📊';
+  if (mime.includes('word') || (name||'').match(/\.docx?$/i)) return '📝';
+  if (mime.includes('presentation') || (name||'').match(/\.pptx?$/i)) return '📺';
+  return '📎';
+}
+
+function _chatFormatSize(bytes) {
+  if (!bytes) return '0 B';
+  const u = ['B','KB','MB','GB'];
+  let i = 0, n = bytes;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return n.toFixed(n < 10 && i > 0 ? 1 : 0) + ' ' + u[i];
+}
+
+// Render dos anexos dentro de uma mensagem renderizada
+function _chatRenderMessageAttachments(attachments) {
+  if (!attachments || !attachments.length) return '';
+  const items = attachments.map(a => {
+    const isImg = (a.mime_type || '').startsWith('image/');
+    if (isImg) {
+      return `<a href="${_esc(a.url)}" target="_blank" rel="noopener" class="chat-msg-att-img" title="${_esc(a.name)}">
+        <img src="${_esc(a.url)}" alt="${_esc(a.name)}" loading="lazy"/>
+      </a>`;
+    }
+    return `<a href="${_esc(a.url)}" target="_blank" rel="noopener" download="${_esc(a.name)}" class="chat-msg-att-file">
+      <span class="chat-msg-att-icon">${_chatFileIcon(a.mime_type || '', a.name || '')}</span>
+      <span class="chat-msg-att-info">
+        <span class="chat-msg-att-name">${_esc(a.name)}</span>
+        <span class="chat-msg-att-meta">${_chatFormatSize(a.size || 0)}</span>
+      </span>
+    </a>`;
+  }).join('');
+  return `<div class="chat-msg-atts">${items}</div>`;
+}
+
+// Drag & drop sobre o painel de mensagens
+function _chatDragOver(e) {
+  if (!e.dataTransfer || !e.dataTransfer.types.includes('Files')) return;
+  e.preventDefault();
+  document.getElementById('chat-drop-overlay')?.classList.add('is-active');
+}
+function _chatDragLeave(e) {
+  // Só esconde quando sair do painel inteiro (não em filhos)
+  if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
+  document.getElementById('chat-drop-overlay')?.classList.remove('is-active');
+}
+function _chatDrop(e) {
+  e.preventDefault();
+  document.getElementById('chat-drop-overlay')?.classList.remove('is-active');
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+    _chatHandleFiles(e.dataTransfer.files);
+  }
 }
 
 // ── Como usar o Tatami (instruções inline) ──────────────────────────
