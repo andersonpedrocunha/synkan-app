@@ -38528,18 +38528,13 @@ async function _chatEnsureDefaultChannels() {
       const { data: existing } = await c.from('chat_channels')
         .select('id').eq('workspace_owner', supaUser.id).eq('type', 'workspace').eq('name', p.name).maybeSingle();
       if (existing) continue;
-      const { data: created, error } = await c.from('chat_channels').insert({
-        workspace_owner: supaUser.id,
-        type: 'workspace',
-        name: p.name,
-        description: p.description,
-        created_by: supaUser.id,
-      }).select().single();
-      if (error) { console.debug('[chat] preset ' + p.name + ':', error?.message); continue; }
-      // Adiciona owner como membro explícito do canal workspace
-      if (created) {
-        await c.from('chat_channel_members').upsert({ channel_id: created.id, user_id: supaUser.id });
-      }
+      // RPC SECURITY DEFINER (mesma função, mesma elegibilidade)
+      const { error } = await c.rpc('create_chat_channel', {
+        p_type: 'workspace',
+        p_name: p.name,
+        p_description: p.description,
+      });
+      if (error) console.debug('[chat] preset ' + p.name + ':', error?.message);
     } catch(e) { console.debug('[chat] preset ' + p.name + ' err:', e?.message); }
   }
 }
@@ -38549,24 +38544,14 @@ async function _chatEnsureSelfDM() {
   const c = await _chatGetClient();
   if (!c) return;
   try {
-    const { data: existing } = await c.from('chat_channels')
-      .select('id')
-      .eq('type', 'dm')
-      .eq('dm_user_a', supaUser.id)
-      .eq('dm_user_b', supaUser.id)
-      .maybeSingle();
-    if (existing) return;
-    await c.from('chat_channels').insert({
-      workspace_owner: supaUser.id,
-      type: 'dm',
-      dm_user_a: supaUser.id,
-      dm_user_b: supaUser.id,
-      name: 'notas-pessoais',
-      description: 'Notas pessoais — só você vê.',
-      created_by: supaUser.id,
+    // RPC SECURITY DEFINER (idempotente — retorna existente se já houver)
+    await c.rpc('create_chat_channel', {
+      p_type: 'dm',
+      p_name: 'notas-pessoais',
+      p_dm_target: supaUser.id,
+      p_description: 'Notas pessoais — só você vê.',
     });
   } catch (e) {
-    // Conflict (já existia) ou outro erro — ignora
     console.debug('[chat] ensure self-DM:', e?.message);
   }
 }
@@ -39538,20 +39523,22 @@ async function _chatCreateChannelFlow(type) {
   if (!cleanName) { appAlert('Nome inválido', 'Use letras minúsculas, números e hífens.', { icon: '⚠️' }); return; }
   const c = await _chatGetClient();
   try {
-    const { data, error } = await c.from('chat_channels').insert({
-      workspace_owner: supaUser.id,
-      type: 'workspace',
-      name: cleanName,
-      is_private: isPrivate,
-      created_by: supaUser.id,
-    }).select().single();
+    // Usa RPC SECURITY DEFINER (bypassa RLS WITH CHECK problemática)
+    const { data: newId, error } = await c.rpc('create_chat_channel', {
+      p_type: 'workspace',
+      p_name: cleanName,
+      p_is_private: isPrivate,
+      p_description: null,
+    });
     if (error) throw error;
-    // Adiciona owner como membro
-    await c.from('chat_channel_members').upsert({ channel_id: data.id, user_id: supaUser.id });
-    _chatState.currentChannelId = data.id;
+    _chatState.currentChannelId = newId;
     await _chatLoadChannels();
     renderChat();
-  } catch(e) { appAlert('Não consegui criar', e?.message || String(e), { icon: '⚠️' }); }
+  } catch(e) {
+    console.error('[chat] create channel:', e);
+    const parts = [e?.message, e?.details, e?.hint].filter(Boolean);
+    appAlert('Não consegui criar', parts.join(' · ') || String(e), { icon: '⚠️' });
+  }
 }
 
 // Toggle pra mostrar/esconder canais arquivados no sidebar
@@ -39815,16 +39802,15 @@ async function _chatAddBoardChannelFlow() {
   const channelName = (board.name || 'board').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'board';
 
   try {
-    const { data: created, error } = await c.from('chat_channels').insert({
-      workspace_owner: supaUser.id,
-      type: 'board',
-      board_id: board.id,
-      name: channelName,
-      description: 'Canal do board "' + (board.name || '') + '".',
-      created_by: supaUser.id,
-    }).select().single();
+    // RPC SECURITY DEFINER (idempotente)
+    const { data: newId, error } = await c.rpc('create_chat_channel', {
+      p_type: 'board',
+      p_name: channelName,
+      p_board_id: board.id,
+      p_description: 'Canal do board "' + (board.name || '') + '".',
+    });
     if (error) throw error;
-    if (created) _chatState.currentChannelId = created.id;
+    _chatState.currentChannelId = newId;
     await _chatLoadChannels();
     renderChat();
   } catch(e) {
@@ -39881,28 +39867,21 @@ async function _chatCreateDMFlow() {
     });
     if (!targetId || targetId === '__clear__') return;
 
-    // Ordena pra UNIQUE constraint (self-DM fica com a==b, o que é permitido)
     const isSelfDM = targetId === supaUser.id;
-    const [a, b] = [supaUser.id, targetId].sort();
     const targetName = isSelfDM
       ? 'notas-pessoais'
       : ('dm-' + (_chatState.userMap[targetId]?.name || 'dm').slice(0,20).toLowerCase().replace(/\s+/g,'-'));
-    const { data, error } = await c.from('chat_channels').insert({
-      workspace_owner: supaUser.id, type: 'dm', dm_user_a: a, dm_user_b: b,
-      name: targetName,
-      description: isSelfDM ? 'Notas pessoais — só você vê.' : null,
-      created_by: supaUser.id,
-    }).select().single();
-    if (error && !String(error.message||'').includes('duplicate')) throw error;
-    if (data) {
-      _chatState.currentChannelId = data.id;
-      await _chatLoadChannels();
-      renderChat();
-    } else {
-      // Já existia — busca e seleciona
-      const { data: ex } = await c.from('chat_channels').select('id').eq('type','dm').eq('dm_user_a', a).eq('dm_user_b', b).maybeSingle();
-      if (ex) { _chatState.currentChannelId = ex.id; renderChat(); }
-    }
+    // RPC SECURITY DEFINER (idempotente — retorna existente se já houver)
+    const { data: newId, error } = await c.rpc('create_chat_channel', {
+      p_type: 'dm',
+      p_name: targetName,
+      p_dm_target: targetId,
+      p_description: isSelfDM ? 'Notas pessoais — só você vê.' : null,
+    });
+    if (error) throw error;
+    _chatState.currentChannelId = newId;
+    await _chatLoadChannels();
+    renderChat();
   } catch(e) { appAlert('Não consegui criar DM', e?.message || String(e), { icon: '⚠️' }); }
 }
 
