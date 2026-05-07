@@ -38094,14 +38094,12 @@ async function renderChat() {
     root.innerHTML = _chatRenderShell([]) + _chatRenderLoadingOverlay();
     try {
       await _chatLoadChannels();
-      // Auto-cria canais default e self-DM se elegível.
-      // As funções abaixo são idempotentes (verificam um a um) — então a cada
-      // refresh elas conferem se cada preset existe e cria os que faltam.
-      // Útil quando user atualiza o app e novos presets são adicionados.
+      // Auto-cria canais default + self-DM (mas NÃO canais de board —
+      // esses o user escolhe manualmente via botão "+", senão polui sidebar
+      // com canais que ele talvez nem vai usar).
       if (_chatUserCanCreate()) {
         await _chatEnsureDefaultChannels();
         await _chatEnsureSelfDM();
-        await _chatEnsureBoardChannels();
         await _chatLoadChannels();
       }
       _chatState.loading = false;
@@ -38185,8 +38183,9 @@ function _chatRenderShell(channels) {
         <div class="chat-sb-section">
           <div class="chat-sb-section-h">
             <span>Canais de board</span>
+            ${canCreate ? `<button class="chat-sb-add" onclick="_chatAddBoardChannelFlow()" title="Adicionar canal pra um board">+</button>` : ''}
           </div>
-          ${bd.length ? bd.map(channelItem).join('') : '<div class="chat-sb-empty">Cada board tem seu canal automático</div>'}
+          ${bd.length ? bd.map(channelItem).join('') : '<div class="chat-sb-empty">Nenhum ainda. Use <strong>+</strong> pra abrir um canal de um board.</div>'}
         </div>
         <div class="chat-sb-section">
           <div class="chat-sb-section-h">
@@ -38322,29 +38321,42 @@ async function _chatEnsureSelfDM() {
   }
 }
 
-// Garante 1 canal por board do owner (assim que o board tem ≥1 membro)
+// Garante 1 canal por board do owner.
+// Busca os boards direto do Supabase (source of truth) — assim não depende do
+// estado local `allBoards` ter `owner_id` setado, que pode estar atrasado por
+// sync. Resultado: canal aparece imediato após criar o board.
 async function _chatEnsureBoardChannels() {
   const c = await _chatGetClient();
   if (!c) return;
-  // Lista boards do owner que tenham membros
-  const ownedBoards = Object.entries(allBoards || {})
-    .filter(([id, b]) => b && b.owner_id === supaUser.id && id !== UNIFIED_BOARD_ID);
-  for (const [boardId, board] of ownedBoards) {
+  // Busca boards do user direto da tabela boards (com owner_id de verdade)
+  let ownedBoards = [];
+  try {
+    const { data, error } = await c.from('boards')
+      .select('id,name')
+      .eq('owner_id', supaUser.id);
+    if (error) throw error;
+    ownedBoards = data || [];
+  } catch (e) {
+    console.debug('[chat] fetch owned boards:', e?.message);
+    return;
+  }
+  // Cria canal pro que ainda não tem (idempotente)
+  for (const board of ownedBoards) {
+    if (!board.id || board.id === UNIFIED_BOARD_ID) continue;
     try {
       const { data: existing } = await c.from('chat_channels')
-        .select('id').eq('workspace_owner', supaUser.id).eq('board_id', boardId).maybeSingle();
+        .select('id').eq('workspace_owner', supaUser.id).eq('board_id', board.id).maybeSingle();
       if (existing) continue;
       const channelName = (board.name || 'board').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'board';
       await c.from('chat_channels').insert({
         workspace_owner: supaUser.id,
         type: 'board',
-        board_id: boardId,
+        board_id: board.id,
         name: channelName,
         description: 'Canal automático do board "' + (board.name || '') + '".',
         created_by: supaUser.id,
       });
     } catch (e) {
-      // Conflito (já existia) ou outro erro — ignora silenciosamente
       console.debug('[chat] ensure board channel:', e?.message);
     }
   }
@@ -39012,6 +39024,84 @@ async function _chatCreateChannelFlow(type) {
     await _chatLoadChannels();
     renderChat();
   } catch(e) { appAlert('Não consegui criar', e?.message || String(e), { icon: '⚠️' }); }
+}
+
+// ── Adicionar canal de board (escolha manual) ────────────────────────
+async function _chatAddBoardChannelFlow() {
+  if (!_chatUserCanCreate()) {
+    appAlert('Trial ou plano pago requerido',
+      'Criar canais é exclusivo de quem tá no Trial ativo ou nas Faixas Roxa/Preta.',
+      { icon: '🔒' });
+    return;
+  }
+  const c = await _chatGetClient();
+  if (!c) return;
+
+  // Busca boards do user direto do Supabase (source of truth)
+  let ownedBoards = [];
+  try {
+    const { data, error } = await c.from('boards').select('id,name').eq('owner_id', supaUser.id);
+    if (error) throw error;
+    ownedBoards = (data || []).filter(b => b.id && b.id !== UNIFIED_BOARD_ID);
+  } catch(e) {
+    appAlert('Não consegui buscar seus boards', e?.message || String(e), { icon: '⚠️' });
+    return;
+  }
+
+  if (!ownedBoards.length) {
+    appAlert('Sem boards', 'Você ainda não criou nenhum board. Crie um em "My boards" primeiro.', { icon: '▤' });
+    return;
+  }
+
+  // Pega canais já criados pra marcar quais boards já têm canal
+  let existingChannelBoardIds = new Set();
+  try {
+    const { data: chs } = await c.from('chat_channels')
+      .select('board_id').eq('workspace_owner', supaUser.id).eq('type', 'board').not('board_id', 'is', null);
+    (chs || []).forEach(ch => { if (ch.board_id) existingChannelBoardIds.add(ch.board_id); });
+  } catch(_) {}
+
+  // Filtra os que ainda não têm canal
+  const available = ownedBoards.filter(b => !existingChannelBoardIds.has(b.id));
+  if (!available.length) {
+    appAlert('Todos com canal', 'Todos os seus boards já têm canal no Tatami.', { icon: '✓' });
+    return;
+  }
+
+  // Modal de escolha
+  const choices = available.map(b => ({
+    id: b.id,
+    label: b.name || 'Board',
+    icon: '▤',
+    meta: 'Criar canal',
+  }));
+  const boardId = await appChoice('Qual board ganha um canal?', choices, {
+    icon: '#',
+    message: 'Cria um canal de chat dedicado pro board escolhido. Membros do board entram automático.',
+    allowClear: false,
+  });
+  if (!boardId || boardId === '__clear__') return;
+
+  const board = available.find(b => b.id === boardId);
+  if (!board) return;
+  const channelName = (board.name || 'board').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'board';
+
+  try {
+    const { data: created, error } = await c.from('chat_channels').insert({
+      workspace_owner: supaUser.id,
+      type: 'board',
+      board_id: board.id,
+      name: channelName,
+      description: 'Canal do board "' + (board.name || '') + '".',
+      created_by: supaUser.id,
+    }).select().single();
+    if (error) throw error;
+    if (created) _chatState.currentChannelId = created.id;
+    await _chatLoadChannels();
+    renderChat();
+  } catch(e) {
+    appAlert('Não consegui criar', e?.message || String(e), { icon: '⚠️' });
+  }
 }
 
 // ── Criar DM ─────────────────────────────────────────────────────────
