@@ -21987,35 +21987,117 @@ function exportAllUserData() {
   URL.revokeObjectURL(url);
 }
 
+// LGPD · Apaga conta inteira: cancela assinatura Stripe, deleta auth.users
+// (cascade limpa subscriptions, ai_usage, boards, cards, etc), limpa localStorage.
+// Fluxo de 2 passos: 1) aviso detalhado → 2) digitar EXCLUIR pra confirmar.
 async function deleteAllUserData() {
-  const word = await appPrompt('Apagar TODOS os seus dados', {
+  const inSupa = (getStorageMode() === 'supabase') && supaUser && supaUser.id;
+  // Lista de boards e plano atual pra mostrar o que vai sumir
+  const boardCount = Object.keys(allBoards || {}).filter(k => k !== UNIFIED_BOARD_ID).length;
+  const planCode  = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+  const isPaid    = planCode && planCode !== 'trial';
+
+  // Passo 1: aviso explicando o que vai acontecer
+  const proceed = await appConfirm(
+    'Apagar minha conta',
+    `Esta ação é <strong>permanente e irreversível</strong>. Vamos apagar:
+     <ul style="margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.7;color:var(--color-text-secondary);">
+       <li>Sua conta de login (email + senha)</li>
+       <li>${boardCount} board${boardCount===1?'':'s'} com cards, comentários, anexos e tracker</li>
+       <li>Suas integrações (Granatum, calendário, etc)</li>
+       <li>Histórico de Mestre Kan IA, audit log, OKRs, Labs</li>
+       ${isPaid ? '<li><strong>Sua assinatura no Stripe será cancelada</strong> (sem mais cobranças)</li>' : ''}
+       <li>Sua participação como membro em boards de outros</li>
+     </ul>
+     <div style="margin-top:10px;font-size:12.5px;color:var(--color-text-tertiary);">Quer baixar um backup antes? Use "Exportar todos os meus dados" lá em cima.</div>`,
+    { okLabel: 'Quero apagar minha conta', cancelLabel: 'Cancelar', icon: '⚠️', danger: true, html: true }
+  );
+  if (!proceed) return;
+
+  // Passo 2: confirmação digitando EXCLUIR (appPrompt não suporta HTML — usa texto puro)
+  const word = await appPrompt('Última confirmação', {
     icon: '⚠️',
-    message: 'Esta ação é PERMANENTE e não pode ser desfeita. Vai apagar todos os boards, cards, histórico, anexos, notificações, audit log e configurações. Digite EXCLUIR para confirmar.',
-    placeholder: 'Digite EXCLUIR',
-    okLabel: 'Apagar tudo',
+    message: 'Pra ter certeza, digite EXCLUIR em maiúsculas. Depois disso não tem volta.',
+    placeholder: 'EXCLUIR',
+    okLabel: 'Apagar tudo agora',
   });
-  if (word !== 'EXCLUIR') { await appAlert('Cancelado', 'Nada foi apagado.', { icon:'ℹ️' }); return; }
-  // Em modo Supabase: deleta também na nuvem
-  if (getStorageMode()==='supabase' && supaUser && supaClient) {
-    try {
-      // RLS deixa o owner deletar seus boards (cascata em cards)
-      const ids = Object.keys(allBoards).filter(k=>k!==UNIFIED_BOARD_ID);
-      for (const id of ids) {
-        await supaClient.from('boards').delete().eq('id', id);
-      }
-      // Tenta deletar a auth user via RPC (se houver). Se falhar, mantém logout.
-      // Por segurança, apenas faz signOut — o user pode pedir delete da auth via /support
-      await supaClient.auth.signOut();
-    } catch(e) { console.error(e); }
+  if ((word || '').trim() !== 'EXCLUIR') {
+    await appAlert('Cancelado', 'Nada foi apagado.', { icon: 'ℹ️' });
+    return;
   }
-  // Limpa todo o estado local
+
+  // ── Modo local-only (sem Supabase): só limpa localStorage e recarrega ──
+  if (!inSupa) {
+    try {
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('kanban_v8_')) localStorage.removeItem(k);
+      });
+    } catch(_) {}
+    await appAlert('Dados apagados', 'Tudo foi removido do navegador. A página vai recarregar.', { icon: '✓' });
+    location.reload();
+    return;
+  }
+
+  // ── Modo Supabase: chama backend pra cancelar Stripe + deletar auth.user ──
+  // Mostra um overlay simples enquanto processa (pode demorar 5-10s)
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+  overlay.innerHTML = `<div style="background:#fff;padding:28px 32px;border-radius:14px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="font-size:32px;margin-bottom:10px;">⏳</div>
+    <div style="font-weight:600;font-size:15px;color:#0f0f0f;margin-bottom:6px;">Apagando sua conta…</div>
+    <div style="font-size:12.5px;color:#666;line-height:1.5;">Cancelando assinatura no Stripe, removendo dados do banco. Não feche essa aba.</div>
+  </div>`;
+  document.body.appendChild(overlay);
+
   try {
-    Object.keys(localStorage).forEach(k => {
-      if (k.startsWith('kanban_v8_')) localStorage.removeItem(k);
+    // Pega o JWT do localStorage (igual openStripePortal faz)
+    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+    const tokens = cfg ? _readSupaTokensFromLocalStorage(cfg.url) : null;
+    const jwt = tokens?.access_token;
+    if (!jwt) throw new Error('Sessão expirada. Faça login de novo e tente novamente.');
+
+    const billingBase = (typeof SYNKAN_BILLING_BASE !== 'undefined')
+      ? SYNKAN_BILLING_BASE
+      : 'https://billing.synkan.com.br';
+
+    const r = await fetch(billingBase + '/api/billing/delete-account', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({ confirm: 'EXCLUIR' }),
     });
-  } catch(e) {}
-  alert('Dados apagados. A página será recarregada.');
-  location.reload();
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.ok) {
+      const msg = data.message || data.auth_error || data.error || `Erro ${r.status}`;
+      throw new Error(msg);
+    }
+
+    // Sucesso: limpa local e signOut
+    try {
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('kanban_v8_') || k.startsWith('sb-')) localStorage.removeItem(k);
+      });
+    } catch(_) {}
+    try { if (supaClient && supaClient.auth) await supaClient.auth.signOut(); } catch(_) {}
+
+    overlay.remove();
+    await appAlert(
+      'Conta apagada',
+      `Sua conta foi removida permanentemente${data.stripe_canceled ? ' e a assinatura Stripe foi cancelada' : ''}. Obrigado por ter usado o Synkan.`,
+      { icon: '✓' }
+    );
+    location.href = '/';
+  } catch(e) {
+    overlay.remove();
+    console.error('[deleteAllUserData]', e);
+    await appAlert(
+      'Não consegui apagar a conta',
+      `${_esc(e?.message || String(e))}<br/><br/>Tente novamente em alguns minutos. Se o problema persistir, mande um email pra <a href="mailto:contato@synkan.com.br" style="color:var(--accent);">contato@synkan.com.br</a> que apago manualmente.`,
+      { icon: '⚠️', html: true }
+    );
+  }
 }
 
 // ── 2FA TOTP via Supabase MFA ────────────────────────────────────────
