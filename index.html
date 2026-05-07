@@ -5270,6 +5270,109 @@ body.density-compact .col{padding:7px;}
 .chat-msg-att-audio-fallback{font-size:11px;color:var(--tatami-hinomaru);text-decoration:none;font-family:var(--tatami-mincho);font-style:italic;}
 .chat-msg-att-audio-fallback:hover{text-decoration:underline;}
 
+/* ════════════════════════════════════════════════════════════════════
+ * Tatame Estendido — sessão colaborativa (voz + board/lab)
+ * ════════════════════════════════════════════════════════════════════ */
+.chat-composer-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
+.chat-extend-btn{display:inline-flex;align-items:center;gap:7px;padding:6px 13px;background:var(--tatami-paper);border:0.5px dashed var(--tatami-hinomaru);color:var(--tatami-hinomaru);border-radius:8px;font-family:var(--tatami-mincho);font-style:italic;font-size:12.5px;cursor:pointer;transition:all .15s;flex-shrink:0;letter-spacing:.01em;}
+.chat-extend-btn:hover{background:var(--tatami-hinomaru);color:#fff;border-style:solid;transform:translateY(-1px);box-shadow:0 4px 12px rgba(159,0,38,.18);}
+.chat-extend-btn svg{width:15px;height:15px;flex-shrink:0;}
+
+.tx-overlay{position:fixed;inset:0;z-index:9000;background:rgba(15,12,10,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;animation:txFadeIn .2s ease;padding:18px;}
+@keyframes txFadeIn{from{opacity:0;}to{opacity:1;}}
+.tx-shell{width:96vw;height:94vh;max-width:1600px;background:var(--tatami-paper);border-radius:14px;border:1px solid var(--tatami-tan);box-shadow:0 30px 80px rgba(0,0,0,.4);display:flex;flex-direction:column;overflow:hidden;animation:txSlide .25s ease;}
+@keyframes txSlide{from{transform:translateY(20px);opacity:0;}to{transform:none;opacity:1;}}
+
+.tx-top{display:flex;align-items:center;justify-content:space-between;padding:13px 20px;border-bottom:1px solid var(--tatami-tan);background:var(--tatami-cream);flex-shrink:0;gap:14px;}
+.tx-top-l{display:flex;align-items:center;gap:13px;min-width:0;}
+.tx-top-icon{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--tatami-hinomaru);color:#fff;border-radius:9px;flex-shrink:0;box-shadow:0 2px 6px rgba(159,0,38,.25);}
+.tx-top-icon svg{width:17px;height:17px;}
+.tx-top-title{font-family:var(--tatami-mincho);font-size:16.5px;font-weight:600;color:var(--tatami-sumi);line-height:1.2;}
+.tx-top-sub{font-family:var(--tatami-mincho);font-style:italic;font-size:12px;color:var(--tatami-ink-soft);margin-top:2px;}
+.tx-top-r{display:flex;align-items:center;gap:8px;}
+.tx-top-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;background:var(--tatami-paper);border:0.5px solid var(--tatami-tan);color:var(--tatami-sumi);border-radius:7px;font-size:12.5px;font-family:var(--tatami-mincho);cursor:pointer;transition:all .12s;}
+.tx-top-btn:hover{background:var(--tatami-cream);border-color:var(--tatami-ink-soft);}
+.tx-top-btn.is-danger{color:#9f0026;border-color:rgba(159,0,38,.35);}
+.tx-top-btn.is-danger:hover{background:#9f0026;color:#fff;border-color:#9f0026;}
+.tx-top-btn svg{width:13px;height:13px;}
+
+.tx-body{flex:1;display:grid;grid-template-columns:300px 1fr;min-height:0;}
+.tx-side{border-right:1px solid var(--tatami-tan);background:var(--tatami-cream);display:flex;flex-direction:column;min-height:0;}
+.tx-side-h{padding:14px 18px 6px;font-family:var(--tatami-mincho);font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--tatami-ink-soft);}
+.tx-participants{padding:0 12px 12px;overflow-y:auto;flex:1;}
+.tx-p-row{display:flex;align-items:center;gap:11px;padding:8px 9px;border-radius:7px;margin-bottom:2px;}
+.tx-p-row:hover{background:var(--tatami-paper);}
+.tx-p-avatar{width:36px;height:36px;border-radius:50%;background:var(--tatami-tan);display:flex;align-items:center;justify-content:center;font-family:var(--tatami-mincho);font-size:13px;color:var(--tatami-sumi);overflow:hidden;flex-shrink:0;position:relative;transition:box-shadow .12s;}
+.tx-p-avatar img{width:100%;height:100%;object-fit:cover;}
+.tx-p-avatar.is-speaking{box-shadow:0 0 0 2.5px #45b369;}
+.tx-p-avatar.is-muted::after{content:'';position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;background:var(--tatami-sumi);border-radius:50%;border:1.5px solid var(--tatami-cream);box-shadow:inset 0 0 0 1px #fff,inset 0 0 0 3px var(--tatami-sumi);}
+.tx-p-info{flex:1;min-width:0;}
+.tx-p-name{font-size:13px;color:var(--tatami-sumi);font-family:var(--tatami-mincho);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;}
+.tx-p-status{font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;margin-top:1px;}
+.tx-p-self{color:var(--tatami-hinomaru);}
+
+.tx-voice-bar{padding:14px 16px;border-top:1px solid var(--tatami-tan);display:flex;flex-direction:column;gap:9px;background:var(--tatami-paper);}
+.tx-voice-status{font-size:11.5px;font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-ink-soft);text-align:center;line-height:1.4;}
+.tx-voice-btns{display:flex;gap:6px;}
+.tx-voice-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 10px;border-radius:8px;font-family:var(--tatami-mincho);font-size:12.5px;cursor:pointer;border:1px solid var(--tatami-tan);background:var(--tatami-cream);color:var(--tatami-sumi);transition:all .12s;}
+.tx-voice-btn:hover{border-color:var(--tatami-ink-soft);}
+.tx-voice-btn.is-active{background:#45b369;color:#fff;border-color:#45b369;}
+.tx-voice-btn.is-mute{background:var(--tatami-sumi);color:#fff;border-color:var(--tatami-sumi);}
+.tx-voice-btn.tx-voice-leave{background:transparent;color:#9f0026;border-color:rgba(159,0,38,.4);}
+.tx-voice-btn.tx-voice-leave:hover{background:#9f0026;color:#fff;border-color:#9f0026;}
+.tx-voice-btn svg{width:13px;height:13px;flex-shrink:0;}
+.tx-voice-btn.is-join{background:var(--tatami-hinomaru);color:#fff;border-color:var(--tatami-hinomaru);}
+
+.tx-work{display:flex;flex-direction:column;min-width:0;background:var(--tatami-paper);}
+.tx-work-tabs{display:flex;gap:0;padding:0 14px;border-bottom:1px solid var(--tatami-tan);background:var(--tatami-cream);flex-shrink:0;}
+.tx-work-tab{padding:12px 17px;border:none;background:transparent;color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:color .12s,border-color .12s;display:inline-flex;align-items:center;gap:7px;}
+.tx-work-tab:hover{color:var(--tatami-sumi);}
+.tx-work-tab.is-active{color:var(--tatami-hinomaru);border-bottom-color:var(--tatami-hinomaru);font-weight:600;}
+.tx-work-tab svg{width:13px;height:13px;}
+.tx-work-content{flex:1;min-height:0;overflow:auto;}
+
+.tx-work-empty{padding:50px 24px;text-align:center;color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);}
+.tx-work-empty-icon{font-size:54px;margin-bottom:14px;opacity:.35;font-family:'Hiragino Mincho ProN',serif;color:var(--tatami-hinomaru);}
+.tx-work-empty-title{font-size:19px;color:var(--tatami-sumi);margin-bottom:6px;font-weight:600;}
+.tx-work-empty-sub{font-size:13.5px;font-style:italic;line-height:1.65;max-width:460px;margin:0 auto 22px;}
+.tx-work-empty-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.tx-work-empty-btn{padding:11px 20px;border-radius:9px;border:1px solid var(--tatami-tan);background:var(--tatami-paper);color:var(--tatami-sumi);font-family:var(--tatami-mincho);font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:9px;transition:all .15s;}
+.tx-work-empty-btn:hover{border-color:var(--tatami-hinomaru);color:var(--tatami-hinomaru);background:var(--tatami-cream);transform:translateY(-1px);}
+.tx-work-empty-btn svg{width:15px;height:15px;}
+
+.tx-picker{padding:18px 22px;}
+.tx-picker-h{font-family:var(--tatami-mincho);font-size:13px;color:var(--tatami-ink-soft);font-style:italic;margin-bottom:12px;}
+.tx-picker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;max-height:calc(100% - 50px);overflow-y:auto;}
+.tx-picker-item{padding:13px 14px;border:1px solid var(--tatami-tan);border-radius:9px;background:var(--tatami-paper);cursor:pointer;transition:all .15s;text-align:left;font-family:var(--tatami-mincho);}
+.tx-picker-item:hover{border-color:var(--tatami-hinomaru);background:var(--tatami-cream);transform:translateY(-1px);box-shadow:0 4px 10px rgba(0,0,0,.05);}
+.tx-picker-item-name{font-size:14px;color:var(--tatami-sumi);font-weight:500;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tx-picker-item-meta{font-size:11px;color:var(--tatami-ink-soft);font-style:italic;}
+
+.tx-embed{padding:16px 20px;height:100%;overflow:auto;display:flex;flex-direction:column;}
+.tx-embed-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:0.5px solid var(--tatami-tan);gap:10px;flex-shrink:0;}
+.tx-embed-title{font-family:var(--tatami-mincho);font-size:15.5px;font-weight:600;color:var(--tatami-sumi);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tx-embed-actions{display:flex;gap:6px;flex-shrink:0;}
+.tx-embed-mini{font-size:11.5px;font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-ink-soft);padding:6px 10px;border-radius:6px;border:0.5px solid var(--tatami-tan);background:var(--tatami-cream);cursor:pointer;transition:all .12s;}
+.tx-embed-mini:hover{color:var(--tatami-hinomaru);border-color:var(--tatami-hinomaru);}
+
+.tx-mini-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+.tx-mini-col{background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);border-radius:9px;padding:11px 11px 8px;}
+.tx-mini-col-h{font-family:var(--tatami-mincho);font-size:12.5px;font-weight:600;color:var(--tatami-sumi);margin-bottom:9px;display:flex;justify-content:space-between;}
+.tx-mini-col-count{color:var(--tatami-ink-soft);font-style:italic;font-weight:400;}
+.tx-mini-card{background:var(--tatami-paper);border:0.5px solid var(--tatami-tan);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-family:var(--tatami-mincho);font-size:12.5px;color:var(--tatami-sumi);cursor:pointer;transition:border-color .12s,transform .12s;}
+.tx-mini-card:hover{border-color:var(--tatami-hinomaru);transform:translateX(2px);}
+.tx-mini-card-meta{font-size:10.5px;color:var(--tatami-ink-soft);margin-top:3px;font-style:italic;}
+
+.tx-lab-body{white-space:pre-wrap;font-family:Georgia,'Times New Roman',serif;font-size:14.5px;color:var(--tatami-sumi);line-height:1.75;padding:6px 4px;flex:1;}
+
+@media (max-width:760px){
+  .tx-overlay{padding:0;}
+  .tx-shell{width:100vw;height:100vh;border-radius:0;border:none;}
+  .tx-body{grid-template-columns:1fr;grid-template-rows:auto 1fr;}
+  .tx-side{border-right:none;border-bottom:1px solid var(--tatami-tan);max-height:260px;}
+  .tx-top-btn span{display:none;}
+}
+
 /* Audit log list (modal) */
 .chat-audit-list{display:flex;flex-direction:column;gap:0;max-height:480px;overflow-y:auto;}
 .chat-audit-row{display:flex;justify-content:space-between;gap:10px;padding:9px 4px;border-bottom:0.5px solid var(--tatami-tan);}
@@ -38908,6 +39011,7 @@ function _chatRenderMessagesView() {
       </div>
     </div>
     <div class="chat-composer">
+      <div class="chat-composer-row">
       <div class="chat-composer-toolbar">
         <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('bold')"      title="Negrito (**texto**)" style="font-weight:700;">B</button>
         <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('italic')"    title="Itálico (*texto*)" style="font-style:italic;font-family:Georgia,serif;">I</button>
@@ -38930,6 +39034,11 @@ function _chatRenderMessagesView() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           <span>Voz</span>
         </button>
+      </div>
+      <button type="button" class="chat-extend-btn" onclick="_txOpen()" title="Abrir o Tatame estendido — sessão colaborativa com voz e workspace compartilhado (board ou lab)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1.5"/><line x1="14" y1="5" x2="14" y2="19"/><path d="M11 10l-2 2 2 2"/><path d="M17 10l2 2-2 2"/></svg>
+        <span>Estender Tatame</span>
+      </button>
       </div>
       <div id="chat-pending-attachments" class="chat-pending-atts" style="display:none;"></div>
       <textarea id="chat-composer-input" class="chat-composer-input" rows="2" placeholder="Mensagem em #${_esc(ch.name)}… (digite / pra ver comandos · arraste arquivos aqui)" oninput="_chatComposerInput(event)" onkeydown="_chatComposerKeydown(event)" onblur="setTimeout(_chatHideSlashPopup, 200)"></textarea>
@@ -41150,6 +41259,598 @@ async function _chatChannelAuditModal(channelId) {
   `;
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Tatame Estendido — sessão colaborativa em tempo real
+// ────────────────────────────────────────────────────────────────────
+// Conceito: extender o tatame do canal pra uma sala de trabalho
+// colaborativo. Cada canal tem uma "sessão" identificada por
+// `tatami-ext-<channel_id>`. Quem entra usa Supabase Realtime presence
+// pra ser visível, e WebRTC mesh pra falar (cada par troca SDP/ICE
+// via broadcast no mesmo channel). O painel direito embeda um Board
+// ou um Lab — escolha sincronizada via broadcast (todo mundo vê o
+// mesmo workspace).
+// ════════════════════════════════════════════════════════════════════
+
+const _TX_ICO = {
+  extend: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1.5"/><line x1="14" y1="5" x2="14" y2="19"/><path d="M11 10l-2 2 2 2"/><path d="M17 10l2 2-2 2"/></svg>',
+  invite: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>',
+  close:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  mic:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>',
+  micOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><path d="M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>',
+  leave:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+  lobby:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20"/></svg>',
+  board:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
+  lab:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6"/><path d="M10 2v6L5.5 17a2 2 0 0 0 1.7 3h9.6a2 2 0 0 0 1.7-3L14 8V2"/><path d="M7 14h10"/></svg>',
+};
+
+// Estado sob _chatState.extended:
+//   { open, sessionId, channelId, channelName, participants:[{user_id,voice_active,voice_muted}],
+//     rtChannel, panelMode:'empty'|'board'|'lab', panelRef:string|null,
+//     voiceJoined, micMuted, peerConns:{peerId:RTCPeerConnection}, localStream, speakingMap:{} }
+
+function _txOpen() {
+  if (!_chatState.currentChannelId) {
+    if (typeof appAlert === 'function') appAlert('Sem canal aberto', 'Abre um canal antes de estender o tatame.', { icon:'🎴' });
+    return;
+  }
+  if (_chatState.extended && _chatState.extended.open) return;
+  const ch = _chatState.channels.find(c => c.id === _chatState.currentChannelId);
+  if (!ch) return;
+  const sessionId = `tatami-ext-${ch.id}`;
+  _chatState.extended = {
+    open: true,
+    sessionId,
+    channelId: ch.id,
+    channelName: ch.name || 'canal',
+    participants: [],
+    rtChannel: null,
+    panelMode: 'empty',
+    panelRef: null,
+    voiceJoined: false,
+    micMuted: false,
+    peerConns: {},
+    localStream: null,
+    speakingMap: {},
+  };
+  _txRenderOverlay();
+  _txStartPresence();
+}
+
+function _txClose() {
+  if (!_chatState.extended || !_chatState.extended.open) return;
+  try { _txLeaveVoice(); } catch(e){}
+  try { _txStopPresence(); } catch(e){}
+  const ov = document.getElementById('tx-overlay');
+  if (ov) ov.remove();
+  document.removeEventListener('keydown', _txOnEscape);
+  _chatState.extended = null;
+}
+
+function _txOnEscape(e) {
+  if (e.key === 'Escape') _txClose();
+}
+
+function _txRenderOverlay() {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  let ov = document.getElementById('tx-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'tx-overlay';
+    ov.className = 'tx-overlay';
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', _txOnEscape);
+  }
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  const meHere = ext.participants.some(p => p.user_id === myId);
+  const count = ext.participants.length || (meHere ? 0 : 1); // se ainda não fez sync, mostra ao menos 1 (você)
+  ov.innerHTML = `
+    <div class="tx-shell" onclick="event.stopPropagation()">
+      <div class="tx-top">
+        <div class="tx-top-l">
+          <div class="tx-top-icon">${_TX_ICO.extend}</div>
+          <div>
+            <div class="tx-top-title">Tatame estendido</div>
+            <div class="tx-top-sub">#${_esc(ext.channelName)} · sessão colaborativa em tempo real</div>
+          </div>
+        </div>
+        <div class="tx-top-r">
+          <button class="tx-top-btn" onclick="_txInviteFlow()" title="Avisar o canal que tem sessão rolando">
+            ${_TX_ICO.invite}<span>Convidar</span>
+          </button>
+          <button class="tx-top-btn is-danger" onclick="_txClose()" title="Sair do tatame">
+            ${_TX_ICO.close}<span>Sair</span>
+          </button>
+        </div>
+      </div>
+      <div class="tx-body">
+        <div class="tx-side">
+          <div class="tx-side-h">No tatame · ${count}</div>
+          <div class="tx-participants" id="tx-participants">${_txRenderParticipants()}</div>
+          <div class="tx-voice-bar">
+            <div class="tx-voice-status" id="tx-voice-status">${_txVoiceStatus()}</div>
+            <div class="tx-voice-btns">
+              ${ext.voiceJoined
+                ? `<button class="tx-voice-btn ${ext.micMuted ? 'is-mute' : 'is-active'}" onclick="_txToggleMute()" title="${ext.micMuted ? 'Desmutar microfone' : 'Mutar microfone'}">${ext.micMuted ? _TX_ICO.micOff : _TX_ICO.mic}<span>${ext.micMuted ? 'Mudo' : 'Ao vivo'}</span></button>
+                   <button class="tx-voice-btn tx-voice-leave" onclick="_txLeaveVoice()" title="Sair da chamada de voz (continua no tatame)">${_TX_ICO.leave}<span>Sair da voz</span></button>`
+                : `<button class="tx-voice-btn is-join" onclick="_txJoinVoice()" title="Pedir acesso ao microfone e entrar na chamada">${_TX_ICO.mic}<span>Entrar na voz</span></button>`
+              }
+            </div>
+          </div>
+        </div>
+        <div class="tx-work">
+          <div class="tx-work-tabs">
+            <button class="tx-work-tab ${ext.panelMode==='empty'?'is-active':''}" onclick="_txSetPanel('empty')">${_TX_ICO.lobby}<span>Lobby</span></button>
+            <button class="tx-work-tab ${ext.panelMode==='board'?'is-active':''}" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Board</span></button>
+            <button class="tx-work-tab ${ext.panelMode==='lab'?'is-active':''}" onclick="_txSetPanel('lab')">${_TX_ICO.lab}<span>Lab</span></button>
+          </div>
+          <div class="tx-work-content" id="tx-work-content">${_txRenderWork()}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function _txVoiceStatus() {
+  const ext = _chatState.extended;
+  if (!ext) return '';
+  if (!ext.voiceJoined) return 'Voz desligada · entre pra começar a falar';
+  return ext.micMuted ? 'Você está mudo · clique em "Mudo" pra abrir o microfone' : 'Microfone aberto · seus colegas no tatame ouvem você';
+}
+
+function _txRenderParticipants() {
+  const ext = _chatState.extended;
+  if (!ext) return '';
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  let list = ext.participants.slice();
+  // Garante que o próprio user apareça mesmo antes do presence sync
+  if (myId && !list.some(p => p.user_id === myId)) {
+    list.unshift({ user_id: myId, voice_active: ext.voiceJoined, voice_muted: ext.micMuted });
+  }
+  if (!list.length) {
+    return '<div style="padding:14px 8px;font-style:italic;color:var(--tatami-ink-soft);font-size:12.5px;font-family:var(--tatami-mincho);text-align:center;">Esperando alguém entrar…</div>';
+  }
+  return list.map(p => {
+    const u = _chatState.userMap[p.user_id] || { name: 'Carregando…', avatar: null };
+    const isMe = p.user_id === myId;
+    const av = u.avatar
+      ? `<img src="${_esc(u.avatar)}" alt=""/>`
+      : (u.name || '?').slice(0,1).toUpperCase();
+    const cls = (p.voice_active ? (p.voice_muted ? 'is-muted' : (ext.speakingMap[p.user_id] ? 'is-speaking' : '')) : '');
+    const status = p.voice_active ? (p.voice_muted ? 'mic mudo' : 'na chamada') : 'no tatame';
+    return `<div class="tx-p-row">
+      <div class="tx-p-avatar ${cls}">${av}</div>
+      <div class="tx-p-info">
+        <div class="tx-p-name ${isMe?'tx-p-self':''}">${_esc(u.name)}${isMe?' · você':''}</div>
+        <div class="tx-p-status">${status}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _txRenderWork() {
+  const ext = _chatState.extended;
+  if (!ext) return '';
+  if (ext.panelMode === 'empty') {
+    return `<div class="tx-work-empty">
+      <div class="tx-work-empty-icon">畳</div>
+      <div class="tx-work-empty-title">Tatame pronto pra estender</div>
+      <div class="tx-work-empty-sub">Escolha um Board ou um item do Lab pra trabalharem juntos. Todo mundo no tatame vê a mesma coisa em tempo real.</div>
+      <div class="tx-work-empty-btns">
+        <button class="tx-work-empty-btn" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Abrir um Board</span></button>
+        <button class="tx-work-empty-btn" onclick="_txSetPanel('lab')">${_TX_ICO.lab}<span>Abrir um Lab</span></button>
+      </div>
+    </div>`;
+  }
+  if (ext.panelMode === 'board') return _txRenderBoardPanel();
+  if (ext.panelMode === 'lab')   return _txRenderLabPanel();
+  return '';
+}
+
+function _txRenderBoardPanel() {
+  const ext = _chatState.extended;
+  const boardsRef = (typeof allBoards !== 'undefined' && allBoards) ? allBoards : {};
+  if (!ext.panelRef) {
+    const boards = Object.entries(boardsRef)
+      .filter(([id,b]) => b && !b.archived)
+      .map(([id,b]) => ({ id, name: b.name || 'Board sem nome', cards: (b.cards||[]).length }));
+    if (!boards.length) {
+      return `<div class="tx-work-empty">
+        <div class="tx-work-empty-icon">▤</div>
+        <div class="tx-work-empty-title">Nenhum board pra abrir</div>
+        <div class="tx-work-empty-sub">Crie um board primeiro pra poder trabalhar nele com o time.</div>
+      </div>`;
+    }
+    return `<div class="tx-picker">
+      <div class="tx-picker-h">Escolha um board pra estender no tatame — todo mundo vai ver:</div>
+      <div class="tx-picker-grid">
+        ${boards.map(b => `
+          <button class="tx-picker-item" onclick="_txPickBoard('${_esc(b.id)}')">
+            <div class="tx-picker-item-name">▤ ${_esc(b.name)}</div>
+            <div class="tx-picker-item-meta">${b.cards} card${b.cards!==1?'s':''}</div>
+          </button>
+        `).join('')}
+      </div>
+    </div>`;
+  }
+  const board = boardsRef[ext.panelRef];
+  if (!board) {
+    return `<div class="tx-work-empty">
+      <div class="tx-work-empty-icon">!</div>
+      <div class="tx-work-empty-title">Board não encontrado</div>
+      <div class="tx-work-empty-sub">Esse board pode ter sido removido.</div>
+      <div class="tx-work-empty-btns"><button class="tx-work-empty-btn" onclick="_txClearPanelRef()">Escolher outro</button></div>
+    </div>`;
+  }
+  const cols = (board.columns || []).map(col => {
+    const cards = (board.cards || []).filter(c => c.col === col.id);
+    return `<div class="tx-mini-col">
+      <div class="tx-mini-col-h"><span>${_esc(col.name || col.id)}</span><span class="tx-mini-col-count">${cards.length}</span></div>
+      ${cards.slice(0,10).map(c => `
+        <div class="tx-mini-card" onclick="_txOpenBoardFull('${_esc(ext.panelRef)}')">
+          ${_esc((c.title||'(sem título)').slice(0,90))}
+          ${c.priority?`<div class="tx-mini-card-meta">${_esc(c.priority)}${c.assignedTo?` · @${_esc((_chatState.userMap[c.assignedTo]||{}).name||'membro')}`:''}</div>`:''}
+        </div>
+      `).join('')}
+      ${cards.length>10?`<div style="font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);text-align:center;padding:4px;">+${cards.length-10} cards</div>`:''}
+    </div>`;
+  }).join('');
+  return `<div class="tx-embed">
+    <div class="tx-embed-h">
+      <div class="tx-embed-title">▤ ${_esc(board.name||'Board')}</div>
+      <div class="tx-embed-actions">
+        <button class="tx-embed-mini" onclick="_txOpenBoardFull('${_esc(ext.panelRef)}')">Abrir tela cheia ↗</button>
+        <button class="tx-embed-mini" onclick="_txClearPanelRef()">Trocar board</button>
+      </div>
+    </div>
+    <div class="tx-mini-cols">${cols || '<div style="color:var(--tatami-ink-soft);font-style:italic;padding:18px;font-family:var(--tatami-mincho);">Board sem colunas.</div>'}</div>
+  </div>`;
+}
+
+function _txRenderLabPanel() {
+  const ext = _chatState.extended;
+  const cvsRef = (typeof _canvases !== 'undefined' && _canvases) ? _canvases : {};
+  if (!ext.panelRef) {
+    const labs = Object.values(cvsRef).filter(c => c && !c.archived).map(c => ({
+      id: c.id, name: c.name || 'Lab sem nome', kind: c.format || 'lab',
+    }));
+    if (!labs.length) {
+      return `<div class="tx-work-empty">
+        <div class="tx-work-empty-icon">⚗</div>
+        <div class="tx-work-empty-title">Nenhum lab criado ainda</div>
+        <div class="tx-work-empty-sub">Vai no menu Lab e cria um pra estender no tatame depois.</div>
+      </div>`;
+    }
+    return `<div class="tx-picker">
+      <div class="tx-picker-h">Escolha um lab pra estender no tatame — todo mundo vai ver:</div>
+      <div class="tx-picker-grid">
+        ${labs.map(l => `
+          <button class="tx-picker-item" onclick="_txPickLab('${_esc(l.id)}')">
+            <div class="tx-picker-item-name">⚗ ${_esc(l.name)}</div>
+            <div class="tx-picker-item-meta">${_esc(l.kind)}</div>
+          </button>
+        `).join('')}
+      </div>
+    </div>`;
+  }
+  const lab = cvsRef[ext.panelRef];
+  if (!lab) {
+    return `<div class="tx-work-empty">
+      <div class="tx-work-empty-icon">!</div>
+      <div class="tx-work-empty-title">Lab não encontrado</div>
+      <div class="tx-work-empty-btns"><button class="tx-work-empty-btn" onclick="_txClearPanelRef()">Escolher outro</button></div>
+    </div>`;
+  }
+  // Tenta extrair conteúdo legível do lab (formatos variados)
+  let bodyTxt = '';
+  if (typeof lab.body === 'string') bodyTxt = lab.body;
+  else if (typeof lab.content === 'string') bodyTxt = lab.content;
+  else if (typeof lab.html === 'string') bodyTxt = lab.html.replace(/<[^>]+>/g,'');
+  else if (Array.isArray(lab.nodes)) bodyTxt = lab.nodes.map(n => (n.text||n.label||'')).filter(Boolean).join('\n• ');
+  bodyTxt = (bodyTxt || '').slice(0, 4000);
+  return `<div class="tx-embed">
+    <div class="tx-embed-h">
+      <div class="tx-embed-title">⚗ ${_esc(lab.name||'Lab')}</div>
+      <div class="tx-embed-actions">
+        <button class="tx-embed-mini" onclick="_txOpenLabFull('${_esc(ext.panelRef)}')">Abrir tela cheia ↗</button>
+        <button class="tx-embed-mini" onclick="_txClearPanelRef()">Trocar lab</button>
+      </div>
+    </div>
+    <div class="tx-lab-body">${_esc(bodyTxt) || '<em style="color:var(--tatami-ink-soft);">Lab vazio. Abra em tela cheia pra editar.</em>'}</div>
+  </div>`;
+}
+
+function _txSetPanel(mode) {
+  if (!_chatState.extended) return;
+  _chatState.extended.panelMode = mode;
+  _chatState.extended.panelRef = null;
+  _txRenderOverlay();
+  _txBroadcastState();
+}
+
+function _txPickBoard(id) {
+  if (!_chatState.extended) return;
+  _chatState.extended.panelRef = id;
+  _txRenderOverlay();
+  _txBroadcastState();
+}
+
+function _txPickLab(id) {
+  if (!_chatState.extended) return;
+  _chatState.extended.panelRef = id;
+  _txRenderOverlay();
+  _txBroadcastState();
+}
+
+function _txClearPanelRef() {
+  if (!_chatState.extended) return;
+  _chatState.extended.panelRef = null;
+  _txRenderOverlay();
+  _txBroadcastState();
+}
+
+function _txOpenBoardFull(boardId) {
+  _txClose();
+  if (typeof allBoards !== 'undefined' && allBoards && allBoards[boardId]) {
+    currentBoardId = boardId;
+    if (typeof saveData === 'function') { try { saveData(); } catch(e){} }
+    if (typeof switchTab === 'function') switchTab('kanban');
+  }
+}
+
+function _txOpenLabFull(labId) {
+  _txClose();
+  if (typeof _canvases !== 'undefined' && _canvases && _canvases[labId]) {
+    _currentCanvasId = labId;
+    _canvasView = 'editor';
+  }
+  if (typeof switchTab === 'function') switchTab('canvas');
+  setTimeout(() => { if (typeof renderCanvasView === 'function') renderCanvasView(); }, 60);
+}
+
+// ── Realtime presence + broadcast ──
+async function _txStartPresence() {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  let client;
+  try { client = await _chatGetClient(); } catch(e){ return; }
+  if (!client) return;
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  if (!myId) return;
+
+  const channel = client.channel(ext.sessionId, {
+    config: { presence: { key: myId }, broadcast: { self: false } }
+  });
+
+  channel
+    .on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState();
+      const list = [];
+      Object.keys(state).forEach(uid => {
+        const meta = (state[uid] && state[uid][0]) || {};
+        list.push({
+          user_id: uid,
+          voice_active: !!meta.voice_active,
+          voice_muted: !!meta.voice_muted,
+        });
+      });
+      const newIds = list.map(p => p.user_id).filter(id => !_chatState.userMap[id]);
+      if (newIds.length && typeof _chatHydrateUsers === 'function') {
+        _chatHydrateUsers(newIds).then(() => { ext.participants = list; _txRenderOverlay(); _txReconcilePeers(list.map(p=>p.user_id)); });
+      } else {
+        ext.participants = list;
+        _txRenderOverlay();
+        _txReconcilePeers(list.map(p=>p.user_id));
+      }
+    })
+    .on('broadcast', { event: 'tx-state' }, (msg) => {
+      const p = (msg && msg.payload) || {};
+      if (p.from === myId) return;
+      if (typeof p.panelMode === 'string') {
+        ext.panelMode = p.panelMode;
+        ext.panelRef = (typeof p.panelRef !== 'undefined') ? p.panelRef : null;
+        _txRenderOverlay();
+      }
+    })
+    .on('broadcast', { event: 'webrtc' }, (msg) => {
+      _txOnWebRTCSignal((msg && msg.payload) || {});
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        try { await channel.track({ voice_active: false, voice_muted: false, ts: Date.now() }); } catch(e){}
+      }
+    });
+  ext.rtChannel = channel;
+}
+
+function _txStopPresence() {
+  const ext = _chatState.extended;
+  if (!ext || !ext.rtChannel) return;
+  try { ext.rtChannel.untrack(); } catch(e){}
+  try { ext.rtChannel.unsubscribe(); } catch(e){}
+  ext.rtChannel = null;
+}
+
+function _txBroadcastState() {
+  const ext = _chatState.extended;
+  if (!ext || !ext.rtChannel) return;
+  try {
+    ext.rtChannel.send({
+      type: 'broadcast', event: 'tx-state',
+      payload: { from: (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null, panelMode: ext.panelMode, panelRef: ext.panelRef }
+    });
+  } catch(e){}
+}
+
+// ── WebRTC voice (mesh) ──
+async function _txJoinVoice() {
+  const ext = _chatState.extended;
+  if (!ext || ext.voiceJoined) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (typeof appAlert === 'function') appAlert('Microfone indisponível', 'Seu navegador não suporta captura de áudio.', { icon:'🎙' });
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
+    ext.localStream = stream;
+    ext.voiceJoined = true;
+    ext.micMuted = false;
+    if (ext.rtChannel) {
+      try { await ext.rtChannel.track({ voice_active: true, voice_muted: false, ts: Date.now() }); } catch(e){}
+    }
+    _txReconcilePeers(ext.participants.map(p => p.user_id));
+    _txRenderOverlay();
+  } catch (e) {
+    console.error('[tx] mic error', e);
+    if (typeof appAlert === 'function') appAlert('Sem permissão pra microfone', 'Libere o microfone nas permissões do navegador e tente de novo.', { icon:'🎙' });
+  }
+}
+
+function _txLeaveVoice() {
+  const ext = _chatState.extended;
+  if (!ext || !ext.voiceJoined) return;
+  Object.values(ext.peerConns || {}).forEach(pc => { try { pc.close(); } catch(e){} });
+  ext.peerConns = {};
+  if (ext.localStream) {
+    try { ext.localStream.getTracks().forEach(t => t.stop()); } catch(e){}
+    ext.localStream = null;
+  }
+  document.querySelectorAll('.tx-remote-audio').forEach(a => a.remove());
+  ext.voiceJoined = false;
+  ext.micMuted = false;
+  if (ext.rtChannel) {
+    try { ext.rtChannel.track({ voice_active: false, voice_muted: false, ts: Date.now() }); } catch(e){}
+  }
+  _txRenderOverlay();
+}
+
+function _txToggleMute() {
+  const ext = _chatState.extended;
+  if (!ext || !ext.voiceJoined || !ext.localStream) return;
+  ext.micMuted = !ext.micMuted;
+  ext.localStream.getAudioTracks().forEach(t => t.enabled = !ext.micMuted);
+  if (ext.rtChannel) {
+    try { ext.rtChannel.track({ voice_active: true, voice_muted: ext.micMuted, ts: Date.now() }); } catch(e){}
+  }
+  _txRenderOverlay();
+}
+
+function _txReconcilePeers(currentParticipantIds) {
+  const ext = _chatState.extended;
+  if (!ext || !ext.voiceJoined) return;
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  if (!myId) return;
+  const want = new Set(currentParticipantIds.filter(id => id !== myId));
+  Object.keys(ext.peerConns).forEach(peerId => {
+    if (!want.has(peerId)) {
+      try { ext.peerConns[peerId].close(); } catch(e){}
+      delete ext.peerConns[peerId];
+      const audio = document.getElementById('tx-audio-' + peerId);
+      if (audio) audio.remove();
+    }
+  });
+  want.forEach(peerId => {
+    if (!ext.peerConns[peerId]) {
+      const isOfferer = String(myId) > String(peerId);
+      _txCreatePeerConn(peerId, isOfferer);
+    }
+  });
+}
+
+function _txCreatePeerConn(peerId, isOfferer) {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  const pc = new RTCPeerConnection({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ],
+  });
+  if (ext.localStream) {
+    ext.localStream.getTracks().forEach(t => pc.addTrack(t, ext.localStream));
+  }
+  pc.ontrack = (ev) => {
+    let audio = document.getElementById('tx-audio-' + peerId);
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.id = 'tx-audio-' + peerId;
+      audio.className = 'tx-remote-audio';
+      audio.autoplay = true;
+      audio.style.display = 'none';
+      document.body.appendChild(audio);
+    }
+    audio.srcObject = ev.streams[0];
+  };
+  pc.onicecandidate = (ev) => {
+    if (ev.candidate) _txSendSignal(peerId, { type: 'ice', candidate: ev.candidate });
+  };
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      try { pc.close(); } catch(e){}
+      delete ext.peerConns[peerId];
+    }
+  };
+  ext.peerConns[peerId] = pc;
+  if (isOfferer) {
+    pc.createOffer({ offerToReceiveAudio: true })
+      .then(offer => pc.setLocalDescription(offer).then(() => _txSendSignal(peerId, { type: 'offer', sdp: offer })))
+      .catch(e => console.error('[tx] offer fail', e));
+  }
+}
+
+function _txSendSignal(targetId, data) {
+  const ext = _chatState.extended;
+  if (!ext || !ext.rtChannel) return;
+  try {
+    ext.rtChannel.send({
+      type: 'broadcast', event: 'webrtc',
+      payload: { from: (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null, to: targetId, data }
+    });
+  } catch(e){}
+}
+
+async function _txOnWebRTCSignal(payload) {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  if (!payload || payload.to !== myId) return;
+  const peerId = payload.from;
+  const data = payload.data || {};
+  let pc = ext.peerConns[peerId];
+  if (data.type === 'offer') {
+    if (!ext.voiceJoined) return; // Não responde a offer se não está em voz
+    if (!pc) { _txCreatePeerConn(peerId, false); pc = ext.peerConns[peerId]; }
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      _txSendSignal(peerId, { type: 'answer', sdp: answer });
+    } catch(e){ console.error('[tx] answer fail', e); }
+  } else if (data.type === 'answer') {
+    if (pc) {
+      try { await pc.setRemoteDescription(new RTCSessionDescription(data.sdp)); } catch(e){ console.error('[tx] setRemote answer fail', e); }
+    }
+  } else if (data.type === 'ice') {
+    if (pc && data.candidate) {
+      try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch(e){}
+    }
+  }
+}
+
+// ── Convidar via mensagem no canal ──
+async function _txInviteFlow() {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  const ok = await appConfirm('Convidar pro tatame',
+    `Vou postar uma mensagem em <strong>#${_esc(ext.channelName)}</strong> avisando que tem sessão colaborativa rolando agora. Quem quiser entra clicando no botão "Estender Tatame".`,
+    { okLabel: 'Postar convite', cancelLabel:'Cancelar', icon:'🎴', html:true });
+  if (!ok) return;
+  const body = `🎴 *Tatame estendido aberto* — sessão colaborativa rolando agora (voz + workspace compartilhado). Clica no botão "Estender Tatame" no rodapé do canal pra entrar.`;
+  if (typeof _chatSendMessage === 'function') {
+    try { await _chatSendMessage(body, null); } catch(e){ console.error('[tx] invite send fail', e); }
+  }
 }
 
 // ── Como usar o Tatami (instruções inline) ──────────────────────────
