@@ -38476,7 +38476,10 @@ async function _chatLoadMessages(channelId) {
 
 async function _chatHydrateUsers(userIds) {
   const missing = [...new Set(userIds)].filter(uid => uid && !_chatState.userMap[uid]);
-  if (missing.length === 0) return;
+  if (missing.length === 0) {
+    _chatOverrideOwnUserMap();
+    return;
+  }
   const c = await _chatGetClient();
   if (!c) return;
   try {
@@ -38491,6 +38494,21 @@ async function _chatHydrateUsers(userIds) {
   } catch(e) {
     missing.forEach(uid => { _chatState.userMap[uid] = { name: 'Usuário', avatar: null }; });
   }
+  _chatOverrideOwnUserMap();
+}
+
+// Sobrescreve o entry do user atual com dados locais (nome + avatar
+// do profile local, que pode estar mais atualizado que profiles.avatar_url
+// na nuvem — ex: foto recém uploadada que ainda não sincronizou).
+function _chatOverrideOwnUserMap() {
+  if (!supaUser?.id) return;
+  const localName = (typeof getProfileName === 'function') ? getProfileName() : null;
+  const localAvatar = (typeof getProfileAvatar === 'function') ? getProfileAvatar() : null;
+  const existing = _chatState.userMap[supaUser.id] || {};
+  _chatState.userMap[supaUser.id] = {
+    name: localName || existing.name || 'Você',
+    avatar: localAvatar || existing.avatar || null,
+  };
 }
 
 // ── Render painel central com mensagens ──────────────────────────────
