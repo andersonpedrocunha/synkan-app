@@ -5274,8 +5274,8 @@ body.density-compact .col{padding:7px;}
  * Tatame Estendido — sessão colaborativa (voz + board/lab)
  * ════════════════════════════════════════════════════════════════════ */
 .chat-composer-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
-.chat-extend-btn{display:inline-flex;align-items:center;gap:7px;padding:6px 13px;background:var(--tatami-paper);border:0.5px dashed var(--tatami-hinomaru);color:var(--tatami-hinomaru);border-radius:8px;font-family:var(--tatami-mincho);font-style:italic;font-size:12.5px;cursor:pointer;transition:all .15s;flex-shrink:0;letter-spacing:.01em;}
-.chat-extend-btn:hover{background:var(--tatami-hinomaru);color:#fff;border-style:solid;transform:translateY(-1px);box-shadow:0 4px 12px rgba(159,0,38,.18);}
+.chat-extend-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;background:linear-gradient(180deg,var(--tatami-hinomaru) 0%,#8b001f 100%);border:1px solid #6e0019;color:#fff;border-radius:8px;font-family:var(--tatami-mincho);font-style:italic;font-size:12.5px;cursor:pointer;transition:all .15s;flex-shrink:0;letter-spacing:.01em;box-shadow:0 1px 2px rgba(0,0,0,.08);}
+.chat-extend-btn:hover{filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 4px 12px rgba(159,0,38,.28);}
 .chat-extend-btn svg{width:15px;height:15px;flex-shrink:0;}
 
 .tx-overlay{position:fixed;inset:0;z-index:9000;background:rgba(15,12,10,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;animation:txFadeIn .2s ease;padding:18px;}
@@ -5362,6 +5362,59 @@ body.density-compact .col{padding:7px;}
 .tx-mini-card{background:var(--tatami-paper);border:0.5px solid var(--tatami-tan);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-family:var(--tatami-mincho);font-size:12.5px;color:var(--tatami-sumi);cursor:pointer;transition:border-color .12s,transform .12s;}
 .tx-mini-card:hover{border-color:var(--tatami-hinomaru);transform:translateX(2px);}
 .tx-mini-card-meta{font-size:10.5px;color:var(--tatami-ink-soft);margin-top:3px;font-style:italic;}
+
+/* Kanban interativo no tatame */
+.tx-kan-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;align-items:flex-start;}
+.tx-kan-col{background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:10px;padding:11px 11px 9px;display:flex;flex-direction:column;min-height:120px;transition:background .12s,border-color .12s;}
+.tx-kan-col.tx-kan-col-over{background:#fff7e6;border-color:var(--tatami-hinomaru);}
+.tx-kan-col-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;font-family:var(--tatami-mincho);}
+.tx-kan-col-title{font-size:13px;font-weight:600;color:var(--tatami-sumi);}
+.tx-kan-col-count{color:var(--tatami-ink-soft);font-style:italic;font-size:11.5px;}
+.tx-kan-col-body{display:flex;flex-direction:column;gap:6px;flex:1;min-height:40px;}
+.tx-kan-card{background:var(--tatami-paper);border:0.5px solid var(--tatami-tan);border-radius:7px;padding:8px 10px;font-family:var(--tatami-mincho);font-size:12.5px;color:var(--tatami-sumi);cursor:grab;transition:border-color .12s,box-shadow .12s,transform .12s;user-select:none;}
+.tx-kan-card:hover{border-color:var(--tatami-hinomaru);box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.tx-kan-card:active{cursor:grabbing;}
+.tx-kan-card-dragging{opacity:.4;}
+.tx-kan-card-title{line-height:1.4;}
+.tx-kan-card-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:10.5px;color:var(--tatami-ink-soft);}
+.tx-kan-card-meta .tx-kan-pri{padding:1px 6px;border-radius:3px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;}
+.tx-kan-pri-alta{background:#ffe5e5;color:#9f0026;}
+.tx-kan-pri-media{background:#fff3d6;color:#8c5c00;}
+.tx-kan-pri-baixa{background:#e3eee0;color:#3a6b2c;}
+.tx-kan-add{margin-top:6px;background:transparent;border:1px dashed var(--tatami-tan);border-radius:6px;color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;padding:6px;cursor:pointer;transition:all .12s;}
+.tx-kan-add:hover{color:var(--tatami-hinomaru);border-color:var(--tatami-hinomaru);background:var(--tatami-paper);}
+
+/* Botão "+ criar" nos pickers */
+.tx-picker-create{border:1px dashed var(--tatami-hinomaru);background:#fff;color:var(--tatami-hinomaru);}
+.tx-picker-create:hover{background:var(--tatami-hinomaru);color:#fff;border-style:solid;}
+.tx-picker-create .tx-picker-item-name{color:inherit;}
+.tx-picker-create .tx-picker-item-meta{color:inherit;opacity:.85;}
+
+/* Tabs do painel esquerdo (Pessoas / Chat) */
+.tx-side-tabs{display:flex;gap:0;border-bottom:1px solid var(--tatami-tan);background:var(--tatami-cream);flex-shrink:0;}
+.tx-side-tab{flex:1;padding:11px 14px;background:transparent;border:none;color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);font-size:12.5px;cursor:pointer;border-bottom:2px solid transparent;transition:color .12s,border-color .12s;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+.tx-side-tab:hover{color:var(--tatami-sumi);}
+.tx-side-tab.is-active{color:var(--tatami-hinomaru);border-bottom-color:var(--tatami-hinomaru);font-weight:600;}
+.tx-side-tab-count{background:var(--tatami-tan);color:var(--tatami-sumi);padding:1px 6px;border-radius:8px;font-size:10.5px;font-weight:600;font-style:normal;}
+.tx-side-tab.is-active .tx-side-tab-count{background:var(--tatami-hinomaru);color:#fff;}
+
+/* Chat-thread pane */
+.tx-chat-pane{flex:1;display:flex;flex-direction:column;min-height:0;background:var(--tatami-paper);}
+.tx-chat-list{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+.tx-cm-empty{color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);font-size:12px;text-align:center;padding:18px 8px;line-height:1.5;}
+.tx-cm{display:flex;gap:8px;align-items:flex-start;}
+.tx-cm-av{width:28px;height:28px;border-radius:50%;background:var(--tatami-tan);display:flex;align-items:center;justify-content:center;font-family:var(--tatami-mincho);font-size:12px;color:var(--tatami-sumi);overflow:hidden;flex-shrink:0;}
+.tx-cm-av img{width:100%;height:100%;object-fit:cover;}
+.tx-cm-body{flex:1;min-width:0;}
+.tx-cm-meta{font-family:var(--tatami-mincho);font-size:11px;color:var(--tatami-ink-soft);margin-bottom:2px;}
+.tx-cm-meta strong{color:var(--tatami-sumi);font-weight:600;margin-right:6px;}
+.tx-cm-text{font-size:13px;color:var(--tatami-sumi);line-height:1.45;word-wrap:break-word;}
+.tx-cm-me .tx-cm-meta strong{color:var(--tatami-hinomaru);}
+.tx-chat-composer{padding:10px 12px 12px;border-top:1px solid var(--tatami-tan);background:var(--tatami-cream);display:flex;flex-direction:column;gap:7px;flex-shrink:0;}
+.tx-chat-input{width:100%;padding:8px 10px;border:1px solid var(--tatami-tan);border-radius:7px;background:var(--tatami-paper);color:var(--tatami-sumi);font-family:Georgia,serif;font-size:13px;resize:vertical;outline:none;min-height:40px;max-height:120px;line-height:1.4;}
+.tx-chat-input:focus{border-color:var(--tatami-hinomaru);}
+.tx-chat-send{align-self:flex-end;background:var(--tatami-hinomaru);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-family:var(--tatami-mincho);font-size:12.5px;cursor:pointer;font-style:italic;transition:filter .12s;}
+.tx-chat-send:hover{filter:brightness(1.08);}
 
 .tx-lab-body{white-space:pre-wrap;font-family:Georgia,'Times New Roman',serif;font-size:14.5px;color:var(--tatami-sumi);line-height:1.75;padding:6px 4px;flex:1;}
 
@@ -41313,6 +41366,9 @@ function _txOpen() {
     peerConns: {},
     localStream: null,
     speakingMap: {},
+    leftTab: 'pessoas',  // 'pessoas' | 'chat'
+    chatMessages: [],
+    kickoffMsgId: null,
   };
   _txRenderOverlay();
   _txStartPresence();
@@ -41367,8 +41423,14 @@ function _txRenderOverlay() {
       </div>
       <div class="tx-body">
         <div class="tx-side">
-          <div class="tx-side-h">No tatame · ${count}</div>
-          <div class="tx-participants" id="tx-participants">${_txRenderParticipants()}</div>
+          <div class="tx-side-tabs">
+            <button class="tx-side-tab ${ext.leftTab==='pessoas'?'is-active':''}" onclick="_txSwitchLeftTab('pessoas')">Pessoas <span class="tx-side-tab-count">${count}</span></button>
+            <button class="tx-side-tab ${ext.leftTab==='chat'?'is-active':''}" onclick="_txSwitchLeftTab('chat')">Chat${(ext.chatMessages&&ext.chatMessages.length)?` <span class="tx-side-tab-count">${ext.chatMessages.length}</span>`:''}</button>
+          </div>
+          ${ext.leftTab==='chat'
+            ? `<div class="tx-chat-pane" id="tx-chat-pane">${_txRenderChatPaneStatic()}</div>`
+            : `<div class="tx-participants" id="tx-participants">${_txRenderParticipants()}</div>`
+          }
           <div class="tx-voice-bar">
             <div class="tx-voice-status" id="tx-voice-status">${_txVoiceStatus()}</div>
             <div class="tx-voice-btns">
@@ -41456,16 +41518,13 @@ function _txRenderBoardPanel() {
     const boards = Object.entries(boardsRef)
       .filter(([id,b]) => b && !b.archived)
       .map(([id,b]) => ({ id, name: b.name || 'Board sem nome', cards: (b.cards||[]).length }));
-    if (!boards.length) {
-      return `<div class="tx-work-empty">
-        <div class="tx-work-empty-icon">▤</div>
-        <div class="tx-work-empty-title">Nenhum board pra abrir</div>
-        <div class="tx-work-empty-sub">Crie um board primeiro pra poder trabalhar nele com o time.</div>
-      </div>`;
-    }
     return `<div class="tx-picker">
-      <div class="tx-picker-h">Escolha um board pra estender no tatame — todo mundo vai ver:</div>
+      <div class="tx-picker-h">Escolha um board pra estender no tatame — todo mundo vai ver e mexer junto:</div>
       <div class="tx-picker-grid">
+        <button class="tx-picker-item tx-picker-create" onclick="_txCreateBoardFlow()">
+          <div class="tx-picker-item-name">＋ Novo board</div>
+          <div class="tx-picker-item-meta">criar pra essa sessão</div>
+        </button>
         ${boards.map(b => `
           <button class="tx-picker-item" onclick="_txPickBoard('${_esc(b.id)}')">
             <div class="tx-picker-item-name">▤ ${_esc(b.name)}</div>
@@ -41484,29 +41543,369 @@ function _txRenderBoardPanel() {
       <div class="tx-work-empty-btns"><button class="tx-work-empty-btn" onclick="_txClearPanelRef()">Escolher outro</button></div>
     </div>`;
   }
-  const cols = (board.columns || []).map(col => {
-    const cards = (board.cards || []).filter(c => c.col === col.id);
-    return `<div class="tx-mini-col">
-      <div class="tx-mini-col-h"><span>${_esc(col.name || col.id)}</span><span class="tx-mini-col-count">${cards.length}</span></div>
-      ${cards.slice(0,10).map(c => `
-        <div class="tx-mini-card" onclick="_txOpenBoardFull('${_esc(ext.panelRef)}')">
-          ${_esc((c.title||'(sem título)').slice(0,90))}
-          ${c.priority?`<div class="tx-mini-card-meta">${_esc(c.priority)}${c.assignedTo?` · @${_esc((_chatState.userMap[c.assignedTo]||{}).name||'membro')}`:''}</div>`:''}
-        </div>
-      `).join('')}
-      ${cards.length>10?`<div style="font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);text-align:center;padding:4px;">+${cards.length-10} cards</div>`:''}
+  const COLS_arr = Array.isArray(board.COLS) ? board.COLS : [];
+  const cardsArr = Array.isArray(board.cards) ? board.cards : [];
+  const cols = COLS_arr.map(col => {
+    const colId = col.id;
+    const colCards = cardsArr.filter(c => c.col === colId);
+    return `<div class="tx-kan-col" data-colid="${_esc(colId)}"
+      ondragover="_txColDragOver(event,'${_esc(colId)}')"
+      ondragleave="_txColDragLeave(event)"
+      ondrop="_txColDrop(event,'${_esc(colId)}')">
+      <div class="tx-kan-col-h">
+        <span class="tx-kan-col-title">${_esc(col.title || colId)}</span>
+        <span class="tx-kan-col-count">${colCards.length}</span>
+      </div>
+      <div class="tx-kan-col-body">
+        ${colCards.map(c => `
+          <div class="tx-kan-card" draggable="true"
+            ondragstart="_txCardDragStart(event,'${_esc(c.id)}')"
+            ondragend="_txCardDragEnd(event)"
+            onclick="_txOpenCardEditor('${_esc(c.id)}')"
+            title="Clique pra abrir · arraste pra mover">
+            <div class="tx-kan-card-title">${_esc((c.name||'(sem título)').slice(0,120))}</div>
+            ${(c.priority||c.assignedTo||c.deadline)?`<div class="tx-kan-card-meta">
+              ${c.priority?`<span class="tx-kan-pri tx-kan-pri-${_esc(c.priority)}">${_esc(c.priority)}</span>`:''}
+              ${c.deadline?`<span>${_esc(c.deadline)}</span>`:''}
+              ${c.assignedTo?`<span>@${_esc((_chatState.userMap[c.assignedTo]||{}).name||'membro')}</span>`:''}
+            </div>`:''}
+          </div>
+        `).join('')}
+        <button class="tx-kan-add" onclick="_txAddCardPrompt('${_esc(colId)}')">＋ adicionar card</button>
+      </div>
     </div>`;
   }).join('');
   return `<div class="tx-embed">
     <div class="tx-embed-h">
       <div class="tx-embed-title">▤ ${_esc(board.name||'Board')}</div>
       <div class="tx-embed-actions">
-        <button class="tx-embed-mini" onclick="_txOpenBoardFull('${_esc(ext.panelRef)}')">Abrir tela cheia ↗</button>
+        <button class="tx-embed-mini" onclick="_txAddColumnPrompt()">＋ coluna</button>
+        <button class="tx-embed-mini" onclick="_txOpenBoardFull('${_esc(ext.panelRef)}')">Tela cheia ↗</button>
         <button class="tx-embed-mini" onclick="_txClearPanelRef()">Trocar board</button>
       </div>
     </div>
-    <div class="tx-mini-cols">${cols || '<div style="color:var(--tatami-ink-soft);font-style:italic;padding:18px;font-family:var(--tatami-mincho);">Board sem colunas.</div>'}</div>
+    <div class="tx-kan-cols">${cols || '<div style="color:var(--tatami-ink-soft);font-style:italic;padding:18px;font-family:var(--tatami-mincho);">Board sem colunas. Clique em ＋ coluna pra criar.</div>'}</div>
   </div>`;
+}
+
+// ── Board: drag-drop + criar card/coluna + sync ──
+let _txDragCardId = null;
+
+function _txCardDragStart(e, cardId) {
+  _txDragCardId = cardId;
+  if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', cardId); } catch(_){} }
+  if (e.currentTarget && e.currentTarget.classList) e.currentTarget.classList.add('tx-kan-card-dragging');
+}
+function _txCardDragEnd(e) {
+  _txDragCardId = null;
+  document.querySelectorAll('.tx-kan-card-dragging').forEach(el => el.classList.remove('tx-kan-card-dragging'));
+  document.querySelectorAll('.tx-kan-col-over').forEach(el => el.classList.remove('tx-kan-col-over'));
+}
+function _txColDragOver(e, colId) {
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  if (e.currentTarget && e.currentTarget.classList) e.currentTarget.classList.add('tx-kan-col-over');
+}
+function _txColDragLeave(e) {
+  if (e.currentTarget && e.currentTarget.classList) e.currentTarget.classList.remove('tx-kan-col-over');
+}
+function _txColDrop(e, colId) {
+  e.preventDefault();
+  if (e.currentTarget && e.currentTarget.classList) e.currentTarget.classList.remove('tx-kan-col-over');
+  const cardId = _txDragCardId || (e.dataTransfer && e.dataTransfer.getData && e.dataTransfer.getData('text/plain'));
+  _txDragCardId = null;
+  if (!cardId) return;
+  _txMoveCard(cardId, colId);
+}
+
+function _txMoveCard(cardId, newColId) {
+  const ext = _chatState.extended;
+  if (!ext || !ext.panelRef) return;
+  const board = (typeof allBoards !== 'undefined' && allBoards) ? allBoards[ext.panelRef] : null;
+  if (!board) return;
+  const card = (board.cards||[]).find(c => String(c.id) === String(cardId));
+  if (!card || card.col === newColId) return;
+  card.col = newColId;
+  _txPersistBoard(ext.panelRef);
+  _txRenderOverlay();
+  _txBroadcastBoard(ext.panelRef);
+}
+
+async function _txAddCardPrompt(colId) {
+  const ext = _chatState.extended;
+  if (!ext || !ext.panelRef) return;
+  if (typeof appPrompt !== 'function') return;
+  const name = await appPrompt('Novo card', { icon:'＋', okLabel:'Adicionar', placeholder:'Título do card…' });
+  if (!name || !name.trim()) return;
+  const board = (typeof allBoards !== 'undefined' && allBoards) ? allBoards[ext.panelRef] : null;
+  if (!board) return;
+  if (!Array.isArray(board.cards)) board.cards = [];
+  const newId = 'c_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  board.cards.push({
+    id: newId, name: name.trim(), priority: 'media', col: colId,
+    tagIds: [], threads: [], subtasks: [], attachments: [],
+    createdAt: new Date().toISOString(),
+  });
+  if (typeof board.nCard === 'number') board.nCard++;
+  _txPersistBoard(ext.panelRef);
+  _txRenderOverlay();
+  _txBroadcastBoard(ext.panelRef);
+}
+
+async function _txAddColumnPrompt() {
+  const ext = _chatState.extended;
+  if (!ext || !ext.panelRef) return;
+  if (typeof appPrompt !== 'function') return;
+  const title = await appPrompt('Nova coluna', { icon:'▥', okLabel:'Criar', placeholder:'Nome da coluna…' });
+  if (!title || !title.trim()) return;
+  const board = (typeof allBoards !== 'undefined' && allBoards) ? allBoards[ext.panelRef] : null;
+  if (!board) return;
+  if (!Array.isArray(board.COLS)) board.COLS = [];
+  const newColId = 'col_' + Date.now().toString(36) + Math.random().toString(36).slice(2,4);
+  board.COLS.push({ id: newColId, title: title.trim() });
+  _txPersistBoard(ext.panelRef);
+  _txRenderOverlay();
+  _txBroadcastBoard(ext.panelRef);
+}
+
+function _txOpenCardEditor(cardId) {
+  const ext = _chatState.extended;
+  if (!ext || !ext.panelRef) return;
+  // Pra editar, precisa que o board atual seja o do tatame.
+  if (typeof switchBoard === 'function' && currentBoardId !== ext.panelRef) {
+    try { switchBoard(ext.panelRef, { goTo: false }); } catch(e){}
+  }
+  if (typeof editCard === 'function') {
+    try { editCard(cardId); } catch(e){ console.error('[tx] editCard fail', e); }
+  }
+}
+
+function _txPersistBoard(boardId) {
+  if (!boardId) return;
+  // Se o board "current" do app é o que tá sendo editado, re-sincroniza globais
+  if (typeof currentBoardId !== 'undefined' && currentBoardId === boardId && typeof _bindCurrentBoard === 'function') {
+    try { _bindCurrentBoard(); } catch(e){}
+  }
+  if (typeof saveData === 'function') { try { saveData(); } catch(e){} }
+  // Re-render do app principal se o board está sendo mostrado lá
+  if (typeof currentBoardId !== 'undefined' && currentBoardId === boardId && typeof render === 'function') {
+    try { render(); } catch(e){}
+  }
+}
+
+function _txBroadcastBoard(boardId) {
+  const ext = _chatState.extended;
+  if (!ext || !ext.rtChannel) return;
+  const board = (typeof allBoards !== 'undefined' && allBoards) ? allBoards[boardId] : null;
+  if (!board) return;
+  try {
+    ext.rtChannel.send({
+      type: 'broadcast', event: 'tx-board',
+      payload: {
+        from: (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null,
+        boardId,
+        snapshot: JSON.parse(JSON.stringify(board)),
+      }
+    });
+  } catch(e){ console.warn('[tx] broadcast board fail', e); }
+}
+
+async function _txCreateBoardFlow() {
+  if (typeof appPrompt !== 'function' || typeof createBoard !== 'function') return;
+  const name = await appPrompt('Novo board pro tatame', { icon:'▤', okLabel:'Criar', placeholder:'Nome do board…' });
+  if (!name || !name.trim()) return;
+  const id = createBoard({ name: name.trim(), seed: false });
+  if (id) {
+    _txPickBoard(id);
+    _txBroadcastBoard(id);
+  }
+}
+
+async function _txCreateLabFlow() {
+  if (typeof appPrompt !== 'function' || typeof createCanvas !== 'function') return;
+  const name = await appPrompt('Novo lab pro tatame', { icon:'⚗', okLabel:'Criar', placeholder:'Nome do lab…' });
+  if (!name || !name.trim()) return;
+  const id = createCanvas(name.trim(), 'note');
+  if (id) _txPickLab(id);
+}
+
+// Aplica snapshot de board recebido via broadcast, se o user tem acesso
+function _txApplyRemoteBoard(boardId, snapshot) {
+  if (!boardId || !snapshot) return;
+  if (typeof allBoards === 'undefined' || !allBoards) return;
+  // Só aplica se o user já tinha esse board (RLS check implícito — quem não
+  // tem acesso, não tem allBoards[id])
+  if (!allBoards[boardId]) return;
+  allBoards[boardId] = snapshot;
+  if (typeof currentBoardId !== 'undefined' && currentBoardId === boardId && typeof _bindCurrentBoard === 'function') {
+    try { _bindCurrentBoard(); } catch(e){}
+  }
+  if (typeof saveData === 'function') { try { saveData(); } catch(e){} }
+  if (typeof currentBoardId !== 'undefined' && currentBoardId === boardId && typeof render === 'function') {
+    try { render(); } catch(e){}
+  }
+  // Re-render do tatame se o board atual do tatame é esse
+  const ext = _chatState.extended;
+  if (ext && ext.panelMode === 'board' && ext.panelRef === boardId) {
+    _txRenderOverlay();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Chat-thread do tatame: mensagens viram replies de uma âncora postada
+// no canal. Ao reabrir o canal depois, o histórico fica preservado como
+// thread.
+// ════════════════════════════════════════════════════════════════════
+
+async function _txEnsureKickoffMessage() {
+  const ext = _chatState.extended;
+  if (!ext || ext.kickoffMsgId) return;
+  // Posta a âncora no canal atual
+  const c = await _chatGetClient();
+  if (!c) return;
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  if (!myId) return;
+  const body = `🎴 *Sessão no tatame iniciada* — voz + workspace compartilhado em andamento. As respostas dessa thread são o histórico da sessão.`;
+  try {
+    const { data, error } = await c.from('chat_messages').insert({
+      channel_id: ext.channelId, user_id: myId, parent_id: null, body, attachments: [],
+    }).select().single();
+    if (!error && data) {
+      ext.kickoffMsgId = data.id;
+      // Compartilha pros outros peers
+      if (ext.rtChannel) {
+        try { ext.rtChannel.send({ type:'broadcast', event:'tx-kickoff', payload:{ from: myId, kickoffMsgId: data.id }}); } catch(e){}
+      }
+      _txLoadChatThread();
+    }
+  } catch(e){ console.warn('[tx] kickoff fail', e); }
+}
+
+async function _txLoadChatThread() {
+  const ext = _chatState.extended;
+  if (!ext || !ext.kickoffMsgId) return;
+  const c = await _chatGetClient();
+  if (!c) return;
+  try {
+    const { data, error } = await c.from('chat_messages')
+      .select('id, user_id, body, created_at, parent_id')
+      .eq('parent_id', ext.kickoffMsgId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true });
+    if (!error && Array.isArray(data)) {
+      ext.chatMessages = data;
+      // Hidrata users novos
+      const newIds = data.map(m => m.user_id).filter(id => id && !_chatState.userMap[id]);
+      if (newIds.length && typeof _chatHydrateUsers === 'function') {
+        await _chatHydrateUsers(newIds);
+      }
+      _txRenderChatPane();
+    }
+  } catch(e){ console.warn('[tx] load thread fail', e); }
+}
+
+async function _txSendChat() {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  const inp = document.getElementById('tx-chat-input');
+  if (!inp) return;
+  const body = (inp.value || '').trim();
+  if (!body) return;
+  inp.value = '';
+  // Garante âncora
+  if (!ext.kickoffMsgId) await _txEnsureKickoffMessage();
+  if (!ext.kickoffMsgId) return;
+  const c = await _chatGetClient();
+  if (!c) return;
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  if (!myId) return;
+  try {
+    const { data, error } = await c.from('chat_messages').insert({
+      channel_id: ext.channelId, user_id: myId, parent_id: ext.kickoffMsgId, body, attachments: [],
+    }).select().single();
+    if (!error && data) {
+      ext.chatMessages = (ext.chatMessages || []).concat([data]);
+      _txRenderChatPane();
+    }
+  } catch(e){ console.warn('[tx] send chat fail', e); }
+}
+
+function _txOnChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    _txSendChat();
+  }
+}
+
+function _txRenderChatPane() {
+  const root = document.getElementById('tx-chat-pane');
+  if (!root) return;
+  const ext = _chatState.extended;
+  if (!ext) return;
+  const msgs = ext.chatMessages || [];
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  const list = msgs.length
+    ? msgs.map(m => {
+        const u = _chatState.userMap[m.user_id] || { name:'Usuário', avatar:null };
+        const isMe = m.user_id === myId;
+        const time = (typeof _chatFormatTime === 'function') ? _chatFormatTime(m.created_at) : '';
+        const av = u.avatar ? `<img src="${_esc(u.avatar)}" alt=""/>` : (u.name||'?').slice(0,1).toUpperCase();
+        return `<div class="tx-cm ${isMe?'tx-cm-me':''}">
+          <div class="tx-cm-av">${av}</div>
+          <div class="tx-cm-body">
+            <div class="tx-cm-meta"><strong>${_esc(u.name)}</strong> <span>${time}</span></div>
+            <div class="tx-cm-text">${_esc(m.body||'')}</div>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div class="tx-cm-empty">Sem mensagens ainda. Tudo o que for digitado aqui fica salvo como thread no canal #' + _esc(ext.channelName) + '.</div>';
+  root.innerHTML = `
+    <div class="tx-chat-list" id="tx-chat-list">${list}</div>
+    <div class="tx-chat-composer">
+      <textarea id="tx-chat-input" class="tx-chat-input" rows="2" placeholder="Mensagem pra galera no tatame…" onkeydown="_txOnChatKey(event)"></textarea>
+      <button class="tx-chat-send" onclick="_txSendChat()" title="Enviar (Enter)">Enviar →</button>
+    </div>`;
+  const listEl = document.getElementById('tx-chat-list');
+  if (listEl) listEl.scrollTop = listEl.scrollHeight;
+}
+
+function _txSwitchLeftTab(tab) {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  ext.leftTab = tab;
+  _txRenderOverlay();
+  if (tab === 'chat') {
+    if (!ext.kickoffMsgId) _txEnsureKickoffMessage();
+    else _txLoadChatThread();
+  }
+}
+
+// Versão SÍNCRONA do chat pane (usado no innerHTML inicial — sem await)
+function _txRenderChatPaneStatic() {
+  const ext = _chatState.extended;
+  if (!ext) return '';
+  const msgs = ext.chatMessages || [];
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  const list = msgs.length
+    ? msgs.map(m => {
+        const u = _chatState.userMap[m.user_id] || { name:'Usuário', avatar:null };
+        const isMe = m.user_id === myId;
+        const time = (typeof _chatFormatTime === 'function') ? _chatFormatTime(m.created_at) : '';
+        const av = u.avatar ? `<img src="${_esc(u.avatar)}" alt=""/>` : (u.name||'?').slice(0,1).toUpperCase();
+        return `<div class="tx-cm ${isMe?'tx-cm-me':''}">
+          <div class="tx-cm-av">${av}</div>
+          <div class="tx-cm-body">
+            <div class="tx-cm-meta"><strong>${_esc(u.name)}</strong> <span>${time}</span></div>
+            <div class="tx-cm-text">${_esc(m.body||'')}</div>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div class="tx-cm-empty">Sem mensagens ainda. Tudo o que for digitado aqui fica salvo como thread no canal #' + _esc(ext.channelName) + '.</div>';
+  return `<div class="tx-chat-list" id="tx-chat-list">${list}</div>
+    <div class="tx-chat-composer">
+      <textarea id="tx-chat-input" class="tx-chat-input" rows="2" placeholder="Mensagem pra galera no tatame…" onkeydown="_txOnChatKey(event)"></textarea>
+      <button class="tx-chat-send" onclick="_txSendChat()" title="Enviar (Enter)">Enviar →</button>
+    </div>`;
 }
 
 function _txRenderLabPanel() {
@@ -41516,16 +41915,13 @@ function _txRenderLabPanel() {
     const labs = Object.values(cvsRef).filter(c => c && !c.archived).map(c => ({
       id: c.id, name: c.name || 'Lab sem nome', kind: c.format || 'lab',
     }));
-    if (!labs.length) {
-      return `<div class="tx-work-empty">
-        <div class="tx-work-empty-icon">⚗</div>
-        <div class="tx-work-empty-title">Nenhum lab criado ainda</div>
-        <div class="tx-work-empty-sub">Vai no menu Lab e cria um pra estender no tatame depois.</div>
-      </div>`;
-    }
     return `<div class="tx-picker">
       <div class="tx-picker-h">Escolha um lab pra estender no tatame — todo mundo vai ver:</div>
       <div class="tx-picker-grid">
+        <button class="tx-picker-item tx-picker-create" onclick="_txCreateLabFlow()">
+          <div class="tx-picker-item-name">＋ Novo lab</div>
+          <div class="tx-picker-item-meta">criar pra essa sessão</div>
+        </button>
         ${labs.map(l => `
           <button class="tx-picker-item" onclick="_txPickLab('${_esc(l.id)}')">
             <div class="tx-picker-item-name">⚗ ${_esc(l.name)}</div>
@@ -41656,6 +42052,19 @@ async function _txStartPresence() {
     })
     .on('broadcast', { event: 'webrtc' }, (msg) => {
       _txOnWebRTCSignal((msg && msg.payload) || {});
+    })
+    .on('broadcast', { event: 'tx-board' }, (msg) => {
+      const p = (msg && msg.payload) || {};
+      if (p.from === myId) return;
+      _txApplyRemoteBoard(p.boardId, p.snapshot);
+    })
+    .on('broadcast', { event: 'tx-kickoff' }, (msg) => {
+      const p = (msg && msg.payload) || {};
+      if (p.from === myId) return;
+      if (p.kickoffMsgId && !ext.kickoffMsgId) {
+        ext.kickoffMsgId = p.kickoffMsgId;
+        if (ext.leftTab === 'chat') _txLoadChatThread();
+      }
     })
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
@@ -41847,7 +42256,7 @@ async function _txInviteFlow() {
     `Vou postar uma mensagem em <strong>#${_esc(ext.channelName)}</strong> avisando que tem sessão colaborativa rolando agora. Quem quiser entra clicando no botão "Estender Tatame".`,
     { okLabel: 'Postar convite', cancelLabel:'Cancelar', icon:'🎴', html:true });
   if (!ok) return;
-  const body = `🎴 *Tatame estendido aberto* — sessão colaborativa rolando agora (voz + workspace compartilhado). Clica no botão "Estender Tatame" no rodapé do canal pra entrar.`;
+  const body = `🎴 *Sessão no tatame em andamento* — voz + workspace compartilhado. Clica em "Estender Tatame" no rodapé do canal pra entrar.`;
   if (typeof _chatSendMessage === 'function') {
     try { await _chatSendMessage(body, null); } catch(e){ console.error('[tx] invite send fail', e); }
   }
