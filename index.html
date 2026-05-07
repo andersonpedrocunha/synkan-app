@@ -40814,7 +40814,11 @@ function _chatFormatSize(bytes) {
 
 // Render dos anexos dentro de uma mensagem renderizada
 function _chatRenderMessageAttachments(attachments) {
-  if (!attachments || !attachments.length) return '';
+  // Defesa: pode vir como string JSON do realtime payload
+  if (typeof attachments === 'string') {
+    try { attachments = JSON.parse(attachments); } catch(_){ attachments = []; }
+  }
+  if (!attachments || !Array.isArray(attachments) || !attachments.length) return '';
   const items = attachments.map(a => {
     const mime = a.mime_type || '';
     const isImg = mime.startsWith('image/');
@@ -40973,20 +40977,34 @@ async function _chatOnVoiceRecordStop() {
     const { data: urlData } = c.storage.from(_CHAT_BUCKET).getPublicUrl(path);
     console.debug('[chat] voice uploaded, URL:', urlData.publicUrl);
 
-    // Insere mensagem com o áudio como attachment
+    // Insere mensagem com o áudio como attachment + retorna a row inserida
     const audioAttach = {
       url: urlData.publicUrl, path, name: file.name,
       size: file.size, mime_type: mime,
     };
-    const { error: msgErr } = await c.from('chat_messages').insert({
+    const { data: inserted, error: msgErr } = await c.from('chat_messages').insert({
       channel_id: channelId, user_id: supaUser.id, body: '',
       attachments: [audioAttach],
-    });
+    }).select().single();
     if (msgErr) {
       console.error('[chat] voice msg insert failed:', msgErr);
       throw msgErr;
     }
-    console.debug('[chat] voice message sent ✓');
+    console.debug('[chat] voice message sent ✓ inserted:', inserted);
+    console.debug('[chat] attachments saved as:', inserted?.attachments, 'type:', typeof inserted?.attachments);
+
+    // Optimistic: adiciona na lista local na hora (não espera realtime)
+    if (inserted && _chatState.currentChannelId === channelId &&
+        !_chatState.messages.find(x => x.id === inserted.id)) {
+      inserted._reactions = {};
+      inserted._replyCount = 0;
+      // Garante que attachments seja array (caso venha como string JSON)
+      if (typeof inserted.attachments === 'string') {
+        try { inserted.attachments = JSON.parse(inserted.attachments); } catch(_){}
+      }
+      _chatState.messages.push(inserted);
+      _chatRenderMessagesView();
+    }
     _chatUpdateCmdToast(tid, 'Mensagem de voz enviada ✓', 'success');
   } catch(e) {
     console.error('[chat] send voice error:', e);
