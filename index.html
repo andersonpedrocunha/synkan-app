@@ -10093,11 +10093,28 @@ function switchBoard(id, opts) {
   }
 }
 
+// Helper: gera nome único adicionando sufixo (2), (3)... se necessário.
+// existingNames = array de nomes já em uso. baseName = nome desejado.
+function _uniqueName(baseName, existingNames) {
+  if (!baseName) return baseName;
+  const taken = new Set((existingNames || []).map(n => (n||'').trim().toLowerCase()));
+  const base = baseName.trim();
+  if (!taken.has(base.toLowerCase())) return base;
+  // Se já tem "Nome (N)", incrementa N até achar livre
+  const m = base.match(/^(.*?)\s*\((\d+)\)\s*$/);
+  const root = m ? m[1].trim() : base;
+  let n = m ? parseInt(m[2], 10) + 1 : 2;
+  while (taken.has(`${root} (${n})`.toLowerCase())) n++;
+  return `${root} (${n})`;
+}
+function _uniqueBoardName(baseName)  { return _uniqueName(baseName, Object.values(allBoards||{}).map(b => b?.name)); }
+function _uniqueCanvasName(baseName) { return _uniqueName(baseName, Object.values(_canvases||{}).map(c => c?.name)); }
+
 function createBoard(opts) {
   // Gating: verifica limite do plano antes de criar
   if (!checkAndBlockOrAllow('board')) return null;
   const id = _genBoardId();
-  const name = (opts && opts.name) || 'Novo board';
+  const name = _uniqueBoardName((opts && opts.name) || 'Novo board');
   allBoards[id] = (opts && opts.seed) ? _seedBoardData(name) : _defaultBoardData(name);
   saveData();
   try { fireWebhook('board.created', { boardId: id, name }); } catch(e){}
@@ -10113,7 +10130,7 @@ function createKaizenBoard(opts) {
   const id = _genBoardId();
   const today = new Date();
   const dateLabel = today.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' });
-  const name = (opts && opts.name) || `Retrospectiva · ${dateLabel}`;
+  const name = _uniqueBoardName((opts && opts.name) || `Retrospectiva · ${dateLabel}`);
   allBoards[id] = {
     name,
     icon: '🥋',
@@ -10240,6 +10257,11 @@ function renameBoard(id, newName) {
   if (b.isZaiBoard || b.zaiEnabled) {
     v = _ensureZaiPrefix(v);
   }
+  // Se o novo nome conflita com OUTRO board existente, adiciona sufixo único
+  const otherNames = Object.entries(allBoards||{})
+    .filter(([k]) => k !== id)
+    .map(([, bb]) => bb?.name);
+  v = _uniqueName(v, otherNames);
   b.name = v;
   saveData();
   refreshSidebarBoardLabel();
@@ -10317,7 +10339,7 @@ function duplicateBoard(id) {
   }));
   allBoards[newId] = {
     ...src,
-    name: src.name + ' (cópia)',
+    name: _uniqueBoardName(src.name + ' (cópia)'),
     cards: cloneCards,
     nCard: cloneCards.length + 1,
     createdAt: new Date().toISOString(),
@@ -25264,7 +25286,7 @@ function createCanvas(name, format) {
   format = format || 'mindmap';
   const id = _genCanvasId();
   const base = {
-    id, name: name || (CANVAS_FORMAT_META[format]?.label || 'Novo Lab'),
+    id, name: _uniqueCanvasName(name || (CANVAS_FORMAT_META[format]?.label || 'Novo Lab')),
     format,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -25317,7 +25339,12 @@ function deleteCanvas(id) {
 }
 function renameCanvas(id, newName) {
   if (!_canvases[id]) return;
-  const v = (newName||'').trim(); if (!v) return;
+  let v = (newName||'').trim(); if (!v) return;
+  // Se o novo nome conflita com OUTRO canvas existente, adiciona sufixo único
+  const otherNames = Object.entries(_canvases||{})
+    .filter(([k]) => k !== id)
+    .map(([, c]) => c?.name);
+  v = _uniqueName(v, otherNames);
   _canvases[id].name = v;
   _canvases[id].updatedAt = new Date().toISOString();
   _saveCanvases();
