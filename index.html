@@ -38318,7 +38318,10 @@ function _chatRenderShell(channels) {
     const isCurrent = ch.id === _chatState.currentChannelId;
     const isArchived = !!ch.archived_at;
     const unread = ch._unread || 0;
-    const prefix = ch.type === 'dm' ? '@' : '#';
+    // Prefixo varia por tipo: workspace ▹ · board ▤ · dm @
+    const prefix = ch.type === 'dm' ? '@'
+                 : ch.type === 'board' ? '▤'
+                 : '▹';
     return `<button class="chat-ch${isCurrent?' is-current':''}${unread?' has-unread':''}${isArchived?' is-archived':''}" onclick="_chatSelectChannel('${ch.id}')">
       <span class="chat-ch-prefix">${prefix}</span>
       <span class="chat-ch-name">${_esc(ch.name)}</span>
@@ -38597,13 +38600,20 @@ async function _chatLoadMessages(channelId) {
     });
     _chatState.messages.forEach(m => { m._reactions = reactionMap[m.id] || {}; });
 
-    // Conta replies de threads
-    const { data: replies } = await c.from('chat_messages')
-      .select('parent_id', { count: 'exact' })
-      .in('parent_id', ids).is('deleted_at', null);
+    // Conta replies de threads (uma linha por reply, depois agrega no JS)
+    const { data: replies, error: repErr } = await c.from('chat_messages')
+      .select('parent_id')
+      .in('parent_id', ids)
+      .is('deleted_at', null);
+    if (repErr) console.warn('[chat] count replies:', repErr.message);
     const replyCount = {};
-    (replies || []).forEach(r => { replyCount[r.parent_id] = (replyCount[r.parent_id] || 0) + 1; });
-    _chatState.messages.forEach(m => { m._replyCount = replyCount[m.id] || 0; });
+    (replies || []).forEach(r => {
+      if (r.parent_id) replyCount[r.parent_id] = (replyCount[r.parent_id] || 0) + 1;
+    });
+    _chatState.messages.forEach(m => {
+      m._replyCount = replyCount[m.id] || 0;
+    });
+    console.debug('[chat] replies counted:', replies?.length || 0, 'across', Object.keys(replyCount).length, 'parents');
   }
 
   // Hidrata profiles dos autores
@@ -38658,10 +38668,14 @@ function _chatRenderMessagesView() {
   const isProtectedGeral = (ch.type === 'workspace' && ch.name === 'geral');
   const isOwner = (ch.workspace_owner === supaUser.id);
 
+  const headerPrefix = ch.type === 'dm' ? '@'
+                     : ch.type === 'board' ? '▤'
+                     : '▹';
+  const isDM = ch.type === 'dm';
   const headerHTML = `
     <div class="chat-channel-h">
       <div class="chat-channel-h-l">
-        <span class="chat-channel-h-prefix">${ch.type === 'dm' ? '@' : '#'}</span>
+        <span class="chat-channel-h-prefix">${headerPrefix}</span>
         <h3 class="chat-channel-h-name">${_esc(ch.name)}</h3>
         ${ch.description ? `<span class="chat-channel-h-desc"> · ${_esc(ch.description)}</span>` : ''}
       </div>
@@ -38671,14 +38685,14 @@ function _chatRenderMessagesView() {
           <img src="mestre_kan_avatar.png?v=6" class="kan-avatar xs" alt="" style="width:18px;height:18px;"/>
           <span>Mestre Kan</span>
         </button>
-        ${isOwner && !isProtectedGeral ? `
+        ${isOwner && !isProtectedGeral && !isDM ? `
           <button class="chat-channel-h-help chat-channel-h-menu" onclick="_chatChannelMenu(event, '${ch.id}')" title="Mais opções">⋯</button>
         ` : ''}
       </div>
     </div>`;
 
   const messagesHTML = _chatState.messages.length
-    ? _chatState.messages.map(_chatRenderMessage).join('')
+    ? _chatState.messages.map(m => _chatRenderMessage(m, false)).join('')
     : `<div class="chat-msgs-empty">Nenhuma mensagem por aqui ainda. <strong>Manda a primeira</strong> aí embaixo.</div>`;
 
   pane.innerHTML = `
@@ -39090,30 +39104,24 @@ async function _chatSendFromComposer() {
         _chatShowCmdToast('/kanban precisa de um texto. Ex: /kanban contratar designer', 'error');
         return;
       }
-      const tid = _chatShowCmdToast('/kanban — escolha um board pra criar o card…', 'loading');
-      try {
-        await _chatVirarCardFromText(body);
-        _chatUpdateCmdToast(tid, '/kanban — fluxo concluído', 'success');
-      } catch(e) {
-        _chatUpdateCmdToast(tid, '/kanban — erro: ' + (e?.message || e), 'error');
-      }
+      // Sem toast de loading/sucesso — o modal de escolher board já é o feedback visual.
+      // Erros do fluxo aparecem via appAlert dentro de _chatVirarCardFromText.
+      try { await _chatVirarCardFromText(body); } catch(_) {}
       return;
     }
     if (text.startsWith('/resumo') || text.startsWith('/summary')) {
       input.value = '';
-      _chatShowCmdToast('/resumo — pedindo análise pro Mestre Kan…', 'loading');
       _chatMestreKanModal('summary');
       return;
     }
     if (text === '/help' || text === '/ajuda') {
       input.value = '';
-      _chatShowCmdToast('/ajuda — abrindo lista de comandos…', 'loading');
       appAlert('Comandos do chat',
         '<strong>/kanban [texto]</strong> · cria card a partir do texto<br/><strong>/resumo</strong> · Mestre Kan resume a conversa<br/><strong>/ajuda</strong> · esta lista',
         { html: true, icon: '⌨' });
       return;
     }
-    // Comando desconhecido começando com /
+    // Comando desconhecido — mantém toast porque sem ele o user fica sem feedback
     if (/^\/\w/.test(text)) {
       _chatShowCmdToast('Comando desconhecido. Use /ajuda pra ver a lista.', 'error');
       input.value = '';
@@ -39511,6 +39519,11 @@ async function _chatRenameChannel(channelId) {
   const ch = _chatState.channels.find(c => c.id === channelId);
   if (!ch) return;
   if (ch.type === 'workspace' && ch.name === 'geral') return;
+  if (ch.type === 'dm') {
+    appAlert('DM não pode ser renomeada',
+      'Mensagens diretas mantêm o nome derivado dos participantes.', { icon: '🔒' });
+    return;
+  }
   const newName = await appPrompt('Renomear canal', {
     icon: '#',
     message: 'Use letras minúsculas, sem espaço.',
@@ -39535,6 +39548,12 @@ async function _chatToggleArchiveChannel(channelId) {
   const ch = _chatState.channels.find(c => c.id === channelId);
   if (!ch) return;
   if (ch.type === 'workspace' && ch.name === 'geral') return;
+  if (ch.type === 'dm') {
+    appAlert('DM não pode ser arquivada',
+      'Mensagens diretas ficam sempre acessíveis pra você não perder histórico de conversa privada.',
+      { icon: '🔒' });
+    return;
+  }
   const isArchived = !!ch.archived_at;
   const action = isArchived ? 'desarquivar' : 'arquivar';
   const ok = await appConfirm(
