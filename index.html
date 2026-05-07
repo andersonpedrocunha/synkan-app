@@ -5221,13 +5221,25 @@ body.density-compact .col{padding:7px;}
 .chat-sb-add:hover{background:var(--tatami-hinomaru-soft);color:var(--tatami-hinomaru);}
 .chat-sb-empty{font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;color:var(--tatami-ink-soft);padding:6px 8px;}
 
-/* Canais — hinomaru dot quando ativo, sem fundo escuro Slack-like */
-.chat-ch{height:36px;border-radius:7px;padding:0 10px 0 22px;font-size:13.5px;color:var(--tatami-ink-soft);position:relative;letter-spacing:.005em;}
-.chat-ch:hover{background:var(--tatami-hinomaru-soft);color:var(--tatami-sumi);}
-.chat-ch.is-current{background:var(--tatami-hinomaru-soft);color:var(--tatami-sumi);font-weight:500;}
-.chat-ch.is-current::before{content:'';position:absolute;left:8px;top:50%;width:6px;height:6px;border-radius:50%;background:var(--tatami-hinomaru);transform:translateY(-50%);box-shadow:0 0 0 2px rgba(188,0,45,.18);}
-.chat-ch.has-unread:not(.is-current) .chat-ch-name{color:var(--tatami-sumi);font-weight:600;}
-.chat-ch-prefix{color:var(--tatami-ink-soft);opacity:.7;}
+/* Linha do canal: botão principal + estrela à direita */
+.chat-ch-row{display:flex;align-items:center;border-radius:7px;position:relative;}
+.chat-ch-row:hover{background:var(--tatami-hinomaru-soft);}
+.chat-ch-row.is-current{background:var(--tatami-hinomaru-soft);}
+.chat-ch-row.is-current::before{content:'';position:absolute;left:8px;top:50%;width:6px;height:6px;border-radius:50%;background:var(--tatami-hinomaru);transform:translateY(-50%);box-shadow:0 0 0 2px rgba(188,0,45,.18);z-index:1;}
+.chat-ch-row.has-unread:not(.is-current) .chat-ch-name{color:var(--tatami-sumi);font-weight:600;}
+.chat-ch-row.is-current .chat-ch-name{color:var(--tatami-sumi);font-weight:500;}
+
+/* Botão principal do canal */
+.chat-ch{flex:1;min-width:0;height:36px;background:transparent;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;padding:0 4px 0 22px;font-size:13.5px;color:var(--tatami-ink-soft);text-align:left;letter-spacing:.005em;border-radius:7px 0 0 7px;}
+.chat-ch:hover{color:var(--tatami-sumi);}
+.chat-ch-prefix{color:var(--tatami-ink-soft);opacity:.7;flex-shrink:0;}
+
+/* Estrela de favoritar */
+.chat-ch-fav{flex-shrink:0;width:28px;height:28px;background:transparent;border:none;cursor:pointer;font-size:14px;color:var(--tatami-tan);display:inline-flex;align-items:center;justify-content:center;border-radius:6px;margin-right:4px;opacity:0;transition:opacity .15s, color .12s;}
+.chat-ch-row:hover .chat-ch-fav{opacity:1;}
+.chat-ch-fav.is-fav{opacity:1;color:#D4AF37;}
+.chat-ch-fav:hover{color:#D4AF37;background:rgba(212,175,55,.12);}
+.chat-ch-fav.is-fav:hover{color:#B89020;}
 
 /* Pane principal — fundo papel, sem cinza Slack */
 .chat-main{background:var(--tatami-paper);}
@@ -38199,6 +38211,8 @@ let _chatState = {
   // Anexos em fila — fica acima do textarea até o usuário enviar a mensagem.
   // Cada item: { tempId, name, size, mime_type, url?, path?, thumb?, uploading, error }
   pendingAttachments: [],
+  // Set de channel_ids favoritados pelo user atual (carregado de chat_channel_favorites)
+  favorites: new Set(),
 };
 
 // Limites e config dos anexos
@@ -38317,16 +38331,22 @@ function _chatRenderShell(channels) {
   const channelItem = (ch) => {
     const isCurrent = ch.id === _chatState.currentChannelId;
     const isArchived = !!ch.archived_at;
+    const isFav = _chatState.favorites.has(ch.id);
     const unread = ch._unread || 0;
     // Prefixo varia por tipo: workspace ▹ · board ▤ · dm @
     const prefix = ch.type === 'dm' ? '@'
                  : ch.type === 'board' ? '▤'
                  : '▹';
-    return `<button class="chat-ch${isCurrent?' is-current':''}${unread?' has-unread':''}${isArchived?' is-archived':''}" onclick="_chatSelectChannel('${ch.id}')">
-      <span class="chat-ch-prefix">${prefix}</span>
-      <span class="chat-ch-name">${_esc(ch.name)}</span>
-      ${unread ? `<span class="chat-ch-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
-    </button>`;
+    return `<div class="chat-ch-row${isCurrent?' is-current':''}${unread?' has-unread':''}${isArchived?' is-archived':''}">
+      <button class="chat-ch" onclick="_chatSelectChannel('${ch.id}')">
+        <span class="chat-ch-prefix">${prefix}</span>
+        <span class="chat-ch-name">${_esc(ch.name)}</span>
+        ${unread ? `<span class="chat-ch-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
+      </button>
+      <button class="chat-ch-fav${isFav ? ' is-fav' : ''}"
+              onclick="_chatToggleFavorite(event, '${ch.id}')"
+              title="${isFav ? 'Remover dos favoritos' : 'Favoritar'}">${isFav ? '★' : '☆'}</button>
+    </div>`;
   };
 
   const upgradeNudge = !canCreate ? `
@@ -38345,6 +38365,16 @@ function _chatRenderShell(channels) {
           <p>A sala de conversa do dojo. Tempo real, vira card num clique.</p>
         </div>
         ${upgradeNudge}
+        ${(() => {
+          // Seção Favoritos — só aparece se o user tem ao menos 1 favorito
+          const favs = visible.filter(c => _chatState.favorites.has(c.id));
+          if (!favs.length) return '';
+          return `
+          <div class="chat-sb-section">
+            <div class="chat-sb-section-h"><span>★ Favoritos</span></div>
+            ${favs.map(channelItem).join('')}
+          </div>`;
+        })()}
         <div class="chat-sb-section">
           <div class="chat-sb-section-h">
             <span>Canais do workspace</span>
@@ -38415,6 +38445,13 @@ async function _chatLoadChannels() {
     .order('name', { ascending: true });
   if (error) throw error;
   _chatState.channels = (data || []).map(ch => ({ ...ch, _unread: 0 }));
+
+  // Carrega favoritos do user (silent fail se a tabela ainda não existe)
+  try {
+    const { data: favs } = await c.from('chat_channel_favorites')
+      .select('channel_id').eq('user_id', supaUser.id);
+    _chatState.favorites = new Set((favs || []).map(f => f.channel_id));
+  } catch(_) { /* tabela ainda não criada — segue sem favoritos */ }
 
   // Carrega last_read pra calcular unread
   try {
@@ -39462,6 +39499,40 @@ async function _chatCreateChannelFlow(type) {
 function _chatToggleShowArchived() {
   _chatState.showArchived = !_chatState.showArchived;
   renderChat();
+}
+
+// Marca/desmarca canal como favorito. Optimistic update + persiste no DB.
+async function _chatToggleFavorite(event, channelId) {
+  if (event) { event.stopPropagation(); event.preventDefault(); }
+  const isFav = _chatState.favorites.has(channelId);
+  // Optimistic
+  if (isFav) _chatState.favorites.delete(channelId);
+  else _chatState.favorites.add(channelId);
+  // Re-render shell pra refletir na seção Favoritos + estrela
+  document.getElementById('chat-root').innerHTML = _chatRenderShell(_chatState.channels);
+  if (_chatState.currentChannelId) _chatRenderMessagesView();
+
+  // Persiste
+  try {
+    const c = await _chatGetClient();
+    if (!c) throw new Error('Sem cliente');
+    if (isFav) {
+      await c.from('chat_channel_favorites').delete()
+        .eq('user_id', supaUser.id).eq('channel_id', channelId);
+    } else {
+      await c.from('chat_channel_favorites').insert({
+        user_id: supaUser.id, channel_id: channelId,
+      });
+    }
+  } catch(e) {
+    // Reverte optimistic em caso de erro
+    if (isFav) _chatState.favorites.add(channelId);
+    else _chatState.favorites.delete(channelId);
+    document.getElementById('chat-root').innerHTML = _chatRenderShell(_chatState.channels);
+    appAlert('Não consegui salvar o favorito',
+      (e?.message || String(e)) + (String(e?.message||'').includes('chat_channel_favorites') ? '. Rode MIGRATION_CHAT_FAVORITES.sql no Supabase.' : ''),
+      { icon: '⚠️' });
+  }
 }
 
 // ── Menu kebab no header do canal: Arquivar / Apagar ────────────────
