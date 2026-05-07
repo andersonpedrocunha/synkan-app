@@ -5242,10 +5242,10 @@ body.density-compact .col{padding:7px;}
 .chat-channel-h-help:hover{background:var(--tatami-sumi);color:var(--tatami-paper);border-color:var(--tatami-sumi);}
 .chat-channel-h-action{background:var(--tatami-sumi);color:var(--tatami-paper);border-radius:999px;padding:7px 14px 7px 8px;font-family:var(--tatami-mincho);font-style:italic;font-weight:500;}
 
-/* Mensagens — centralizadas, manuscrito-style, mais respiração */
+/* Mensagens — usa toda a largura do painel, com padding generoso */
 .chat-msgs-wrap{background:var(--tatami-paper);}
-.chat-msgs{max-width:820px;margin:0 auto;padding:28px 24px;gap:24px;}
-.chat-msgs-empty{font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-ink-soft);font-size:14px;padding:64px 24px;}
+.chat-msgs{max-width:none;width:100%;padding:24px 32px;gap:22px;}
+.chat-msgs-empty{font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-ink-soft);font-size:14px;padding:64px 24px;text-align:center;}
 
 .chat-msg{padding:10px 12px 10px 16px;border-left:2px solid transparent;border-radius:0;transition:border-color .15s, background .15s;}
 .chat-msg:hover{background:rgba(188,0,45,.025);border-left-color:var(--tatami-hinomaru);}
@@ -5263,8 +5263,9 @@ body.density-compact .col{padding:7px;}
 .chat-reaction:hover{background:var(--tatami-cream);}
 .chat-reaction.is-mine{background:var(--tatami-hinomaru-soft);border-color:var(--tatami-hinomaru);color:var(--tatami-hinomaru);}
 
-.chat-msg-replies{font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-hinomaru);font-size:12.5px;}
-.chat-msg-replies:hover{text-decoration:underline;}
+/* Thread badge — mais visível (pílula com borda hinomaru) */
+.chat-msg-replies{display:inline-flex;align-items:center;gap:5px;font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-hinomaru);font-size:12px;background:var(--tatami-hinomaru-soft);border:0.5px solid var(--tatami-hinomaru);border-radius:999px;padding:3px 11px;margin-top:7px;font-weight:500;cursor:pointer;transition:all .12s;}
+.chat-msg-replies:hover{background:var(--tatami-hinomaru);color:#fff;}
 
 /* Composer — borda sumi-ink gradient */
 .chat-composer{background:var(--tatami-paper);border-top:1px solid var(--tatami-tan);position:relative;}
@@ -39236,8 +39237,18 @@ function _chatSubscribeRealtime(channelId) {
     const sub = c.channel('chat-' + channelId)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `channel_id=eq.${channelId}` }, (payload) => {
         const m = payload.new;
-        if (!m || m.parent_id) return; // só mensagens raiz aqui
-        // Evita duplicar se já tava na lista
+        if (!m) return;
+        // Resposta de thread: incrementa _replyCount do parent e re-renderiza
+        // pra mostrar o badge "↳ N respostas" sem precisar recarregar.
+        if (m.parent_id) {
+          const parent = _chatState.messages.find(x => x.id === m.parent_id);
+          if (parent) {
+            parent._replyCount = (parent._replyCount || 0) + 1;
+            _chatRenderMessagesView();
+          }
+          return;
+        }
+        // Mensagem raiz: adiciona na lista (com guard anti-duplicata)
         if (_chatState.messages.find(x => x.id === m.id)) return;
         m._reactions = {};
         m._replyCount = 0;
@@ -39375,6 +39386,12 @@ async function _chatSendThreadReply(parentId) {
   if (!text) return;
   inp.value = '';
   await _chatSendMessage(text, parentId);
+  // Incrementa _replyCount do parent local imediatamente (não espera realtime)
+  const parent = _chatState.messages.find(x => x.id === parentId);
+  if (parent) {
+    parent._replyCount = (parent._replyCount || 0) + 1;
+    _chatRenderMessagesView();
+  }
   document.getElementById('chat-thread-ov')?.remove();
   _chatOpenThread(parentId); // re-abre com a reply incluída
 }
