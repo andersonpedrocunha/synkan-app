@@ -12212,12 +12212,14 @@ function _isDevHost() {
   return h === 'localhost' || h === '127.0.0.1' || h === '' || h.endsWith('.local');
 }
 
-// Helper: vai pra aba de plano (ou abre upgrade externo se preferir)
+// Helper: vai pra aba de plano dentro de Settings
 function _goToPlanTab() {
-  if (typeof switchTab === 'function') {
-    try { switchTab('plan'); return; } catch(e){}
-    try { switchTab('settings'); } catch(e){}
-  }
+  try {
+    if (typeof switchTab === 'function') switchTab('settings');
+    if (typeof setSettingsTab === 'function') {
+      setTimeout(() => setSettingsTab('plano'), 50);
+    }
+  } catch(e) { console.warn('[goToPlanTab] falhou:', e); }
 }
 
 function _settingsIASection() {
@@ -15114,10 +15116,7 @@ function _settingsPlanoSection() {
       </div>
       <div class="settings-card-sub" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
         <span>Acompanhe seu uso de recursos do mês. Os limites são reiniciados todo dia 1º.</span>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <button class="btn-c" style="font-size:11px;padding:4px 10px;" onclick="_settingsResyncPlan()" title="Re-consulta o Supabase pra buscar plano atualizado">↻ Atualizar plano</button>
-          <strong style="font-size:13px;color:var(--accent);white-space:nowrap;">${priceLabel}</strong>
-        </div>
+        <strong style="font-size:13px;color:var(--accent);white-space:nowrap;">${priceLabel}</strong>
       </div>
       ${(() => {
         const subSt = (typeof _currentSubscriptionStatus !== 'undefined') ? _currentSubscriptionStatus : null;
@@ -15137,17 +15136,6 @@ function _settingsPlanoSection() {
         <div style="margin-top:10px;padding:12px;background:#fff8e1;border:1px solid #ffd54f;border-radius:8px;font-size:12.5px;color:#5d4e00;">
           <strong style="color:#8b6800;">⚠ Cobrança em atraso (status: <code>${_esc(subSt)}</code>)</strong> — atualize o cartão antes que a assinatura seja cancelada.
           <div style="margin-top:8px;"><button onclick="openStripePortal(this)" style="display:inline-block;padding:6px 12px;background:#8b6800;color:#fff;border:none;cursor:pointer;border-radius:6px;font-weight:600;font-size:12px;">→ Atualizar pagamento</button></div>
-        </div>`;
-        }
-        if (code === 'trial') {
-          return `
-        <div style="margin-top:10px;padding:10px 12px;background:#fff8e1;border:1px solid #ffd54f;border-radius:8px;font-size:12px;color:#5d4e00;">
-          <strong style="color:#8b6800;">Plano não detectado?</strong> Se você já assinou e ainda aparece como Trial:
-          <ol style="margin:6px 0 0 18px;padding:0;line-height:1.7;">
-            <li>Aguarde 1-2 minutos (o webhook do Stripe pode levar alguns segundos)</li>
-            <li>Clique em <strong>↻ Atualizar plano</strong> acima</li>
-            <li>Se persistir, contate <a href="mailto:contato@synkan.com.br?subject=Plano%20n%C3%A3o%20detectado&body=User%20ID%3A%20${typeof supaUser !== 'undefined' && supaUser ? supaUser.id : '(faça login primeiro)'}%0AEmail%3A%20${typeof supaUser !== 'undefined' && supaUser ? (supaUser.email||'') : ''}" style="color:#8b6800;text-decoration:underline;font-weight:600;">contato@synkan.com.br</a> com seu User ID: <code style="background:#fff3cd;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:11px;">${typeof supaUser !== 'undefined' && supaUser ? supaUser.id.slice(0,18)+'…' : '(faça login)'}</code></li>
-          </ol>
         </div>`;
         }
         return '';
