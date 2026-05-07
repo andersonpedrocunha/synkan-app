@@ -5274,9 +5274,9 @@ body.density-compact .col{padding:7px;}
  * Tatame Estendido — sessão colaborativa (voz + board/lab)
  * ════════════════════════════════════════════════════════════════════ */
 .chat-composer-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
-.chat-extend-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;background:linear-gradient(180deg,var(--tatami-hinomaru) 0%,#8b001f 100%);border:1px solid #6e0019;color:#fff;border-radius:8px;font-family:var(--tatami-mincho);font-style:italic;font-size:12.5px;cursor:pointer;transition:all .15s;flex-shrink:0;letter-spacing:.01em;box-shadow:0 1px 2px rgba(0,0,0,.08);}
-.chat-extend-btn:hover{filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 4px 12px rgba(159,0,38,.28);}
-.chat-extend-btn svg{width:15px;height:15px;flex-shrink:0;}
+.chat-extend-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;background:var(--tatami-cream);border:1px solid var(--tatami-tan);color:var(--tatami-sumi);border-radius:8px;font-family:var(--tatami-mincho);font-style:italic;font-size:12.5px;cursor:pointer;transition:all .15s;flex-shrink:0;letter-spacing:.01em;}
+.chat-extend-btn:hover{background:var(--tatami-paper);border-color:var(--tatami-ink-soft);color:var(--tatami-sumi);}
+.chat-extend-btn svg{width:15px;height:15px;flex-shrink:0;color:var(--tatami-hinomaru);}
 
 .tx-overlay{position:fixed;inset:0;z-index:9000;background:rgba(15,12,10,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;animation:txFadeIn .2s ease;padding:18px;}
 @keyframes txFadeIn{from{opacity:0;}to{opacity:1;}}
