@@ -5055,8 +5055,25 @@ body.density-compact .col{padding:7px;}
 
 /* Composer — padding direita maior pra não bater com os FABs flutuantes
    (Pomodoro 集中 + Voice Cards mic) que ficam em position:fixed bottom-right */
-.chat-composer{padding:12px 88px 16px 20px;border-top:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);flex-shrink:0;}
-@media(max-width:760px){.chat-composer{padding:12px 80px 16px 16px;}}
+.chat-composer{padding:10px 88px 16px 20px;border-top:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);flex-shrink:0;}
+@media(max-width:760px){.chat-composer{padding:10px 80px 16px 16px;}}
+
+/* Barra de formatação (acima do textarea) — estilo Slack/Notion */
+.chat-composer-toolbar{display:flex;align-items:center;gap:1px;padding:4px 4px;margin-bottom:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;width:fit-content;}
+.chat-fmt-btn{width:28px;height:26px;border:none;background:transparent;cursor:pointer;color:var(--color-text-secondary);font-size:12.5px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;transition:background .12s,color .12s;font-family:var(--font-sans);padding:0;}
+.chat-fmt-btn:hover{background:var(--color-background-primary);color:var(--color-text-primary);}
+.chat-fmt-divider{width:1px;height:14px;background:var(--color-border-tertiary);margin:0 3px;}
+
+/* Estilos dos elementos Markdown renderizados nas mensagens */
+.chat-msg-text strong{font-weight:600;color:var(--color-text-primary);}
+.chat-msg-text em{font-style:italic;}
+.chat-msg-text u{text-decoration:underline;}
+.chat-msg-text s{text-decoration:line-through;opacity:.7;}
+.chat-msg-text blockquote{margin:4px 0;padding:4px 12px;border-left:3px solid var(--color-border-secondary);color:var(--color-text-tertiary);font-size:13px;}
+.chat-msg-text .chat-list{margin:4px 0;padding-left:22px;}
+.chat-msg-text .chat-list li{margin:2px 0;}
+.chat-msg-text .chat-inline-code{background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--color-text-primary);border:0.5px solid var(--color-border-tertiary);}
+.chat-msg-text .chat-code-block{background:var(--color-background-secondary);padding:10px 12px;border-radius:6px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--color-text-primary);border:0.5px solid var(--color-border-tertiary);margin:6px 0;overflow-x:auto;white-space:pre;line-height:1.45;}
 .chat-composer-input{width:100%;padding:10px 12px;border:1px solid var(--color-border-secondary);border-radius:9px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:13.5px;line-height:1.45;resize:vertical;outline:none;min-height:48px;max-height:160px;transition:border-color .12s;}
 .chat-composer-input:focus{border-color:var(--color-text-primary);}
 .chat-composer-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:7px;}
@@ -38410,6 +38427,19 @@ function _chatRenderMessagesView() {
     ${headerHTML}
     <div class="chat-msgs" id="chat-msgs">${messagesHTML}</div>
     <div class="chat-composer">
+      <div class="chat-composer-toolbar">
+        <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('bold')"      title="Negrito (**texto**)" style="font-weight:700;">B</button>
+        <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('italic')"    title="Itálico (*texto*)" style="font-style:italic;font-family:Georgia,serif;">I</button>
+        <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('underline')" title="Sublinhado (__texto__)" style="text-decoration:underline;">U</button>
+        <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('strike')"    title="Riscado (~~texto~~)" style="text-decoration:line-through;">S</button>
+        <span class="chat-fmt-divider"></span>
+        <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('ol')"        title="Lista numerada (1. item)">1.</button>
+        <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('ul')"        title="Lista (- item)">•</button>
+        <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('quote')"     title="Citação (> texto)" style="font-family:Georgia,serif;font-size:14px;">”</button>
+        <span class="chat-fmt-divider"></span>
+        <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('code')"      title="Código inline (\`código\`)" style="font-family:ui-monospace,monospace;">&lt;/&gt;</button>
+        <button type="button" class="chat-fmt-btn" onclick="_chatComposerFormat('codeblock')" title="Bloco de código (\`\`\`)" style="font-family:ui-monospace,monospace;">{ }</button>
+      </div>
       <textarea id="chat-composer-input" class="chat-composer-input" rows="2" placeholder="Mensagem em #${_esc(ch.name)}… (use /kanban pra criar card · /resumo pra Mestre Kan resumir)" onkeydown="_chatComposerKeydown(event)"></textarea>
       <div class="chat-composer-actions">
         <span class="chat-composer-hint">Enter envia · Shift+Enter quebra linha</span>
@@ -38472,16 +38502,121 @@ function _chatRenderMessage(m, isThreadReply) {
   `;
 }
 
-// Renderiza body com link, @mention e quebras de linha
+// Renderiza body com Markdown leve estilo Slack/Discord:
+//   **negrito**, *itálico*, __sublinhado__, ~~riscado~~,
+//   `inline code`, ```bloco de código```,
+//   > citação, - lista, 1. lista numerada,
+//   links auto-clicáveis, @menções.
+// Ordem importa: códigos primeiro (pra evitar parsing dentro deles),
+// depois inline, depois block-level (citação/lista), por último links e br.
 function _chatRenderBody(body) {
-  const esc = _esc(body || '');
-  // Links
-  let html = esc.replace(/\b(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" class="chat-link">$1</a>');
-  // @menções (simples — destaque visual; resolve user no futuro)
+  if (!body) return '';
+  let html = _esc(body);
+
+  // Code blocks ```...``` (substitui por placeholder pra não ser tocado depois)
+  const codeBlocks = [];
+  html = html.replace(/```([\s\S]*?)```/g, (m, code) => {
+    codeBlocks.push(code);
+    return ' CB' + (codeBlocks.length - 1) + ' ';
+  });
+  // Inline code `...`
+  const inlineCodes = [];
+  html = html.replace(/`([^`\n]+)`/g, (m, code) => {
+    inlineCodes.push(code);
+    return ' IC' + (inlineCodes.length - 1) + ' ';
+  });
+
+  // Bold **
+  html = html.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+  // Italic * (single asterisk, evita conflito com bold já parseado)
+  html = html.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  // Underline __
+  html = html.replace(/__([^_\n]+?)__/g, '<u>$1</u>');
+  // Strikethrough ~~
+  html = html.replace(/~~([^~\n]+?)~~/g, '<s>$1</s>');
+
+  // Citação > linha (cada > vira blockquote individual; merge consecutivos)
+  html = html.replace(/^&gt;\s?(.*)$/gm, '<blockquote>$1</blockquote>');
+  html = html.replace(/<\/blockquote>\n<blockquote>/g, '<br/>');
+
+  // Listas: agrupa linhas consecutivas
+  // Bullet (- ou *) — mas evita o asterisco que já virou italic
+  html = html.replace(/(?:^|\n)((?:[-*] .+(?:\n|$))+)/g, (m) => {
+    const items = m.trim().split('\n').map(l => l.replace(/^[-*]\s+/, '')).map(t => `<li>${t}</li>`).join('');
+    return '\n<ul class="chat-list">' + items + '</ul>';
+  });
+  // Numbered list 1. 2. 3.
+  html = html.replace(/(?:^|\n)((?:\d+\. .+(?:\n|$))+)/g, (m) => {
+    const items = m.trim().split('\n').map(l => l.replace(/^\d+\.\s+/, '')).map(t => `<li>${t}</li>`).join('');
+    return '\n<ol class="chat-list">' + items + '</ol>';
+  });
+
+  // Links auto-clicáveis
+  html = html.replace(/\b(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" class="chat-link">$1</a>');
+  // @menções
   html = html.replace(/(^|\s)@([\w.\-]+)/g, '$1<span class="chat-mention">@$2</span>');
-  // Quebras de linha
+
+  // Quebras de linha (mas não dentro de blockquote/list — esses já são block)
   html = html.replace(/\n/g, '<br/>');
+  // Limpa <br/> espúrios próximos a tags de bloco
+  html = html.replace(/<br\/>(\s*<(?:ul|ol|blockquote)[^>]*>)/g, '$1');
+  html = html.replace(/(<\/(?:ul|ol|blockquote)>)\s*<br\/>/g, '$1');
+
+  // Restaura códigos
+  html = html.replace(/ CB(\d+) /g, (m, i) => {
+    return '<pre class="chat-code-block">' + codeBlocks[Number(i)] + '</pre>';
+  });
+  html = html.replace(/ IC(\d+) /g, (m, i) => {
+    return '<code class="chat-inline-code">' + inlineCodes[Number(i)] + '</code>';
+  });
+
   return html;
+}
+
+// Aplica formatação Markdown na seleção atual do textarea
+// (chamado pelos botões da barra de formatação)
+function _chatComposerFormat(type, inputId) {
+  const inp = document.getElementById(inputId || 'chat-composer-input');
+  if (!inp) return;
+  const start = inp.selectionStart, end = inp.selectionEnd;
+  const before = inp.value.substring(0, start);
+  const selected = inp.value.substring(start, end);
+  const after = inp.value.substring(end);
+
+  let wrap = '', wrapEnd = '', placeholder = '', lineMode = false;
+  switch (type) {
+    case 'bold':      wrap = '**'; wrapEnd = '**'; placeholder = 'negrito'; break;
+    case 'italic':    wrap = '*';  wrapEnd = '*';  placeholder = 'itálico'; break;
+    case 'underline': wrap = '__'; wrapEnd = '__'; placeholder = 'sublinhado'; break;
+    case 'strike':    wrap = '~~'; wrapEnd = '~~'; placeholder = 'riscado'; break;
+    case 'code':      wrap = '`';  wrapEnd = '`';  placeholder = 'código'; break;
+    case 'codeblock': wrap = '```\n'; wrapEnd = '\n```'; placeholder = 'código aqui'; break;
+    case 'quote':     wrap = '> ';   lineMode = true; placeholder = 'citação'; break;
+    case 'ul':        wrap = '- ';   lineMode = true; placeholder = 'item'; break;
+    case 'ol':        wrap = '1. ';  lineMode = true; placeholder = 'item'; break;
+  }
+
+  let newValue, newStart, newEnd;
+  if (lineMode) {
+    // Prefixo linha-a-linha (cada linha da seleção, ou linha do cursor)
+    const lineStart = before.lastIndexOf('\n') + 1;
+    const lineEnd = inp.value.indexOf('\n', end);
+    const realLineEnd = lineEnd === -1 ? inp.value.length : lineEnd;
+    const lineContent = inp.value.substring(lineStart, realLineEnd) || placeholder;
+    const lines = lineContent.split('\n').map(l => wrap + l).join('\n');
+    newValue = inp.value.substring(0, lineStart) + lines + inp.value.substring(realLineEnd);
+    newStart = lineStart + wrap.length;
+    newEnd = newStart + lines.length - wrap.length;
+  } else {
+    const text = selected || placeholder;
+    newValue = before + wrap + text + wrapEnd + after;
+    newStart = before.length + wrap.length;
+    newEnd = newStart + text.length;
+  }
+
+  inp.value = newValue;
+  inp.focus();
+  inp.setSelectionRange(newStart, newEnd);
 }
 
 function _chatFormatTime(iso) {
