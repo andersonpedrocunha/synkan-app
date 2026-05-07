@@ -3887,11 +3887,30 @@ body.density-compact .col{padding:7px;}
 /* Cards de recursos */
 .help-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
 @media(max-width:600px){.help-cards{grid-template-columns:1fr;}}
-.help-card{display:block;text-decoration:none;background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:10px;padding:16px;transition:border-color .15s,transform .15s,box-shadow .15s;}
+.help-card{display:block;text-decoration:none;text-align:left;width:100%;background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:10px;padding:16px;cursor:pointer;font-family:var(--font-sans);transition:border-color .15s,transform .15s,box-shadow .15s;}
 .help-card:hover{border-color:var(--color-text-primary);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.06);}
 .help-card-icon{font-size:22px;margin-bottom:8px;}
 .help-card-h{font-size:13.5px;font-weight:600;color:var(--color-text-primary);margin-bottom:4px;}
 .help-card-d{font-size:12px;color:var(--color-text-tertiary);line-height:1.5;}
+
+/* Subpágina de tópico (clica numa tile de Recursos e abre conteúdo inline) */
+.help-back{display:inline-flex;align-items:center;gap:4px;background:transparent;border:none;color:var(--color-text-secondary);font-size:12.5px;font-weight:500;cursor:pointer;padding:4px 0;font-family:var(--font-sans);align-self:flex-start;transition:color .12s;}
+.help-back:hover{color:var(--color-text-primary);}
+.help-topic-head{display:flex;align-items:flex-start;gap:14px;padding:6px 0 12px;border-bottom:1px solid var(--color-border-tertiary);}
+.help-topic-icon{font-size:30px;flex-shrink:0;line-height:1;width:46px;height:46px;display:flex;align-items:center;justify-content:center;background:var(--color-background-secondary);border-radius:10px;}
+.help-topic-title{font-size:18px;font-weight:600;color:var(--color-text-primary);margin:0 0 4px;line-height:1.25;}
+.help-topic-sub{font-size:12.5px;color:var(--color-text-tertiary);margin:0;line-height:1.5;}
+.help-topic-body{font-size:13px;color:var(--color-text-secondary);line-height:1.65;}
+.help-topic-body p{margin:0 0 12px;}
+.help-topic-body p:last-child{margin-bottom:0;}
+.help-topic-body strong{color:var(--color-text-primary);font-weight:600;}
+.help-topic-body em{color:var(--color-text-primary);font-style:normal;font-weight:500;}
+.help-topic-body code{background:var(--color-background-secondary);padding:1px 5px;border-radius:4px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--color-text-primary);}
+.help-topic-body kbd{display:inline-block;padding:1px 6px;border:1px solid var(--color-border-secondary);border-bottom-width:2px;border-radius:4px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+.help-topic-body a{color:var(--color-text-primary);text-decoration:underline;}
+.help-topic-h{font-size:14px;font-weight:600;color:var(--color-text-primary);margin:18px 0 8px;letter-spacing:-0.005em;}
+.help-topic-h:first-child{margin-top:0;}
+.help-topic{display:flex;flex-direction:column;gap:14px;}
 
 /* Contato */
 .help-contact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
@@ -20506,6 +20525,8 @@ function openHelpSupport() {
     </div>
   `;
   ov.classList.add('open');
+  // Reset da subpágina de Recursos sempre que o modal abre — começa na grid de tópicos
+  _helpRecursosSub = null;
   setHelpTab('atalhos');
   document.addEventListener('keydown', _helpEscClose);
 }
@@ -20582,42 +20603,251 @@ function _renderHelpFAQ() {
       </div>
     </div>`;
 }
+// Estado da subpágina dentro de Recursos. null = mostra a grid de 6 tópicos.
+// Outro valor = mostra o conteúdo do tópico ('docs', 'inicio', 'templates', etc).
+let _helpRecursosSub = null;
+function _setHelpRecursosSub(id) {
+  _helpRecursosSub = id;
+  const body = document.getElementById('help-body');
+  if (body) body.innerHTML = _renderHelpRecursos();
+  // Scroll pro topo do conteúdo ao trocar de subpágina
+  if (body) body.scrollTop = 0;
+}
 function _renderHelpRecursos() {
+  if (_helpRecursosSub) return _renderHelpRecursosTopic(_helpRecursosSub);
   return `
     <div class="help-section">
-      <p class="help-intro">Documentação, dicas e guias.</p>
+      <p class="help-intro">Documentação, dicas e guias. Clique num tópico pra abrir.</p>
       <div class="help-cards">
-        <a class="help-card" href="https://docs.synkan.com.br" target="_blank" rel="noopener">
+        <button class="help-card" onclick="_setHelpRecursosSub('docs')">
           <div class="help-card-icon">📖</div>
           <div class="help-card-h">Documentação completa</div>
-          <div class="help-card-d">Manual de cada módulo, do Kanban ao Lab</div>
-        </a>
-        <a class="help-card" href="https://docs.synkan.com.br/comecando" target="_blank" rel="noopener">
+          <div class="help-card-d">Visão geral de todos os módulos, do Kanban ao Lab</div>
+        </button>
+        <button class="help-card" onclick="_setHelpRecursosSub('inicio')">
           <div class="help-card-icon">🚀</div>
           <div class="help-card-h">Guia de início rápido</div>
-          <div class="help-card-d">Configure seu primeiro board em 5 minutos</div>
-        </a>
-        <a class="help-card" href="https://docs.synkan.com.br/templates" target="_blank" rel="noopener">
+          <div class="help-card-d">Seu primeiro board em 5 minutos</div>
+        </button>
+        <button class="help-card" onclick="_setHelpRecursosSub('templates')">
           <div class="help-card-icon">📋</div>
           <div class="help-card-h">Galeria de templates</div>
           <div class="help-card-d">Recebimentos, Vendas, Roadmap, Marketing e mais</div>
-        </a>
-        <a class="help-card" href="https://docs.synkan.com.br/synconnect" target="_blank" rel="noopener">
+        </button>
+        <button class="help-card" onclick="_setHelpRecursosSub('synconnect')">
           <div class="help-card-icon">⊞</div>
           <div class="help-card-h">CRM (Synconnect)</div>
           <div class="help-card-d">Cadastros, captação, Customer 360, Lead Score</div>
-        </a>
-        <a class="help-card" href="https://docs.synkan.com.br/lab" target="_blank" rel="noopener">
+        </button>
+        <button class="help-card" onclick="_setHelpRecursosSub('lab')">
           <div class="help-card-icon">✦</div>
-          <div class="help-card-h">Lab & Mestre Kan IA</div>
+          <div class="help-card-h">Lab &amp; Mestre Kan IA</div>
           <div class="help-card-d">5 formatos de canvas e geração com IA</div>
-        </a>
-        <a class="help-card" href="https://docs.synkan.com.br/changelog" target="_blank" rel="noopener">
+        </button>
+        <button class="help-card" onclick="_setHelpRecursosSub('novidades')">
           <div class="help-card-icon">📅</div>
           <div class="help-card-h">Novidades</div>
           <div class="help-card-d">O que mudou nas últimas versões</div>
-        </a>
+        </button>
       </div>
+    </div>`;
+}
+
+// ── Conteúdo de cada tópico de Recursos (texto real, sem placeholder) ──
+function _renderHelpRecursosTopic(id) {
+  const topics = {
+    docs: {
+      icon: '📖',
+      title: 'Documentação completa',
+      sub: 'Visão geral de tudo que o Synkan faz e onde encontrar.',
+      body: `
+        <h4 class="help-topic-h">O que é o Synkan</h4>
+        <p>Synkan é um <strong>dojo de produtividade</strong>: um Kanban com IA embarcada (Mestre Kan), CRM próprio (Synconnect), OKRs, Labs (canvas), tracker de tempo e integrações financeiras. A ideia é unificar o que normalmente exige 5 ferramentas — Trello, HubSpot, Miro, Toggl, planilha — num único lugar.</p>
+
+        <h4 class="help-topic-h">Os 4 módulos centrais</h4>
+        <p><strong>Boards (Kanban).</strong> Sua tela principal. Cards organizados por colunas, com tags, prioridade, deadline, responsável, custom fields, anexos e threads de comentários. Cada board tem 6 visões: Kanban, Tabela, Calendário, Gantt, Timeline e Dashboard. Você troca entre elas com <kbd>1</kbd>–<kbd>6</kbd> ou pelos botões no topo.</p>
+        <p><strong>Synconnect (CRM).</strong> Catálogo de contatos com lead score, pipelines e Customer 360. Forma orgânica de transformar oportunidade em card no board.</p>
+        <p><strong>Labs.</strong> 5 formatos de canvas livre (Mindmap, Documento, Tabela, Sheet, Plano) pra rascunhar antes de virar board. Tudo gerável por IA — descreve o que quer e o Mestre Kan monta o esqueleto.</p>
+        <p><strong>OKRs.</strong> Objetivos e resultados-chave com vínculo direto pros cards que executam. Métricas atualizam sozinhas conforme cards fecham.</p>
+
+        <h4 class="help-topic-h">Recursos transversais</h4>
+        <p><strong>Mestre Kan IA</strong> — botão de IA dentro de qualquer card pra quebrar em subtarefas, redigir email, resumir thread, extrair dados de NF/recibo. Limite por plano (100 / 300 / 1.000 chamadas/mês).</p>
+        <p><strong>Tracker (lead-time).</strong> Timer colaborativo dentro do card. Mede quanto tempo cada pessoa investiu numa task. Relatório agregado em <em>Tracker</em> no menu lateral, exportável em PDF/CSV.</p>
+        <p><strong>Board Unificado.</strong> Vista virtual que junta cards de todos os boards numa tela só — útil pra o que tá atrasado/em andamento sem trocar de board.</p>
+        <p><strong>Zai (Visão Financeira).</strong> Tipo especial de board pra fluxo financeiro: cards têm <em>Receita / Custo fixo / Custo variável</em>, e o sistema calcula burn rate e runway automaticamente. Tem OCR pra ler notas fiscais.</p>
+        <p><strong>Granatum.</strong> Integração com a plataforma de gestão financeira — puxa contas a pagar/receber direto pros boards.</p>
+        <p><strong>Dojo (gamificação).</strong> Opcional. XP por concluir cards, faixas (branca → preta), conquistas e missões. Tudo em Configurações → Dojo.</p>
+
+        <h4 class="help-topic-h">Onde aprender mais</h4>
+        <p>Os outros tópicos desta aba detalham cada parte. A aba <strong>Atalhos</strong> tem o teclado todo. <strong>FAQ</strong> resolve as dúvidas mais comuns. E pra qualquer coisa muito específica, pergunta direto pro Mestre Kan na última aba.</p>
+      `,
+    },
+    inicio: {
+      icon: '🚀',
+      title: 'Guia de início rápido',
+      sub: 'Do zero ao primeiro board em 5 minutos.',
+      body: `
+        <h4 class="help-topic-h">1. Crie seu primeiro board (1 min)</h4>
+        <p>No menu lateral, clique em <strong>+ Novo board</strong>. Você tem 3 caminhos:</p>
+        <p><strong>Em branco</strong> — board com 3 colunas (To do / Doing / Done) pronto pra customizar.<br/>
+        <strong>De template</strong> — abre a Gallery com modelos prontos (Recebimentos, Vendas, Roadmap, Marketing, Produto, etc). Clica num e ele cria o board já com colunas, tags e cards de exemplo.<br/>
+        <strong>Zai</strong> — board financeiro com colunas próprias e cálculo automático de burn rate. O hub Zai fica no menu lateral.</p>
+
+        <h4 class="help-topic-h">2. Adicione cards (1 min)</h4>
+        <p>Clique em <strong>+ adicionar card</strong> no fim da coluna ou aperte <kbd>N</kbd>. Coloque um nome curto. Depois clica no card pra abrir o painel completo: descrição, prioridade, deadline, responsável, tags, custom fields, subtarefas, anexos e thread de comentários.</p>
+        <p><strong>Dica:</strong> <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Enter</kbd> dentro de qualquer modal salva e fecha.</p>
+
+        <h4 class="help-topic-h">3. Mova cards e veja outras visões (1 min)</h4>
+        <p>Arrasta o card pra outra coluna. No topo do board, troque entre as visões: <strong>Kanban</strong>, <strong>Tabela</strong> (planilha-style com filtros e Saved Views), <strong>Calendário</strong> (por deadline), <strong>Gantt</strong>, <strong>Timeline</strong> e <strong>Dashboard</strong> (KPIs).</p>
+
+        <h4 class="help-topic-h">4. Convide alguém (1 min)</h4>
+        <p>Clica no botão <strong>Compartilhar</strong> no topo do board, ou em <strong>Configurações → Membros</strong>. Coloque o email da pessoa e escolha o papel:<br/>
+        <strong>Admin</strong> — acesso total (custa um seat pago).<br/>
+        <strong>Editor</strong> — cria/edita cards (grátis, externos/clientes).<br/>
+        <strong>Viewer</strong> — só leitura (grátis).</p>
+        <p>O Synkan manda o email automaticamente com link único de aceite.</p>
+
+        <h4 class="help-topic-h">5. Pergunte pro Mestre Kan (1 min)</h4>
+        <p>Abre um card e clica no ícone de IA. Peça pra <em>quebrar em subtarefas</em>, <em>redigir email de cobrança</em>, <em>resumir a thread</em> ou <em>extrair ações de uma nota fiscal</em>. O Mestre Kan responde com base no contexto do card.</p>
+
+        <h4 class="help-topic-h">Próximos passos</h4>
+        <p>Quando estiver confortável: configure <strong>OKRs</strong> pra ligar resultados aos cards, monte um <strong>Lab</strong> pra rascunhar uma estratégia, e ative o <strong>Tracker</strong> pra começar a medir lead-time.</p>
+      `,
+    },
+    templates: {
+      icon: '📋',
+      title: 'Galeria de templates',
+      sub: 'Modelos prontos pra começar sem reinventar a roda.',
+      body: `
+        <h4 class="help-topic-h">Como usar</h4>
+        <p>No menu lateral, abra <strong>Gallery</strong>. Cada template já vem com colunas, tags, custom fields e alguns cards de demonstração — você adapta tudo depois. Templates marcados com <strong>📸 IA lê recibos</strong> têm OCR ativado por padrão (útil pra Zai/Granatum).</p>
+
+        <h4 class="help-topic-h">Templates de operação</h4>
+        <p><strong>Recebimentos a pagar/receber</strong> — colunas Planejado / Em execução / Aguardando aprovação / Aprovado / Pago. Custom fields de valor, fornecedor, NF, categoria. Tem assinatura digital nas colunas de aprovação.</p>
+        <p><strong>Roadmap de produto</strong> — Backlog / Próximo trimestre / Em desenvolvimento / Em release / Lançado. Tags por área e prioridade.</p>
+        <p><strong>Sprint ágil</strong> — To do / In progress / Code review / QA / Done. Custom fields de story points e épico.</p>
+
+        <h4 class="help-topic-h">Templates de vendas e marketing</h4>
+        <p><strong>Pipeline de vendas</strong> — Lead / Qualificado / Proposta enviada / Negociação / Fechado. Custom fields de valor, probabilidade, próxima ação.</p>
+        <p><strong>Campanhas de marketing</strong> — Ideação / Briefing / Em produção / Aprovação / No ar / Análise. Custom fields de canal, CAC, conversão.</p>
+        <p><strong>Conteúdo editorial</strong> — Pauta / Em escrita / Revisão / Publicado. Calendário editorial integrado.</p>
+
+        <h4 class="help-topic-h">Templates de pessoas</h4>
+        <p><strong>Recrutamento</strong> — Candidatos / Triagem / Entrevista / Teste técnico / Proposta / Contratado. Custom field pra cv (anexo), score, salário pretendido.</p>
+        <p><strong>Onboarding de funcionário</strong> — Pré-admissão / Primeira semana / Primeiro mês / 90 dias. Subtarefas em cada card.</p>
+
+        <h4 class="help-topic-h">Templates Zai (financeiro)</h4>
+        <p><strong>Visão financeira</strong> — Planejado / Em execução / Aguardando aprovação / Aprovado / Executado·Pago / Recusado / Encerrado. Mostra burn rate e runway no topo. OCR de recibos pré-ativado.</p>
+
+        <h4 class="help-topic-h">Customizando depois</h4>
+        <p>Tudo é editável: colunas (renomeie, adicione, remova, defina WIP limit), tags (paleta com 12 cores), custom fields (10 tipos: texto, número, data, currency, select, multi-select, checkbox, URL, signature, file). Os cards de exemplo podem ser apagados de uma vez ou editados pra virar os seus reais.</p>
+      `,
+    },
+    synconnect: {
+      icon: '⊞',
+      title: 'CRM (Synconnect)',
+      sub: 'Pessoas, captação e Customer 360 sem CRM separado.',
+      body: `
+        <h4 class="help-topic-h">O que é o Synconnect</h4>
+        <p>É o CRM nativo do Synkan. Em vez de manter contatos numa planilha ou pagar HubSpot, você guarda tudo no mesmo lugar dos seus boards. Acessa pelo menu lateral em <strong>Synconnect</strong>.</p>
+
+        <h4 class="help-topic-h">Cadastros</h4>
+        <p>Cada contato tem nome, email, telefone, empresa, cargo, redes sociais, notas e tags. Aceita CSV de importação. Os planos cobrem: Faixa Azul até 100 contatos, Roxa e Preta sem limite.</p>
+
+        <h4 class="help-topic-h">Captação por formulários públicos</h4>
+        <p>No próprio Synconnect você cria formulários de captação (lead magnet, contato, briefing). Cada form tem URL pública (<code>synkan.com.br/f/seu-form</code>) que você pode embedar no seu site ou divulgar em redes. Quando alguém preenche, vira lead na <strong>caixa de entrada</strong>.</p>
+        <p><em>Disponível na Faixa Preta — exclusivo do plano Empresarial.</em></p>
+
+        <h4 class="help-topic-h">Lead Score</h4>
+        <p>Cada lead recebe nota automática de 0–100 baseada em: completude dos dados, engajamento (abriu emails, voltou ao site), origem (qual form), velocidade de resposta, perfil declarado. Score alto sobe pro topo da inbox automaticamente.</p>
+
+        <h4 class="help-topic-h">Customer 360</h4>
+        <p>Clica num contato e abre a vista <strong>Customer 360</strong>: tudo que existe sobre essa pessoa numa tela só. Cards relacionados em qualquer board, comentários onde ela foi mencionada, histórico de interação, notas, tags. Útil pra briefing antes de uma reunião ou pra entender contexto rápido.</p>
+
+        <h4 class="help-topic-h">Transformando lead em ação</h4>
+        <p>Da inbox de leads, com 1 clique você cria um card no board que quiser (Vendas, Onboarding, Suporte) já preenchido com os dados do lead. O contato fica linkado ao card — qualquer atualização aparece nos dois lados.</p>
+
+        <h4 class="help-topic-h">Pipelines</h4>
+        <p>Pipelines são boards Kanban especializados em vender. Você define os estágios (Lead → Qualificado → Proposta → Fechado), cada card é uma oportunidade, e o sistema soma valores em cada coluna pra mostrar pipeline weighted no Dashboard.</p>
+      `,
+    },
+    lab: {
+      icon: '✦',
+      title: 'Lab & Mestre Kan IA',
+      sub: 'Canvas livre pra rascunhar — opcionalmente gerados por IA.',
+      body: `
+        <h4 class="help-topic-h">O que é Lab</h4>
+        <p>Lab é o espaço onde você <strong>pensa antes de organizar</strong>. Diferente do board (que é estruturado), Lab é canvas livre. Útil pra brainstorm, planos de projeto, rascunho de OKRs, mapas de processo.</p>
+
+        <h4 class="help-topic-h">Os 5 formatos</h4>
+        <p><strong>Mindmap</strong> — nó central com ramos infinitos. Bom pra brainstorm, decomposição de problema, mapa mental. Drag pra reorganizar.</p>
+        <p><strong>Documento</strong> — texto rico estilo Notion: títulos, listas, blocos, tabelas embedadas, imagens. Bom pra briefing, ata, plano escrito.</p>
+        <p><strong>Tabela</strong> — planilha leve com fórmulas básicas. Bom pra comparativo, análise rápida, lista de requisitos.</p>
+        <p><strong>Sheet</strong> — planilha cheia (estilo Excel). Bom pra modelo financeiro, projeção, cálculo complexo.</p>
+        <p><strong>Plano</strong> — timeline visual estilo Gantt simplificada. Bom pra plano de execução com marcos.</p>
+
+        <h4 class="help-topic-h">Geração com IA (Mestre Kan)</h4>
+        <p>Em qualquer Lab, clica em <strong>✦ Gerar com IA</strong> e descreve o que quer: <em>"plano de lançamento de produto SaaS B2B em 90 dias"</em>, <em>"mindmap de causas de churn"</em>, <em>"OKR canvas pra Q4"</em>. O Mestre Kan monta o esqueleto. Você ajusta depois.</p>
+
+        <h4 class="help-topic-h">Promovendo Lab pra board</h4>
+        <p>Quando o rascunho amadurece, clique em <strong>Promover pra board</strong>. As ideias do Lab viram cards estruturados num board novo (ou existente). Útil pra fechar o ciclo "pensei → planejei → tô executando".</p>
+
+        <h4 class="help-topic-h">O Mestre Kan dentro dos cards</h4>
+        <p>Em qualquer card do Kanban, abra o painel e clique no ícone de IA pra acessar o Mestre Kan. Ele faz:</p>
+        <p><strong>Quebrar em subtarefas</strong> — descreve o card e ele sugere 3-7 subtarefas concretas.<br/>
+        <strong>Redigir email</strong> — gera email profissional pra cliente/fornecedor com tom apropriado.<br/>
+        <strong>Resumir thread</strong> — TLDR de comentários longos.<br/>
+        <strong>OCR de recibo/NF</strong> — anexa imagem e ele extrai valor, data, fornecedor, número da NF.<br/>
+        <strong>Daily Brief</strong> — na home, manhã com prioridades do dia baseado em deadlines, prioridade alta, e cards parados há mais tempo.</p>
+
+        <h4 class="help-topic-h">Limite mensal</h4>
+        <p>Cada chamada conta 1 interação. Faixa Azul = 100/mês, Roxa = 300/mês, Preta = 1.000/mês. Reseta dia 1°. Quando passa de 80% o Mestre Kan avisa. Se acabar antes, você pode comprar pacotes avulsos (100, 300 ou 1.000 chamadas).</p>
+      `,
+    },
+    novidades: {
+      icon: '📅',
+      title: 'Novidades',
+      sub: 'O que foi adicionado nas últimas versões.',
+      body: `
+        <h4 class="help-topic-h">v8 · maio 2026</h4>
+        <p><strong>LGPD · Apagar conta self-service.</strong> Em <em>Configurações → Conta → LGPD &amp; meus dados</em> agora é possível apagar a conta inteira (com cancelamento automático da assinatura Stripe). Antes precisava pedir por email.</p>
+        <p><strong>Lab / Canvas no comparativo de planos.</strong> A linha que era "Canvas" virou "Lab / Canvas" — alinhado com o nome usado no resto do app.</p>
+        <p><strong>Zai com escolha de seed.</strong> Ao criar um board Zai novo, agora pergunta se você quer <em>vazio</em> ou <em>com dados de exemplo</em>. Antes vinha sempre com cards de demonstração.</p>
+        <p><strong>Trial real com soft block.</strong> Os 5 dias do trial agora são contados de verdade. Após expirar, você ainda pode editar tudo que já tem, mas só pra criar novo board/OKR/Lab é preciso assinar.</p>
+        <p><strong>Plano Faixa Branca removido.</strong> Não havia mais sentido com o Trial cobrindo o "experimente grátis". Quem tinha foi migrado pra Faixa Azul (R$ 14,90).</p>
+        <p><strong>Time tracking colaborativo.</strong> Tracker dentro do card mostra quem trabalhou quanto. Auto-tracking opcional por coluna (entra na coluna "Doing" → cronômetro liga). Relatório agregado com export PDF/CSV no menu Tracker.</p>
+        <p><strong>Atribuído a (assigned).</strong> Campo separado de "Responsável manual". Atribuído puxa de membros reais do board (com avatar). Aparece no card e em filtros.</p>
+        <p><strong>Granatum: histórico/pago_hoje contam como done.</strong> Cards puxados pela integração Granatum que estão em "histórico" ou "pago hoje" agora não mostram alerta de atraso — o sistema reconhece que já foram concluídos.</p>
+        <p><strong>Anual com 10% de desconto.</strong> Toggle Anual/Mensal na landing e no app passa o ciclo certo pro Stripe (antes cobrava sempre mensal).</p>
+        <p><strong>Convite por email com link.</strong> Quando você convida alguém, o sistema manda email automático via Resend com link único de aceite. Modal mostra também o link copiável.</p>
+        <p><strong>Customer Portal Stripe.</strong> Botão "Gerenciar pagamento" em <em>Configurações → Membros</em> abre o portal do Stripe — pra trocar cartão, cancelar, ver faturas.</p>
+
+        <h4 class="help-topic-h">v7 · março 2026</h4>
+        <p>Board Unificado, módulo Zai (visão financeira), Synconnect com Customer 360, OKRs com vínculo a cards, Audit log, Backup automático diário.</p>
+
+        <h4 class="help-topic-h">Próximas (em desenvolvimento)</h4>
+        <p>PWA instalável (ícone na tela do celular), 2FA via TOTP, status page pública, email sequence durante trial, comparativo "alternativa a Trello/Asana".</p>
+
+        <p style="margin-top:18px;font-size:12px;color:var(--color-text-tertiary);">Sugestões de feature? Vai em <strong>Contato</strong> e manda pra <a href="mailto:bugs@synkan.com.br">bugs@synkan.com.br</a>.</p>
+      `,
+    },
+  };
+  const t = topics[id];
+  if (!t) {
+    _helpRecursosSub = null;
+    return _renderHelpRecursos();
+  }
+  return `
+    <div class="help-section help-topic">
+      <button class="help-back" onclick="_setHelpRecursosSub(null)">← voltar para os tópicos</button>
+      <div class="help-topic-head">
+        <div class="help-topic-icon">${t.icon}</div>
+        <div>
+          <h3 class="help-topic-title">${_esc(t.title)}</h3>
+          <p class="help-topic-sub">${_esc(t.sub)}</p>
+        </div>
+      </div>
+      <div class="help-topic-body">${t.body}</div>
     </div>`;
 }
 function _renderHelpContato() {
