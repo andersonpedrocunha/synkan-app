@@ -38027,9 +38027,9 @@ async function renderChat() {
     root.innerHTML = _chatRenderShell([]) + _chatRenderLoadingOverlay();
     try {
       await _chatLoadChannels();
-      // Auto-cria canal #geral se workspace owner Roxa+ e não tem nenhum
-      if (_chatUserCanCreate() && _chatState.channels.length === 0) {
-        await _chatEnsureGeralChannel();
+      // Auto-cria canais default (#geral, #avisos, #aleatorio) se elegível
+      if (_chatUserCanCreate() && _chatState.channels.filter(c => c.type === 'workspace').length === 0) {
+        await _chatEnsureDefaultChannels();
         await _chatLoadChannels();
       }
       // Auto-cria canais de board (1 por board do owner com membros)
@@ -38191,25 +38191,37 @@ async function _chatLoadChannels() {
   _chatUpdateSidebarBadge();
 }
 
-// Garante que existe canal #geral pra workspace owner (Roxa+)
-async function _chatEnsureGeralChannel() {
+// Garante canais default do workspace pra owner novo:
+//   #geral     — conversa do dia a dia
+//   #avisos    — comunicados importantes
+//   #aleatorio — papo casual / off-topic
+// Cria só os que faltarem; idempotente.
+async function _chatEnsureDefaultChannels() {
   const c = await _chatGetClient();
   if (!c) return;
-  const { data: existing } = await c.from('chat_channels')
-    .select('id').eq('workspace_owner', supaUser.id).eq('type', 'workspace').eq('name', 'geral').maybeSingle();
-  if (existing) return;
-  await c.from('chat_channels').insert({
-    workspace_owner: supaUser.id,
-    type: 'workspace',
-    name: 'geral',
-    description: 'Canal padrão pra conversa do time.',
-    created_by: supaUser.id,
-  });
-  // Adiciona o owner como membro explícito
-  const { data: ch2 } = await c.from('chat_channels')
-    .select('id').eq('workspace_owner', supaUser.id).eq('type', 'workspace').eq('name', 'geral').maybeSingle();
-  if (ch2) {
-    await c.from('chat_channel_members').upsert({ channel_id: ch2.id, user_id: supaUser.id });
+  const presets = [
+    { name: 'geral',     description: 'Conversa do dia a dia do time.' },
+    { name: 'avisos',    description: 'Comunicados importantes — leitura obrigatória.' },
+    { name: 'aleatorio', description: 'Papo casual, memes, off-topic.' },
+  ];
+  for (const p of presets) {
+    try {
+      const { data: existing } = await c.from('chat_channels')
+        .select('id').eq('workspace_owner', supaUser.id).eq('type', 'workspace').eq('name', p.name).maybeSingle();
+      if (existing) continue;
+      const { data: created, error } = await c.from('chat_channels').insert({
+        workspace_owner: supaUser.id,
+        type: 'workspace',
+        name: p.name,
+        description: p.description,
+        created_by: supaUser.id,
+      }).select().single();
+      if (error) { console.debug('[chat] preset ' + p.name + ':', error?.message); continue; }
+      // Adiciona owner como membro explícito do canal workspace
+      if (created) {
+        await c.from('chat_channel_members').upsert({ channel_id: created.id, user_id: supaUser.id });
+      }
+    } catch(e) { console.debug('[chat] preset ' + p.name + ' err:', e?.message); }
   }
 }
 
@@ -38729,14 +38741,25 @@ async function _chatCreateDMFlow() {
       { icon: '🔒' });
     return;
   }
-  // Lista membros dos boards do user
+  // Lista membros admin + editor (não viewer) dos boards do user
   const c = await _chatGetClient();
   try {
     const ownedBoardIds = Object.keys(allBoards||{}).filter(id => allBoards[id].owner_id === supaUser.id && id !== UNIFIED_BOARD_ID);
-    const { data: members } = await c.from('board_members').select('user_id').in('board_id', ownedBoardIds);
-    const uniqueIds = [...new Set((members||[]).map(m => m.user_id).filter(uid => uid !== supaUser.id))];
+    // Filtra por role: admin (acesso total) + editor (convidado externo). Viewers ficam de fora —
+    // são "só leitura", não faz sentido abrir canal de conversa direta com eles.
+    const { data: members } = await c.from('board_members')
+      .select('user_id,role').in('board_id', ownedBoardIds).in('role', ['admin', 'editor']);
+    // Dedupe por user_id, mantendo o role mais alto (admin > editor)
+    const roleByUser = {};
+    (members||[]).forEach(m => {
+      if (m.user_id === supaUser.id) return;
+      if (!roleByUser[m.user_id] || m.role === 'admin') roleByUser[m.user_id] = m.role;
+    });
+    const uniqueIds = Object.keys(roleByUser);
     if (!uniqueIds.length) {
-      appAlert('Sem ninguém pra DM', 'Convide alguém pros seus boards primeiro. Depois você pode mandar DM.', { icon: '👥' });
+      appAlert('Sem ninguém pra DM',
+        'Convide um Admin ou Editor pros seus boards primeiro. Viewers ficam de fora porque o papel deles é só leitura.',
+        { icon: '👥' });
       return;
     }
     await _chatHydrateUsers(uniqueIds);
@@ -38744,8 +38767,11 @@ async function _chatCreateDMFlow() {
       id: uid,
       label: _chatState.userMap[uid]?.name || 'Usuário',
       icon: _chatState.userMap[uid]?.avatar ? '🧑' : '👤',
+      meta: roleByUser[uid] === 'admin' ? 'Admin' : 'Editor',
     }));
-    const targetId = await appChoice('DM com quem?', choices, { icon: '@', message: 'Escolha quem vai conversar com você.', allowClear: false });
+    const targetId = await appChoice('DM com quem?', choices, {
+      icon: '@', message: 'Mostra apenas Admins e Editores dos seus boards.', allowClear: false,
+    });
     if (!targetId || targetId === '__clear__') return;
 
     // Ordena pra UNIQUE constraint
