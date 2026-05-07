@@ -261,11 +261,15 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .cfg-member-del:hover{background:#FCEBEB;color:#A32D2D;}
 
 /* ── Status pill da sidebar (online/offline) ── */
-.sb-account{position:relative;border-top:0.5px solid var(--color-border-tertiary);}
-/* Botão "Ajuda" no fim do sidebar — empurrado pro bottom (era margin-top:auto da sb-account) */
-.sb-help-item{margin-top:auto;color:var(--color-text-tertiary);font-size:12.5px;}
-.sb-help-item:hover{color:var(--color-text-primary);}
-.sb-help-item .sb-icon svg{display:block;}
+.sb-account{position:relative;}
+/* "Ajuda" no rodapé do sidebar — visual de footer link, não de item de navegação:
+   tipografia menor, cor mais discreta, separado dos itens de cima por uma linha
+   sutil. Fica visualmente integrado ao bloco da conta abaixo (mesma seção bottom). */
+.sb-help-item{margin-top:auto;padding:9px 12px 9px 10px;font-size:11.5px;color:var(--color-text-tertiary);gap:8px;border-top:0.5px solid var(--color-border-tertiary);border-radius:0;letter-spacing:.01em;}
+.sb-help-item:hover{background:var(--color-background-secondary);color:var(--color-text-secondary);}
+.sb-help-item .sb-icon{width:14px;opacity:.7;}
+.sb-help-item .sb-icon svg{display:block;width:13px;height:13px;}
+.sb-help-item:hover .sb-icon{opacity:1;}
 .sb-account-btn{display:flex;align-items:center;gap:9px;padding:10px;width:100%;background:transparent;border:none;cursor:pointer;font:inherit;font-size:12px;color:var(--color-text-secondary);text-align:left;border-radius:0;transition:background .12s;}
 .sb-account-btn:hover{background:var(--color-background-secondary);color:var(--color-text-primary);}
 .sb-account-btn.is-open{background:var(--color-background-secondary);color:var(--color-text-primary);}
