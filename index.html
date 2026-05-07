@@ -5205,6 +5205,49 @@ body.density-compact .col{padding:7px;}
 /* Loading inline */
 .chat-loading{padding:48px;text-align:center;color:var(--color-text-tertiary);font-size:13px;}
 
+/* ── Pinned bar (no topo das mensagens, colapsável) ── */
+.chat-pinned-bar{background:rgba(230,167,0,.08);border-bottom:1px solid var(--tatami-tan);}
+.chat-pinned-toggle{width:100%;background:transparent;border:none;padding:8px 24px;font-family:var(--tatami-mincho);font-style:italic;font-size:12.5px;color:var(--tatami-sumi);text-align:left;cursor:pointer;}
+.chat-pinned-toggle:hover{background:rgba(230,167,0,.12);}
+.chat-pinned-list{padding:0 24px 8px;display:flex;flex-direction:column;gap:4px;}
+.chat-pinned-item{padding:6px 10px;background:var(--tatami-paper);border:0.5px solid var(--tatami-tan);border-radius:6px;font-size:12.5px;color:var(--tatami-sumi);cursor:pointer;line-height:1.5;}
+.chat-pinned-item:hover{background:var(--tatami-cream);}
+.chat-pinned-item strong{font-family:var(--tatami-mincho);font-weight:500;}
+
+/* ── Mensagem fixada (visual destaque) ── */
+.chat-msg.is-pinned{border-left:3px solid #E6A700;background:rgba(230,167,0,.04);}
+.chat-msg-pin-tag{background:rgba(230,167,0,.18);color:#A87200;font-size:10.5px;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:500;}
+:root.dark .chat-msg-pin-tag{color:#E6A700;}
+
+/* ── Highlight ao saltar pra mensagem (busca/quote) ── */
+@keyframes chatMsgHL{0%{background:rgba(230,167,0,.4);}100%{background:transparent;}}
+.chat-msg-highlight{animation:chatMsgHL 2s ease-out;}
+
+/* ── Quote preview no composer ── */
+.chat-quote-preview{display:flex;align-items:flex-start;gap:0;background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:7px;padding:7px 10px 7px 0;margin-top:6px;position:relative;}
+.chat-quote-preview-bar{width:3px;background:var(--tatami-hinomaru);align-self:stretch;border-radius:2px;margin:0 10px 0 0;flex-shrink:0;}
+.chat-quote-preview-body{flex:1;min-width:0;}
+.chat-quote-preview-author{font-size:11px;color:var(--tatami-hinomaru);font-family:var(--tatami-mincho);font-style:italic;font-weight:500;}
+.chat-quote-preview-text{font-size:12.5px;color:var(--tatami-sumi);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chat-quote-preview-x{background:transparent;border:none;cursor:pointer;color:var(--tatami-ink-soft);font-size:16px;width:24px;height:24px;border-radius:4px;}
+.chat-quote-preview-x:hover{background:var(--tatami-paper);color:var(--tatami-sumi);}
+
+/* ── Quoted (renderizado dentro de uma mensagem que cita outra) ── */
+.chat-msg-quoted{display:flex;background:var(--tatami-cream);border-radius:6px;padding:6px 10px 6px 0;margin:4px 0 6px;cursor:pointer;border:0.5px solid var(--tatami-tan);}
+.chat-msg-quoted:hover{background:rgba(188,0,45,.05);}
+.chat-msg-quoted-bar{width:3px;background:var(--tatami-hinomaru);border-radius:2px;margin:0 9px 0 0;flex-shrink:0;}
+.chat-msg-quoted-body{flex:1;min-width:0;}
+.chat-msg-quoted-author{font-size:11px;color:var(--tatami-hinomaru);font-family:var(--tatami-mincho);font-style:italic;font-weight:500;line-height:1.4;}
+.chat-msg-quoted-text{font-size:12px;color:var(--tatami-ink-soft);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+
+/* ── Resultados de busca (no search modal) ── */
+.chat-search-result{padding:10px 12px;border:0.5px solid var(--tatami-tan);border-radius:7px;margin-bottom:6px;cursor:pointer;background:var(--tatami-paper);transition:border-color .12s;}
+.chat-search-result:hover{border-color:var(--tatami-hinomaru);background:var(--tatami-cream);}
+.chat-search-result-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;font-size:11.5px;}
+.chat-search-result-ch{font-family:var(--tatami-mincho);font-weight:500;color:var(--tatami-sumi);}
+.chat-search-result-meta{color:var(--tatami-ink-soft);font-style:italic;}
+.chat-search-result-body{font-size:13px;color:var(--tatami-sumi);line-height:1.5;}
+
 /* ════════════════════════════════════════════════════════════════════
    ░░ TATAMI · Tema dojo (sobrescreve estilos pra diferenciar do Slack)
    ════════════════════════════════════════════════════════════════════
@@ -38347,6 +38390,9 @@ async function renderChat() {
         await _chatEnsureSelfDM();
         await _chatLoadChannels();
       }
+      // Inicia presence + carrega menções não-lidas (idempotente)
+      if (!_chatPresenceChannel) _chatStartPresence();
+      _chatLoadMentions();
       _chatState.loading = false;
     } catch (e) {
       console.error('[chat] load channels:', e);
@@ -38776,6 +38822,7 @@ function _chatRenderMessagesView() {
         ${ch.description ? `<span class="chat-channel-h-desc"> · ${_esc(ch.description)}</span>` : ''}
       </div>
       <div class="chat-channel-h-r">
+        <button class="chat-channel-h-help" onclick="_chatOpenSearch()" title="Buscar mensagens">🔍</button>
         <button class="chat-channel-h-help" onclick="_chatShowHowTo()" title="Como usar o Tatami">?</button>
         <button class="chat-channel-h-action" onclick="_chatMestreKanModal()" title="Mestre Kan analisa a conversa">
           <img src="mestre_kan_avatar.png?v=6" class="kan-avatar xs" alt="" style="width:18px;height:18px;"/>
@@ -38797,7 +38844,8 @@ function _chatRenderMessagesView() {
          ondragover="_chatDragOver(event)"
          ondragleave="_chatDragLeave(event)"
          ondrop="_chatDrop(event)">
-      <div class="chat-msgs" id="chat-msgs">${messagesHTML}</div>
+      ${_chatRenderPinnedSection()}
+      <div class="chat-msgs" id="chat-msgs" onscroll="_chatOnMessagesScroll(event)">${messagesHTML}</div>
       <div class="chat-drop-overlay" id="chat-drop-overlay">
         <div class="chat-drop-overlay-inner">
           <div class="chat-drop-icon">⤓</div>
@@ -38872,16 +38920,35 @@ function _chatRenderMessage(m, isThreadReply) {
   const bodyHTML = m.body
     ? `<div class="chat-msg-text">${_chatRenderBody(m.body)}</div>`
     : '';
+  // Quote preview (se a mensagem é uma resposta-citação a outra)
+  let quotedHTML = '';
+  if (m.quoted_message_id) {
+    const qm = _chatState.messages.find(x => x.id === m.quoted_message_id);
+    if (qm) {
+      const qu = _chatState.userMap[qm.user_id] || { name: 'Usuário' };
+      quotedHTML = `<div class="chat-msg-quoted" onclick="_chatJumpToMessage('${m.channel_id}','${qm.id}')">
+        <div class="chat-msg-quoted-bar"></div>
+        <div class="chat-msg-quoted-body">
+          <div class="chat-msg-quoted-author">${_esc(qu.name)}</div>
+          <div class="chat-msg-quoted-text">${_esc((qm.body || '').slice(0, 200))}</div>
+        </div>
+      </div>`;
+    }
+  }
+  // Pin tag
+  const pinTag = m.pinned_at ? '<span class="chat-msg-pin-tag" title="Mensagem fixada">📌 fixada</span>' : '';
 
   return `
-    <div class="chat-msg" data-msg-id="${m.id}">
+    <div class="chat-msg${m.pinned_at ? ' is-pinned' : ''}" data-msg-id="${m.id}">
       ${avatar}
       <div class="chat-msg-body">
         <div class="chat-msg-h">
           <span class="chat-msg-name">${_esc(u.name)}</span>
           <span class="chat-msg-time">${time}</span>
           ${editedTag}
+          ${pinTag}
         </div>
+        ${quotedHTML}
         ${bodyHTML}
         ${attachmentsHTML}
         ${cardLinksHTML}
@@ -38890,7 +38957,11 @@ function _chatRenderMessage(m, isThreadReply) {
         <div class="chat-msg-actions">
           <button onclick="_chatPickReaction('${m.id}', this)" title="Reagir">😊</button>
           <button onclick="_chatOpenThread('${m.id}')" title="Responder em thread">↳</button>
+          <button onclick="_chatQuoteMessage('${m.id}')" title="Citar essa mensagem">❝</button>
+          <button onclick="_chatTogglePin('${m.id}')" title="${m.pinned_at ? 'Desafixar' : 'Fixar'}">${m.pinned_at ? '📌' : '📍'}</button>
+          <button onclick="_chatForwardMessage('${m.id}')" title="Encaminhar">↗</button>
           <button onclick="_chatVirarCardFromMessage('${m.id}')" title="Virar card">→ card</button>
+          ${isMine ? `<button onclick="_chatEditMessage('${m.id}')" title="Editar">✎</button>` : ''}
           ${isMine ? `<button onclick="_chatDeleteMessage('${m.id}')" title="Apagar">×</button>` : ''}
         </div>
       </div>
@@ -39296,19 +39367,25 @@ async function _chatSendMessage(body, parentId) {
   if (!body && attachmentsReady.length === 0) return;
 
   try {
-    const { data: inserted, error } = await c.from('chat_messages').insert({
+    const insertObj = {
       channel_id: channelId,
       user_id: supaUser.id,
       parent_id: parentId || null,
       body: body || '',
       mentions: _chatExtractMentions(body),
       attachments: attachmentsReady,
-    }).select().single();
+    };
+    // Inclui quoted_message_id se houver citação ativa
+    if (_chatState.quotedMessage) {
+      insertObj.quoted_message_id = _chatState.quotedMessage.id;
+    }
+    const { data: inserted, error } = await c.from('chat_messages').insert(insertObj).select().single();
     if (error) throw error;
 
-    // Limpa fila de anexos (já foram pra mensagem)
+    // Limpa fila de anexos + quote
     _chatState.pendingAttachments = [];
     _chatRenderPendingAttachments();
+    _chatClearQuote();
 
     // Optimistic: adiciona na lista local na hora (antes do realtime ecoar).
     if (inserted && !inserted.parent_id && _chatState.currentChannelId === channelId) {
@@ -39498,6 +39575,349 @@ async function _chatSendThreadReply(parentId) {
   }
   document.getElementById('chat-thread-ov')?.remove();
   _chatOpenThread(parentId); // re-abre com a reply incluída
+}
+
+// ── EDITAR MENSAGEM (própria) ────────────────────────────────────────
+async function _chatEditMessage(messageId) {
+  const m = _chatState.messages.find(x => x.id === messageId);
+  if (!m || m.user_id !== supaUser.id) return;
+  const newBody = await appPrompt('Editar mensagem', {
+    icon: '✎',
+    message: 'Edite o texto. Vai aparecer "(editado)" do lado.',
+    defaultValue: m.body || '',
+    placeholder: 'Texto da mensagem',
+    okLabel: 'Salvar',
+  });
+  if (newBody === null) return;
+  const trimmed = (newBody || '').trim();
+  if (!trimmed) return appAlert('Vazio', 'Mensagem não pode ficar vazia. Use o botão Apagar pra remover.', { icon: 'ℹ️' });
+  if (trimmed === m.body) return;
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.from('chat_messages')
+      .update({ body: trimmed, edited_at: new Date().toISOString() })
+      .eq('id', messageId);
+    if (error) throw error;
+    m.body = trimmed;
+    m.edited_at = new Date().toISOString();
+    _chatRenderMessagesView();
+  } catch(e) { appAlert('Não consegui editar', e?.message || String(e), { icon: '⚠️' }); }
+}
+
+// ── PINNED SECTION — barra colapsável no topo do canal ──────────────
+function _chatRenderPinnedSection() {
+  const pinned = (_chatState.messages || []).filter(m => m.pinned_at);
+  if (!pinned.length) return '';
+  const expanded = !!_chatState.pinnedExpanded;
+  return `
+    <div class="chat-pinned-bar">
+      <button class="chat-pinned-toggle" onclick="_chatTogglePinnedExpanded()">
+        📌 ${pinned.length} mensagem${pinned.length===1?'':'ns'} fixada${pinned.length===1?'':'s'} ${expanded ? '▾' : '▸'}
+      </button>
+      ${expanded ? `<div class="chat-pinned-list">${pinned.map(m => {
+        const u = _chatState.userMap[m.user_id] || { name: 'Usuário' };
+        return `<div class="chat-pinned-item" onclick="_chatJumpToMessage('${m.channel_id}','${m.id}')">
+          <strong>${_esc(u.name)}:</strong> ${_esc((m.body || '').slice(0, 100))}${(m.body||'').length>100?'…':''}
+        </div>`;
+      }).join('')}</div>` : ''}
+    </div>
+  `;
+}
+
+function _chatTogglePinnedExpanded() {
+  _chatState.pinnedExpanded = !_chatState.pinnedExpanded;
+  _chatRenderMessagesView();
+}
+
+// ── SCROLL UP — carrega mensagens mais antigas ────────────────────────
+let _chatLoadingOlder = false;
+async function _chatLoadOlderMessages() {
+  if (_chatLoadingOlder || !_chatState.currentChannelId || !_chatState.messages.length) return;
+  _chatLoadingOlder = true;
+  const c = await _chatGetClient();
+  if (!c) { _chatLoadingOlder = false; return; }
+  const oldest = _chatState.messages[0];
+  try {
+    const { data, error } = await c.rpc('chat_load_older_messages', {
+      p_channel_id: _chatState.currentChannelId,
+      p_before_ts: oldest.created_at,
+      p_limit: 50,
+    });
+    if (error) throw error;
+    if (!data || !data.length) {
+      _chatLoadingOlder = false;
+      return;
+    }
+    // Hidrata reações + replies pra esses novos
+    const ids = data.map(m => m.id);
+    const { data: reactions } = await c.from('chat_reactions').select('*').in('message_id', ids);
+    const reactionMap = {};
+    (reactions || []).forEach(r => {
+      if (!reactionMap[r.message_id]) reactionMap[r.message_id] = {};
+      if (!reactionMap[r.message_id][r.emoji]) reactionMap[r.message_id][r.emoji] = [];
+      reactionMap[r.message_id][r.emoji].push(r.user_id);
+    });
+    const { data: replies } = await c.from('chat_messages')
+      .select('parent_id').in('parent_id', ids).is('deleted_at', null);
+    const replyCount = {};
+    (replies||[]).forEach(r => { if(r.parent_id) replyCount[r.parent_id] = (replyCount[r.parent_id]||0)+1; });
+    data.forEach(m => {
+      m._reactions = reactionMap[m.id] || {};
+      m._replyCount = replyCount[m.id] || 0;
+    });
+    await _chatHydrateUsers(data.map(m => m.user_id).filter(Boolean));
+
+    // Preserva scroll position — calcula altura ANTES de prepend
+    const wrap = document.getElementById('chat-msgs');
+    const prevScrollHeight = wrap ? wrap.scrollHeight : 0;
+    const prevScrollTop = wrap ? wrap.scrollTop : 0;
+
+    // Prepend (data vem em ordem DESC, então reverse pra cronológica)
+    _chatState.messages = data.reverse().concat(_chatState.messages);
+    _chatRenderMessagesView();
+
+    // Restaura scroll position pra não pular
+    if (wrap) {
+      const newScrollHeight = wrap.scrollHeight;
+      wrap.scrollTop = (newScrollHeight - prevScrollHeight) + prevScrollTop;
+    }
+  } catch(e) { console.error('[chat] load older:', e); }
+  _chatLoadingOlder = false;
+}
+
+// Detecta scroll no topo da lista pra carregar mais
+function _chatOnMessagesScroll(e) {
+  const el = e.target;
+  if (el.scrollTop < 80 && !_chatLoadingOlder) {
+    _chatLoadOlderMessages();
+  }
+}
+
+// ── BUSCAR MENSAGENS (FTS) ────────────────────────────────────────────
+async function _chatOpenSearch() {
+  const ov = document.createElement('div');
+  ov.className = 'chat-kan-ov';
+  ov.id = 'chat-search-ov';
+  ov.innerHTML = `
+    <div class="chat-kan-pane" style="width:560px;">
+      <div class="chat-kan-h">
+        <div style="width:32px;height:32px;border-radius:8px;background:var(--tatami-cream);display:flex;align-items:center;justify-content:center;color:var(--tatami-sumi);">🔍</div>
+        <h3 style="flex:1;">Buscar mensagens</h3>
+        <button onclick="document.getElementById('chat-search-ov').remove()" style="background:transparent;border:none;font-size:20px;cursor:pointer;">×</button>
+      </div>
+      <input id="chat-search-input" type="text" placeholder="Digite e tecle Enter — busca em todos os canais que você tem acesso"
+             style="width:100%;padding:11px 13px;border:1px solid var(--tatami-tan);border-radius:9px;font-size:14px;font-family:var(--font-sans);background:var(--tatami-paper);color:var(--tatami-sumi);outline:none;"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();_chatRunSearch(this.value);}"/>
+      <div id="chat-search-out" style="margin-top:14px;"></div>
+    </div>
+  `;
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  setTimeout(() => document.getElementById('chat-search-input')?.focus(), 50);
+}
+
+async function _chatRunSearch(query) {
+  const out = document.getElementById('chat-search-out');
+  if (!out) return;
+  query = (query || '').trim();
+  if (!query) { out.innerHTML = ''; return; }
+  out.innerHTML = '<div style="padding:18px;text-align:center;color:var(--tatami-ink-soft);">Buscando…</div>';
+  const c = await _chatGetClient();
+  try {
+    const { data, error } = await c.rpc('chat_search_messages', { p_query: query, p_limit: 50 });
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      out.innerHTML = '<div style="padding:18px;text-align:center;color:var(--tatami-ink-soft);font-style:italic;">Nada encontrado pra "' + _esc(query) + '"</div>';
+      return;
+    }
+    await _chatHydrateUsers(data.map(r => r.user_id).filter(Boolean));
+    out.innerHTML = data.map(r => {
+      const u = _chatState.userMap[r.user_id] || { name: 'Usuário' };
+      const ch = _chatState.channels.find(c => c.id === r.channel_id);
+      const chName = ch ? ch.name : '(canal)';
+      const time = _chatFormatTime(r.created_at);
+      // Highlight do termo no body
+      const safeBody = _esc(r.body || '');
+      const highlighted = safeBody.replace(new RegExp('(' + _esc(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'),
+        '<mark style="background:rgba(230,167,0,.3);color:inherit;">$1</mark>');
+      return `<div class="chat-search-result" onclick="_chatJumpToMessage('${r.channel_id}','${r.id}')">
+        <div class="chat-search-result-h">
+          <span class="chat-search-result-ch">#${_esc(chName)}</span>
+          <span class="chat-search-result-meta">${_esc(u.name)} · ${time}</span>
+        </div>
+        <div class="chat-search-result-body">${highlighted}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    out.innerHTML = '<div style="padding:14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#7f1d1d;">' + _esc(e?.message||String(e)) + '</div>';
+  }
+}
+
+async function _chatJumpToMessage(channelId, messageId) {
+  document.getElementById('chat-search-ov')?.remove();
+  if (channelId !== _chatState.currentChannelId) {
+    await _chatSelectChannel(channelId);
+  }
+  // Espera renderizar e tenta scrollar até a mensagem (se já carregada)
+  setTimeout(() => {
+    const el = document.querySelector(`[data-msg-id="${messageId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('chat-msg-highlight');
+      setTimeout(() => el.classList.remove('chat-msg-highlight'), 2000);
+    }
+  }, 400);
+}
+
+// ── @MENÇÕES — carrega não lidas + dropdown ──────────────────────────
+async function _chatLoadMentions() {
+  const c = await _chatGetClient();
+  if (!c) return;
+  try {
+    const { data } = await c.from('chat_message_mentions')
+      .select('message_id, created_at, read_at')
+      .eq('user_id', supaUser.id)
+      .is('read_at', null)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    _chatState.mentions = data || [];
+    _chatUpdateMentionBadge();
+  } catch(_) {}
+}
+
+function _chatUpdateMentionBadge() {
+  const total = (_chatState.mentions || []).length;
+  // Adiciona badge ao botão de chat no menu lateral principal
+  const sb = document.getElementById('sb-chat-badge');
+  if (sb) {
+    const channelUnread = _chatState.channels.reduce((s, c) => s + (c._unread||0), 0);
+    const sum = total + channelUnread;
+    if (sum > 0) {
+      sb.textContent = sum > 99 ? '99+' : String(sum);
+      sb.style.display = '';
+    } else {
+      sb.style.display = 'none';
+    }
+  }
+}
+
+async function _chatMarkMentionsRead() {
+  const c = await _chatGetClient();
+  if (!c || !_chatState.mentions?.length) return;
+  const ids = _chatState.mentions.map(m => m.message_id);
+  try {
+    await c.from('chat_message_mentions').update({ read_at: new Date().toISOString() })
+      .eq('user_id', supaUser.id).in('message_id', ids);
+    _chatState.mentions = [];
+    _chatUpdateMentionBadge();
+  } catch(_) {}
+}
+
+// ── QUOTE / RESPONDER MENSAGEM ESPECÍFICA ────────────────────────────
+function _chatQuoteMessage(messageId) {
+  const m = _chatState.messages.find(x => x.id === messageId);
+  if (!m) return;
+  _chatState.quotedMessage = m;
+  // Atualiza composer pra mostrar preview da quoted
+  const composerWrap = document.querySelector('.chat-composer');
+  if (composerWrap) {
+    let preview = document.getElementById('chat-quote-preview');
+    if (!preview) {
+      preview = document.createElement('div');
+      preview.id = 'chat-quote-preview';
+      preview.className = 'chat-quote-preview';
+      const toolbar = composerWrap.querySelector('.chat-composer-toolbar');
+      if (toolbar) toolbar.after(preview);
+    }
+    const u = _chatState.userMap[m.user_id] || { name: 'Usuário' };
+    preview.innerHTML = `
+      <div class="chat-quote-preview-bar"></div>
+      <div class="chat-quote-preview-body">
+        <div class="chat-quote-preview-author">↳ Citando ${_esc(u.name)}</div>
+        <div class="chat-quote-preview-text">${_esc((m.body || '').slice(0, 140))}${(m.body||'').length > 140 ? '…' : ''}</div>
+      </div>
+      <button class="chat-quote-preview-x" onclick="_chatClearQuote()" title="Cancelar citação">×</button>
+    `;
+  }
+  document.getElementById('chat-composer-input')?.focus();
+}
+
+function _chatClearQuote() {
+  _chatState.quotedMessage = null;
+  document.getElementById('chat-quote-preview')?.remove();
+}
+
+// ── PIN MESSAGE ──────────────────────────────────────────────────────
+async function _chatTogglePin(messageId) {
+  const m = _chatState.messages.find(x => x.id === messageId);
+  if (!m) return;
+  const ch = _chatState.channels.find(c => c.id === _chatState.currentChannelId);
+  if (!ch || ch.workspace_owner !== supaUser.id) {
+    appAlert('Sem permissão', 'Só o owner do canal pode fixar mensagens.', { icon: '🔒' });
+    return;
+  }
+  const c = await _chatGetClient();
+  try {
+    const isPinned = !!m.pinned_at;
+    const update = isPinned
+      ? { pinned_at: null, pinned_by: null }
+      : { pinned_at: new Date().toISOString(), pinned_by: supaUser.id };
+    const { error } = await c.from('chat_messages').update(update).eq('id', messageId);
+    if (error) throw error;
+    m.pinned_at = update.pinned_at;
+    m.pinned_by = update.pinned_by;
+    _chatRenderMessagesView();
+  } catch(e) { appAlert('Não consegui', e?.message || String(e), { icon: '⚠️' }); }
+}
+
+// ── FORWARD — encaminha mensagem pra outro canal ─────────────────────
+async function _chatForwardMessage(messageId) {
+  const m = _chatState.messages.find(x => x.id === messageId);
+  if (!m) return;
+  const choices = _chatState.channels
+    .filter(c => c.id !== _chatState.currentChannelId && !c.archived_at)
+    .map(c => {
+      const prefix = c.type === 'dm' ? '@' : c.type === 'board' ? '▤' : (c.is_private ? '🗝' : '会');
+      return { id: c.id, label: prefix + ' ' + c.name, icon: '→', meta: c.type };
+    });
+  if (!choices.length) return appAlert('Sem outros canais', 'Você só tem esse canal.', { icon: 'ℹ️' });
+  const targetId = await appChoice('Encaminhar pra qual canal?', choices, {
+    icon: '↗', message: 'A mensagem vai pro canal escolhido com referência ao original.', allowClear: false,
+  });
+  if (!targetId || targetId === '__clear__') return;
+  const c = await _chatGetClient();
+  try {
+    const u = _chatState.userMap[m.user_id] || { name: 'Usuário' };
+    const fwdBody = `_Encaminhado de @${u.name}:_\n\n> ${(m.body || '').replace(/\n/g, '\n> ')}`;
+    const { error } = await c.from('chat_messages').insert({
+      channel_id: targetId, user_id: supaUser.id, body: fwdBody,
+    });
+    if (error) throw error;
+    if (typeof showToastMsg === 'function') showToastMsg('Mensagem encaminhada ✓');
+  } catch(e) { appAlert('Não consegui encaminhar', e?.message || String(e), { icon: '⚠️' }); }
+}
+
+// ── ONLINE PRESENCE — Supabase Realtime presence ─────────────────────
+let _chatPresenceChannel = null;
+async function _chatStartPresence() {
+  const c = await _chatGetClient();
+  if (!c || !c.channel) return;
+  _chatPresenceChannel = c.channel('tatami-presence', {
+    config: { presence: { key: supaUser.id } },
+  });
+  _chatPresenceChannel
+    .on('presence', { event: 'sync' }, () => {
+      const state = _chatPresenceChannel.presenceState();
+      _chatState.onlineUsers = new Set(Object.keys(state));
+      _chatRenderMessagesView();
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await _chatPresenceChannel.track({ user_id: supaUser.id, online_at: new Date().toISOString() });
+      }
+    });
+  // Atualiza last_seen no profile periodicamente
+  try { await c.rpc('touch_last_seen'); } catch(_) {}
 }
 
 // ── Apagar mensagem (soft delete) ────────────────────────────────────
