@@ -5018,6 +5018,9 @@ body.density-compact .col{padding:7px;}
 .chat-channel-h-action{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border:none;border-radius:7px;padding:6px 12px 6px 8px;font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font-sans);transition:transform .12s;}
 .chat-channel-h-action:hover{transform:translateY(-1px);}
 .chat-channel-h-action .kan-avatar{border-color:rgba(255,255,255,.3);}
+/* Botão "?" no header — abre o "Como usar o Tatami" */
+.chat-channel-h-help{width:28px;height:28px;border-radius:50%;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .12s;font-family:var(--font-sans);}
+.chat-channel-h-help:hover{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary);}
 
 /* Lista de mensagens */
 .chat-msgs{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px;}
@@ -38200,9 +38203,12 @@ async function _chatEnsureDefaultChannels() {
   const c = await _chatGetClient();
   if (!c) return;
   const presets = [
-    { name: 'geral',     description: 'Conversa do dia a dia do time.' },
-    { name: 'avisos',    description: 'Comunicados importantes — leitura obrigatória.' },
-    { name: 'aleatorio', description: 'Papo casual, memes, off-topic.' },
+    { name: 'geral',       description: 'Conversa do dia a dia do time.' },
+    { name: 'avisos',      description: 'Comunicados importantes — leitura obrigatória.' },
+    { name: 'ideias',      description: 'Brainstorm, hipóteses, half-baked ideas. Tudo que merece pensar mais.' },
+    { name: 'conquistas',  description: 'Wins do time — desde o card que demorou a sair até o cliente fechado.' },
+    { name: 'duvidas',     description: 'Perguntas rápidas que não merecem email. Respondeu? Reage com ✅.' },
+    { name: 'aleatorio',   description: 'Papo casual, memes, off-topic. Sem culpa.' },
   ];
   for (const p of presets) {
     try {
@@ -38359,6 +38365,7 @@ function _chatRenderMessagesView() {
         ${ch.description ? `<span class="chat-channel-h-desc"> · ${_esc(ch.description)}</span>` : ''}
       </div>
       <div class="chat-channel-h-r">
+        <button class="chat-channel-h-help" onclick="_chatShowHowTo()" title="Como usar o Tatami">?</button>
         <button class="chat-channel-h-action" onclick="_chatMestreKanModal()" title="Mestre Kan analisa a conversa">
           <img src="mestre_kan_avatar.png?v=6" class="kan-avatar xs" alt="" style="width:18px;height:18px;"/>
           <span>Mestre Kan</span>
@@ -38509,18 +38516,27 @@ async function _chatSendMessage(body, parentId) {
   const channelId = _chatState.currentChannelId;
   if (!channelId) return;
   try {
-    const { error } = await c.from('chat_messages').insert({
+    // Insere e pede de volta a linha completa (.select().single())
+    const { data: inserted, error } = await c.from('chat_messages').insert({
       channel_id: channelId,
       user_id: supaUser.id,
       parent_id: parentId || null,
       body,
       mentions: _chatExtractMentions(body),
-    });
+    }).select().single();
     if (error) throw error;
-    // Realtime cuida de adicionar — mas pra UX rápida, se não tiver realtime ativo, recarrega
-    if (!_chatState.realtimeChannel) {
-      await _chatLoadMessages(channelId);
-      _chatRenderMessagesView();
+
+    // Optimistic: adiciona na lista local na hora (antes do realtime ecoar).
+    // Se for mensagem raiz do canal atual, aparece direto.
+    if (inserted && !inserted.parent_id && _chatState.currentChannelId === channelId) {
+      // Evita duplicar caso realtime ecoe (filtro por id)
+      if (!_chatState.messages.find(x => x.id === inserted.id)) {
+        inserted._reactions = {};
+        inserted._replyCount = 0;
+        _chatState.messages.push(inserted);
+        await _chatHydrateUsers([inserted.user_id]);
+        _chatRenderMessagesView();
+      }
     }
   } catch(e) {
     console.error('[chat] send:', e);
@@ -38687,13 +38703,20 @@ async function _chatSendThreadReply(parentId) {
 }
 
 // ── Apagar mensagem (soft delete) ────────────────────────────────────
+// Preserva o body original no DB (pra auditoria + recuperação se apagou
+// sem querer). Só marca deleted_at e a UI esconde via .is(deleted_at, null)
+// nas queries. Owner do workspace pode acessar via SQL Editor se precisar
+// restaurar.
 async function _chatDeleteMessage(messageId) {
-  const ok = await appConfirm('Apagar mensagem', 'Esta mensagem será removida do chat. Tem certeza?', { okLabel: 'Apagar', danger: true });
+  const ok = await appConfirm('Apagar mensagem',
+    'A mensagem fica oculta do chat mas o conteúdo é preservado no banco — se você apagou sem querer, dá pra restaurar via Configurações.',
+    { okLabel: 'Apagar', danger: true });
   if (!ok) return;
   const c = await _chatGetClient();
   if (!c) return;
   try {
-    await c.from('chat_messages').update({ deleted_at: new Date().toISOString(), body: '_(mensagem removida)_' }).eq('id', messageId);
+    // Soft delete: marca deleted_at, NÃO sobrescreve body
+    await c.from('chat_messages').update({ deleted_at: new Date().toISOString() }).eq('id', messageId);
     _chatState.messages = _chatState.messages.filter(m => m.id !== messageId);
     _chatRenderMessagesView();
   } catch(e) { console.error(e); }
@@ -38756,29 +38779,43 @@ async function _chatCreateDMFlow() {
       if (!roleByUser[m.user_id] || m.role === 'admin') roleByUser[m.user_id] = m.role;
     });
     const uniqueIds = Object.keys(roleByUser);
-    if (!uniqueIds.length) {
-      appAlert('Sem ninguém pra DM',
-        'Convide um Admin ou Editor pros seus boards primeiro. Viewers ficam de fora porque o papel deles é só leitura.',
-        { icon: '👥' });
-      return;
-    }
-    await _chatHydrateUsers(uniqueIds);
-    const choices = uniqueIds.map(uid => ({
-      id: uid,
-      label: _chatState.userMap[uid]?.name || 'Usuário',
-      icon: _chatState.userMap[uid]?.avatar ? '🧑' : '👤',
-      meta: roleByUser[uid] === 'admin' ? 'Admin' : 'Editor',
-    }));
+    await _chatHydrateUsers(uniqueIds.concat([supaUser.id]));
+
+    // Sempre mostra "você mesmo" no topo — DM consigo é caderno pessoal
+    // (notes pra si, lembrete, rascunho rápido, drag-drop de link)
+    const myName = (typeof getProfileName === 'function' ? getProfileName() : null) || _chatState.userMap[supaUser.id]?.name || 'Você';
+    const choices = [
+      {
+        id: supaUser.id,
+        label: myName + ' (você)',
+        icon: '✎',
+        meta: 'Notas pessoais',
+      },
+      ...uniqueIds.map(uid => ({
+        id: uid,
+        label: _chatState.userMap[uid]?.name || 'Usuário',
+        icon: _chatState.userMap[uid]?.avatar ? '🧑' : '👤',
+        meta: roleByUser[uid] === 'admin' ? 'Admin' : 'Editor',
+      })),
+    ];
     const targetId = await appChoice('DM com quem?', choices, {
-      icon: '@', message: 'Mostra apenas Admins e Editores dos seus boards.', allowClear: false,
+      icon: '@',
+      message: 'Você mesmo (caderno pessoal) ou Admin/Editor dos seus boards. Viewers não aparecem.',
+      allowClear: false,
     });
     if (!targetId || targetId === '__clear__') return;
 
-    // Ordena pra UNIQUE constraint
+    // Ordena pra UNIQUE constraint (self-DM fica com a==b, o que é permitido)
+    const isSelfDM = targetId === supaUser.id;
     const [a, b] = [supaUser.id, targetId].sort();
-    const targetName = _chatState.userMap[targetId]?.name || 'DM';
+    const targetName = isSelfDM
+      ? 'notas-pessoais'
+      : ('dm-' + (_chatState.userMap[targetId]?.name || 'dm').slice(0,20).toLowerCase().replace(/\s+/g,'-'));
     const { data, error } = await c.from('chat_channels').insert({
-      workspace_owner: supaUser.id, type: 'dm', dm_user_a: a, dm_user_b: b, name: 'dm-' + targetName.slice(0,20).toLowerCase().replace(/\s+/g,'-'), created_by: supaUser.id,
+      workspace_owner: supaUser.id, type: 'dm', dm_user_a: a, dm_user_b: b,
+      name: targetName,
+      description: isSelfDM ? 'Notas pessoais — só você vê.' : null,
+      created_by: supaUser.id,
     }).select().single();
     if (error && !String(error.message||'').includes('duplicate')) throw error;
     if (data) {
@@ -38844,6 +38881,72 @@ async function _chatVirarCardFromText(text, sourceMessageId) {
     }
   }
   if (typeof showToastMsg === 'function') showToastMsg('Card criado em "' + board.name + '" ✓');
+}
+
+// ── Como usar o Tatami (instruções inline) ──────────────────────────
+function _chatShowHowTo() {
+  const overlay = document.createElement('div');
+  overlay.className = 'chat-kan-ov';
+  overlay.innerHTML = `
+    <div class="chat-kan-pane" style="width:620px;">
+      <div class="chat-kan-h">
+        <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#3C3489,#1a1a2e);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;">?</div>
+        <h3 style="flex:1;">Como usar o Tatami</h3>
+        <button onclick="this.closest('.chat-kan-ov').remove()" style="background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--color-text-secondary);width:32px;height:32px;border-radius:6px;">×</button>
+      </div>
+      <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.65;display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">Mandando mensagem</h4>
+          <p style="margin:0;">Digite no campo de baixo e <strong>Enter</strong> envia. <strong>Shift + Enter</strong> quebra linha. Cole um link e ele vira clicável automaticamente. Usa <strong>@nome</strong> pra mencionar alguém (visualmente — notificação real vem na v2).</p>
+        </div>
+
+        <div>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">Tipos de canais</h4>
+          <p style="margin:0;"><strong>#geral, #avisos, #ideias, #conquistas, #duvidas, #aleatorio</strong> — canais do workspace, criados automaticamente. Você pode criar mais clicando em <strong>+ Canal</strong> no menu lateral.<br/>
+          <strong>Canais de board</strong> — cada board ganha um canal próprio (ex: #projeto-x). Quem é membro do board entra automaticamente.<br/>
+          <strong>DMs</strong> — conversa privada com 1 pessoa. Botão <strong>+ Nova DM</strong> mostra Admins e Editors dos seus boards. Você pode mandar DM pra <strong>você mesmo</strong> também — vira caderno pessoal.</p>
+        </div>
+
+        <div>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">Comandos rápidos (slash)</h4>
+          <p style="margin:0;">
+            <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;">/kanban &lt;texto&gt;</code> — cria card direto a partir do texto<br/>
+            <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;">/resumo</code> — Mestre Kan resume a conversa<br/>
+            <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;">/ajuda</code> — lista de comandos
+          </p>
+        </div>
+
+        <div>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">Ações em cada mensagem</h4>
+          <p style="margin:0;">Passa o mouse em cima da mensagem que aparecem 4 botões no canto:<br/>
+          <strong>😊</strong> reagir com emoji · <strong>↳</strong> responder em thread · <strong>→ card</strong> virar card num board · <strong>×</strong> apagar (só nas suas).</p>
+        </div>
+
+        <div>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">Mestre Kan no canal</h4>
+          <p style="margin:0;">Botão <strong>Mestre Kan</strong> no topo do canal. Ele lê a conversa e devolve:</p>
+          <ul style="margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.65;">
+            <li><strong>Resumir conversa</strong> — TLDR das últimas mensagens</li>
+            <li><strong>Extrair ações como cards</strong> — identifica tarefas pendentes pra criar</li>
+            <li><strong>Quem está aguardando resposta?</strong> — perguntas sem reply</li>
+          </ul>
+          <p style="margin:6px 0 0;font-size:11.5px;color:var(--color-text-tertiary);">Cada chamada conta na sua cota mensal de Mestre Kan IA.</p>
+        </div>
+
+        <div>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">Threads</h4>
+          <p style="margin:0;">Resposta em thread fica num painel lateral, pra discussão longa não poluir o canal principal. Clica em <strong>↳ N respostas</strong> embaixo da mensagem pra abrir.</p>
+        </div>
+
+        <div>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">Suas mensagens são preservadas</h4>
+          <p style="margin:0;">Tudo fica salvo no banco. Apagar uma mensagem (botão ×) faz <em>soft delete</em> — esconde da UI mas mantém o conteúdo no DB pra recuperação se você apagou sem querer.</p>
+        </div>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 // ── Mestre Kan: analisa conversa do canal ───────────────────────────
