@@ -38237,13 +38237,15 @@ let _chatState = {
 const _CHAT_MAX_FILE_SIZE = 10 * 1024 * 1024;          // 10 MB
 const _CHAT_BUCKET = 'chat-attachments';
 
-// Ícone SVG do ninja (canal privado) — monocromático, herda cor de currentColor.
-// Cabeça com máscara: silhueta ovalada + faixa horizontal vazada (eye slit) +
-// 2 olhinhos circulares no meio. Estilo dojo, sem cor de emoji.
-const _NINJA_SVG = `<svg class="chat-ninja-ico" viewBox="0 0 16 16" aria-hidden="true">
-  <path d="M3.2 5.5 Q3.2 2 8 2 Q12.8 2 12.8 5.5 L12.8 11 Q12.8 14 8 14 Q3.2 14 3.2 11 Z M3.2 6.7 H12.8 V8.7 H3.2 Z" fill="currentColor" fill-rule="evenodd"/>
-  <circle cx="6.2" cy="7.7" r="0.7" fill="currentColor"/>
-  <circle cx="9.8" cy="7.7" r="0.7" fill="currentColor"/>
+// Ícone SVG do ninja (canal privado) — monocromático, herda currentColor.
+// Hood/balaclava de ninja: dome arredondado em cima, lados retos, base com
+// cantos arredondados. Eye slit horizontal cortando o meio. Olhos como
+// elipses pequenas em formato amêndoa (visual mais "olhando").
+// viewBox 24x24 dá mais detalhe e escala melhor que 16x16.
+const _NINJA_SVG = `<svg class="chat-ninja-ico" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M4 10 Q4 3 12 3 Q20 3 20 10 L20 19 Q20 21 18 21 L6 21 Q4 21 4 19 Z M3 11.5 L21 11.5 L21 13.5 L3 13.5 Z" fill="currentColor" fill-rule="evenodd"/>
+  <ellipse cx="8.5" cy="12.5" rx="1.1" ry="0.7" fill="currentColor"/>
+  <ellipse cx="15.5" cy="12.5" rx="1.1" ry="0.7" fill="currentColor"/>
 </svg>`;
 // Versão maior pro header do canal (16px → 22px equiv)
 const _NINJA_SVG_BIG = _NINJA_SVG.replace('class="chat-ninja-ico"', 'class="chat-ninja-ico chat-ninja-ico-lg"');
