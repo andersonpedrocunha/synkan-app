@@ -39753,29 +39753,44 @@ async function _chatMestreKanRun(mode) {
     return `${u}: ${m.body}`;
   }).join('\n');
 
-  let prompt = '';
-  if (mode === 'summary') {
-    prompt = `Resuma essa conversa em até 5 bullets. Foque em decisões e ações pendentes. Português brasileiro.\n\n${transcript}`;
-  } else if (mode === 'extract_actions') {
-    prompt = `Identifique tarefas/ações concretas que precisam virar cards. Para cada uma, devolva: título curto (até 80 chars), responsável sugerido (se mencionado), e prazo (se mencionado). Use formato: "1. Título — responsável: X — prazo: Y". Português brasileiro. Conversa:\n\n${transcript}`;
-  } else if (mode === 'waiting') {
-    prompt = `Quem fez perguntas que ainda não receberam resposta? Liste por pessoa. Português brasileiro. Conversa:\n\n${transcript}`;
+  if (!transcript || !transcript.trim()) {
+    out.innerHTML = `<div style="padding:14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#7f1d1d;font-size:12.5px;">Sem mensagens pra analisar nesse canal ainda.</div>`;
+    return;
   }
 
+  let userPrompt = '';
+  if (mode === 'summary') {
+    userPrompt = `Resuma essa conversa em até 5 bullets. Foque em decisões e ações pendentes. Português brasileiro.\n\n${transcript}`;
+  } else if (mode === 'extract_actions') {
+    userPrompt = `Identifique tarefas/ações concretas que precisam virar cards. Para cada uma, devolva: título curto (até 80 chars), responsável sugerido (se mencionado) e prazo (se mencionado). Use formato: "1. Título — responsável: X — prazo: Y". Português brasileiro.\n\n${transcript}`;
+  } else if (mode === 'waiting') {
+    userPrompt = `Quem fez perguntas que ainda não receberam resposta nessa conversa? Liste por pessoa. Português brasileiro.\n\n${transcript}`;
+  }
+
+  const systemPrompt = (typeof MESTRE_KAN_SYSTEM !== 'undefined' && MESTRE_KAN_SYSTEM)
+    ? MESTRE_KAN_SYSTEM
+    : 'Você é o Mestre Kan, assistente sábio e conciso de produtividade do Synkan. Responda em português brasileiro, direto e prático.';
+
   try {
-    // Reusa o endpoint /ai existente (gateado por cota mensal do user)
-    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
-    const tokens = cfg ? _readSupaTokensFromLocalStorage(cfg.url) : null;
-    const jwt = tokens?.access_token;
     const aiBase = (typeof KANBAN_SYNC_BASE !== 'undefined') ? KANBAN_SYNC_BASE : 'https://kanban.synkan.com.br';
     const r = await fetch(aiBase + '/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': jwt ? `Bearer ${jwt}` : '' },
-      body: JSON.stringify({ prompt, max_tokens: 800 }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        max_tokens: 800,
+      }),
+      signal: AbortSignal.timeout(15000),
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || `Erro ${r.status}`);
-    const text = data.text || data.response || JSON.stringify(data);
+    const text = data.text || '';
+    if (!text) throw new Error('Resposta vazia do Mestre Kan');
+    // Conta uso na cota mensal de IA
+    if (typeof bumpAIQuota === 'function') bumpAIQuota();
+    if (typeof refreshAIQuotaPill === 'function') refreshAIQuotaPill();
+    if (typeof _gamifAwardAICall === 'function') _gamifAwardAICall();
     out.innerHTML = `<div style="padding:14px 18px;background:var(--color-background-secondary);border-radius:8px;font-size:13px;color:var(--color-text-primary);line-height:1.6;white-space:pre-wrap;">${_esc(text)}</div>`;
   } catch(e) {
     out.innerHTML = `<div style="padding:14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#7f1d1d;font-size:12.5px;">${_esc(e?.message||String(e))}</div>`;
