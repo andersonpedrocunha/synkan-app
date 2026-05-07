@@ -39505,18 +39505,18 @@ async function _chatCreateChannelFlow(type) {
     return;
   }
 
-  // Passo 1: escolher se é público (会) ou privado (🥷)
+  // Passo 1: escolher se é público (会) ou privado (ninja SVG)
   const visibility = await appChoice('Que tipo de canal?', [
     {
       id: 'public',
       label: 'Público',
-      icon: '会',
+      icon: '<span style="font-family:var(--tatami-mincho);font-size:18px;">会</span>',
       meta: 'Aberto pro time todo',
     },
     {
       id: 'private',
       label: 'Privado',
-      icon: '🥷',
+      icon: _NINJA_SVG_BIG,
       meta: 'Só você + quem convidar vê',
     },
   ], {
@@ -39528,7 +39528,7 @@ async function _chatCreateChannelFlow(type) {
   const isPrivate = (visibility === 'private');
 
   const name = await appPrompt(isPrivate ? 'Novo canal privado' : 'Novo canal', {
-    icon: isPrivate ? '🥷' : '会',
+    icon: isPrivate ? '◎' : '会',
     message: 'Use letras minúsculas, sem espaço. Ex: vendas, marketing-2026.',
     placeholder: 'nome-do-canal',
     okLabel: 'Criar canal',
