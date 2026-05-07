@@ -38032,13 +38032,13 @@ async function renderChat() {
     root.innerHTML = _chatRenderShell([]) + _chatRenderLoadingOverlay();
     try {
       await _chatLoadChannels();
-      // Auto-cria canais default (#geral, #avisos, #aleatorio) se elegível
-      if (_chatUserCanCreate() && _chatState.channels.filter(c => c.type === 'workspace').length === 0) {
-        await _chatEnsureDefaultChannels();
-        await _chatLoadChannels();
-      }
-      // Auto-cria canais de board (1 por board do owner com membros)
+      // Auto-cria canais default e self-DM se elegível.
+      // As funções abaixo são idempotentes (verificam um a um) — então a cada
+      // refresh elas conferem se cada preset existe e cria os que faltam.
+      // Útil quando user atualiza o app e novos presets são adicionados.
       if (_chatUserCanCreate()) {
+        await _chatEnsureDefaultChannels();
+        await _chatEnsureSelfDM();
         await _chatEnsureBoardChannels();
         await _chatLoadChannels();
       }
@@ -38230,6 +38230,33 @@ async function _chatEnsureDefaultChannels() {
         await c.from('chat_channel_members').upsert({ channel_id: created.id, user_id: supaUser.id });
       }
     } catch(e) { console.debug('[chat] preset ' + p.name + ' err:', e?.message); }
+  }
+}
+
+// Garante DM consigo mesmo (caderno pessoal). Idempotente.
+async function _chatEnsureSelfDM() {
+  const c = await _chatGetClient();
+  if (!c) return;
+  try {
+    const { data: existing } = await c.from('chat_channels')
+      .select('id')
+      .eq('type', 'dm')
+      .eq('dm_user_a', supaUser.id)
+      .eq('dm_user_b', supaUser.id)
+      .maybeSingle();
+    if (existing) return;
+    await c.from('chat_channels').insert({
+      workspace_owner: supaUser.id,
+      type: 'dm',
+      dm_user_a: supaUser.id,
+      dm_user_b: supaUser.id,
+      name: 'notas-pessoais',
+      description: 'Notas pessoais — só você vê.',
+      created_by: supaUser.id,
+    });
+  } catch (e) {
+    // Conflict (já existia) ou outro erro — ignora
+    console.debug('[chat] ensure self-DM:', e?.message);
   }
 }
 
@@ -38840,16 +38867,55 @@ async function _chatVirarCardFromMessage(messageId) {
 }
 
 async function _chatVirarCardFromText(text, sourceMessageId) {
-  // Lista boards do user pra escolher
-  const ownedBoards = Object.entries(allBoards||{})
-    .filter(([id, b]) => b && b.owner_id === supaUser.id && id !== UNIFIED_BOARD_ID);
-  if (!ownedBoards.length) {
-    appAlert('Sem boards', 'Crie um board primeiro.', { icon: '⚠️' });
-    return;
+  // Lista TODOS os boards acessíveis (próprios + compartilhados como member),
+  // não só os que o user é dono. Assim editor convidado também vira card.
+  const accessibleBoards = Object.entries(allBoards||{})
+    .filter(([id, b]) => b && b.name && id !== UNIFIED_BOARD_ID);
+
+  // Sempre adiciona uma opção pra criar board novo na hora — útil quando você
+  // tem 0 boards ou quando faz sentido um board novo dedicado pro tema da conversa.
+  const choices = [
+    ...accessibleBoards.map(([id, b]) => {
+      const owns = b.owner_id === supaUser.id;
+      return {
+        id,
+        label: b.name || 'Board',
+        icon: b.icon || '▤',
+        meta: owns ? 'Seu' : 'Compartilhado',
+      };
+    }),
+    { id: '__new__', label: '+ Criar board novo', icon: '+', meta: 'Cria agora' },
+  ];
+
+  const choice = await appChoice('Virar card em qual board?', choices, {
+    icon: '→',
+    message: accessibleBoards.length
+      ? 'Escolha um board existente ou crie um novo.'
+      : 'Você ainda não tem boards. Crie um agora pra criar o card.',
+    allowClear: false,
+  });
+  if (!choice || choice === '__clear__') return;
+
+  let boardId = choice;
+  if (choice === '__new__') {
+    // Pede nome e cria board em branco com colunas padrão
+    const name = await appPrompt('Nome do novo board', {
+      icon: '▤',
+      message: 'O board vai começar em branco com colunas To do / Doing / Done.',
+      defaultValue: text.slice(0, 30),
+      placeholder: 'Ex: Projeto X, Cliente Y…',
+      okLabel: 'Criar e adicionar card',
+    });
+    if (!name) return;
+    if (typeof createBoard !== 'function') {
+      appAlert('Não foi possível', 'Função createBoard não disponível.', { icon: '⚠️' });
+      return;
+    }
+    const newId = createBoard({ name });
+    if (!newId) return; // gateado por trial/plano
+    boardId = newId;
   }
-  const choices = ownedBoards.map(([id, b]) => ({ id, label: b.name || 'Board', icon: b.icon || '▤' }));
-  const boardId = await appChoice('Virar card em qual board?', choices, { icon: '→', allowClear: false });
-  if (!boardId || boardId === '__clear__') return;
+
   const board = allBoards[boardId];
   if (!board) return;
 
