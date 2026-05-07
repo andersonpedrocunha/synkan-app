@@ -5234,12 +5234,22 @@ body.density-compact .col{padding:7px;}
 .chat-ch:hover{color:var(--tatami-sumi);}
 .chat-ch-prefix{color:var(--tatami-ink-soft);opacity:.7;flex-shrink:0;}
 
-/* Estrela de favoritar */
-.chat-ch-fav{flex-shrink:0;width:28px;height:28px;background:transparent;border:none;cursor:pointer;font-size:14px;color:var(--tatami-tan);display:inline-flex;align-items:center;justify-content:center;border-radius:6px;margin-right:4px;opacity:0;transition:opacity .15s, color .12s;}
-.chat-ch-row:hover .chat-ch-fav{opacity:1;}
-.chat-ch-fav.is-fav{opacity:1;color:#D4AF37;}
-.chat-ch-fav:hover{color:#D4AF37;background:rgba(212,175,55,.12);}
-.chat-ch-fav.is-fav:hover{color:#B89020;}
+/* Raio ⚡ de acesso rápido — estilo samurai brushstroke:
+   - Não marcado: invisível, aparece só no hover do canal em sumi suave
+   - Marcado: amarelo-âmbar (cor de raio), sempre visível, micro-pulse no hover */
+.chat-ch-fav{flex-shrink:0;width:28px;height:28px;background:transparent;border:none;cursor:pointer;color:var(--tatami-ink-soft);display:inline-flex;align-items:center;justify-content:center;border-radius:6px;margin-right:4px;opacity:0;transition:opacity .15s, color .12s, transform .12s;padding:0;}
+.chat-ch-row:hover .chat-ch-fav{opacity:.5;}
+.chat-ch-fav:hover{opacity:1 !important;color:var(--tatami-sumi);background:rgba(26,22,18,.06);transform:scale(1.1);}
+.chat-ch-fav.is-fav{opacity:1;color:#E6A700;}
+.chat-ch-fav.is-fav:hover{color:#C48700;background:rgba(230,167,0,.12);}
+.chat-ch-fav svg{display:block;filter:drop-shadow(0 0 0 transparent);transition:filter .12s;}
+.chat-ch-fav.is-fav svg{filter:drop-shadow(0 1px 2px rgba(230,167,0,.45));}
+
+/* Header da seção "ACESSO RÁPIDO" em uppercase + raio âmbar */
+.chat-sb-section-h span svg{color:#E6A700;}
+
+/* Prefixo dos canais — Mincho serif pra kanji 会 ficar bonito */
+.chat-ch-prefix{font-family:var(--tatami-mincho);font-size:13px;}
 
 /* Pane principal — fundo papel, sem cinza Slack */
 .chat-main{background:var(--tatami-paper);}
@@ -38333,10 +38343,10 @@ function _chatRenderShell(channels) {
     const isArchived = !!ch.archived_at;
     const isFav = _chatState.favorites.has(ch.id);
     const unread = ch._unread || 0;
-    // Prefixo varia por tipo: workspace ▹ · board ▤ · dm @
+    // Prefixo varia por tipo: workspace 会 · board ▤ · dm @
     const prefix = ch.type === 'dm' ? '@'
                  : ch.type === 'board' ? '▤'
-                 : '▹';
+                 : '会';
     return `<div class="chat-ch-row${isCurrent?' is-current':''}${unread?' has-unread':''}${isArchived?' is-archived':''}">
       <button class="chat-ch" onclick="_chatSelectChannel('${ch.id}')">
         <span class="chat-ch-prefix">${prefix}</span>
@@ -38345,7 +38355,11 @@ function _chatRenderShell(channels) {
       </button>
       <button class="chat-ch-fav${isFav ? ' is-fav' : ''}"
               onclick="_chatToggleFavorite(event, '${ch.id}')"
-              title="${isFav ? 'Remover dos favoritos' : 'Favoritar'}">${isFav ? '★' : '☆'}</button>
+              title="${isFav ? 'Remover do acesso rápido' : 'Adicionar ao acesso rápido'}">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" stroke-width="0.4" stroke-linejoin="round">
+          <path d="M10 1 L3 9 L7 9 L5.5 15 L13 7 L9 7 L10 1 Z"/>
+        </svg>
+      </button>
     </div>`;
   };
 
@@ -38371,7 +38385,7 @@ function _chatRenderShell(channels) {
           if (!favs.length) return '';
           return `
           <div class="chat-sb-section">
-            <div class="chat-sb-section-h"><span>★ Favoritos</span></div>
+            <div class="chat-sb-section-h"><span><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:5px;"><path d="M10 1 L3 9 L7 9 L5.5 15 L13 7 L9 7 L10 1 Z"/></svg>ACESSO RÁPIDO</span></div>
             ${favs.map(channelItem).join('')}
           </div>`;
         })()}
@@ -38707,7 +38721,7 @@ function _chatRenderMessagesView() {
 
   const headerPrefix = ch.type === 'dm' ? '@'
                      : ch.type === 'board' ? '▤'
-                     : '▹';
+                     : '会';
   const isDM = ch.type === 'dm';
   const headerHTML = `
     <div class="chat-channel-h">
@@ -39529,7 +39543,7 @@ async function _chatToggleFavorite(event, channelId) {
     if (isFav) _chatState.favorites.add(channelId);
     else _chatState.favorites.delete(channelId);
     document.getElementById('chat-root').innerHTML = _chatRenderShell(_chatState.channels);
-    appAlert('Não consegui salvar o favorito',
+    appAlert('Não consegui salvar o acesso rápido',
       (e?.message || String(e)) + (String(e?.message||'').includes('chat_channel_favorites') ? '. Rode MIGRATION_CHAT_FAVORITES.sql no Supabase.' : ''),
       { icon: '⚠️' });
   }
