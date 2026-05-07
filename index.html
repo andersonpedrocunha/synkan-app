@@ -5836,6 +5836,57 @@ async function loadAIUsageThisMonth() {
 function getCurrentPlanCode() { return _currentPlan || 'trial'; }
 function getCurrentPlanLimits() { return PLAN_LIMITS[getCurrentPlanCode()] || PLAN_LIMITS.trial; }
 
+// ─── Trial: contagem de dias e soft block ─────────────────────────
+const TRIAL_DAYS_TOTAL = 5;
+// Retorna data de início do trial (created_at do user em Supabase, ou
+// localStorage como fallback pra modo local).
+function _trialStartDate() {
+  try {
+    if (supaUser?.created_at) return new Date(supaUser.created_at);
+  } catch(_) {}
+  // Fallback local: registra primeira vez que carrega o app
+  try {
+    const k = 'kanban_v8_trial_started_at';
+    let v = localStorage.getItem(k);
+    if (!v) { v = new Date().toISOString(); localStorage.setItem(k, v); }
+    return new Date(v);
+  } catch(_) { return new Date(); }
+}
+function _trialDaysLeft() {
+  const start = _trialStartDate();
+  const elapsedMs = Date.now() - start.getTime();
+  const elapsedDays = Math.floor(elapsedMs / 86400000);
+  return Math.max(0, TRIAL_DAYS_TOTAL - elapsedDays);
+}
+function _isTrialExpired() {
+  // Só vale pra quem TÁ no plano trial. Quem assinou um plano pago não
+  // sofre soft-block independente do tempo desde criação.
+  if (getCurrentPlanCode() !== 'trial') return false;
+  return _trialDaysLeft() <= 0;
+}
+// Soft block: bloqueia criação de novo conteúdo quando trial expirou.
+// Mostra modal de upsell. Retorna true se deve PROSSEGUIR, false se BLOQUEAR.
+function _checkTrialOrBlock(action) {
+  if (!_isTrialExpired()) return true;
+  const actLabels = {
+    board: 'criar um novo board',
+    canvas: 'criar um novo Lab',
+    okr: 'criar um novo OKR',
+    card: 'criar um novo card',
+  };
+  const what = actLabels[action] || 'criar conteúdo novo';
+  if (typeof appAlert === 'function') {
+    appAlert('Seu Trial acabou',
+      `Pra <strong>${what}</strong>, escolha um plano. Você continua com acesso aos boards e cards que já criou — só não dá pra criar novos.<br/><br/>` +
+      `<strong>Faixa Azul · R$ 14,90/mês</strong> — pessoal, 5 boards.<br/>` +
+      `<strong>Faixa Roxa · R$ 29,90/mês</strong> — profissional, 10 boards + admins ilimitados.<br/>` +
+      `<strong>Faixa Preta · R$ 79,90/mês</strong> — empresarial, ilimitado.`,
+      { icon:'⏰', html:true, okLabel:'Ver planos', cancelLabel:'Agora não',
+        onOk: () => { if (typeof _goToPlanTab === 'function') _goToPlanTab(); else window.open(getUpgradeURL(), '_blank'); } });
+  }
+  return false;
+}
+
 // ─── Convidado role helpers ───────────────────────────────────────
 // Cache leve do papel do user em cada board (preenchido por
 // supaLoadAllBoards e atualizado em invite/remove).
@@ -10111,6 +10162,8 @@ function _uniqueBoardName(baseName)  { return _uniqueName(baseName, Object.value
 function _uniqueCanvasName(baseName) { return _uniqueName(baseName, Object.values(_canvases||{}).map(c => c?.name)); }
 
 function createBoard(opts) {
+  // Trial expirado: soft block de criação
+  if (!_checkTrialOrBlock('board')) return null;
   // Gating: verifica limite do plano antes de criar
   if (!checkAndBlockOrAllow('board')) return null;
   const id = _genBoardId();
@@ -10126,6 +10179,7 @@ function createBoard(opts) {
 // 3 colunas pré-prontas: 改善 (Melhorou) · 問題 (Problema) · 行動 (Ação).
 // Cards na coluna "Ação" podem ser promovidos pra outros boards.
 function createKaizenBoard(opts) {
+  if (!_checkTrialOrBlock('board')) return null;
   if (!checkAndBlockOrAllow('board')) return null;
   const id = _genBoardId();
   const today = new Date();
@@ -15140,6 +15194,34 @@ function _settingsPlanoSection() {
         <span>Acompanhe seu uso de recursos do mês. Os limites são reiniciados todo dia 1º.</span>
         <strong style="font-size:13px;color:var(--accent);white-space:nowrap;">${priceLabel}</strong>
       </div>
+      ${(() => {
+        // Banner de status do Trial
+        if (code !== 'trial') return '';
+        const daysLeft = (typeof _trialDaysLeft === 'function') ? _trialDaysLeft() : null;
+        if (daysLeft === null) return '';
+        if (daysLeft <= 0) {
+          return `
+        <div style="margin-top:12px;padding:14px 16px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div style="font-size:13px;color:#7f1d1d;line-height:1.5;">
+            <strong>⏰ Seu Trial acabou.</strong> Você ainda pode acessar e editar o que já criou — mas pra criar novos boards, OKRs ou Labs, escolha um plano.
+          </div>
+          <a href="${getUpgradeURL()}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#0f0f0f;color:#fff;text-decoration:none;border-radius:8px;font-size:12.5px;font-weight:600;flex-shrink:0;">Escolher plano →</a>
+        </div>`;
+        }
+        const isUrgent = daysLeft <= 2;
+        const bg = isUrgent ? '#fff8e1' : '#eef2ff';
+        const bd = isUrgent ? '#ffd54f' : '#c7d2fe';
+        const fg = isUrgent ? '#5d4e00' : '#3730a3';
+        const icon = isUrgent ? '⏰' : '🥋';
+        return `
+        <div style="margin-top:12px;padding:12px 14px;background:${bg};border:1px solid ${bd};border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div style="font-size:12.5px;color:${fg};line-height:1.5;">
+            <strong>${icon} Trial · ${daysLeft} dia${daysLeft===1?'':'s'} restante${daysLeft===1?'':'s'}.</strong>
+            ${isUrgent ? 'Faça upgrade pra continuar criando depois que acabar.' : 'Aproveite os 5 dias pra explorar à vontade.'}
+          </div>
+          <a href="${getUpgradeURL()}" target="_blank" style="font-size:12px;color:${fg};text-decoration:underline;font-weight:600;flex-shrink:0;">Ver planos →</a>
+        </div>`;
+      })()}
       ${(() => {
         const subSt = (typeof _currentSubscriptionStatus !== 'undefined') ? _currentSubscriptionStatus : null;
         // Status "incomplete" = pagamento ficou pendente (3DS, cartão recusado)
@@ -25281,6 +25363,8 @@ const PLAN_TEMPLATE = `<h1>Plano de Ação</h1>
 </ul>`;
 
 function createCanvas(name, format) {
+  // Trial expirado: soft block de criação
+  if (!_checkTrialOrBlock('canvas')) return null;
   // Gating: verifica limite do plano antes de criar
   if (!checkAndBlockOrAllow('canvas')) return null;
   format = format || 'mindmap';
@@ -30784,6 +30868,7 @@ function saveOKR() {
   o.notes = (document.getElementById('okr-notes')?.value||'').trim();
   if (!o.title) { alert('Dê um título ao objetivo.'); return; }
   // Gating: verifica limite do plano antes de criar (apenas em criação nova)
+  if (_okrEditing.isNew && !_checkTrialOrBlock('okr')) return;
   if (_okrEditing.isNew && !checkAndBlockOrAllow('okr')) return;
   // Filtra KRs sem título
   o.krs = (o.krs||[]).filter(k => (k.title||'').trim());
