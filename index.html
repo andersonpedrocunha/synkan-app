@@ -40832,12 +40832,9 @@ function _chatRenderMessageAttachments(attachments) {
       </a>`;
     }
     if (isAudio) {
-      // Player de áudio + link backup (caso audio falhe no browser, link sempre funciona)
-      const dur = a.size ? `· ${_chatFormatSize(a.size)}` : '';
       return `<div class="chat-msg-att-audio">
-        <div class="chat-msg-att-audio-label">🎙 Mensagem de voz ${dur}</div>
+        <div class="chat-msg-att-audio-label">🎙 Mensagem de voz</div>
         <audio controls preload="metadata" controlsList="nodownload" src="${_esc(a.url)}"></audio>
-        <a href="${_esc(a.url)}" target="_blank" rel="noopener" class="chat-msg-att-audio-fallback">Não tocou? Abrir em nova aba ↗</a>
       </div>`;
     }
     return `<a href="${_esc(a.url)}" target="_blank" rel="noopener" download="${_esc(a.name)}" class="chat-msg-att-file">
