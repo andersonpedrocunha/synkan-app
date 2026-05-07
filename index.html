@@ -4978,6 +4978,118 @@ body.density-compact .col{padding:7px;}
 .dojo-themed .dojo-wrap > div[style*="text-align:center"] h2{
   font-family:var(--dojo-mincho);
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   ░░ MÓDULO CHAT — Slack-like com cara Synkan ░░
+   ════════════════════════════════════════════════════════════════════ */
+#view-chat{height:calc(100vh - 0px);overflow:hidden;}
+.chat-layout{display:grid;grid-template-columns:240px 1fr;height:calc(100vh - 0px);background:var(--color-background-primary);}
+@media(max-width:760px){.chat-layout{grid-template-columns:1fr;height:auto;}}
+
+/* Sidebar do chat (canais) */
+.chat-sidebar{background:var(--color-background-secondary);border-right:0.5px solid var(--color-border-tertiary);overflow-y:auto;display:flex;flex-direction:column;}
+.chat-sb-h{padding:18px 16px 12px;border-bottom:0.5px solid var(--color-border-tertiary);}
+.chat-sb-h h2{margin:0 0 4px;font-size:16px;font-weight:600;color:var(--color-text-primary);}
+.chat-sb-h p{margin:0;font-size:11.5px;color:var(--color-text-tertiary);line-height:1.45;}
+.chat-sb-section{padding:10px 8px 4px;}
+.chat-sb-section-h{display:flex;align-items:center;justify-content:space-between;padding:0 8px 6px;font-size:10.5px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.07em;font-weight:600;}
+.chat-sb-add{background:transparent;border:none;color:var(--color-text-tertiary);font-size:14px;cursor:pointer;width:18px;height:18px;border-radius:4px;line-height:1;}
+.chat-sb-add:hover{background:var(--color-border-tertiary);color:var(--color-text-primary);}
+.chat-sb-empty{padding:6px 8px;font-size:11.5px;color:var(--color-text-tertiary);font-style:italic;}
+.chat-ch{display:flex;align-items:center;gap:6px;padding:6px 10px;width:100%;background:transparent;border:none;cursor:pointer;font:inherit;font-size:13px;color:var(--color-text-secondary);text-align:left;border-radius:6px;transition:background .12s,color .12s;}
+.chat-ch:hover{background:var(--color-background-primary);color:var(--color-text-primary);}
+.chat-ch.is-current{background:var(--color-text-primary);color:var(--color-background-primary);font-weight:500;}
+.chat-ch-prefix{opacity:.6;width:10px;text-align:center;font-size:14px;}
+.chat-ch.is-current .chat-ch-prefix{opacity:.8;}
+.chat-ch-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chat-ch.has-unread:not(.is-current) .chat-ch-name{font-weight:600;color:var(--color-text-primary);}
+.chat-ch-badge{background:#E24B4A;color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:999px;min-width:18px;text-align:center;line-height:1.4;}
+.chat-ch.is-current .chat-ch-badge{background:#fff;color:var(--color-text-primary);}
+.sb-chat-badge{margin-left:auto;background:#E24B4A;color:#fff;font-size:9px;font-weight:600;padding:1px 5px;border-radius:999px;min-width:14px;text-align:center;}
+
+/* Pane principal */
+.chat-main{display:flex;flex-direction:column;height:100%;background:var(--color-background-primary);overflow:hidden;}
+.chat-channel-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:0.5px solid var(--color-border-tertiary);flex-shrink:0;}
+.chat-channel-h-l{display:flex;align-items:baseline;gap:6px;min-width:0;flex:1;}
+.chat-channel-h-prefix{font-size:18px;color:var(--color-text-tertiary);font-weight:300;}
+.chat-channel-h-name{margin:0;font-size:16px;font-weight:600;color:var(--color-text-primary);}
+.chat-channel-h-desc{font-size:12px;color:var(--color-text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chat-channel-h-r{display:flex;gap:8px;}
+.chat-channel-h-action{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border:none;border-radius:7px;padding:6px 12px 6px 8px;font-size:12px;font-weight:500;cursor:pointer;font-family:var(--font-sans);transition:transform .12s;}
+.chat-channel-h-action:hover{transform:translateY(-1px);}
+.chat-channel-h-action .kan-avatar{border-color:rgba(255,255,255,.3);}
+
+/* Lista de mensagens */
+.chat-msgs{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px;}
+.chat-msgs-empty{text-align:center;color:var(--color-text-tertiary);padding:48px 20px;font-size:13px;}
+.chat-msg{display:flex;gap:11px;align-items:flex-start;padding:6px 0;border-radius:6px;transition:background .12s;}
+.chat-msg:hover{background:var(--color-background-secondary);}
+.chat-msg-avatar{width:34px;height:34px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;object-fit:cover;}
+.chat-msg-body{flex:1;min-width:0;position:relative;}
+.chat-msg-h{display:flex;align-items:baseline;gap:8px;margin-bottom:2px;}
+.chat-msg-name{font-size:13.5px;font-weight:600;color:var(--color-text-primary);}
+.chat-msg-time{font-size:11px;color:var(--color-text-tertiary);}
+.chat-msg-edited{font-size:10.5px;color:var(--color-text-tertiary);font-style:italic;}
+.chat-msg-text{font-size:13px;color:var(--color-text-secondary);line-height:1.55;word-wrap:break-word;}
+.chat-msg-text .chat-link{color:#3C3489;text-decoration:underline;}
+:root.dark .chat-msg-text .chat-link{color:#A8A1F0;}
+.chat-msg-text .chat-mention{background:rgba(60,52,137,.12);color:#3C3489;padding:1px 4px;border-radius:3px;font-weight:500;}
+:root.dark .chat-msg-text .chat-mention{background:rgba(168,161,240,.18);color:#A8A1F0;}
+.chat-msg-reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.chat-reaction{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:14px;padding:2px 9px;font-size:11.5px;cursor:pointer;color:var(--color-text-secondary);transition:all .12s;}
+.chat-reaction:hover{background:var(--color-background-primary);}
+.chat-reaction.is-mine{background:rgba(60,52,137,.1);border-color:#3C3489;color:#3C3489;}
+.chat-msg-replies{margin-top:6px;background:transparent;border:none;color:#3C3489;font-size:12px;font-weight:500;cursor:pointer;padding:0;}
+:root.dark .chat-msg-replies{color:#A8A1F0;}
+.chat-msg-replies:hover{text-decoration:underline;}
+.chat-msg-cardlinks{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.chat-msg-cardlink{background:rgba(34,197,94,.1);color:#15803d;font-size:11px;font-weight:500;padding:2px 8px;border-radius:5px;}
+:root.dark .chat-msg-cardlink{background:rgba(34,197,94,.18);color:#86efac;}
+.chat-msg-actions{position:absolute;top:-12px;right:0;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:2px;display:none;gap:1px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.chat-msg:hover .chat-msg-actions{display:flex;}
+.chat-msg-actions button{background:transparent;border:none;cursor:pointer;font-size:13px;padding:5px 8px;border-radius:5px;color:var(--color-text-secondary);}
+.chat-msg-actions button:hover{background:var(--color-background-secondary);color:var(--color-text-primary);}
+
+/* Composer */
+.chat-composer{padding:12px 20px 16px;border-top:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);flex-shrink:0;}
+.chat-composer-input{width:100%;padding:10px 12px;border:1px solid var(--color-border-secondary);border-radius:9px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:13.5px;line-height:1.45;resize:vertical;outline:none;min-height:48px;max-height:160px;transition:border-color .12s;}
+.chat-composer-input:focus{border-color:var(--color-text-primary);}
+.chat-composer-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:7px;}
+.chat-composer-hint{font-size:11px;color:var(--color-text-tertiary);}
+.chat-composer-send{background:var(--color-invert-bg);color:var(--color-invert-text);border:none;border-radius:7px;padding:7px 14px;font-size:12.5px;font-weight:500;cursor:pointer;font-family:var(--font-sans);transition:background .12s;}
+.chat-composer-send:hover{background:var(--color-invert-bg-hover);}
+
+/* Reaction picker popover */
+.chat-react-pop{position:fixed;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:4px;display:flex;gap:2px;box-shadow:0 4px 14px rgba(0,0,0,.12);z-index:1000;}
+.chat-react-pop button{background:transparent;border:none;cursor:pointer;font-size:16px;padding:5px 7px;border-radius:5px;}
+.chat-react-pop button:hover{background:var(--color-background-secondary);}
+
+/* Thread overlay */
+.chat-thread-ov{position:fixed;inset:0;background:rgba(15,15,30,.45);z-index:9999;display:flex;justify-content:flex-end;}
+.chat-thread-pane{width:480px;max-width:96vw;height:100%;background:var(--color-background-primary);display:flex;flex-direction:column;box-shadow:-12px 0 30px rgba(0,0,0,.18);}
+.chat-thread-h{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:0.5px solid var(--color-border-tertiary);}
+.chat-thread-h h3{margin:0;font-size:15px;font-weight:600;color:var(--color-text-primary);}
+.chat-thread-h button{background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--color-text-secondary);width:32px;height:32px;border-radius:6px;}
+.chat-thread-h button:hover{background:var(--color-background-secondary);}
+.chat-thread-body{flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:12px;}
+.chat-thread-divider{font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;text-align:center;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);}
+.chat-thread-composer{padding:10px 18px 14px;border-top:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:6px;}
+.chat-thread-composer .chat-composer-send{align-self:flex-end;}
+
+/* Mestre Kan modal */
+.chat-kan-ov{position:fixed;inset:0;background:rgba(15,15,30,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;}
+.chat-kan-pane{background:var(--color-background-primary);border-radius:14px;width:560px;max-width:96vw;max-height:80vh;overflow-y:auto;padding:20px 22px;box-shadow:0 22px 60px rgba(0,0,0,.28);}
+.chat-kan-h{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.chat-kan-h h3{margin:0;font-size:16px;font-weight:600;color:var(--color-text-primary);flex:1;}
+.chat-kan-options{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.chat-kan-opt{text-align:left;background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:9px;padding:11px 14px;cursor:pointer;font-family:var(--font-sans);transition:border-color .12s,transform .12s;display:flex;flex-direction:column;gap:3px;}
+.chat-kan-opt:hover{border-color:#3C3489;transform:translateY(-1px);}
+.chat-kan-opt strong{font-size:13px;color:var(--color-text-primary);font-weight:600;}
+.chat-kan-opt span{font-size:11.5px;color:var(--color-text-tertiary);line-height:1.45;}
+.chat-kan-out{min-height:40px;}
+
+/* Loading inline */
+.chat-loading{padding:48px;text-align:center;color:var(--color-text-tertiary);font-size:13px;}
 </style>
 </head>
 <body>
@@ -5019,6 +5131,8 @@ body.density-compact .col{padding:7px;}
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></span><span>OKRs</span></button>
     <button class="sb-item" id="sb-registry" onclick="switchTab('registry')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5.5 4V2.8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V4"/><rect x="2" y="4" width="12" height="9.2" rx="1.4"/><path d="M2 8h12"/><path d="M7 7.5v1"/><path d="M9 7.5v1"/></svg></span><span>Synconnect</span></button>
+    <button class="sb-item" id="sb-chat" onclick="switchTab('chat')">
+      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1 -1.5 1.5h-6L4 14v-2H3a1.5 1.5 0 0 1 -1.5 -1.5v-5.5A1.5 1.5 0 0 1 3 3.5z"/><line x1="5" y1="6.4" x2="11" y2="6.4"/><line x1="5" y1="8.7" x2="9" y2="8.7"/></svg></span><span>Chat</span><span class="sb-chat-badge" id="sb-chat-badge" style="display:none;"></span></button>
     <div id="sb-views-section" style="display:none;">
       <div class="sb-divider"></div>
       <div class="sb-section-label" id="sb-current-board"></div>
@@ -5168,6 +5282,10 @@ body.density-compact .col{padding:7px;}
 
   <div id="view-zai" style="display:none;">
     <div id="zai-root"></div>
+  </div>
+
+  <div id="view-chat" style="display:none;">
+    <div id="chat-root"></div>
   </div>
 
   <div id="view-dojo" style="display:none;">
@@ -16137,6 +16255,7 @@ function switchTab(tab) {
   document.getElementById('view-registry').style.display  = tab==='registry'  ? '' : 'none';
   document.getElementById('view-okrs').style.display      = tab==='okrs'      ? '' : 'none';
   document.getElementById('view-zai').style.display       = tab==='zai'       ? '' : 'none';
+  document.getElementById('view-chat').style.display      = tab==='chat'      ? '' : 'none';
   document.getElementById('view-dojo').style.display      = tab==='dojo'      ? '' : 'none';
   document.getElementById('view-settings').style.display  = tab==='settings'  ? '' : 'none';
   document.getElementById('view-kanban').style.display    = tab==='kanban'    ? '' : 'none';
@@ -16153,7 +16272,7 @@ function switchTab(tab) {
   // Sidebar — seção de visões só aparece quando está dentro de um board
   const viewsSec = document.getElementById('sb-views-section');
   if (viewsSec) viewsSec.style.display = inBoard ? '' : 'none';
-  ['home','boards','gallery','canvas','registry','okrs','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker'].forEach(t=>{
+  ['home','boards','gallery','canvas','registry','okrs','chat','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker'].forEach(t=>{
     const el = document.getElementById('sb-'+t);
     if (el) el.classList.toggle('active', tab===t);
   });
@@ -16165,6 +16284,9 @@ function switchTab(tab) {
   if (tab==='registry') renderRegistry();
   if (tab==='okrs') renderOKRs();
   if (tab==='zai') renderZaiHub();
+  if (tab==='chat') renderChat();
+  // Limpa subscription realtime do chat ao sair da aba (pra não vazar conexões)
+  if (tab !== 'chat' && typeof _chatUnsubscribeRealtime === 'function') _chatUnsubscribeRealtime();
   if (tab==='dojo') renderDojo();
   if (tab==='settings') renderSettings();
   if (tab==='table') renderTableView();
@@ -37824,6 +37946,937 @@ if (getStorageMode() === 'supabase') {
 if (typeof _initVoiceCards === 'function') _initVoiceCards();
 // Inicializa Pomodoro Dojo (FAB + overlay)
 if (typeof _initPomo === 'function') _initPomo();
+
+// ══════════════════════════════════════════════════════════════════════
+// ░░ MÓDULO CHAT — Slack-like com conversão pra card e Mestre Kan ░░
+// ══════════════════════════════════════════════════════════════════════
+// Disponível pra Faixa Roxa+ (workspace owner). Outros membros do board
+// que o owner pagar ganham acesso aos canais de board (sem precisar pagar).
+//
+// Estado:
+//   _chatState = {
+//     channels: [...],         // canais do user
+//     currentChannelId: null,  // canal selecionado
+//     messages: [...],         // mensagens do canal atual
+//     openThreadParentId: null,// se há thread aberta
+//     realtimeChannel: null,   // subscription do supabase
+//     userMap: {},             // cache user_id -> {name, avatar}
+//   }
+// ══════════════════════════════════════════════════════════════════════
+
+let _chatState = {
+  channels: [],
+  currentChannelId: null,
+  messages: [],
+  openThreadParentId: null,
+  realtimeChannel: null,
+  userMap: {},
+  loading: false,
+  upgradeNeeded: false,
+};
+
+// Helper: cliente Supabase (usa o isolado quando possível)
+async function _chatGetClient() {
+  if (typeof _getOrCreateIsolatedClient === 'function') {
+    const c = await _getOrCreateIsolatedClient();
+    if (c) return c;
+  }
+  return _ensureSupaClient && _ensureSupaClient();
+}
+
+// Helper: user pode usar chat? (Faixa Roxa+ ativa)
+function _chatUserCanCreate() {
+  const code = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+  return code === 'faixa_roxa' || code === 'faixa_preta';
+}
+
+// ── Render principal ─────────────────────────────────────────────────
+async function renderChat() {
+  const root = document.getElementById('chat-root');
+  if (!root) return;
+  if (getStorageMode() !== 'supabase' || !supaUser) {
+    root.innerHTML = `
+      <div style="padding:48px 24px;text-align:center;color:var(--color-text-secondary);">
+        <div style="font-size:42px;margin-bottom:12px;">💬</div>
+        <h2 style="margin:0 0 8px;font-size:20px;color:var(--color-text-primary);">Chat requer modo Cloud</h2>
+        <p style="margin:0 0 16px;font-size:13px;line-height:1.6;max-width:380px;margin-left:auto;margin-right:auto;">
+          O chat funciona em tempo real com Supabase. Faça login na sua conta pra começar.
+        </p>
+        <button class="btn-s" onclick="switchTab('settings');setSettingsTab('sync');">Configurar conta</button>
+      </div>`;
+    return;
+  }
+
+  // Carrega lista de canais (RLS filtra os que o user pode ver)
+  if (!_chatState.loading) {
+    _chatState.loading = true;
+    root.innerHTML = _chatRenderShell([]) + _chatRenderLoadingOverlay();
+    try {
+      await _chatLoadChannels();
+      // Auto-cria canal #geral se workspace owner Roxa+ e não tem nenhum
+      if (_chatUserCanCreate() && _chatState.channels.length === 0) {
+        await _chatEnsureGeralChannel();
+        await _chatLoadChannels();
+      }
+      // Auto-cria canais de board (1 por board do owner com membros)
+      if (_chatUserCanCreate()) {
+        await _chatEnsureBoardChannels();
+        await _chatLoadChannels();
+      }
+      _chatState.loading = false;
+    } catch (e) {
+      console.error('[chat] load channels:', e);
+      _chatState.loading = false;
+      root.innerHTML = `<div style="padding:48px 24px;text-align:center;color:var(--color-text-secondary);">
+        <div style="font-size:42px;margin-bottom:12px;">⚠</div>
+        <h2 style="margin:0 0 8px;font-size:18px;color:var(--color-text-primary);">Não consegui carregar o chat</h2>
+        <p style="margin:0 0 14px;font-size:13px;line-height:1.6;">${_esc(e?.message || String(e))}</p>
+        <p style="margin:0 0 16px;font-size:11.5px;color:var(--color-text-tertiary);">
+          Se as tabelas <code>chat_*</code> não existem ainda, rode a migration <code>MIGRATION_CHAT_MODULE.sql</code> no Supabase SQL Editor.
+        </p>
+        <button class="btn-c" onclick="renderChat()">Tentar de novo</button>
+      </div>`;
+      return;
+    }
+  }
+
+  // Decide qual canal selecionar
+  if (!_chatState.currentChannelId && _chatState.channels.length) {
+    _chatState.currentChannelId = _chatState.channels[0].id;
+  }
+
+  root.innerHTML = _chatRenderShell(_chatState.channels);
+
+  // Se não tem canal selecionado e não pode criar, mostra estado vazio
+  if (!_chatState.currentChannelId) {
+    document.getElementById('chat-main-pane').innerHTML = _chatRenderEmptyState();
+    return;
+  }
+
+  // Carrega mensagens do canal selecionado
+  await _chatLoadMessages(_chatState.currentChannelId);
+  _chatRenderMessagesView();
+  _chatSubscribeRealtime(_chatState.currentChannelId);
+  _chatMarkRead(_chatState.currentChannelId);
+}
+
+// Shell da view: 2 colunas (canais + main pane)
+function _chatRenderShell(channels) {
+  const ws = channels.filter(c => c.type === 'workspace');
+  const bd = channels.filter(c => c.type === 'board');
+  const dm = channels.filter(c => c.type === 'dm');
+  const canCreate = _chatUserCanCreate();
+
+  const channelItem = (ch) => {
+    const isCurrent = ch.id === _chatState.currentChannelId;
+    const unread = ch._unread || 0;
+    const prefix = ch.type === 'dm' ? '@' : '#';
+    return `<button class="chat-ch${isCurrent?' is-current':''}${unread?' has-unread':''}" onclick="_chatSelectChannel('${ch.id}')">
+      <span class="chat-ch-prefix">${prefix}</span>
+      <span class="chat-ch-name">${_esc(ch.name)}</span>
+      ${unread ? `<span class="chat-ch-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
+    </button>`;
+  };
+
+  const upgradeNudge = !canCreate ? `
+    <div style="padding:14px 12px;margin:12px 8px 4px;background:linear-gradient(135deg,#3C3489,#1a1a2e);color:#fff;border-radius:9px;font-size:11.5px;line-height:1.5;">
+      <div style="font-weight:600;margin-bottom:4px;">Chat requer Faixa Roxa+</div>
+      <div style="opacity:.85;margin-bottom:8px;">Você pode participar dos canais que te convidaram, mas precisa do Roxa pra criar canais e DMs.</div>
+      <button onclick="_goToPlanTab && _goToPlanTab()" style="padding:5px 10px;background:#fff;color:#3C3489;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;">Ver planos →</button>
+    </div>
+  ` : '';
+
+  return `
+    <div class="chat-layout">
+      <aside class="chat-sidebar">
+        <div class="chat-sb-h">
+          <h2>Chat</h2>
+          <p>Conversa em tempo real, vira card num clique.</p>
+        </div>
+        ${upgradeNudge}
+        <div class="chat-sb-section">
+          <div class="chat-sb-section-h">
+            <span>Canais do workspace</span>
+            ${canCreate ? `<button class="chat-sb-add" onclick="_chatCreateChannelFlow('workspace')" title="Criar canal">+</button>` : ''}
+          </div>
+          ${ws.length ? ws.map(channelItem).join('') : '<div class="chat-sb-empty">Nenhum canal ainda</div>'}
+        </div>
+        <div class="chat-sb-section">
+          <div class="chat-sb-section-h">
+            <span>Canais de board</span>
+          </div>
+          ${bd.length ? bd.map(channelItem).join('') : '<div class="chat-sb-empty">Cada board tem seu canal automático</div>'}
+        </div>
+        <div class="chat-sb-section">
+          <div class="chat-sb-section-h">
+            <span>Mensagens diretas</span>
+            ${canCreate ? `<button class="chat-sb-add" onclick="_chatCreateDMFlow()" title="Nova DM">+</button>` : ''}
+          </div>
+          ${dm.length ? dm.map(channelItem).join('') : '<div class="chat-sb-empty">Sem DMs ainda</div>'}
+        </div>
+      </aside>
+      <main class="chat-main" id="chat-main-pane">
+        <div class="chat-loading">Carregando…</div>
+      </main>
+    </div>
+  `;
+}
+
+function _chatRenderLoadingOverlay() {
+  return `<div style="position:absolute;inset:0;background:rgba(255,255,255,.55);z-index:10;display:flex;align-items:center;justify-content:center;font-size:12.5px;color:var(--color-text-secondary);">Carregando chat…</div>`;
+}
+
+function _chatRenderEmptyState() {
+  const canCreate = _chatUserCanCreate();
+  return `
+    <div style="padding:64px 32px;text-align:center;color:var(--color-text-secondary);">
+      <div style="font-size:48px;margin-bottom:14px;">💬</div>
+      <h2 style="margin:0 0 8px;font-size:22px;color:var(--color-text-primary);font-weight:600;">Bem-vindo ao Chat</h2>
+      <p style="margin:0 0 18px;font-size:13px;line-height:1.6;max-width:420px;margin-left:auto;margin-right:auto;">
+        ${canCreate
+          ? 'Vamos criar o primeiro canal pra você começar. Cada board ganha um canal automático conforme você convida pessoas.'
+          : 'Você ainda não tem acesso a nenhum canal. Quando alguém te convidar pra um board, o canal aparecerá aqui.'}
+      </p>
+      ${canCreate ? `<button class="btn-s" onclick="_chatCreateChannelFlow('workspace')">+ Criar primeiro canal</button>` : ''}
+    </div>
+  `;
+}
+
+// ── Carrega canais ───────────────────────────────────────────────────
+async function _chatLoadChannels() {
+  const c = await _chatGetClient();
+  if (!c) throw new Error('Sem cliente Supabase');
+  // Lista canais (RLS já filtra os que o user pode ver)
+  const { data, error } = await c
+    .from('chat_channels')
+    .select('*')
+    .order('type', { ascending: true })
+    .order('name', { ascending: true });
+  if (error) throw error;
+  _chatState.channels = (data || []).map(ch => ({ ...ch, _unread: 0 }));
+
+  // Carrega last_read pra calcular unread
+  try {
+    const { data: reads } = await c.from('chat_reads').select('channel_id,last_read_at').eq('user_id', supaUser.id);
+    const readMap = {};
+    (reads || []).forEach(r => { readMap[r.channel_id] = new Date(r.last_read_at).getTime(); });
+    // Pra cada canal, conta msgs depois do last_read (count via head request)
+    await Promise.all(_chatState.channels.map(async (ch) => {
+      try {
+        const lastRead = readMap[ch.id] ? new Date(readMap[ch.id]).toISOString() : null;
+        let q = c.from('chat_messages').select('id', { count: 'exact', head: true }).eq('channel_id', ch.id).is('parent_id', null);
+        if (lastRead) q = q.gt('created_at', lastRead);
+        const { count } = await q;
+        ch._unread = count || 0;
+      } catch(_) {}
+    }));
+  } catch(_) {}
+
+  _chatUpdateSidebarBadge();
+}
+
+// Garante que existe canal #geral pra workspace owner (Roxa+)
+async function _chatEnsureGeralChannel() {
+  const c = await _chatGetClient();
+  if (!c) return;
+  const { data: existing } = await c.from('chat_channels')
+    .select('id').eq('workspace_owner', supaUser.id).eq('type', 'workspace').eq('name', 'geral').maybeSingle();
+  if (existing) return;
+  await c.from('chat_channels').insert({
+    workspace_owner: supaUser.id,
+    type: 'workspace',
+    name: 'geral',
+    description: 'Canal padrão pra conversa do time.',
+    created_by: supaUser.id,
+  });
+  // Adiciona o owner como membro explícito
+  const { data: ch2 } = await c.from('chat_channels')
+    .select('id').eq('workspace_owner', supaUser.id).eq('type', 'workspace').eq('name', 'geral').maybeSingle();
+  if (ch2) {
+    await c.from('chat_channel_members').upsert({ channel_id: ch2.id, user_id: supaUser.id });
+  }
+}
+
+// Garante 1 canal por board do owner (assim que o board tem ≥1 membro)
+async function _chatEnsureBoardChannels() {
+  const c = await _chatGetClient();
+  if (!c) return;
+  // Lista boards do owner que tenham membros
+  const ownedBoards = Object.entries(allBoards || {})
+    .filter(([id, b]) => b && b.owner_id === supaUser.id && id !== UNIFIED_BOARD_ID);
+  for (const [boardId, board] of ownedBoards) {
+    try {
+      const { data: existing } = await c.from('chat_channels')
+        .select('id').eq('workspace_owner', supaUser.id).eq('board_id', boardId).maybeSingle();
+      if (existing) continue;
+      const channelName = (board.name || 'board').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'board';
+      await c.from('chat_channels').insert({
+        workspace_owner: supaUser.id,
+        type: 'board',
+        board_id: boardId,
+        name: channelName,
+        description: 'Canal automático do board "' + (board.name || '') + '".',
+        created_by: supaUser.id,
+      });
+    } catch (e) {
+      // Conflito (já existia) ou outro erro — ignora silenciosamente
+      console.debug('[chat] ensure board channel:', e?.message);
+    }
+  }
+}
+
+// Atualiza badge geral no sidebar (soma de unread de todos canais)
+function _chatUpdateSidebarBadge() {
+  const total = _chatState.channels.reduce((s, ch) => s + (ch._unread || 0), 0);
+  const badge = document.getElementById('sb-chat-badge');
+  if (!badge) return;
+  if (total > 0) {
+    badge.textContent = total > 99 ? '99+' : String(total);
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ── Selecionar canal ─────────────────────────────────────────────────
+async function _chatSelectChannel(channelId) {
+  if (_chatState.currentChannelId === channelId) return;
+  _chatState.currentChannelId = channelId;
+  _chatState.openThreadParentId = null;
+  _chatState.messages = [];
+  // Re-render shell pra atualizar destaque
+  document.getElementById('chat-root').innerHTML = _chatRenderShell(_chatState.channels);
+  await _chatLoadMessages(channelId);
+  _chatRenderMessagesView();
+  _chatSubscribeRealtime(channelId);
+  _chatMarkRead(channelId);
+}
+
+// ── Carrega mensagens ────────────────────────────────────────────────
+async function _chatLoadMessages(channelId) {
+  const c = await _chatGetClient();
+  if (!c) return;
+  // Pega últimas 100 mensagens "raiz" (parent_id IS NULL)
+  const { data, error } = await c.from('chat_messages')
+    .select('*')
+    .eq('channel_id', channelId)
+    .is('parent_id', null)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) {
+    console.error('[chat] load messages:', error);
+    _chatState.messages = [];
+    return;
+  }
+  _chatState.messages = (data || []).reverse(); // ordem cronológica
+
+  // Carrega reações de todas mensagens em batch
+  if (_chatState.messages.length) {
+    const ids = _chatState.messages.map(m => m.id);
+    const { data: reactions } = await c.from('chat_reactions').select('*').in('message_id', ids);
+    const reactionMap = {};
+    (reactions || []).forEach(r => {
+      if (!reactionMap[r.message_id]) reactionMap[r.message_id] = {};
+      const k = r.emoji;
+      if (!reactionMap[r.message_id][k]) reactionMap[r.message_id][k] = [];
+      reactionMap[r.message_id][k].push(r.user_id);
+    });
+    _chatState.messages.forEach(m => { m._reactions = reactionMap[m.id] || {}; });
+
+    // Conta replies de threads
+    const { data: replies } = await c.from('chat_messages')
+      .select('parent_id', { count: 'exact' })
+      .in('parent_id', ids).is('deleted_at', null);
+    const replyCount = {};
+    (replies || []).forEach(r => { replyCount[r.parent_id] = (replyCount[r.parent_id] || 0) + 1; });
+    _chatState.messages.forEach(m => { m._replyCount = replyCount[m.id] || 0; });
+  }
+
+  // Hidrata profiles dos autores
+  await _chatHydrateUsers(_chatState.messages.map(m => m.user_id).filter(Boolean));
+}
+
+async function _chatHydrateUsers(userIds) {
+  const missing = [...new Set(userIds)].filter(uid => uid && !_chatState.userMap[uid]);
+  if (missing.length === 0) return;
+  const c = await _chatGetClient();
+  if (!c) return;
+  try {
+    const { data } = await c.from('profiles').select('id,full_name,avatar_url').in('id', missing);
+    (data || []).forEach(p => {
+      _chatState.userMap[p.id] = { name: p.full_name || 'Usuário', avatar: p.avatar_url || null };
+    });
+    // Garante que falta = pelo menos placeholder
+    missing.forEach(uid => {
+      if (!_chatState.userMap[uid]) _chatState.userMap[uid] = { name: 'Usuário', avatar: null };
+    });
+  } catch(e) {
+    missing.forEach(uid => { _chatState.userMap[uid] = { name: 'Usuário', avatar: null }; });
+  }
+}
+
+// ── Render painel central com mensagens ──────────────────────────────
+function _chatRenderMessagesView() {
+  const pane = document.getElementById('chat-main-pane');
+  if (!pane) return;
+  const ch = _chatState.channels.find(c => c.id === _chatState.currentChannelId);
+  if (!ch) { pane.innerHTML = _chatRenderEmptyState(); return; }
+
+  const headerHTML = `
+    <div class="chat-channel-h">
+      <div class="chat-channel-h-l">
+        <span class="chat-channel-h-prefix">${ch.type === 'dm' ? '@' : '#'}</span>
+        <h3 class="chat-channel-h-name">${_esc(ch.name)}</h3>
+        ${ch.description ? `<span class="chat-channel-h-desc"> · ${_esc(ch.description)}</span>` : ''}
+      </div>
+      <div class="chat-channel-h-r">
+        <button class="chat-channel-h-action" onclick="_chatMestreKanModal()" title="Mestre Kan analisa a conversa">
+          <img src="mestre_kan_avatar.png?v=6" class="kan-avatar xs" alt="" style="width:18px;height:18px;"/>
+          <span>Mestre Kan</span>
+        </button>
+      </div>
+    </div>`;
+
+  const messagesHTML = _chatState.messages.length
+    ? _chatState.messages.map(_chatRenderMessage).join('')
+    : `<div class="chat-msgs-empty">Nenhuma mensagem por aqui ainda. <strong>Manda a primeira</strong> aí embaixo.</div>`;
+
+  pane.innerHTML = `
+    ${headerHTML}
+    <div class="chat-msgs" id="chat-msgs">${messagesHTML}</div>
+    <div class="chat-composer">
+      <textarea id="chat-composer-input" class="chat-composer-input" rows="2" placeholder="Mensagem em #${_esc(ch.name)}… (use /kanban pra criar card · /resumo pra Mestre Kan resumir)" onkeydown="_chatComposerKeydown(event)"></textarea>
+      <div class="chat-composer-actions">
+        <span class="chat-composer-hint">Enter envia · Shift+Enter quebra linha</span>
+        <button class="chat-composer-send" onclick="_chatSendFromComposer()">Enviar →</button>
+      </div>
+    </div>
+  `;
+  _chatScrollToBottom();
+}
+
+function _chatRenderMessage(m, isThreadReply) {
+  const u = _chatState.userMap[m.user_id] || { name: 'Usuário', avatar: null };
+  const time = _chatFormatTime(m.created_at);
+  const avatar = u.avatar
+    ? `<img src="${_esc(u.avatar)}" class="chat-msg-avatar" alt=""/>`
+    : `<span class="chat-msg-avatar" style="background:${avatarColor(u.name)};">${_esc(avatarInitials(u.name))}</span>`;
+
+  // Reações agrupadas
+  const reactionsHTML = (m._reactions && Object.keys(m._reactions).length)
+    ? '<div class="chat-msg-reactions">' + Object.entries(m._reactions).map(([emoji, users]) => {
+        const mine = users.includes(supaUser.id);
+        return `<button class="chat-reaction${mine?' is-mine':''}" onclick="_chatToggleReaction('${m.id}','${_esc(emoji)}')">${_esc(emoji)} ${users.length}</button>`;
+      }).join('') + '</div>'
+    : '';
+
+  const replyBadge = (m._replyCount > 0 && !isThreadReply)
+    ? `<button class="chat-msg-replies" onclick="_chatOpenThread('${m.id}')">↳ ${m._replyCount} resposta${m._replyCount===1?'':'s'}</button>`
+    : '';
+
+  const cardLinksHTML = (m.card_links && m.card_links.length)
+    ? '<div class="chat-msg-cardlinks">' + m.card_links.map(cl =>
+        `<span class="chat-msg-cardlink" title="Card criado em ${_esc(cl.board_name||'')}">📋 ${_esc(cl.card_name || 'Card')}</span>`
+      ).join('') + '</div>'
+    : '';
+
+  const isMine = m.user_id === supaUser.id;
+  const editedTag = m.edited_at ? '<span class="chat-msg-edited">(editado)</span>' : '';
+
+  return `
+    <div class="chat-msg" data-msg-id="${m.id}">
+      ${avatar}
+      <div class="chat-msg-body">
+        <div class="chat-msg-h">
+          <span class="chat-msg-name">${_esc(u.name)}</span>
+          <span class="chat-msg-time">${time}</span>
+          ${editedTag}
+        </div>
+        <div class="chat-msg-text">${_chatRenderBody(m.body)}</div>
+        ${cardLinksHTML}
+        ${reactionsHTML}
+        ${replyBadge}
+        <div class="chat-msg-actions">
+          <button onclick="_chatPickReaction('${m.id}', this)" title="Reagir">😊</button>
+          <button onclick="_chatOpenThread('${m.id}')" title="Responder em thread">↳</button>
+          <button onclick="_chatVirarCardFromMessage('${m.id}')" title="Virar card">→ card</button>
+          ${isMine ? `<button onclick="_chatDeleteMessage('${m.id}')" title="Apagar">×</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Renderiza body com link, @mention e quebras de linha
+function _chatRenderBody(body) {
+  const esc = _esc(body || '');
+  // Links
+  let html = esc.replace(/\b(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" class="chat-link">$1</a>');
+  // @menções (simples — destaque visual; resolve user no futuro)
+  html = html.replace(/(^|\s)@([\w.\-]+)/g, '$1<span class="chat-mention">@$2</span>');
+  // Quebras de linha
+  html = html.replace(/\n/g, '<br/>');
+  return html;
+}
+
+function _chatFormatTime(iso) {
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) {
+      return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch(_) { return ''; }
+}
+
+function _chatScrollToBottom() {
+  const el = document.getElementById('chat-msgs');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+// ── Composer ─────────────────────────────────────────────────────────
+function _chatComposerKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    _chatSendFromComposer();
+  }
+}
+
+async function _chatSendFromComposer() {
+  const input = document.getElementById('chat-composer-input');
+  if (!input) return;
+  const text = (input.value || '').trim();
+  if (!text) return;
+
+  // Slash commands
+  if (text.startsWith('/kanban') || text.startsWith('/card')) {
+    const body = text.replace(/^\/(kanban|card)\s*/, '').trim();
+    if (body) await _chatVirarCardFromText(body);
+    input.value = '';
+    return;
+  }
+  if (text.startsWith('/resumo') || text.startsWith('/summary')) {
+    input.value = '';
+    return _chatMestreKanModal('summary');
+  }
+  if (text === '/help' || text === '/ajuda') {
+    input.value = '';
+    appAlert('Comandos do chat',
+      '<strong>/kanban [texto]</strong> · cria card a partir do texto<br/><strong>/resumo</strong> · Mestre Kan resume a conversa<br/><strong>/ajuda</strong> · esta lista',
+      { html: true, icon: '⌨' });
+    return;
+  }
+
+  // Envia mensagem normal
+  await _chatSendMessage(text);
+  input.value = '';
+}
+
+async function _chatSendMessage(body, parentId) {
+  const c = await _chatGetClient();
+  if (!c) return;
+  const channelId = _chatState.currentChannelId;
+  if (!channelId) return;
+  try {
+    const { error } = await c.from('chat_messages').insert({
+      channel_id: channelId,
+      user_id: supaUser.id,
+      parent_id: parentId || null,
+      body,
+      mentions: _chatExtractMentions(body),
+    });
+    if (error) throw error;
+    // Realtime cuida de adicionar — mas pra UX rápida, se não tiver realtime ativo, recarrega
+    if (!_chatState.realtimeChannel) {
+      await _chatLoadMessages(channelId);
+      _chatRenderMessagesView();
+    }
+  } catch(e) {
+    console.error('[chat] send:', e);
+    appAlert('Não consegui enviar', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+function _chatExtractMentions(body) {
+  // V1: extrai @nomes mas não resolve pra user_id ainda. Futuro: lookup em board_members.
+  const matches = (body || '').match(/@[\w.\-]+/g) || [];
+  return matches.map(m => m.slice(1));
+}
+
+// ── Realtime subscription ────────────────────────────────────────────
+function _chatSubscribeRealtime(channelId) {
+  // Desinscreve canal anterior
+  _chatUnsubscribeRealtime();
+  _chatGetClient().then(c => {
+    if (!c || !c.channel) return;
+    const sub = c.channel('chat-' + channelId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `channel_id=eq.${channelId}` }, (payload) => {
+        const m = payload.new;
+        if (!m || m.parent_id) return; // só mensagens raiz aqui
+        // Evita duplicar se já tava na lista
+        if (_chatState.messages.find(x => x.id === m.id)) return;
+        m._reactions = {};
+        m._replyCount = 0;
+        _chatState.messages.push(m);
+        _chatHydrateUsers([m.user_id]).then(() => _chatRenderMessagesView());
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_reactions' }, (payload) => {
+        const r = payload.new;
+        const msg = _chatState.messages.find(x => x.id === r.message_id);
+        if (!msg) return;
+        if (!msg._reactions) msg._reactions = {};
+        if (!msg._reactions[r.emoji]) msg._reactions[r.emoji] = [];
+        if (!msg._reactions[r.emoji].includes(r.user_id)) msg._reactions[r.emoji].push(r.user_id);
+        _chatRenderMessagesView();
+      })
+      .subscribe();
+    _chatState.realtimeChannel = sub;
+  });
+}
+
+function _chatUnsubscribeRealtime() {
+  if (_chatState.realtimeChannel) {
+    try { _chatState.realtimeChannel.unsubscribe(); } catch(_) {}
+    _chatState.realtimeChannel = null;
+  }
+}
+
+// ── Marca canal como lido ────────────────────────────────────────────
+async function _chatMarkRead(channelId) {
+  const c = await _chatGetClient();
+  if (!c) return;
+  try {
+    await c.from('chat_reads').upsert({
+      channel_id: channelId, user_id: supaUser.id, last_read_at: new Date().toISOString(),
+    });
+    const ch = _chatState.channels.find(x => x.id === channelId);
+    if (ch) ch._unread = 0;
+    _chatUpdateSidebarBadge();
+  } catch(_) {}
+}
+
+// ── Reações ──────────────────────────────────────────────────────────
+const _CHAT_REACT_PALETTE = ['👍','❤️','🎉','🚀','😂','🥋','✅','🤔'];
+
+function _chatPickReaction(messageId, btn) {
+  // Mostra mini-popover com palette
+  const existing = document.getElementById('chat-react-pop');
+  if (existing) existing.remove();
+  const pop = document.createElement('div');
+  pop.id = 'chat-react-pop';
+  pop.className = 'chat-react-pop';
+  pop.innerHTML = _CHAT_REACT_PALETTE.map(e => `<button onclick="_chatToggleReaction('${messageId}','${e}');document.getElementById('chat-react-pop')?.remove();">${e}</button>`).join('');
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = (r.left) + 'px';
+  pop.style.top = (r.top - 44) + 'px';
+  setTimeout(() => {
+    document.addEventListener('click', function _close(ev) {
+      if (!pop.contains(ev.target)) {
+        pop.remove();
+        document.removeEventListener('click', _close);
+      }
+    });
+  }, 50);
+}
+
+async function _chatToggleReaction(messageId, emoji) {
+  const c = await _chatGetClient();
+  if (!c) return;
+  // Se já reagiu, remove. Senão, adiciona.
+  const msg = _chatState.messages.find(x => x.id === messageId);
+  const mine = msg?._reactions?.[emoji]?.includes(supaUser.id);
+  try {
+    if (mine) {
+      await c.from('chat_reactions').delete()
+        .eq('message_id', messageId).eq('user_id', supaUser.id).eq('emoji', emoji);
+      // Update local
+      msg._reactions[emoji] = msg._reactions[emoji].filter(u => u !== supaUser.id);
+      if (msg._reactions[emoji].length === 0) delete msg._reactions[emoji];
+    } else {
+      await c.from('chat_reactions').insert({ message_id: messageId, user_id: supaUser.id, emoji });
+      if (!msg._reactions) msg._reactions = {};
+      if (!msg._reactions[emoji]) msg._reactions[emoji] = [];
+      msg._reactions[emoji].push(supaUser.id);
+    }
+    _chatRenderMessagesView();
+  } catch(e) {
+    console.error('[chat] react:', e);
+  }
+}
+
+// ── Threads ──────────────────────────────────────────────────────────
+async function _chatOpenThread(parentId) {
+  const c = await _chatGetClient();
+  if (!c) return;
+  const parent = _chatState.messages.find(m => m.id === parentId);
+  if (!parent) return;
+  const { data: replies } = await c.from('chat_messages')
+    .select('*').eq('parent_id', parentId).is('deleted_at', null).order('created_at', { ascending: true });
+  await _chatHydrateUsers((replies || []).map(r => r.user_id));
+
+  // Modal lateral simples (overlay)
+  const ov = document.createElement('div');
+  ov.className = 'chat-thread-ov';
+  ov.id = 'chat-thread-ov';
+  ov.innerHTML = `
+    <div class="chat-thread-pane">
+      <div class="chat-thread-h">
+        <h3>Thread</h3>
+        <button onclick="document.getElementById('chat-thread-ov').remove()">×</button>
+      </div>
+      <div class="chat-thread-body">
+        ${_chatRenderMessage(parent, true)}
+        <div class="chat-thread-divider">${(replies||[]).length} resposta${(replies||[]).length===1?'':'s'}</div>
+        ${(replies || []).map(r => _chatRenderMessage(r, true)).join('')}
+      </div>
+      <div class="chat-thread-composer">
+        <textarea id="chat-thread-input" class="chat-composer-input" rows="2" placeholder="Responder na thread…" onkeydown="_chatThreadKeydown(event,'${parentId}')"></textarea>
+        <button class="chat-composer-send" onclick="_chatSendThreadReply('${parentId}')">Responder</button>
+      </div>
+    </div>
+  `;
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+}
+
+function _chatThreadKeydown(e, parentId) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _chatSendThreadReply(parentId); }
+}
+
+async function _chatSendThreadReply(parentId) {
+  const inp = document.getElementById('chat-thread-input');
+  if (!inp) return;
+  const text = (inp.value || '').trim();
+  if (!text) return;
+  inp.value = '';
+  await _chatSendMessage(text, parentId);
+  document.getElementById('chat-thread-ov')?.remove();
+  _chatOpenThread(parentId); // re-abre com a reply incluída
+}
+
+// ── Apagar mensagem (soft delete) ────────────────────────────────────
+async function _chatDeleteMessage(messageId) {
+  const ok = await appConfirm('Apagar mensagem', 'Esta mensagem será removida do chat. Tem certeza?', { okLabel: 'Apagar', danger: true });
+  if (!ok) return;
+  const c = await _chatGetClient();
+  if (!c) return;
+  try {
+    await c.from('chat_messages').update({ deleted_at: new Date().toISOString(), body: '_(mensagem removida)_' }).eq('id', messageId);
+    _chatState.messages = _chatState.messages.filter(m => m.id !== messageId);
+    _chatRenderMessagesView();
+  } catch(e) { console.error(e); }
+}
+
+// ── Criar canal (workspace) ──────────────────────────────────────────
+async function _chatCreateChannelFlow(type) {
+  if (!_chatUserCanCreate()) {
+    appAlert('Faixa Roxa+ requerida', 'Criar canais é exclusivo das Faixas Roxa e Preta. Quer ver os planos?', { icon: '🔒' });
+    return;
+  }
+  const name = await appPrompt('Novo canal', {
+    icon: '#',
+    message: 'Use letras minúsculas, sem espaço. Ex: vendas, marketing-2026.',
+    placeholder: 'nome-do-canal',
+    okLabel: 'Criar canal',
+  });
+  if (!name) return;
+  const cleanName = name.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
+  if (!cleanName) { appAlert('Nome inválido', 'Use letras minúsculas, números e hífens.', { icon: '⚠️' }); return; }
+  const c = await _chatGetClient();
+  try {
+    const { data, error } = await c.from('chat_channels').insert({
+      workspace_owner: supaUser.id,
+      type: 'workspace',
+      name: cleanName,
+      created_by: supaUser.id,
+    }).select().single();
+    if (error) throw error;
+    // Adiciona owner como membro
+    await c.from('chat_channel_members').upsert({ channel_id: data.id, user_id: supaUser.id });
+    _chatState.currentChannelId = data.id;
+    await _chatLoadChannels();
+    renderChat();
+  } catch(e) { appAlert('Não consegui criar', e?.message || String(e), { icon: '⚠️' }); }
+}
+
+// ── Criar DM ─────────────────────────────────────────────────────────
+async function _chatCreateDMFlow() {
+  if (!_chatUserCanCreate()) {
+    appAlert('Faixa Roxa+ requerida', 'DMs são exclusivas das Faixas Roxa e Preta.', { icon: '🔒' });
+    return;
+  }
+  // Lista membros dos boards do user
+  const c = await _chatGetClient();
+  try {
+    const ownedBoardIds = Object.keys(allBoards||{}).filter(id => allBoards[id].owner_id === supaUser.id && id !== UNIFIED_BOARD_ID);
+    const { data: members } = await c.from('board_members').select('user_id').in('board_id', ownedBoardIds);
+    const uniqueIds = [...new Set((members||[]).map(m => m.user_id).filter(uid => uid !== supaUser.id))];
+    if (!uniqueIds.length) {
+      appAlert('Sem ninguém pra DM', 'Convide alguém pros seus boards primeiro. Depois você pode mandar DM.', { icon: '👥' });
+      return;
+    }
+    await _chatHydrateUsers(uniqueIds);
+    const choices = uniqueIds.map(uid => ({
+      id: uid,
+      label: _chatState.userMap[uid]?.name || 'Usuário',
+      icon: _chatState.userMap[uid]?.avatar ? '🧑' : '👤',
+    }));
+    const targetId = await appChoice('DM com quem?', choices, { icon: '@', message: 'Escolha quem vai conversar com você.', allowClear: false });
+    if (!targetId || targetId === '__clear__') return;
+
+    // Ordena pra UNIQUE constraint
+    const [a, b] = [supaUser.id, targetId].sort();
+    const targetName = _chatState.userMap[targetId]?.name || 'DM';
+    const { data, error } = await c.from('chat_channels').insert({
+      workspace_owner: supaUser.id, type: 'dm', dm_user_a: a, dm_user_b: b, name: 'dm-' + targetName.slice(0,20).toLowerCase().replace(/\s+/g,'-'), created_by: supaUser.id,
+    }).select().single();
+    if (error && !String(error.message||'').includes('duplicate')) throw error;
+    if (data) {
+      _chatState.currentChannelId = data.id;
+      await _chatLoadChannels();
+      renderChat();
+    } else {
+      // Já existia — busca e seleciona
+      const { data: ex } = await c.from('chat_channels').select('id').eq('type','dm').eq('dm_user_a', a).eq('dm_user_b', b).maybeSingle();
+      if (ex) { _chatState.currentChannelId = ex.id; renderChat(); }
+    }
+  } catch(e) { appAlert('Não consegui criar DM', e?.message || String(e), { icon: '⚠️' }); }
+}
+
+// ── Virar card a partir de mensagem ─────────────────────────────────
+async function _chatVirarCardFromMessage(messageId) {
+  const m = _chatState.messages.find(x => x.id === messageId);
+  if (!m) return;
+  await _chatVirarCardFromText(m.body, messageId);
+}
+
+async function _chatVirarCardFromText(text, sourceMessageId) {
+  // Lista boards do user pra escolher
+  const ownedBoards = Object.entries(allBoards||{})
+    .filter(([id, b]) => b && b.owner_id === supaUser.id && id !== UNIFIED_BOARD_ID);
+  if (!ownedBoards.length) {
+    appAlert('Sem boards', 'Crie um board primeiro.', { icon: '⚠️' });
+    return;
+  }
+  const choices = ownedBoards.map(([id, b]) => ({ id, label: b.name || 'Board', icon: b.icon || '▤' }));
+  const boardId = await appChoice('Virar card em qual board?', choices, { icon: '→', allowClear: false });
+  if (!boardId || boardId === '__clear__') return;
+  const board = allBoards[boardId];
+  if (!board) return;
+
+  // Cria card direto na 1ª coluna (planejado/todo/etc)
+  const firstCol = (board.COLS && board.COLS[0]) || { id: 'todo' };
+  const cardName = (text || '').slice(0, 80);
+  const cardDesc = text + '\n\n_Criado a partir do chat._';
+  const cardId = (board.nCard || 1);
+  board.cards = board.cards || [];
+  const newCard = {
+    id: cardId, name: cardName, priority: 'media', col: firstCol.id, tagIds: [],
+    threads: [{ id: Date.now(), text: cardDesc, date: new Date().toISOString(), type: 'auto' }],
+    attachments: [], subtasks: [], deadline: null,
+    createdAt: new Date().toISOString(), doneAt: null, responsavel: null, customFieldValues: {},
+  };
+  board.cards.push(newCard);
+  board.nCard = cardId + 1;
+  saveData();
+
+  // Atualiza mensagem com card_link
+  if (sourceMessageId) {
+    const c = await _chatGetClient();
+    if (c) {
+      const m = _chatState.messages.find(x => x.id === sourceMessageId);
+      const links = (m?.card_links || []).concat([{ board_id: boardId, board_name: board.name, card_id: cardId, card_name: cardName }]);
+      try {
+        await c.from('chat_messages').update({ card_links: links }).eq('id', sourceMessageId);
+        if (m) m.card_links = links;
+        _chatRenderMessagesView();
+      } catch(_) {}
+    }
+  }
+  if (typeof showToastMsg === 'function') showToastMsg('Card criado em "' + board.name + '" ✓');
+}
+
+// ── Mestre Kan: analisa conversa do canal ───────────────────────────
+async function _chatMestreKanModal(mode) {
+  const ch = _chatState.channels.find(c => c.id === _chatState.currentChannelId);
+  if (!ch) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'chat-kan-ov';
+  overlay.innerHTML = `
+    <div class="chat-kan-pane">
+      <div class="chat-kan-h">
+        <img src="mestre_kan_avatar.png?v=6" alt="" style="width:32px;height:32px;border-radius:50%;"/>
+        <h3>Mestre Kan analisa <span style="opacity:.7;">#${_esc(ch.name)}</span></h3>
+        <button onclick="this.closest('.chat-kan-ov').remove()" style="margin-left:auto;background:transparent;border:none;font-size:18px;cursor:pointer;">×</button>
+      </div>
+      <div class="chat-kan-options">
+        <button class="chat-kan-opt" onclick="_chatMestreKanRun('summary')">
+          <strong>Resumir conversa</strong>
+          <span>TLDR das últimas mensagens.</span>
+        </button>
+        <button class="chat-kan-opt" onclick="_chatMestreKanRun('extract_actions')">
+          <strong>Extrair ações como cards</strong>
+          <span>Identifica tarefas pendentes e sugere cards pra criar.</span>
+        </button>
+        <button class="chat-kan-opt" onclick="_chatMestreKanRun('waiting')">
+          <strong>Quem está aguardando resposta?</strong>
+          <span>Lista perguntas sem reply.</span>
+        </button>
+      </div>
+      <div class="chat-kan-out" id="chat-kan-out"></div>
+    </div>
+  `;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  if (mode) _chatMestreKanRun(mode);
+}
+
+async function _chatMestreKanRun(mode) {
+  const out = document.getElementById('chat-kan-out');
+  if (!out) return;
+  out.innerHTML = '<div style="padding:18px;text-align:center;color:var(--color-text-secondary);">Mestre Kan analisando…</div>';
+
+  // Junta últimas 50 msgs em texto
+  const transcript = _chatState.messages.slice(-50).map(m => {
+    const u = _chatState.userMap[m.user_id]?.name || 'Usuário';
+    return `${u}: ${m.body}`;
+  }).join('\n');
+
+  let prompt = '';
+  if (mode === 'summary') {
+    prompt = `Resuma essa conversa em até 5 bullets. Foque em decisões e ações pendentes. Português brasileiro.\n\n${transcript}`;
+  } else if (mode === 'extract_actions') {
+    prompt = `Identifique tarefas/ações concretas que precisam virar cards. Para cada uma, devolva: título curto (até 80 chars), responsável sugerido (se mencionado), e prazo (se mencionado). Use formato: "1. Título — responsável: X — prazo: Y". Português brasileiro. Conversa:\n\n${transcript}`;
+  } else if (mode === 'waiting') {
+    prompt = `Quem fez perguntas que ainda não receberam resposta? Liste por pessoa. Português brasileiro. Conversa:\n\n${transcript}`;
+  }
+
+  try {
+    // Reusa o endpoint /ai existente (gateado por cota mensal do user)
+    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+    const tokens = cfg ? _readSupaTokensFromLocalStorage(cfg.url) : null;
+    const jwt = tokens?.access_token;
+    const aiBase = (typeof KANBAN_SYNC_BASE !== 'undefined') ? KANBAN_SYNC_BASE : 'https://kanban.synkan.com.br';
+    const r = await fetch(aiBase + '/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': jwt ? `Bearer ${jwt}` : '' },
+      body: JSON.stringify({ prompt, max_tokens: 800 }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `Erro ${r.status}`);
+    const text = data.text || data.response || JSON.stringify(data);
+    out.innerHTML = `<div style="padding:14px 18px;background:var(--color-background-secondary);border-radius:8px;font-size:13px;color:var(--color-text-primary);line-height:1.6;white-space:pre-wrap;">${_esc(text)}</div>`;
+  } catch(e) {
+    out.innerHTML = `<div style="padding:14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#7f1d1d;font-size:12.5px;">${_esc(e?.message||String(e))}</div>`;
+  }
+}
+// ══════════════════════════════════════════════════════════════════════
+// ░░ Fim do módulo Chat ░░
+// ══════════════════════════════════════════════════════════════════════
 </script>
 </body>
 </html>
