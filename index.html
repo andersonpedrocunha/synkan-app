@@ -5250,6 +5250,14 @@ body.density-compact .col{padding:7px;}
 
 /* Prefixo dos canais — Mincho serif pra kanji 会 ficar bonito */
 .chat-ch-prefix{font-family:var(--tatami-mincho);font-size:13px;}
+/* Ícone SVG do ninja (canal privado) — herda cor de currentColor pra integrar com tema */
+.chat-ninja-ico{display:inline-block;vertical-align:-2px;width:13px;height:13px;color:var(--tatami-sumi);}
+.chat-ninja-ico-lg{width:18px;height:18px;vertical-align:-3px;}
+/* Hover/active mantém cor da prefixo do canal */
+.chat-ch:hover .chat-ninja-ico, .chat-ch-row.is-current .chat-ninja-ico{color:var(--tatami-sumi);}
+
+/* Badge "忍 privado" no header do canal — chip discreto pra reforçar privacidade */
+.chat-channel-h-priv-badge{display:inline-flex;align-items:center;gap:4px;background:var(--tatami-sumi);color:var(--tatami-paper);font-family:var(--tatami-mincho);font-style:italic;font-size:10.5px;padding:2px 8px;border-radius:999px;margin-left:8px;font-weight:500;letter-spacing:.02em;}
 
 /* Pane principal — fundo papel, sem cinza Slack */
 .chat-main{background:var(--tatami-paper);}
@@ -38229,6 +38237,17 @@ let _chatState = {
 const _CHAT_MAX_FILE_SIZE = 10 * 1024 * 1024;          // 10 MB
 const _CHAT_BUCKET = 'chat-attachments';
 
+// Ícone SVG do ninja (canal privado) — monocromático, herda cor de currentColor.
+// Cabeça com máscara: silhueta ovalada + faixa horizontal vazada (eye slit) +
+// 2 olhinhos circulares no meio. Estilo dojo, sem cor de emoji.
+const _NINJA_SVG = `<svg class="chat-ninja-ico" viewBox="0 0 16 16" aria-hidden="true">
+  <path d="M3.2 5.5 Q3.2 2 8 2 Q12.8 2 12.8 5.5 L12.8 11 Q12.8 14 8 14 Q3.2 14 3.2 11 Z M3.2 6.7 H12.8 V8.7 H3.2 Z" fill="currentColor" fill-rule="evenodd"/>
+  <circle cx="6.2" cy="7.7" r="0.7" fill="currentColor"/>
+  <circle cx="9.8" cy="7.7" r="0.7" fill="currentColor"/>
+</svg>`;
+// Versão maior pro header do canal (16px → 22px equiv)
+const _NINJA_SVG_BIG = _NINJA_SVG.replace('class="chat-ninja-ico"', 'class="chat-ninja-ico chat-ninja-ico-lg"');
+
 // Helper: cliente Supabase (usa o isolado quando possível)
 async function _chatGetClient() {
   if (typeof _getOrCreateIsolatedClient === 'function') {
@@ -38343,12 +38362,13 @@ function _chatRenderShell(channels) {
     const isArchived = !!ch.archived_at;
     const isFav = _chatState.favorites.has(ch.id);
     const unread = ch._unread || 0;
-    // Prefixo varia por tipo: workspace 会 · board ▤ · dm @
+    // Prefixo varia por tipo: workspace 会 (ou ninja SVG se privado) · board ▤ · dm @
     const prefix = ch.type === 'dm' ? '@'
                  : ch.type === 'board' ? '▤'
-                 : '会';
+                 : (ch.is_private ? _NINJA_SVG : '会');
+    const isPriv = !!ch.is_private;
     return `<div class="chat-ch-row${isCurrent?' is-current':''}${unread?' has-unread':''}${isArchived?' is-archived':''}">
-      <button class="chat-ch" onclick="_chatSelectChannel('${ch.id}')">
+      <button class="chat-ch" data-private="${isPriv}" onclick="_chatSelectChannel('${ch.id}')" title="${isPriv ? 'Canal privado — só membros explícitos veem' : ''}">
         <span class="chat-ch-prefix">${prefix}</span>
         <span class="chat-ch-name">${_esc(ch.name)}</span>
         ${unread ? `<span class="chat-ch-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
@@ -38385,7 +38405,7 @@ function _chatRenderShell(channels) {
           if (!favs.length) return '';
           return `
           <div class="chat-sb-section">
-            <div class="chat-sb-section-h"><span><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:5px;"><path d="M10 1 L3 9 L7 9 L5.5 15 L13 7 L9 7 L10 1 Z"/></svg>ACESSO RÁPIDO</span></div>
+            <div class="chat-sb-section-h"><span><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:5px;"><path d="M10 1 L3 9 L7 9 L5.5 15 L13 7 L9 7 L10 1 Z"/></svg>Acesso rápido</span></div>
             ${favs.map(channelItem).join('')}
           </div>`;
         })()}
@@ -38721,13 +38741,14 @@ function _chatRenderMessagesView() {
 
   const headerPrefix = ch.type === 'dm' ? '@'
                      : ch.type === 'board' ? '▤'
-                     : '会';
+                     : (ch.is_private ? _NINJA_SVG_BIG : '会');
   const isDM = ch.type === 'dm';
   const headerHTML = `
     <div class="chat-channel-h">
       <div class="chat-channel-h-l">
-        <span class="chat-channel-h-prefix">${headerPrefix}</span>
+        <span class="chat-channel-h-prefix" data-private="${!!ch.is_private}">${headerPrefix}</span>
         <h3 class="chat-channel-h-name">${_esc(ch.name)}</h3>
+        ${ch.is_private ? `<span class="chat-channel-h-priv-badge" title="Canal privado">${_NINJA_SVG} privado</span>` : ''}
         ${ch.description ? `<span class="chat-channel-h-desc"> · ${_esc(ch.description)}</span>` : ''}
       </div>
       <div class="chat-channel-h-r">
@@ -39483,8 +39504,31 @@ async function _chatCreateChannelFlow(type) {
       { icon: '🔒' });
     return;
   }
-  const name = await appPrompt('Novo canal', {
-    icon: '#',
+
+  // Passo 1: escolher se é público (会) ou privado (🥷)
+  const visibility = await appChoice('Que tipo de canal?', [
+    {
+      id: 'public',
+      label: 'Público',
+      icon: '会',
+      meta: 'Aberto pro time todo',
+    },
+    {
+      id: 'private',
+      label: 'Privado',
+      icon: '🥷',
+      meta: 'Só você + quem convidar vê',
+    },
+  ], {
+    icon: '✦',
+    message: 'Públicos aparecem na lista do workspace. Privados só pra membros explicitamente convidados.',
+    allowClear: false,
+  });
+  if (!visibility || visibility === '__clear__') return;
+  const isPrivate = (visibility === 'private');
+
+  const name = await appPrompt(isPrivate ? 'Novo canal privado' : 'Novo canal', {
+    icon: isPrivate ? '🥷' : '会',
     message: 'Use letras minúsculas, sem espaço. Ex: vendas, marketing-2026.',
     placeholder: 'nome-do-canal',
     okLabel: 'Criar canal',
@@ -39498,6 +39542,7 @@ async function _chatCreateChannelFlow(type) {
       workspace_owner: supaUser.id,
       type: 'workspace',
       name: cleanName,
+      is_private: isPrivate,
       created_by: supaUser.id,
     }).select().single();
     if (error) throw error;
