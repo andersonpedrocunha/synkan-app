@@ -38264,13 +38264,12 @@ let _chatState = {
 const _CHAT_MAX_FILE_SIZE = 10 * 1024 * 1024;          // 10 MB
 const _CHAT_BUCKET = 'chat-attachments';
 
-// Ícone SVG: chave antiga (skeleton key clássica) — bow circular com furo,
-// haste longa, e 3 dentes escalonados no fim (alto / médio / pequeno —
-// padrão característico de chave de cofre/baú antigo).
-// Monocromático, herda currentColor.
+// Ícone SVG: chave antiga vertical (skeleton key clássica) — bow circular
+// com furo no topo, shank vertical longo, 2 dentes laterais à direita
+// (padrão da emoji 🗝). Monocromático, herda currentColor.
 const _NINJA_SVG = `<svg class="chat-ninja-ico" viewBox="0 0 24 24" aria-hidden="true">
-  <path d="M 11 12 a 5 5 0 1 0 -10 0 a 5 5 0 1 0 10 0 Z M 8.5 12 a 2.5 2.5 0 1 0 -5 0 a 2.5 2.5 0 1 0 5 0 Z" fill="currentColor" fill-rule="evenodd"/>
-  <path d="M 11 11.25 L 22 11.25 L 22 15 L 20.5 15 L 20.5 12.75 L 19 12.75 L 19 14 L 17.5 14 L 17.5 12.75 L 16 12.75 L 16 13.5 L 14.5 13.5 L 14.5 12.75 L 11 12.75 Z" fill="currentColor"/>
+  <path d="M 16 6 a 4 4 0 1 0 -8 0 a 4 4 0 1 0 8 0 Z M 13.5 6 a 1.5 1.5 0 1 0 -3 0 a 1.5 1.5 0 1 0 3 0 Z" fill="currentColor" fill-rule="evenodd"/>
+  <path d="M 10.75 10 L 13.25 10 L 13.25 17 L 16 17 L 16 18.5 L 13.25 18.5 L 13.25 20.5 L 16.5 20.5 L 16.5 22 L 10.75 22 Z" fill="currentColor"/>
 </svg>`;
 // Versão maior pro header do canal (16px → 22px equiv)
 const _NINJA_SVG_BIG = _NINJA_SVG.replace('class="chat-ninja-ico"', 'class="chat-ninja-ico chat-ninja-ico-lg"');
