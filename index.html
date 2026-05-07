@@ -5279,6 +5279,10 @@ body.density-compact .col{padding:7px;}
 .chat-extend-btn svg{width:15px;height:15px;flex-shrink:0;color:var(--tatami-hinomaru);}
 
 .tx-overlay{position:fixed;inset:0;z-index:9000;background:rgba(15,12,10,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;animation:txFadeIn .2s ease;padding:18px;}
+/* Modais do app (.ov) precisam ficar ACIMA do overlay do tatame quando este está ativo */
+body.tx-active .ov{z-index:9500 !important;}
+body.tx-active .ov.open{z-index:9500 !important;}
+body.tx-active .app-dialog-overlay{z-index:9500 !important;}
 @keyframes txFadeIn{from{opacity:0;}to{opacity:1;}}
 .tx-shell{width:96vw;height:94vh;max-width:1600px;background:var(--tatami-paper);border-radius:14px;border:1px solid var(--tatami-tan);box-shadow:0 30px 80px rgba(0,0,0,.4);display:flex;flex-direction:column;overflow:hidden;animation:txSlide .25s ease;}
 @keyframes txSlide{from{transform:translateY(20px);opacity:0;}to{transform:none;opacity:1;}}
@@ -5441,12 +5445,36 @@ body.density-compact .col{padding:7px;}
 .tx-lab-tile-svg.tx-lab-sheet{background:#D97706;}
 .tx-lab-tile-svg.tx-lab-plan{background:#DC2626;}
 
-/* Embed real do view-kanban / view-canvas dentro do tatame */
+/* Embed real do view-kanban dentro do tatame */
 .tx-embed-live{padding:0;display:flex;flex-direction:column;}
 .tx-embed-live > .tx-embed-h{padding:12px 18px;margin-bottom:0;border-bottom:0.5px solid var(--tatami-tan);}
 .tx-embed-mount{flex:1;min-height:0;overflow:auto;background:var(--color-background-primary);position:relative;}
-.tx-embed-mount > #view-kanban,
-.tx-embed-mount > #view-canvas{display:block !important;height:100%;width:100%;}
+.tx-embed-mount > #view-kanban{display:block !important;height:100%;width:100%;}
+
+/* Lab preview inline (custom) */
+.tx-lab-content{flex:1;min-height:0;overflow:auto;padding:18px 22px;background:var(--tatami-paper);}
+.tx-lab-doc{min-height:300px;font-family:Georgia,'Times New Roman',serif;font-size:14.5px;color:var(--tatami-sumi);line-height:1.7;outline:none;border:1px solid transparent;border-radius:6px;padding:8px;}
+.tx-lab-doc:focus{border-color:var(--tatami-tan);background:#fff;}
+.tx-lab-doc h1{font-size:24px;margin:18px 0 10px;font-family:var(--tatami-mincho);}
+.tx-lab-doc h2{font-size:18px;margin:14px 0 8px;font-family:var(--tatami-mincho);}
+.tx-lab-doc h3{font-size:15px;margin:12px 0 6px;font-family:var(--tatami-mincho);}
+.tx-lab-doc p{margin:8px 0;}
+.tx-lab-doc ul,.tx-lab-doc ol{padding-left:24px;margin:8px 0;}
+.tx-lab-doc li{margin:3px 0;}
+.tx-lab-blank{width:100%;min-height:340px;border:1px solid var(--tatami-tan);border-radius:8px;padding:14px;background:#fff;font-family:Georgia,serif;font-size:14px;color:var(--tatami-sumi);line-height:1.7;outline:none;resize:vertical;}
+.tx-lab-blank:focus{border-color:var(--tatami-hinomaru);}
+.tx-lab-empty{padding:40px 20px;text-align:center;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);font-size:13.5px;line-height:1.6;}
+.tx-lab-mind-list{display:flex;flex-direction:column;gap:6px;}
+.tx-lab-mind-node{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff;border:1px solid var(--tatami-tan);border-left:3px solid #ddd;border-radius:6px;font-family:var(--tatami-mincho);font-size:13px;color:var(--tatami-sumi);}
+.tx-lab-mind-ico{font-size:14px;flex-shrink:0;}
+.tx-lab-mind-text{flex:1;}
+.tx-lab-table,.tx-lab-sheet{width:100%;border-collapse:collapse;font-family:var(--tatami-mincho);font-size:12.5px;background:#fff;}
+.tx-lab-table th,.tx-lab-table td,.tx-lab-sheet th,.tx-lab-sheet td{border:1px solid var(--tatami-tan);padding:6px 8px;text-align:left;}
+.tx-lab-table th,.tx-lab-sheet th{background:var(--tatami-cream);font-weight:600;color:var(--tatami-sumi);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;}
+.tx-lab-table input,.tx-lab-table select,.tx-lab-sheet input{width:100%;border:none;background:transparent;padding:3px 4px;font-family:inherit;font-size:inherit;color:inherit;outline:none;}
+.tx-lab-table input:focus,.tx-lab-sheet input:focus{background:#fff7e6;}
+.tx-lab-add-row{margin-top:10px;padding:7px 14px;background:transparent;border:1px dashed var(--tatami-tan);color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);font-style:italic;font-size:12px;border-radius:6px;cursor:pointer;}
+.tx-lab-add-row:hover{color:var(--tatami-hinomaru);border-color:var(--tatami-hinomaru);}
 
 @media (max-width:760px){
   .tx-overlay{padding:0;}
@@ -41400,6 +41428,7 @@ function _txOpen() {
     chatMessages: [],
     kickoffMsgId: null,
   };
+  document.body.classList.add('tx-active');
   _txRenderOverlay();
   _txStartPresence();
 }
@@ -41411,6 +41440,7 @@ function _txClose() {
   try { _txStopPresence(); } catch(e){}
   const ov = document.getElementById('tx-overlay');
   if (ov) ov.remove();
+  document.body.classList.remove('tx-active');
   document.removeEventListener('keydown', _txOnEscape);
   _chatState.extended = null;
 }
@@ -41582,7 +41612,6 @@ function _txRenderBoardPanel() {
     <div class="tx-embed-h">
       <div class="tx-embed-title">${_esc(board.icon||'▤')} ${_esc(board.name||'Board')}</div>
       <div class="tx-embed-actions">
-        <button class="tx-embed-mini" onclick="_txOpenBoardFull('${_esc(ext.panelRef)}')">Tela cheia ↗</button>
         <button class="tx-embed-mini" onclick="_txClearPanelRef()">Trocar board</button>
       </div>
     </div>
@@ -42067,21 +42096,152 @@ function _txRenderLabPanel() {
       <div class="tx-work-empty-btns"><button class="tx-work-empty-btn" onclick="_txClearPanelRef()">Escolher outro</button></div>
     </div>`;
   }
+  // Garantia: desmonta qualquer embed anterior pra não conflitar
+  _txUnmountEmbed();
   const meta = META[lab.format] || {};
   const ico = (meta.icon||'').indexOf('<svg')===0
     ? `<span class="tx-lab-tile-svg tx-lab-${_esc(lab.format)}" style="display:inline-block;width:18px;height:18px;vertical-align:-3px;">${meta.icon}</span>`
     : `<span style="font-size:16px;">${meta.icon||'⚗'}</span>`;
-  setTimeout(() => _txMountLabEmbed(ext.panelRef), 0);
-  return `<div class="tx-embed tx-embed-live">
+  return `<div class="tx-embed">
     <div class="tx-embed-h">
-      <div class="tx-embed-title">${ico} ${_esc(lab.name||'Lab')}</div>
+      <div class="tx-embed-title">${ico} ${_esc(lab.name||'Lab')} <span style="font-size:11px;font-weight:400;color:var(--tatami-ink-soft);font-style:italic;margin-left:6px;">· ${_esc(meta.label||lab.format||'lab')}</span></div>
       <div class="tx-embed-actions">
-        <button class="tx-embed-mini" onclick="_txOpenLabFull('${_esc(ext.panelRef)}')">Tela cheia ↗</button>
         <button class="tx-embed-mini" onclick="_txClearPanelRef()">Trocar lab</button>
       </div>
     </div>
-    <div id="tx-lab-mount" class="tx-embed-mount"></div>
+    <div class="tx-lab-content" id="tx-lab-content">${_txRenderLabContent(lab)}</div>
   </div>`;
+}
+
+// Renderiza o conteúdo do lab por formato (preview/editor inline simples)
+function _txRenderLabContent(lab) {
+  const fmt = lab.format || 'note';
+  const META = (typeof CANVAS_FORMAT_META !== 'undefined') ? CANVAS_FORMAT_META : {};
+  const meta = META[fmt] || {};
+  if (fmt === 'document' || fmt === 'note' || fmt === 'plan') {
+    const html = lab.docContent || '';
+    return `<div class="tx-lab-doc" contenteditable="true" oninput="_txLabDocInput('${_esc(lab.id)}',this)" spellcheck="true">${html}</div>`;
+  }
+  if (fmt === 'blank') {
+    const txt = lab.blankContent || '';
+    return `<textarea class="tx-lab-blank" oninput="_txLabBlankInput('${_esc(lab.id)}',this)" placeholder="Espaço puro pra pensar…">${_esc(txt)}</textarea>`;
+  }
+  if (fmt === 'mindmap') {
+    const nodes = (lab.nodes||[]).slice(0,30);
+    if (!nodes.length) return `<div class="tx-lab-empty">Sem nós ainda.<br><em>Pra criar/conectar nós, abre o Lab no menu lateral depois da sessão.</em></div>`;
+    return `<div class="tx-lab-mind-list">${nodes.map(n => {
+      const m = (typeof NODE_TYPE_META !== 'undefined' ? NODE_TYPE_META[n.type] : null) || { color:'#eee', icon:'•' };
+      return `<div class="tx-lab-mind-node" style="border-left-color:${m.color};">
+        <span class="tx-lab-mind-ico">${m.icon||'•'}</span>
+        <span class="tx-lab-mind-text">${_esc(n.text||n.label||'(vazio)')}</span>
+      </div>`;
+    }).join('')}</div>`;
+  }
+  if (fmt === 'table') {
+    const rows = lab.tableRows || [];
+    return `<table class="tx-lab-table">
+      <thead><tr><th>Tarefa</th><th>Responsável</th><th>Prioridade</th><th>Deadline</th></tr></thead>
+      <tbody>${rows.map((r,i) => `
+        <tr>
+          <td><input type="text" value="${_esc(r.name||'')}" oninput="_txLabTableEdit('${_esc(lab.id)}',${i},'name',this.value)"/></td>
+          <td><input type="text" value="${_esc(r.responsavel||'')}" oninput="_txLabTableEdit('${_esc(lab.id)}',${i},'responsavel',this.value)"/></td>
+          <td><select onchange="_txLabTableEdit('${_esc(lab.id)}',${i},'priority',this.value)">
+            <option value="alta" ${r.priority==='alta'?'selected':''}>Alta</option>
+            <option value="media" ${r.priority==='media'?'selected':''}>Média</option>
+            <option value="baixa" ${r.priority==='baixa'?'selected':''}>Baixa</option>
+          </select></td>
+          <td><input type="date" value="${_esc(r.deadline||'')}" oninput="_txLabTableEdit('${_esc(lab.id)}',${i},'deadline',this.value)"/></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>
+    <button class="tx-lab-add-row" onclick="_txLabTableAddRow('${_esc(lab.id)}')">＋ adicionar linha</button>`;
+  }
+  if (fmt === 'sheet') {
+    const sd = lab.sheetData || { columns:[], rows:[] };
+    const cols = sd.columns || [];
+    const rows = (sd.rows||[]).slice(0,12);
+    return `<table class="tx-lab-sheet">
+      <thead><tr>${cols.map(c => `<th>${_esc(c.title||'')}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map((r,ri) => `
+        <tr>${cols.map((c,ci) => `<td><input type="text" value="${_esc(r[ci]||'')}" oninput="_txLabSheetEdit('${_esc(lab.id)}',${ri},${ci},this.value)"/></td>`).join('')}</tr>
+      `).join('')}</tbody>
+    </table>`;
+  }
+  return `<div class="tx-lab-empty">Formato "${_esc(fmt)}" não suportado no preview.</div>`;
+}
+
+// Persistência inline dos labs (debounced + broadcast)
+let _txLabSaveTimer = null;
+function _txLabPersist(labId) {
+  if (typeof _saveCanvases === 'function') {
+    clearTimeout(_txLabSaveTimer);
+    _txLabSaveTimer = setTimeout(() => {
+      try { _saveCanvases(); } catch(e){}
+      _txBroadcastLab(labId);
+    }, 400);
+  }
+}
+function _txBroadcastLab(labId) {
+  const ext = _chatState.extended;
+  if (!ext || !ext.rtChannel) return;
+  const lab = (typeof _canvases !== 'undefined' && _canvases) ? _canvases[labId] : null;
+  if (!lab) return;
+  try {
+    ext.rtChannel.send({
+      type:'broadcast', event:'tx-lab',
+      payload:{ from:(typeof supaUser !== 'undefined' && supaUser && supaUser.id)||null, labId, snapshot: JSON.parse(JSON.stringify(lab)) }
+    });
+  } catch(e){}
+}
+function _txApplyRemoteLab(labId, snapshot) {
+  if (!labId || !snapshot || typeof _canvases === 'undefined' || !_canvases) return;
+  if (!_canvases[labId]) return;
+  _canvases[labId] = snapshot;
+  if (typeof _saveCanvases === 'function') { try { _saveCanvases(); } catch(e){} }
+  const ext = _chatState.extended;
+  if (ext && ext.panelMode === 'lab' && ext.panelRef === labId) {
+    // Re-render só do conteúdo (não do shell, pra não perder foco)
+    const root = document.getElementById('tx-lab-content');
+    if (root) root.innerHTML = _txRenderLabContent(_canvases[labId]);
+  }
+}
+function _txLabDocInput(labId, el) {
+  if (typeof _canvases === 'undefined' || !_canvases[labId]) return;
+  _canvases[labId].docContent = el.innerHTML;
+  _canvases[labId].updatedAt = new Date().toISOString();
+  _txLabPersist(labId);
+}
+function _txLabBlankInput(labId, el) {
+  if (typeof _canvases === 'undefined' || !_canvases[labId]) return;
+  _canvases[labId].blankContent = el.value;
+  _canvases[labId].updatedAt = new Date().toISOString();
+  _txLabPersist(labId);
+}
+function _txLabTableEdit(labId, rowIdx, field, value) {
+  if (typeof _canvases === 'undefined' || !_canvases[labId]) return;
+  if (!Array.isArray(_canvases[labId].tableRows)) _canvases[labId].tableRows = [];
+  if (!_canvases[labId].tableRows[rowIdx]) _canvases[labId].tableRows[rowIdx] = {};
+  _canvases[labId].tableRows[rowIdx][field] = value;
+  _canvases[labId].updatedAt = new Date().toISOString();
+  _txLabPersist(labId);
+}
+function _txLabTableAddRow(labId) {
+  if (typeof _canvases === 'undefined' || !_canvases[labId]) return;
+  if (!Array.isArray(_canvases[labId].tableRows)) _canvases[labId].tableRows = [];
+  _canvases[labId].tableRows.push({ id: 'r_'+Date.now().toString(36), name:'', priority:'media', responsavel:'', deadline:'' });
+  _canvases[labId].updatedAt = new Date().toISOString();
+  _txLabPersist(labId);
+  const root = document.getElementById('tx-lab-content');
+  if (root) root.innerHTML = _txRenderLabContent(_canvases[labId]);
+}
+function _txLabSheetEdit(labId, rowIdx, colIdx, value) {
+  if (typeof _canvases === 'undefined' || !_canvases[labId]) return;
+  if (!_canvases[labId].sheetData) _canvases[labId].sheetData = { columns:[], rows:[] };
+  if (!Array.isArray(_canvases[labId].sheetData.rows)) _canvases[labId].sheetData.rows = [];
+  if (!_canvases[labId].sheetData.rows[rowIdx]) _canvases[labId].sheetData.rows[rowIdx] = [];
+  _canvases[labId].sheetData.rows[rowIdx][colIdx] = value;
+  _canvases[labId].updatedAt = new Date().toISOString();
+  _txLabPersist(labId);
 }
 
 // Cria lab direto a partir de um formato escolhido no picker
@@ -42194,6 +42354,11 @@ async function _txStartPresence() {
       const p = (msg && msg.payload) || {};
       if (p.from === myId) return;
       _txApplyRemoteBoard(p.boardId, p.snapshot);
+    })
+    .on('broadcast', { event: 'tx-lab' }, (msg) => {
+      const p = (msg && msg.payload) || {};
+      if (p.from === myId) return;
+      _txApplyRemoteLab(p.labId, p.snapshot);
     })
     .on('broadcast', { event: 'tx-kickoff' }, (msg) => {
       const p = (msg && msg.payload) || {};
