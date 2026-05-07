@@ -15268,7 +15268,7 @@ function _settingsPlanoSection() {
 
       ${_row('Mestre Kan (IA)', 'Chamadas de IA neste mês', usageAI.used, usageAI.max)}
       ${_row('Boards', 'Boards ativos na sua conta', usageBoards.used, usageBoards.max)}
-      ${_row('Canvas', 'Canvas (mindmap, OKR, fluxo) criados', usageCanvas.used, usageCanvas.max)}
+      ${_row('Lab / Canvas', 'Mindmaps, fluxos, OKR canvas (Labs) criados', usageCanvas.used, usageCanvas.max)}
       ${_row('OKRs', 'Objetivos e resultados-chave ativos', usageOKRs.used, usageOKRs.max)}
 
       ${upgradeBtn}
@@ -15313,7 +15313,7 @@ function _settingsPlanoSection() {
               ${sectionRow('Recursos')}
               <tr>${labelCell('Mestre Kan (IA)','chamadas/mês')}${plans.map(p => cell(p.ai, p.code===code)).join('')}</tr>
               <tr>${labelCell('Boards','quantidade ativa')}${plans.map(p => cell(p.boards, p.code===code)).join('')}</tr>
-              <tr>${labelCell('Canvas','mindmaps, fluxos, OKR canvas')}${plans.map(p => cell(p.canvas, p.code===code)).join('')}</tr>
+              <tr>${labelCell('Lab / Canvas','mindmaps, fluxos, OKR canvas')}${plans.map(p => cell(p.canvas, p.code===code)).join('')}</tr>
               <tr>${labelCell('OKRs','objetivos ativos')}${plans.map(p => cell(p.okrs, p.code===code)).join('')}</tr>
               <tr>${labelCell('Board Unificado','vista agregada')}${plans.map(p => cell(p.unified, p.code===code)).join('')}</tr>
               ${sectionRow('Membros')}
