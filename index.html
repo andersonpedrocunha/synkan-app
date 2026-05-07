@@ -5418,6 +5418,36 @@ body.density-compact .col{padding:7px;}
 
 .tx-lab-body{white-space:pre-wrap;font-family:Georgia,'Times New Roman',serif;font-size:14.5px;color:var(--tatami-sumi);line-height:1.75;padding:6px 4px;flex:1;}
 
+/* Lab format tiles (igual ao módulo Lab original) */
+.tx-lab-format-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+.tx-lab-format{background:var(--tatami-paper);border:1px solid var(--tatami-tan);border-radius:11px;padding:14px;cursor:pointer;text-align:center;transition:all .15s;font-family:var(--tatami-mincho);}
+.tx-lab-format:hover{border-color:var(--tatami-hinomaru);transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.07);}
+.tx-lab-format-icon{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;margin:0 auto 10px;}
+.tx-lab-format-icon svg{display:block;}
+.tx-lab-blank{background:linear-gradient(135deg,#9CA3AF,#6B7280);}
+.tx-lab-mindmap{background:linear-gradient(135deg,#A78BFA,#7C3AED);}
+.tx-lab-document{background:linear-gradient(135deg,#60A5FA,#2563EB);}
+.tx-lab-table{background:linear-gradient(135deg,#34D399,#059669);}
+.tx-lab-sheet{background:linear-gradient(135deg,#FBBF24,#D97706);}
+.tx-lab-plan{background:linear-gradient(135deg,#F87171,#DC2626);}
+.tx-lab-format-name{font-size:14px;font-weight:600;color:var(--tatami-sumi);margin-bottom:5px;}
+.tx-lab-format-desc{font-size:11.5px;color:var(--tatami-ink-soft);font-style:italic;line-height:1.4;}
+.tx-lab-tile-svg{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;color:#fff;vertical-align:-3px;}
+.tx-lab-tile-svg svg{width:14px;height:14px;}
+.tx-lab-tile-svg.tx-lab-blank{background:#6B7280;}
+.tx-lab-tile-svg.tx-lab-mindmap{background:#7C3AED;}
+.tx-lab-tile-svg.tx-lab-document{background:#2563EB;}
+.tx-lab-tile-svg.tx-lab-table{background:#059669;}
+.tx-lab-tile-svg.tx-lab-sheet{background:#D97706;}
+.tx-lab-tile-svg.tx-lab-plan{background:#DC2626;}
+
+/* Embed real do view-kanban / view-canvas dentro do tatame */
+.tx-embed-live{padding:0;display:flex;flex-direction:column;}
+.tx-embed-live > .tx-embed-h{padding:12px 18px;margin-bottom:0;border-bottom:0.5px solid var(--tatami-tan);}
+.tx-embed-mount{flex:1;min-height:0;overflow:auto;background:var(--color-background-primary);position:relative;}
+.tx-embed-mount > #view-kanban,
+.tx-embed-mount > #view-canvas{display:block !important;height:100%;width:100%;}
+
 @media (max-width:760px){
   .tx-overlay{padding:0;}
   .tx-shell{width:100vw;height:100vh;border-radius:0;border:none;}
@@ -41376,6 +41406,7 @@ function _txOpen() {
 
 function _txClose() {
   if (!_chatState.extended || !_chatState.extended.open) return;
+  try { _txUnmountEmbed(); } catch(e){}
   try { _txLeaveVoice(); } catch(e){}
   try { _txStopPresence(); } catch(e){}
   const ov = document.getElementById('tx-overlay');
@@ -41515,9 +41546,10 @@ function _txRenderBoardPanel() {
   const ext = _chatState.extended;
   const boardsRef = (typeof allBoards !== 'undefined' && allBoards) ? allBoards : {};
   if (!ext.panelRef) {
+    _txUnmountEmbed();
     const boards = Object.entries(boardsRef)
       .filter(([id,b]) => b && !b.archived)
-      .map(([id,b]) => ({ id, name: b.name || 'Board sem nome', cards: (b.cards||[]).length }));
+      .map(([id,b]) => ({ id, name: b.name || 'Board sem nome', icon: b.icon || '▤', cards: (b.cards||[]).length }));
     return `<div class="tx-picker">
       <div class="tx-picker-h">Escolha um board pra estender no tatame — todo mundo vai ver e mexer junto:</div>
       <div class="tx-picker-grid">
@@ -41527,7 +41559,7 @@ function _txRenderBoardPanel() {
         </button>
         ${boards.map(b => `
           <button class="tx-picker-item" onclick="_txPickBoard('${_esc(b.id)}')">
-            <div class="tx-picker-item-name">▤ ${_esc(b.name)}</div>
+            <div class="tx-picker-item-name">${_esc(b.icon)} ${_esc(b.name)}</div>
             <div class="tx-picker-item-meta">${b.cards} card${b.cards!==1?'s':''}</div>
           </button>
         `).join('')}
@@ -41536,6 +41568,7 @@ function _txRenderBoardPanel() {
   }
   const board = boardsRef[ext.panelRef];
   if (!board) {
+    _txUnmountEmbed();
     return `<div class="tx-work-empty">
       <div class="tx-work-empty-icon">!</div>
       <div class="tx-work-empty-title">Board não encontrado</div>
@@ -41543,52 +41576,127 @@ function _txRenderBoardPanel() {
       <div class="tx-work-empty-btns"><button class="tx-work-empty-btn" onclick="_txClearPanelRef()">Escolher outro</button></div>
     </div>`;
   }
-  const COLS_arr = Array.isArray(board.COLS) ? board.COLS : [];
-  const cardsArr = Array.isArray(board.cards) ? board.cards : [];
-  const cols = COLS_arr.map(col => {
-    const colId = col.id;
-    const colCards = cardsArr.filter(c => c.col === colId);
-    return `<div class="tx-kan-col" data-colid="${_esc(colId)}"
-      ondragover="_txColDragOver(event,'${_esc(colId)}')"
-      ondragleave="_txColDragLeave(event)"
-      ondrop="_txColDrop(event,'${_esc(colId)}')">
-      <div class="tx-kan-col-h">
-        <span class="tx-kan-col-title">${_esc(col.title || colId)}</span>
-        <span class="tx-kan-col-count">${colCards.length}</span>
-      </div>
-      <div class="tx-kan-col-body">
-        ${colCards.map(c => `
-          <div class="tx-kan-card" draggable="true"
-            ondragstart="_txCardDragStart(event,'${_esc(c.id)}')"
-            ondragend="_txCardDragEnd(event)"
-            onclick="_txOpenCardEditor('${_esc(c.id)}')"
-            title="Clique pra abrir · arraste pra mover">
-            <div class="tx-kan-card-title">${_esc((c.name||'(sem título)').slice(0,120))}</div>
-            ${(c.priority||c.assignedTo||c.deadline)?`<div class="tx-kan-card-meta">
-              ${c.priority?`<span class="tx-kan-pri tx-kan-pri-${_esc(c.priority)}">${_esc(c.priority)}</span>`:''}
-              ${c.deadline?`<span>${_esc(c.deadline)}</span>`:''}
-              ${c.assignedTo?`<span>@${_esc((_chatState.userMap[c.assignedTo]||{}).name||'membro')}</span>`:''}
-            </div>`:''}
-          </div>
-        `).join('')}
-        <button class="tx-kan-add" onclick="_txAddCardPrompt('${_esc(colId)}')">＋ adicionar card</button>
-      </div>
-    </div>`;
-  }).join('');
-  return `<div class="tx-embed">
+  // Mount real do view-kanban no painel — render fiel do módulo original.
+  setTimeout(() => _txMountBoardEmbed(ext.panelRef), 0);
+  return `<div class="tx-embed tx-embed-live">
     <div class="tx-embed-h">
-      <div class="tx-embed-title">▤ ${_esc(board.name||'Board')}</div>
+      <div class="tx-embed-title">${_esc(board.icon||'▤')} ${_esc(board.name||'Board')}</div>
       <div class="tx-embed-actions">
-        <button class="tx-embed-mini" onclick="_txAddColumnPrompt()">＋ coluna</button>
         <button class="tx-embed-mini" onclick="_txOpenBoardFull('${_esc(ext.panelRef)}')">Tela cheia ↗</button>
         <button class="tx-embed-mini" onclick="_txClearPanelRef()">Trocar board</button>
       </div>
     </div>
-    <div class="tx-kan-cols">${cols || '<div style="color:var(--tatami-ink-soft);font-style:italic;padding:18px;font-family:var(--tatami-mincho);">Board sem colunas. Clique em ＋ coluna pra criar.</div>'}</div>
+    <div id="tx-board-mount" class="tx-embed-mount"></div>
   </div>`;
 }
 
-// ── Board: drag-drop + criar card/coluna + sync ──
+// ── Mount/unmount real do view-kanban e view-canvas no painel ──
+// Filosofia: pra ficar IGUAL ao módulo original, a gente move
+// fisicamente o DOM do view-kanban (ou view-canvas) pro painel direito
+// do tatame e devolve quando troca/fecha. Toda a lógica original
+// (drag-drop, modais, edição, render) continua funcionando porque é
+// o mesmo DOM e os mesmos handlers.
+function _txMountBoardEmbed(boardId) {
+  const mount = document.getElementById('tx-board-mount');
+  if (!mount) return;
+  const view = document.getElementById('view-kanban');
+  if (!view) return;
+  const ext = _chatState.extended;
+  if (!ext) return;
+  // Remember original location SOMENTE na primeira vez
+  if (!ext._kanbanOrig) {
+    ext._kanbanOrig = {
+      parent: view.parentNode,
+      next: view.nextSibling,
+      origBoardId: (typeof currentBoardId !== 'undefined') ? currentBoardId : null,
+      origTab: (typeof currentTab !== 'undefined') ? currentTab : null,
+      origDisplay: view.style.display,
+    };
+  }
+  // Desmonta lab embed se houver
+  _txUnmountLabEmbedOnly();
+  // Switch board pra carregar globals
+  if (typeof currentBoardId === 'undefined' || currentBoardId !== boardId) {
+    if (typeof switchBoard === 'function') {
+      try { switchBoard(boardId, { goTo: false }); } catch(e){}
+    }
+  }
+  // Move o view-kanban pro painel
+  if (view.parentNode !== mount) mount.appendChild(view);
+  view.style.display = '';
+  // Re-renderiza pra garantir conteúdo
+  if (typeof render === 'function') { try { render(); } catch(e){} }
+}
+
+function _txMountLabEmbed(labId) {
+  const mount = document.getElementById('tx-lab-mount');
+  if (!mount) return;
+  const view = document.getElementById('view-canvas');
+  if (!view) return;
+  const ext = _chatState.extended;
+  if (!ext) return;
+  if (!ext._canvasOrig) {
+    ext._canvasOrig = {
+      parent: view.parentNode,
+      next: view.nextSibling,
+      origCanvasId: (typeof _currentCanvasId !== 'undefined') ? _currentCanvasId : null,
+      origView: (typeof _canvasView !== 'undefined') ? _canvasView : null,
+      origDisplay: view.style.display,
+    };
+  }
+  _txUnmountBoardEmbedOnly();
+  // Aponta pro lab escolhido
+  if (typeof _currentCanvasId !== 'undefined') _currentCanvasId = labId;
+  if (typeof _canvasView !== 'undefined') _canvasView = 'editor';
+  if (view.parentNode !== mount) mount.appendChild(view);
+  view.style.display = '';
+  if (typeof renderCanvasView === 'function') { try { renderCanvasView(); } catch(e){} }
+}
+
+function _txUnmountBoardEmbedOnly() {
+  const ext = _chatState.extended;
+  if (!ext || !ext._kanbanOrig) return;
+  const view = document.getElementById('view-kanban');
+  if (!view) return;
+  const o = ext._kanbanOrig;
+  // Devolve view-kanban ao parent original
+  try {
+    if (o.next && o.next.parentNode === o.parent) o.parent.insertBefore(view, o.next);
+    else o.parent.appendChild(view);
+  } catch(e){}
+  // Visibilidade: visível só se a aba kanban está ativa no app
+  view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'kanban') ? '' : 'none';
+  // Restaura board original
+  if (o.origBoardId && typeof currentBoardId !== 'undefined' && currentBoardId !== o.origBoardId) {
+    if (typeof switchBoard === 'function') {
+      try { switchBoard(o.origBoardId, { goTo: false }); } catch(e){}
+    }
+  }
+  ext._kanbanOrig = null;
+}
+
+function _txUnmountLabEmbedOnly() {
+  const ext = _chatState.extended;
+  if (!ext || !ext._canvasOrig) return;
+  const view = document.getElementById('view-canvas');
+  if (!view) return;
+  const o = ext._canvasOrig;
+  try {
+    if (o.next && o.next.parentNode === o.parent) o.parent.insertBefore(view, o.next);
+    else o.parent.appendChild(view);
+  } catch(e){}
+  view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'canvas') ? '' : 'none';
+  if (typeof _currentCanvasId !== 'undefined') _currentCanvasId = o.origCanvasId;
+  if (typeof _canvasView !== 'undefined') _canvasView = o.origView || 'list';
+  ext._canvasOrig = null;
+}
+
+function _txUnmountEmbed() {
+  _txUnmountBoardEmbedOnly();
+  _txUnmountLabEmbedOnly();
+}
+
+// ── Board legacy (drag-drop custom) — mantido pra fallback caso algo dê erro no mount ──
 let _txDragCardId = null;
 
 function _txCardDragStart(e, cardId) {
@@ -41911,51 +42019,80 @@ function _txRenderChatPaneStatic() {
 function _txRenderLabPanel() {
   const ext = _chatState.extended;
   const cvsRef = (typeof _canvases !== 'undefined' && _canvases) ? _canvases : {};
+  const META = (typeof CANVAS_FORMAT_META !== 'undefined') ? CANVAS_FORMAT_META : {};
   if (!ext.panelRef) {
-    const labs = Object.values(cvsRef).filter(c => c && !c.archived).map(c => ({
-      id: c.id, name: c.name || 'Lab sem nome', kind: c.format || 'lab',
-    }));
+    _txUnmountEmbed();
+    // Formatos disponíveis (mesmo conjunto e ordem do módulo Lab original)
+    const formats = ['blank','mindmap','document','table','sheet','plan'];
+    const ZAI_ONLY = new Set(['opcost','goal-1pct','invest']);
+    const labs = Object.values(cvsRef)
+      .filter(c => c && !c.archived && !ZAI_ONLY.has(c.format))
+      .sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
     return `<div class="tx-picker">
-      <div class="tx-picker-h">Escolha um lab pra estender no tatame — todo mundo vai ver:</div>
-      <div class="tx-picker-grid">
-        <button class="tx-picker-item tx-picker-create" onclick="_txCreateLabFlow()">
-          <div class="tx-picker-item-name">＋ Novo lab</div>
-          <div class="tx-picker-item-meta">criar pra essa sessão</div>
-        </button>
-        ${labs.map(l => `
-          <button class="tx-picker-item" onclick="_txPickLab('${_esc(l.id)}')">
-            <div class="tx-picker-item-name">⚗ ${_esc(l.name)}</div>
-            <div class="tx-picker-item-meta">${_esc(l.kind)}</div>
-          </button>
-        `).join('')}
+      <div class="tx-picker-h">Crie um lab novo ou escolha um existente:</div>
+      <div class="tx-lab-format-grid">
+        ${formats.map(f => {
+          const m = META[f] || {};
+          const ico = (m.icon||'').indexOf('<svg')===0 ? m.icon : `<span style="font-size:28px;line-height:1;">${m.icon||'⚗'}</span>`;
+          return `<button class="tx-lab-format" onclick="_txPickLabFormat('${_esc(f)}')">
+            <div class="tx-lab-format-icon tx-lab-${_esc(f)}">${ico}</div>
+            <div class="tx-lab-format-name">${_esc(m.label||f)}</div>
+            <div class="tx-lab-format-desc">${_esc(m.desc||'')}</div>
+          </button>`;
+        }).join('')}
       </div>
+      ${labs.length ? `
+        <div class="tx-picker-h" style="margin-top:18px;">Seus labs existentes:</div>
+        <div class="tx-picker-grid">
+          ${labs.map(l => {
+            const m = META[l.format] || {};
+            const ico = (m.icon||'').indexOf('<svg')===0
+              ? `<span class="tx-lab-tile-svg tx-lab-${_esc(l.format)}">${m.icon}</span>`
+              : `<span style="font-size:18px;">${m.icon||'⚗'}</span>`;
+            return `<button class="tx-picker-item" onclick="_txPickLab('${_esc(l.id)}')">
+              <div class="tx-picker-item-name">${ico} ${_esc(l.name||'Lab sem nome')}</div>
+              <div class="tx-picker-item-meta">${_esc(m.label||l.format||'lab')}</div>
+            </button>`;
+          }).join('')}
+        </div>
+      ` : ''}
     </div>`;
   }
   const lab = cvsRef[ext.panelRef];
   if (!lab) {
+    _txUnmountEmbed();
     return `<div class="tx-work-empty">
       <div class="tx-work-empty-icon">!</div>
       <div class="tx-work-empty-title">Lab não encontrado</div>
       <div class="tx-work-empty-btns"><button class="tx-work-empty-btn" onclick="_txClearPanelRef()">Escolher outro</button></div>
     </div>`;
   }
-  // Tenta extrair conteúdo legível do lab (formatos variados)
-  let bodyTxt = '';
-  if (typeof lab.body === 'string') bodyTxt = lab.body;
-  else if (typeof lab.content === 'string') bodyTxt = lab.content;
-  else if (typeof lab.html === 'string') bodyTxt = lab.html.replace(/<[^>]+>/g,'');
-  else if (Array.isArray(lab.nodes)) bodyTxt = lab.nodes.map(n => (n.text||n.label||'')).filter(Boolean).join('\n• ');
-  bodyTxt = (bodyTxt || '').slice(0, 4000);
-  return `<div class="tx-embed">
+  const meta = META[lab.format] || {};
+  const ico = (meta.icon||'').indexOf('<svg')===0
+    ? `<span class="tx-lab-tile-svg tx-lab-${_esc(lab.format)}" style="display:inline-block;width:18px;height:18px;vertical-align:-3px;">${meta.icon}</span>`
+    : `<span style="font-size:16px;">${meta.icon||'⚗'}</span>`;
+  setTimeout(() => _txMountLabEmbed(ext.panelRef), 0);
+  return `<div class="tx-embed tx-embed-live">
     <div class="tx-embed-h">
-      <div class="tx-embed-title">⚗ ${_esc(lab.name||'Lab')}</div>
+      <div class="tx-embed-title">${ico} ${_esc(lab.name||'Lab')}</div>
       <div class="tx-embed-actions">
-        <button class="tx-embed-mini" onclick="_txOpenLabFull('${_esc(ext.panelRef)}')">Abrir tela cheia ↗</button>
+        <button class="tx-embed-mini" onclick="_txOpenLabFull('${_esc(ext.panelRef)}')">Tela cheia ↗</button>
         <button class="tx-embed-mini" onclick="_txClearPanelRef()">Trocar lab</button>
       </div>
     </div>
-    <div class="tx-lab-body">${_esc(bodyTxt) || '<em style="color:var(--tatami-ink-soft);">Lab vazio. Abra em tela cheia pra editar.</em>'}</div>
+    <div id="tx-lab-mount" class="tx-embed-mount"></div>
   </div>`;
+}
+
+// Cria lab direto a partir de um formato escolhido no picker
+function _txPickLabFormat(format) {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  if (typeof createCanvas !== 'function') return;
+  const META = (typeof CANVAS_FORMAT_META !== 'undefined') ? CANVAS_FORMAT_META : {};
+  const meta = META[format] || {};
+  const id = createCanvas(meta.label || 'Novo Lab', format);
+  if (id) _txPickLab(id);
 }
 
 function _txSetPanel(mode) {
