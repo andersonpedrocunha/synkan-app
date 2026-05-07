@@ -38237,15 +38237,12 @@ let _chatState = {
 const _CHAT_MAX_FILE_SIZE = 10 * 1024 * 1024;          // 10 MB
 const _CHAT_BUCKET = 'chat-attachments';
 
-// Ícone SVG do ninja (canal privado) — monocromático, herda currentColor.
-// Hood/balaclava de ninja: dome arredondado em cima, lados retos, base com
-// cantos arredondados. Eye slit horizontal cortando o meio. Olhos como
-// elipses pequenas em formato amêndoa (visual mais "olhando").
-// viewBox 24x24 dá mais detalhe e escala melhor que 16x16.
+// Ícone SVG: shuriken (estrela ninja) — geométrico, monocromático, escala
+// limpo em qualquer tamanho. Arma clássica do ninja, leitura instantânea
+// sem tentar renderizar rosto humano em pixels apertados.
+// 4 pontas afiadas + indentações côncavas no meio = shape de shuriken real.
 const _NINJA_SVG = `<svg class="chat-ninja-ico" viewBox="0 0 24 24" aria-hidden="true">
-  <path d="M4 10 Q4 3 12 3 Q20 3 20 10 L20 19 Q20 21 18 21 L6 21 Q4 21 4 19 Z M3 11.5 L21 11.5 L21 13.5 L3 13.5 Z" fill="currentColor" fill-rule="evenodd"/>
-  <ellipse cx="8.5" cy="12.5" rx="1.1" ry="0.7" fill="currentColor"/>
-  <ellipse cx="15.5" cy="12.5" rx="1.1" ry="0.7" fill="currentColor"/>
+  <path d="M12 1 L14 10 L23 12 L14 14 L12 23 L10 14 L1 12 L10 10 Z" fill="currentColor"/>
 </svg>`;
 // Versão maior pro header do canal (16px → 22px equiv)
 const _NINJA_SVG_BIG = _NINJA_SVG.replace('class="chat-ninja-ico"', 'class="chat-ninja-ico chat-ninja-ico-lg"');
