@@ -5426,14 +5426,14 @@ body.tx-active .app-dialog-overlay{z-index:9500 !important;}
 .tx-lab-format-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
 .tx-lab-format{background:var(--tatami-paper);border:1px solid var(--tatami-tan);border-radius:11px;padding:14px;cursor:pointer;text-align:center;transition:all .15s;font-family:var(--tatami-mincho);}
 .tx-lab-format:hover{border-color:var(--tatami-hinomaru);transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.07);}
-.tx-lab-format-icon{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;margin:0 auto 10px;}
-.tx-lab-format-icon svg{display:block;}
-.tx-lab-blank{background:linear-gradient(135deg,#9CA3AF,#6B7280);}
-.tx-lab-mindmap{background:linear-gradient(135deg,#A78BFA,#7C3AED);}
-.tx-lab-document{background:linear-gradient(135deg,#60A5FA,#2563EB);}
-.tx-lab-table{background:linear-gradient(135deg,#34D399,#059669);}
-.tx-lab-sheet{background:linear-gradient(135deg,#FBBF24,#D97706);}
-.tx-lab-plan{background:linear-gradient(135deg,#F87171,#DC2626);}
+.tx-lab-format-icon{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;margin:0 auto 10px;flex-shrink:0;overflow:hidden;}
+.tx-lab-format-icon svg{display:block;width:34px;height:34px;}
+.tx-lab-format-icon.tx-lab-blank{background:linear-gradient(135deg,#9CA3AF,#6B7280);}
+.tx-lab-format-icon.tx-lab-mindmap{background:linear-gradient(135deg,#A78BFA,#7C3AED);}
+.tx-lab-format-icon.tx-lab-document{background:linear-gradient(135deg,#60A5FA,#2563EB);}
+.tx-lab-format-icon.tx-lab-table{background:linear-gradient(135deg,#34D399,#059669);}
+.tx-lab-format-icon.tx-lab-sheet{background:linear-gradient(135deg,#FBBF24,#D97706);}
+.tx-lab-format-icon.tx-lab-plan{background:linear-gradient(135deg,#F87171,#DC2626);}
 .tx-lab-format-name{font-size:14px;font-weight:600;color:var(--tatami-sumi);margin-bottom:5px;}
 .tx-lab-format-desc{font-size:11.5px;color:var(--tatami-ink-soft);font-style:italic;line-height:1.4;}
 .tx-lab-tile-svg{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;color:#fff;vertical-align:-3px;}
@@ -5461,18 +5461,18 @@ body.tx-active .app-dialog-overlay{z-index:9500 !important;}
 .tx-lab-doc p{margin:8px 0;}
 .tx-lab-doc ul,.tx-lab-doc ol{padding-left:24px;margin:8px 0;}
 .tx-lab-doc li{margin:3px 0;}
-.tx-lab-blank{width:100%;min-height:340px;border:1px solid var(--tatami-tan);border-radius:8px;padding:14px;background:#fff;font-family:Georgia,serif;font-size:14px;color:var(--tatami-sumi);line-height:1.7;outline:none;resize:vertical;}
-.tx-lab-blank:focus{border-color:var(--tatami-hinomaru);}
+.tx-lab-blank-area{width:100%;min-height:340px;border:1px solid var(--tatami-tan);border-radius:8px;padding:14px;background:#fff;font-family:Georgia,serif;font-size:14px;color:var(--tatami-sumi);line-height:1.7;outline:none;resize:vertical;}
+.tx-lab-blank-area:focus{border-color:var(--tatami-hinomaru);}
 .tx-lab-empty{padding:40px 20px;text-align:center;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);font-size:13.5px;line-height:1.6;}
 .tx-lab-mind-list{display:flex;flex-direction:column;gap:6px;}
 .tx-lab-mind-node{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff;border:1px solid var(--tatami-tan);border-left:3px solid #ddd;border-radius:6px;font-family:var(--tatami-mincho);font-size:13px;color:var(--tatami-sumi);}
 .tx-lab-mind-ico{font-size:14px;flex-shrink:0;}
 .tx-lab-mind-text{flex:1;}
-.tx-lab-table,.tx-lab-sheet{width:100%;border-collapse:collapse;font-family:var(--tatami-mincho);font-size:12.5px;background:#fff;}
-.tx-lab-table th,.tx-lab-table td,.tx-lab-sheet th,.tx-lab-sheet td{border:1px solid var(--tatami-tan);padding:6px 8px;text-align:left;}
-.tx-lab-table th,.tx-lab-sheet th{background:var(--tatami-cream);font-weight:600;color:var(--tatami-sumi);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;}
-.tx-lab-table input,.tx-lab-table select,.tx-lab-sheet input{width:100%;border:none;background:transparent;padding:3px 4px;font-family:inherit;font-size:inherit;color:inherit;outline:none;}
-.tx-lab-table input:focus,.tx-lab-sheet input:focus{background:#fff7e6;}
+.tx-lab-data-table,.tx-lab-data-sheet{width:100%;border-collapse:collapse;font-family:var(--tatami-mincho);font-size:12.5px;background:#fff;}
+.tx-lab-data-table th,.tx-lab-data-table td,.tx-lab-data-sheet th,.tx-lab-data-sheet td{border:1px solid var(--tatami-tan);padding:6px 8px;text-align:left;}
+.tx-lab-data-table th,.tx-lab-data-sheet th{background:var(--tatami-cream);font-weight:600;color:var(--tatami-sumi);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;}
+.tx-lab-data-table input,.tx-lab-data-table select,.tx-lab-data-sheet input{width:100%;border:none;background:transparent;padding:3px 4px;font-family:inherit;font-size:inherit;color:inherit;outline:none;}
+.tx-lab-data-table input:focus,.tx-lab-data-sheet input:focus{background:#fff7e6;}
 .tx-lab-add-row{margin-top:10px;padding:7px 14px;background:transparent;border:1px dashed var(--tatami-tan);color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);font-style:italic;font-size:12px;border-radius:6px;cursor:pointer;}
 .tx-lab-add-row:hover{color:var(--tatami-hinomaru);border-color:var(--tatami-hinomaru);}
 
@@ -42124,7 +42124,7 @@ function _txRenderLabContent(lab) {
   }
   if (fmt === 'blank') {
     const txt = lab.blankContent || '';
-    return `<textarea class="tx-lab-blank" oninput="_txLabBlankInput('${_esc(lab.id)}',this)" placeholder="Espaço puro pra pensar…">${_esc(txt)}</textarea>`;
+    return `<textarea class="tx-lab-blank-area" oninput="_txLabBlankInput('${_esc(lab.id)}',this)" placeholder="Espaço puro pra pensar…">${_esc(txt)}</textarea>`;
   }
   if (fmt === 'mindmap') {
     const nodes = (lab.nodes||[]).slice(0,30);
@@ -42139,7 +42139,7 @@ function _txRenderLabContent(lab) {
   }
   if (fmt === 'table') {
     const rows = lab.tableRows || [];
-    return `<table class="tx-lab-table">
+    return `<table class="tx-lab-data-table">
       <thead><tr><th>Tarefa</th><th>Responsável</th><th>Prioridade</th><th>Deadline</th></tr></thead>
       <tbody>${rows.map((r,i) => `
         <tr>
@@ -42160,7 +42160,7 @@ function _txRenderLabContent(lab) {
     const sd = lab.sheetData || { columns:[], rows:[] };
     const cols = sd.columns || [];
     const rows = (sd.rows||[]).slice(0,12);
-    return `<table class="tx-lab-sheet">
+    return `<table class="tx-lab-data-sheet">
       <thead><tr>${cols.map(c => `<th>${_esc(c.title||'')}</th>`).join('')}</tr></thead>
       <tbody>${rows.map((r,ri) => `
         <tr>${cols.map((c,ci) => `<td><input type="text" value="${_esc(r[ci]||'')}" oninput="_txLabSheetEdit('${_esc(lab.id)}',${ri},${ci},this.value)"/></td>`).join('')}</tr>
