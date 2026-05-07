@@ -3939,6 +3939,27 @@ body.density-compact .col{padding:7px;}
 .help-kan-loading{color:var(--color-text-tertiary);}
 .help-kan-msg a{color:var(--color-text-primary);font-weight:500;}
 
+/* "Onde encontrar o Mestre Kan" — lista de pontos de uso da IA dentro do app */
+.help-kan-where{display:flex;flex-direction:column;gap:10px;}
+.help-kan-where-item{display:flex;align-items:flex-start;gap:14px;background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;}
+.help-kan-where-icon{flex-shrink:0;width:36px;height:36px;border-radius:9px;background:var(--color-background-secondary);display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;}
+.help-kan-where-body{flex:1;min-width:0;}
+.help-kan-where-h{font-size:13.5px;font-weight:600;color:var(--color-text-primary);margin-bottom:3px;}
+.help-kan-where-d{font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin:0;}
+.help-kan-where-d em{font-style:normal;font-weight:500;color:var(--color-text-primary);}
+.help-kan-where-d kbd{display:inline-block;padding:1px 6px;border:1px solid var(--color-border-secondary);border-bottom-width:2px;border-radius:4px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+
+/* Banner com a cota de IA do plano */
+.help-kan-quota{background:var(--color-background-secondary);border:1px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;}
+.help-kan-quota-h{font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:6px;}
+.help-kan-quota-d{font-size:12.5px;color:var(--color-text-secondary);line-height:1.6;margin:0;}
+.help-kan-quota-d strong{color:var(--color-text-primary);font-weight:600;}
+
+/* Hint de "se quer dúvida sobre o app, vai pra FAQ" */
+.help-kan-faq-hint{font-size:12px;color:var(--color-text-tertiary);text-align:center;padding:8px 0 2px;line-height:1.55;}
+.help-kan-faq-hint a{color:var(--color-text-primary);font-weight:500;text-decoration:underline;}
+.help-kan-faq-hint strong{color:var(--color-text-secondary);font-weight:600;}
+
 /* ── Sistema de dialog Synkan (substitui alert/confirm/prompt feios) ── */
 .app-dialog-overlay{position:fixed;inset:0;background:rgba(15,15,30,.45);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:10010;padding:20px;animation:appDialogFadeIn .18s ease-out;}
 .app-dialog-overlay.is-open{display:flex;}
@@ -20882,47 +20903,74 @@ function _renderHelpContato() {
       </div>
     </div>`;
 }
+// Tab "Pergunte ao Mestre Kan" — engessada de propósito.
+// Não tem input livre porque qualquer chamada IA aqui contaria fora da cota
+// mensal do user (essa tela é parte da Ajuda, não do Mestre Kan). Em vez disso,
+// orientamos onde dentro do app usar a IA — onde o uso é medido corretamente.
 function _renderHelpKan() {
+  const isMac = /Mac/.test(navigator.platform);
+  const cmd = isMac ? '⌘' : 'Ctrl';
   return `
     <div class="help-section help-kan-section">
       <div class="help-kan-hero">
         <img src="mestre_kan_avatar.png?v=6" class="help-kan-avatar" alt="Mestre Kan" onerror="this.outerHTML='<div class=&quot;help-kan-avatar&quot; style=&quot;background:#111;display:flex;align-items:center;justify-content:center;font-size:38px;color:#fff;&quot;>🥋</div>'"/>
         <div class="help-kan-text">
           <h3 class="help-kan-h">Pergunte ao Mestre Kan</h3>
-          <p class="help-kan-d">Descreva sua dúvida em linguagem natural. O Mestre Kan analisa o contexto do app e responde com sabedoria.</p>
+          <p class="help-kan-d">O Mestre Kan vive dentro do app, não aqui na ajuda. Veja embaixo onde encontrá-lo — cada chamada conta na sua cota mensal.</p>
         </div>
       </div>
-      <textarea class="help-kan-input" id="help-kan-q" placeholder="Ex: Como crio um template novo a partir de um board?" rows="3"></textarea>
-      <div class="help-kan-actions">
-        <button class="help-btn" onclick="_helpKanSubmit()">Perguntar →</button>
-        <span class="help-kan-hint">A IA usa o contexto do board atual e dos seus dados</span>
+
+      <div class="help-kan-where">
+        <div class="help-kan-where-item">
+          <div class="help-kan-where-icon">📇</div>
+          <div class="help-kan-where-body">
+            <div class="help-kan-where-h">Dentro de qualquer card</div>
+            <p class="help-kan-where-d">Abra um card e clique no ícone de IA. Peça pra <em>quebrar em subtarefas</em>, <em>redigir email</em>, <em>resumir thread</em> ou <em>extrair dados de um recibo</em>. Ele usa o contexto do card pra responder.</p>
+          </div>
+        </div>
+
+        <div class="help-kan-where-item">
+          <div class="help-kan-where-icon">🔍</div>
+          <div class="help-kan-where-body">
+            <div class="help-kan-where-h">Busca global</div>
+            <p class="help-kan-where-d">Aperte <kbd class="help-kbd">${cmd}</kbd> <kbd class="help-kbd">K</kbd> em qualquer tela. Quando a sua busca parece pergunta, aparece "Perguntar ao Mestre Kan" no topo dos resultados.</p>
+          </div>
+        </div>
+
+        <div class="help-kan-where-item">
+          <div class="help-kan-where-icon">🌅</div>
+          <div class="help-kan-where-body">
+            <div class="help-kan-where-h">Daily Brief</div>
+            <p class="help-kan-where-d">Na <em>Home</em>, o Mestre Kan analisa seus boards e mostra um briefing das prioridades do dia. Atualiza 1x por dia, automaticamente — não consome cota extra.</p>
+          </div>
+        </div>
+
+        <div class="help-kan-where-item">
+          <div class="help-kan-where-icon">✦</div>
+          <div class="help-kan-where-body">
+            <div class="help-kan-where-h">Geração de Lab</div>
+            <p class="help-kan-where-d">Em qualquer Lab (Mindmap, Documento, Tabela…), botão <em>Gerar com IA</em>. Descreve o que quer e ele monta o esqueleto.</p>
+          </div>
+        </div>
+
+        <div class="help-kan-where-item">
+          <div class="help-kan-where-icon">財</div>
+          <div class="help-kan-where-body">
+            <div class="help-kan-where-h">Análise financeira (Granatum)</div>
+            <p class="help-kan-where-d">Na integração Granatum, botão <em>Análise Mestre Kan</em> manda os dados do mês pra ele identificar riscos, sugerir cobranças e categorizar lançamentos.</p>
+          </div>
+        </div>
       </div>
-      <div class="help-kan-out" id="help-kan-out"></div>
+
+      <div class="help-kan-quota">
+        <div class="help-kan-quota-h">Sua cota mensal</div>
+        <p class="help-kan-quota-d">Cada chamada acima conta 1 interação. Limite por plano: <strong>Trial</strong> 30 chamadas (5 dias) · <strong>Faixa Azul</strong> 100/mês · <strong>Faixa Roxa</strong> 300/mês · <strong>Faixa Preta</strong> 1.000/mês. Se acabar antes do dia 1°, dá pra comprar pacote avulso (100, 300 ou 1.000 chamadas).</p>
+      </div>
+
+      <div class="help-kan-faq-hint">
+        Procurando uma <strong>resposta sobre o app</strong> (não usar a IA)? A aba <a href="#" onclick="event.preventDefault();setHelpTab('faq');">Perguntas frequentes</a> cobre as dúvidas mais comuns sem gastar cota.
+      </div>
     </div>`;
-}
-function _helpKanSubmit() {
-  const inp = document.getElementById('help-kan-q');
-  const out = document.getElementById('help-kan-out');
-  if (!inp || !out) return;
-  const q = (inp.value||'').trim();
-  if (!q) {
-    out.innerHTML = `<div class="help-kan-msg help-kan-warn">Escreva uma pergunta primeiro.</div>`;
-    return;
-  }
-  out.innerHTML = `<div class="help-kan-msg help-kan-loading"><img src="mestre_kan_avatar.png?v=6" class="help-kan-msg-avatar" alt="" onerror="this.outerHTML='🥋'"/> Mestre Kan está pensando…</div>`;
-  // Reusa a busca semântica/IA existente se disponível, senão sugere e-mail
-  if (typeof runAISearch === 'function') {
-    setTimeout(() => {
-      try {
-        runAISearch(q);
-        out.innerHTML = `<div class="help-kan-msg">Resposta aberta na busca global. Confira ali na barra superior. Se quiser perguntar de novo, é só descrever de outra forma.</div>`;
-      } catch(e) {
-        out.innerHTML = `<div class="help-kan-msg help-kan-warn">Não consegui consultar agora. Tenta de novo ou manda pra <a href="mailto:suporte@synkan.com.br">suporte@synkan.com.br</a>.</div>`;
-      }
-    }, 600);
-  } else {
-    out.innerHTML = `<div class="help-kan-msg">Pra perguntar ao Mestre Kan, abra a busca global (<kbd class="help-kbd">⌘</kbd> <kbd class="help-kbd">K</kbd>) e digite sua pergunta lá. Ou manda pra <a href="mailto:suporte@synkan.com.br">suporte@synkan.com.br</a> que respondemos em até 24h.</div>`;
-  }
 }
 
 // — Override do saveData / createBoard / deleteBoard / switchBoard quando em modo Supabase —
