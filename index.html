@@ -40881,11 +40881,22 @@ async function _chatStartVoiceRecord() {
       : (MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4');
     _chatRecorder = new MediaRecorder(_chatRecordStream, { mimeType });
     _chatRecorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) _chatRecordChunks.push(e.data);
+      if (e.data && e.data.size > 0) {
+        _chatRecordChunks.push(e.data);
+        console.debug('[chat] voice chunk:', e.data.size, 'bytes, total:', _chatRecordChunks.length);
+      }
     };
     _chatRecorder.onstop = _chatOnVoiceRecordStop;
-    _chatRecorder.start();
+    _chatRecorder.onerror = (e) => {
+      console.error('[chat] voice recorder error:', e);
+      appAlert('Erro na gravação', 'O microfone parou de funcionar.', { icon: '⚠️' });
+      _chatCleanupRecord();
+    };
+    // Timeslice de 1s — força dataavailable a cada segundo (mais confiável
+    // que esperar pelo stop, que pode não disparar em alguns browsers)
+    _chatRecorder.start(1000);
     _chatRecordStart = Date.now();
+    console.debug('[chat] voice recording started, mime:', mimeType);
     _chatShowRecordUI();
     // Auto-stop após 2 minutos
     setTimeout(() => {
@@ -40907,20 +40918,40 @@ function _chatStopVoiceRecord(send) {
 }
 
 async function _chatOnVoiceRecordStop() {
+  // Captura tudo ANTES da limpeza (chunks é uma referência ao array)
   const send = !!_chatRecorder?._send;
-  const chunks = _chatRecordChunks;
+  const chunks = _chatRecordChunks.slice(); // copia defensiva
   const mime = _chatRecorder?.mimeType || 'audio/webm';
   const channelId = _chatState.currentChannelId;
+  console.debug('[chat] voice stop — send:', send, 'chunks:', chunks.length, 'channel:', channelId);
   _chatCleanupRecord();
-  if (!send || !chunks.length || !channelId) return;
+  if (!send) {
+    console.debug('[chat] voice canceled by user');
+    return;
+  }
+  if (!chunks.length) {
+    appAlert('Nenhum áudio capturado',
+      'A gravação ficou vazia. Pode ser que o microfone esteja mutado, ou o áudio foi muito curto. Tenta de novo falando por uns 2-3 segundos.',
+      { icon: '⚠️' });
+    return;
+  }
+  if (!channelId) {
+    appAlert('Sem canal selecionado', 'Abre um canal primeiro.', { icon: 'ℹ️' });
+    return;
+  }
 
   // Cria arquivo a partir do blob e sobe direto pra storage
   const blob = new Blob(chunks, { type: mime });
-  const ext = mime.includes('webm') ? 'webm' : (mime.includes('mp4') ? 'm4a' : 'audio');
+  const ext = mime.includes('webm') ? 'webm' : (mime.includes('mp4') ? 'm4a' : (mime.includes('ogg') ? 'ogg' : 'audio'));
   const file = new File([blob], `voz-${Date.now()}.${ext}`, { type: mime });
+  console.debug('[chat] voice file built —', file.name, _chatFormatSize(file.size));
 
   if (file.size > _CHAT_MAX_FILE_SIZE) {
     appAlert('Áudio grande demais', `O áudio gerou ${_chatFormatSize(file.size)}. Limite: 10 MB. Grave mais curto.`, { icon: '⚠️' });
+    return;
+  }
+  if (file.size < 100) {
+    appAlert('Áudio muito curto', 'A gravação ficou vazia. Tenta de novo.', { icon: '⚠️' });
     return;
   }
 
@@ -40931,11 +40962,16 @@ async function _chatOnVoiceRecordStop() {
     const c = await _chatGetClient();
     if (!c) throw new Error('Sem cliente Supabase');
     const path = `${supaUser.id}/voz-${Date.now()}-${Math.random().toString(36).slice(2,6)}.${ext}`;
+    console.debug('[chat] voice upload to:', path);
     const { error: upErr } = await c.storage.from(_CHAT_BUCKET).upload(path, file, {
       cacheControl: '3600', upsert: false, contentType: mime,
     });
-    if (upErr) throw upErr;
+    if (upErr) {
+      console.error('[chat] voice upload failed:', upErr);
+      throw upErr;
+    }
     const { data: urlData } = c.storage.from(_CHAT_BUCKET).getPublicUrl(path);
+    console.debug('[chat] voice uploaded, URL:', urlData.publicUrl);
 
     // Insere mensagem com o áudio como attachment
     const audioAttach = {
@@ -40946,11 +40982,17 @@ async function _chatOnVoiceRecordStop() {
       channel_id: channelId, user_id: supaUser.id, body: '',
       attachments: [audioAttach],
     });
-    if (msgErr) throw msgErr;
+    if (msgErr) {
+      console.error('[chat] voice msg insert failed:', msgErr);
+      throw msgErr;
+    }
+    console.debug('[chat] voice message sent ✓');
     _chatUpdateCmdToast(tid, 'Mensagem de voz enviada ✓', 'success');
   } catch(e) {
-    console.error('[chat] send voice:', e);
-    _chatUpdateCmdToast(tid, 'Erro ao enviar voz: ' + (e?.message || e), 'error');
+    console.error('[chat] send voice error:', e);
+    const msg = e?.message || String(e);
+    _chatUpdateCmdToast(tid, 'Erro: ' + msg, 'error');
+    appAlert('Não consegui enviar a voz', msg + '\n\nDá uma olhada no Console (F12) pra ver mais detalhes.', { icon: '⚠️' });
   }
 }
 
