@@ -5021,6 +5021,25 @@ body.density-compact .col{padding:7px;}
 /* Botão "?" no header — abre o "Como usar o Tatami" */
 .chat-channel-h-help{width:28px;height:28px;border-radius:50%;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .12s;font-family:var(--font-sans);}
 .chat-channel-h-help:hover{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary);}
+.chat-channel-h-menu{font-size:16px;line-height:1;letter-spacing:1px;}
+
+/* Menu pop "Renomear / Arquivar / Apagar" */
+.chat-ch-menu-pop{position:fixed;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:9px;padding:4px;min-width:200px;box-shadow:0 6px 18px rgba(0,0,0,.12);z-index:1000;display:flex;flex-direction:column;gap:1px;}
+.chat-ch-menu-pop button{background:transparent;border:none;cursor:pointer;font-family:var(--font-sans);font-size:13px;color:var(--color-text-secondary);text-align:left;padding:8px 12px;border-radius:6px;display:flex;align-items:center;gap:9px;width:100%;}
+.chat-ch-menu-pop button:hover{background:var(--color-background-secondary);color:var(--color-text-primary);}
+.chat-ch-menu-pop button.is-danger{color:#A32D2D;}
+.chat-ch-menu-pop button.is-danger:hover{background:#FCEBEB;color:#A32D2D;}
+:root.dark .chat-ch-menu-pop button.is-danger:hover{background:#3a1a1a;}
+.chat-ch-menu-ico{width:16px;text-align:center;font-size:12px;}
+.chat-ch-menu-divider{height:0.5px;background:var(--color-border-tertiary);margin:3px 8px;}
+
+/* Canal arquivado visualmente: mais opaco, ícone de caixa */
+.chat-ch.is-archived{opacity:.55;}
+.chat-ch.is-archived .chat-ch-prefix::before{content:'📦 ';}
+
+/* Toggle "Mostrar/Esconder arquivados" no fim do sidebar */
+.chat-sb-toggle-archived{width:100%;background:transparent;border:none;cursor:pointer;font-family:var(--font-sans);font-size:11px;color:var(--color-text-tertiary);padding:8px 16px;text-align:left;display:block;letter-spacing:.04em;}
+.chat-sb-toggle-archived:hover{color:var(--color-text-secondary);background:var(--color-background-primary);}
 
 /* Wrapper das mensagens — recebe drag/drop overlay */
 .chat-msgs-wrap{flex:1;position:relative;display:flex;flex-direction:column;overflow:hidden;}
@@ -38149,16 +38168,22 @@ async function renderChat() {
 
 // Shell da view: 2 colunas (canais + main pane)
 function _chatRenderShell(channels) {
-  const ws = channels.filter(c => c.type === 'workspace');
-  const bd = channels.filter(c => c.type === 'board');
-  const dm = channels.filter(c => c.type === 'dm');
+  // Filtra arquivados a menos que o user tenha pedido pra mostrar
+  const showArchived = !!_chatState.showArchived;
+  const visible = showArchived ? channels : channels.filter(c => !c.archived_at);
+  const archivedCount = channels.filter(c => c.archived_at).length;
+
+  const ws = visible.filter(c => c.type === 'workspace');
+  const bd = visible.filter(c => c.type === 'board');
+  const dm = visible.filter(c => c.type === 'dm');
   const canCreate = _chatUserCanCreate();
 
   const channelItem = (ch) => {
     const isCurrent = ch.id === _chatState.currentChannelId;
+    const isArchived = !!ch.archived_at;
     const unread = ch._unread || 0;
     const prefix = ch.type === 'dm' ? '@' : '#';
-    return `<button class="chat-ch${isCurrent?' is-current':''}${unread?' has-unread':''}" onclick="_chatSelectChannel('${ch.id}')">
+    return `<button class="chat-ch${isCurrent?' is-current':''}${unread?' has-unread':''}${isArchived?' is-archived':''}" onclick="_chatSelectChannel('${ch.id}')">
       <span class="chat-ch-prefix">${prefix}</span>
       <span class="chat-ch-name">${_esc(ch.name)}</span>
       ${unread ? `<span class="chat-ch-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
@@ -38202,6 +38227,13 @@ function _chatRenderShell(channels) {
           </div>
           ${dm.length ? dm.map(channelItem).join('') : '<div class="chat-sb-empty">Sem DMs ainda</div>'}
         </div>
+        ${archivedCount > 0 ? `
+          <div class="chat-sb-section">
+            <button class="chat-sb-toggle-archived" onclick="_chatToggleShowArchived()">
+              ${showArchived ? '▾' : '▸'} ${showArchived ? 'Esconder' : 'Mostrar'} arquivados (${archivedCount})
+            </button>
+          </div>
+        ` : ''}
       </aside>
       <main class="chat-main" id="chat-main-pane">
         <div class="chat-loading">Carregando…</div>
@@ -38468,6 +38500,10 @@ function _chatRenderMessagesView() {
   const ch = _chatState.channels.find(c => c.id === _chatState.currentChannelId);
   if (!ch) { pane.innerHTML = _chatRenderEmptyState(); return; }
 
+  // #geral é protegido — não pode arquivar nem apagar
+  const isProtectedGeral = (ch.type === 'workspace' && ch.name === 'geral');
+  const isOwner = (ch.workspace_owner === supaUser.id);
+
   const headerHTML = `
     <div class="chat-channel-h">
       <div class="chat-channel-h-l">
@@ -38481,6 +38517,9 @@ function _chatRenderMessagesView() {
           <img src="mestre_kan_avatar.png?v=6" class="kan-avatar xs" alt="" style="width:18px;height:18px;"/>
           <span>Mestre Kan</span>
         </button>
+        ${isOwner && !isProtectedGeral ? `
+          <button class="chat-channel-h-help chat-channel-h-menu" onclick="_chatChannelMenu(event, '${ch.id}')" title="Mais opções">⋯</button>
+        ` : ''}
       </div>
     </div>`;
 
@@ -39035,6 +39074,151 @@ async function _chatCreateChannelFlow(type) {
     await _chatLoadChannels();
     renderChat();
   } catch(e) { appAlert('Não consegui criar', e?.message || String(e), { icon: '⚠️' }); }
+}
+
+// Toggle pra mostrar/esconder canais arquivados no sidebar
+function _chatToggleShowArchived() {
+  _chatState.showArchived = !_chatState.showArchived;
+  renderChat();
+}
+
+// ── Menu kebab no header do canal: Arquivar / Apagar ────────────────
+function _chatChannelMenu(event, channelId) {
+  event.stopPropagation();
+  const ch = _chatState.channels.find(c => c.id === channelId);
+  if (!ch) return;
+  // #geral é protegido — botão nem aparece, mas guard extra
+  if (ch.type === 'workspace' && ch.name === 'geral') {
+    appAlert('Canal protegido', 'O #geral é o canal padrão do workspace e não pode ser arquivado nem apagado.', { icon: '🔒' });
+    return;
+  }
+
+  // Remove menu anterior
+  const old = document.getElementById('chat-ch-menu-pop');
+  if (old) old.remove();
+
+  const pop = document.createElement('div');
+  pop.id = 'chat-ch-menu-pop';
+  pop.className = 'chat-ch-menu-pop';
+  const isArchived = !!ch.archived_at;
+  pop.innerHTML = `
+    <button onclick="_chatRenameChannel('${channelId}')">
+      <span class="chat-ch-menu-ico">✎</span> Renomear
+    </button>
+    <button onclick="_chatToggleArchiveChannel('${channelId}')">
+      <span class="chat-ch-menu-ico">${isArchived ? '↺' : '📦'}</span>
+      ${isArchived ? 'Desarquivar' : 'Arquivar'}
+    </button>
+    <div class="chat-ch-menu-divider"></div>
+    <button class="is-danger" onclick="_chatDeleteChannel('${channelId}')">
+      <span class="chat-ch-menu-ico">🗑</span> Apagar permanentemente
+    </button>
+  `;
+  document.body.appendChild(pop);
+  const r = event.currentTarget.getBoundingClientRect();
+  pop.style.right = (window.innerWidth - r.right) + 'px';
+  pop.style.top = (r.bottom + 6) + 'px';
+  setTimeout(() => {
+    document.addEventListener('click', function _close(ev) {
+      if (!pop.contains(ev.target)) {
+        pop.remove();
+        document.removeEventListener('click', _close);
+      }
+    });
+  }, 50);
+}
+
+async function _chatRenameChannel(channelId) {
+  document.getElementById('chat-ch-menu-pop')?.remove();
+  const ch = _chatState.channels.find(c => c.id === channelId);
+  if (!ch) return;
+  if (ch.type === 'workspace' && ch.name === 'geral') return;
+  const newName = await appPrompt('Renomear canal', {
+    icon: '#',
+    message: 'Use letras minúsculas, sem espaço.',
+    defaultValue: ch.name,
+    placeholder: 'novo-nome',
+    okLabel: 'Renomear',
+  });
+  if (!newName) return;
+  const cleanName = newName.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
+  if (!cleanName) { appAlert('Nome inválido', 'Use letras minúsculas, números e hífens.', { icon: '⚠️' }); return; }
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.from('chat_channels').update({ name: cleanName }).eq('id', channelId);
+    if (error) throw error;
+    await _chatLoadChannels();
+    renderChat();
+  } catch(e) { appAlert('Não consegui renomear', e?.message || String(e), { icon: '⚠️' }); }
+}
+
+async function _chatToggleArchiveChannel(channelId) {
+  document.getElementById('chat-ch-menu-pop')?.remove();
+  const ch = _chatState.channels.find(c => c.id === channelId);
+  if (!ch) return;
+  if (ch.type === 'workspace' && ch.name === 'geral') return;
+  const isArchived = !!ch.archived_at;
+  const action = isArchived ? 'desarquivar' : 'arquivar';
+  const ok = await appConfirm(
+    isArchived ? 'Desarquivar canal' : 'Arquivar canal',
+    isArchived
+      ? `O canal #${_esc(ch.name)} volta pra lista normal.`
+      : `O canal #${_esc(ch.name)} sai do sidebar mas as mensagens ficam salvas. Você pode desarquivar depois em "Mostrar arquivados".`,
+    { okLabel: isArchived ? 'Desarquivar' : 'Arquivar' }
+  );
+  if (!ok) return;
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.from('chat_channels')
+      .update({ archived_at: isArchived ? null : new Date().toISOString() })
+      .eq('id', channelId);
+    if (error) throw error;
+    // Se arquivou o canal atual, volta pro #geral
+    if (!isArchived && _chatState.currentChannelId === channelId) {
+      const geral = _chatState.channels.find(x => x.type === 'workspace' && x.name === 'geral');
+      _chatState.currentChannelId = geral ? geral.id : null;
+    }
+    await _chatLoadChannels();
+    renderChat();
+  } catch(e) { appAlert('Não consegui ' + action, e?.message || String(e), { icon: '⚠️' }); }
+}
+
+async function _chatDeleteChannel(channelId) {
+  document.getElementById('chat-ch-menu-pop')?.remove();
+  const ch = _chatState.channels.find(c => c.id === channelId);
+  if (!ch) return;
+  if (ch.type === 'workspace' && ch.name === 'geral') return;
+
+  // Confirmação dupla — delete é irreversível e leva todas as mensagens
+  const ok1 = await appConfirm(
+    'Apagar canal permanentemente',
+    `Vai apagar <strong>#${_esc(ch.name)}</strong>, todas as mensagens, threads, reações e anexos. <strong>Não tem volta.</strong><br/><br/>Quer mesmo continuar?`,
+    { okLabel: 'Sim, apagar', cancelLabel: 'Cancelar', icon: '⚠️', danger: true, html: true }
+  );
+  if (!ok1) return;
+
+  const word = await appPrompt('Última confirmação', {
+    icon: '⚠️',
+    message: 'Pra ter certeza, digite APAGAR em maiúsculas.',
+    placeholder: 'APAGAR',
+    okLabel: 'Apagar pra sempre',
+  });
+  if ((word || '').trim() !== 'APAGAR') {
+    appAlert('Cancelado', 'Nada foi apagado.', { icon: 'ℹ️' });
+    return;
+  }
+
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.from('chat_channels').delete().eq('id', channelId);
+    if (error) throw error;
+    // Volta pro #geral
+    const geral = _chatState.channels.find(x => x.type === 'workspace' && x.name === 'geral');
+    _chatState.currentChannelId = geral ? geral.id : null;
+    await _chatLoadChannels();
+    renderChat();
+    if (typeof showToastMsg === 'function') showToastMsg('Canal apagado.');
+  } catch(e) { appAlert('Não consegui apagar', e?.message || String(e), { icon: '⚠️' }); }
 }
 
 // ── Adicionar canal de board (escolha manual) ────────────────────────
