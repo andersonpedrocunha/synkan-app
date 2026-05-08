@@ -38760,6 +38760,19 @@ async function _chatGetClient() {
   return _ensureSupaClient && _ensureSupaClient();
 }
 
+// Helper: identifica o tipo "fino" do canal pra decidir UX do tatame.
+//   'self'   = self-DM (notas-pessoais) → vira "Modo foco" (sem voz, sem convidar)
+//   'dm1on1' = DM entre 2 pessoas → tatame normal mas SEM botão Convidar
+//   'multi'  = workspace, board, qualquer canal com várias pessoas → tatame completo
+function _chatChannelKind(ch) {
+  if (!ch) return 'multi';
+  if (ch.type !== 'dm') return 'multi';
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  if (ch.dm_user_a && ch.dm_user_b && ch.dm_user_a === ch.dm_user_b) return 'self';
+  if (myId && ch.dm_user_a === myId && ch.dm_user_b === myId) return 'self';
+  return 'dm1on1';
+}
+
 // Helper: user pode criar canais/DMs no Kai?
 // Liberado pra: Trial ativo (5 dias), Faixa Roxa, Faixa Preta.
 // Faixa Azul não tem Kai (só vê canais que foram compartilhados como
@@ -39302,10 +39315,19 @@ function _chatRenderMessagesView() {
           <span>Voz</span>
         </button>
       </div>
-      <button type="button" class="chat-extend-btn" onclick="_txOpen()" title="Subir no tatame — sessão colaborativa ao vivo com voz e workspace compartilhado (board, lab e OKRs)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1.5"/><line x1="14" y1="5" x2="14" y2="19"/><path d="M11 10l-2 2 2 2"/><path d="M17 10l2 2-2 2"/></svg>
-        <span>Subir no tatame</span>
-      </button>
+      ${(() => {
+        const _kind = _chatChannelKind(ch);
+        if (_kind === 'self') {
+          return `<button type="button" class="chat-extend-btn" onclick="_txOpen()" title="Modo foco — abrir um Board, Lab ou OKRs em tela limpa pra trabalhar sem distração, com cronômetro pessoal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+            <span>Modo foco</span>
+          </button>`;
+        }
+        return `<button type="button" class="chat-extend-btn" onclick="_txOpen()" title="Subir no tatame — sessão colaborativa ao vivo com voz e workspace compartilhado (board, lab e OKRs)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1.5"/><line x1="14" y1="5" x2="14" y2="19"/><path d="M11 10l-2 2 2 2"/><path d="M17 10l2 2-2 2"/></svg>
+          <span>Subir no tatame</span>
+        </button>`;
+      })()}
       </div>
       <div id="chat-pending-attachments" class="chat-pending-atts" style="display:none;"></div>
       <textarea id="chat-composer-input" class="chat-composer-input" rows="2" placeholder="Mensagem em #${_esc(ch.name)}… (digite / pra ver comandos · arraste arquivos aqui)" oninput="_chatComposerInput(event)" onkeydown="_chatComposerKeydown(event)" onblur="setTimeout(_chatHideSlashPopup, 200)"></textarea>
@@ -41584,6 +41606,7 @@ function _txOpen() {
     sessionId,
     channelId: ch.id,
     channelName: ch.name || 'canal',
+    channelKind: _chatChannelKind(ch),  // 'self' | 'dm1on1' | 'multi'
     participants: [],
     rtChannel: null,
     chatRtChannel: null,  // realtime do chat-thread
@@ -41597,7 +41620,7 @@ function _txOpen() {
     analysers: {},        // analyser por peer pra detecção de fala
     audioCtx: null,
     speakingLoop: null,
-    leftTab: 'pessoas',
+    leftTab: (_chatChannelKind(ch) === 'self') ? 'chat' : 'pessoas',
     chatMessages: [],
     kickoffMsgId: null,
     startedAt: Date.now(),
@@ -41664,26 +41687,35 @@ function _txRenderOverlay() {
     <div class="tx-shell" onclick="event.stopPropagation()">
       <div class="tx-top">
         <div class="tx-top-l">
-          <div class="tx-top-icon">${_TX_ICO.extend}</div>
+          <div class="tx-top-icon">${ext.channelKind === 'self' ? '◎' : _TX_ICO.extend}</div>
           <div>
-            <div class="tx-top-title">No tatame <span class="tx-timer" id="tx-timer-wrap"><span class="tx-timer-dot"></span><span id="tx-timer">${_txFormatDuration()}</span></span></div>
-            <div class="tx-top-sub">#${_esc(ext.channelName)} · ao vivo</div>
+            <div class="tx-top-title">${ext.channelKind === 'self' ? 'Modo foco' : 'No tatame'} <span class="tx-timer" id="tx-timer-wrap"><span class="tx-timer-dot"></span><span id="tx-timer">${_txFormatDuration()}</span></span></div>
+            <div class="tx-top-sub">${ext.channelKind === 'self'
+              ? '@notas-pessoais · só você'
+              : (ext.channelKind === 'dm1on1' ? `@${_esc(ext.channelName)} · 1 a 1` : `#${_esc(ext.channelName)} · ao vivo`)}</div>
           </div>
         </div>
         <div class="tx-top-r">
+          ${ext.channelKind === 'multi' ? `
           <button class="tx-top-btn" onclick="_txInviteFlow()" title="Avisar o canal que tem sessão rolando">
             ${_TX_ICO.invite}<span>Convidar</span>
-          </button>
-          <button class="tx-top-btn tx-min-btn" onclick="_txMinimize()" title="Minimizar (mantém a voz rolando)">
+          </button>` : ''}
+          <button class="tx-top-btn tx-min-btn" onclick="_txMinimize()" title="${ext.channelKind === 'self' ? 'Minimizar (volta com 1 clique)' : 'Minimizar (mantém a voz rolando)'}">
             ${_TX_ICO.minimize}<span>Minimizar</span>
           </button>
-          <button class="tx-top-btn is-danger" onclick="_txClose()" title="Encerrar sessão">
-            ${_TX_ICO.close}<span>Encerrar</span>
+          <button class="tx-top-btn is-danger" onclick="_txClose()" title="${ext.channelKind === 'self' ? 'Sair do modo foco' : 'Encerrar sessão'}">
+            ${_TX_ICO.close}<span>${ext.channelKind === 'self' ? 'Sair' : 'Encerrar'}</span>
           </button>
         </div>
       </div>
       <div class="tx-body">
         <div class="tx-side">
+          ${ext.channelKind === 'self' ? `
+          <div class="tx-side-tabs">
+            <button class="tx-side-tab is-active" onclick="_txSwitchLeftTab('chat')">Notas${(ext.chatMessages&&ext.chatMessages.length)?` <span class="tx-side-tab-count">${ext.chatMessages.length}</span>`:''}</button>
+          </div>
+          <div class="tx-chat-pane" id="tx-chat-pane">${_txRenderChatPaneStatic()}</div>
+          ` : `
           <div class="tx-side-tabs">
             <button class="tx-side-tab ${ext.leftTab==='pessoas'?'is-active':''}" onclick="_txSwitchLeftTab('pessoas')">Pessoas <span class="tx-side-tab-count">${count}</span></button>
             <button class="tx-side-tab ${ext.leftTab==='chat'?'is-active':''}" onclick="_txSwitchLeftTab('chat')">Chat${(ext.chatMessages&&ext.chatMessages.length)?` <span class="tx-side-tab-count">${ext.chatMessages.length}</span>`:''}</button>
@@ -41702,6 +41734,7 @@ function _txRenderOverlay() {
               }
             </div>
           </div>
+          `}
         </div>
         <div class="tx-work">
           <div class="tx-work-tabs">
@@ -41764,10 +41797,13 @@ function _txRenderWork() {
   const ext = _chatState.extended;
   if (!ext) return '';
   if (ext.panelMode === 'empty') {
+    const isSelf = ext.channelKind === 'self';
     return `<div class="tx-work-empty">
-      <div class="tx-work-empty-icon">畳</div>
-      <div class="tx-work-empty-title">No tatame, prontos pro treino</div>
-      <div class="tx-work-empty-sub">Escolha um Board, um item do Lab ou os OKRs pra trabalharem juntos. Todo mundo no tatame vê a mesma coisa em tempo real.</div>
+      <div class="tx-work-empty-icon">${isSelf ? '◎' : '畳'}</div>
+      <div class="tx-work-empty-title">${isSelf ? 'Modo foco · sessão pessoal' : 'No tatame, prontos pro treino'}</div>
+      <div class="tx-work-empty-sub">${isSelf
+        ? 'Escolha um Board, Lab ou OKRs pra focar agora. Cronômetro pessoal correndo, suas notas ficam salvas no canal de notas-pessoais. Só você vê.'
+        : 'Escolha um Board, um item do Lab ou os OKRs pra trabalharem juntos. Todo mundo no tatame vê a mesma coisa em tempo real.'}</div>
       <div class="tx-work-empty-btns">
         <button class="tx-work-empty-btn" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Abrir um Board</span></button>
         <button class="tx-work-empty-btn" onclick="_txSetPanel('lab')">${_TX_ICO.lab}<span>Abrir um Lab</span></button>
@@ -42301,6 +42337,8 @@ function _txRenderChatMsg(m, myId) {
 function _txSwitchLeftTab(tab) {
   const ext = _chatState.extended;
   if (!ext) return;
+  // Self-DM: aba sempre "chat" (notas) — não tem pessoas
+  if (ext.channelKind === 'self') tab = 'chat';
   ext.leftTab = tab;
   _txRenderOverlay();
   if (tab === 'chat') {
@@ -42315,16 +42353,21 @@ function _txRenderChatPaneStatic() {
   if (!ext) return '';
   const msgs = ext.chatMessages || [];
   const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  const isSelf = ext.channelKind === 'self';
+  const emptyMsg = isSelf
+    ? 'Anota o que vier. Tudo fica salvo na thread do @notas-pessoais — bom pra rascunho, planejamento do dia, ideias soltas com timestamp.'
+    : 'Sem mensagens ainda. Tudo o que for digitado aqui fica salvo como thread no canal #' + _esc(ext.channelName) + '.';
   const list = msgs.length
     ? msgs.map(m => _txRenderChatMsg(m, myId)).join('')
-    : '<div class="tx-cm-empty">Sem mensagens ainda. Tudo o que for digitado aqui fica salvo como thread no canal #' + _esc(ext.channelName) + '.</div>';
+    : '<div class="tx-cm-empty">' + emptyMsg + '</div>';
+  const placeholder = isSelf ? 'Sua nota… (vira parte do diário)' : 'Mensagem pra galera no tatame…';
   return `<div class="tx-chat-list" id="tx-chat-list">${list}</div>
     <div class="tx-chat-composer">
-      <textarea id="tx-chat-input" class="tx-chat-input" rows="2" placeholder="Mensagem pra galera no tatame…" onkeydown="_txOnChatKey(event)"></textarea>
+      <textarea id="tx-chat-input" class="tx-chat-input" rows="2" placeholder="${placeholder}" onkeydown="_txOnChatKey(event)"></textarea>
       <input type="file" id="tx-chat-file-input" multiple style="display:none;" onchange="_txChatHandleFiles(this.files);this.value='';"/>
       <div class="tx-chat-composer-actions">
         <button class="tx-chat-attach-btn" onclick="_txChatPickFile()" title="Anexar arquivo (até 10 MB)">📎 Anexar</button>
-        <button class="tx-chat-send" onclick="_txSendChat()" title="Enviar (Enter)">Enviar →</button>
+        <button class="tx-chat-send" onclick="_txSendChat()" title="${isSelf ? 'Salvar nota (Enter)' : 'Enviar (Enter)'}">${isSelf ? 'Salvar →' : 'Enviar →'}</button>
       </div>
     </div>`;
 }
