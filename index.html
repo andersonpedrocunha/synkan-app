@@ -32850,7 +32850,7 @@ const ACHIEVEMENTS = [
   { id:'caminho_bushido',     name:'Caminho do Bushido',     desc:'Atinja a Faixa Preta.',                            icon:'⚔', rarity:'legendary', trigger:'universal',       check: g => g.belt >= 7 },
 
   // ── 道 Hábitos & Disciplina (novas) ──────────────────────
-  { id:'primeira_brasa',      name:'Primeira Brasa',         desc:'Mantenha um hábito por 3 dias seguidos.',          icon:'🌱', rarity:'common',    trigger:'universal',
+  { id:'primeira_brasa',      name:'Primeira Brasa',         desc:'Mantenha um hábito por 3 dias seguidos.',          icon:'🪔', rarity:'common',    trigger:'universal',
     check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 3) >= 1 },
   { id:'onda_tranquila',      name:'Onda Tranquila',         desc:'Mantenha um hábito por 14 dias seguidos.',         icon:'🌬', rarity:'rare',      trigger:'universal',
     check: () => _countHabitCards(c => Number(c.customFieldValues?.cf_streak) >= 14) >= 1 },
