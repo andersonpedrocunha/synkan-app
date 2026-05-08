@@ -5354,7 +5354,8 @@ body.tx-active .app-dialog-overlay{z-index:9500 !important;}
 
 .tx-embed{padding:16px 20px;height:100%;overflow:auto;display:flex;flex-direction:column;}
 .tx-embed-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:0.5px solid var(--tatami-tan);gap:10px;flex-shrink:0;}
-.tx-embed-title{font-family:var(--tatami-mincho);font-size:15.5px;font-weight:600;color:var(--tatami-sumi);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tx-embed-title{font-family:var(--tatami-mincho);font-size:15.5px;font-weight:600;color:var(--tatami-sumi);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:7px;}
+.tx-embed-title > svg{width:18px;height:18px;flex-shrink:0;color:var(--tatami-hinomaru);}
 .tx-embed-actions{display:flex;gap:6px;flex-shrink:0;}
 .tx-embed-mini{font-size:11.5px;font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-ink-soft);padding:6px 10px;border-radius:6px;border:0.5px solid var(--tatami-tan);background:var(--tatami-cream);cursor:pointer;transition:all .12s;}
 .tx-embed-mini:hover{color:var(--tatami-hinomaru);border-color:var(--tatami-hinomaru);}
@@ -39211,9 +39212,9 @@ function _chatRenderMessagesView() {
           <span>Voz</span>
         </button>
       </div>
-      <button type="button" class="chat-extend-btn" onclick="_txOpen()" title="Abrir o Tatame estendido — sessão colaborativa com voz e workspace compartilhado (board ou lab)">
+      <button type="button" class="chat-extend-btn" onclick="_txOpen()" title="Subir no tatame — sessão colaborativa ao vivo com voz e workspace compartilhado (board, lab e OKRs)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1.5"/><line x1="14" y1="5" x2="14" y2="19"/><path d="M11 10l-2 2 2 2"/><path d="M17 10l2 2-2 2"/></svg>
-        <span>Estender Tatame</span>
+        <span>Subir no tatame</span>
       </button>
       </div>
       <div id="chat-pending-attachments" class="chat-pending-atts" style="display:none;"></div>
@@ -41567,8 +41568,8 @@ function _txRenderOverlay() {
         <div class="tx-top-l">
           <div class="tx-top-icon">${_TX_ICO.extend}</div>
           <div>
-            <div class="tx-top-title">Tatame estendido <span class="tx-timer" id="tx-timer-wrap"><span class="tx-timer-dot"></span><span id="tx-timer">${_txFormatDuration()}</span></span></div>
-            <div class="tx-top-sub">#${_esc(ext.channelName)} · sessão colaborativa em tempo real</div>
+            <div class="tx-top-title">No tatame <span class="tx-timer" id="tx-timer-wrap"><span class="tx-timer-dot"></span><span id="tx-timer">${_txFormatDuration()}</span></span></div>
+            <div class="tx-top-sub">#${_esc(ext.channelName)} · ao vivo</div>
           </div>
         </div>
         <div class="tx-top-r">
@@ -41667,8 +41668,8 @@ function _txRenderWork() {
   if (ext.panelMode === 'empty') {
     return `<div class="tx-work-empty">
       <div class="tx-work-empty-icon">畳</div>
-      <div class="tx-work-empty-title">Tatame pronto pra estender</div>
-      <div class="tx-work-empty-sub">Escolha um Board ou um item do Lab pra trabalharem juntos. Todo mundo no tatame vê a mesma coisa em tempo real.</div>
+      <div class="tx-work-empty-title">No tatame, prontos pro treino</div>
+      <div class="tx-work-empty-sub">Escolha um Board, um item do Lab ou os OKRs pra trabalharem juntos. Todo mundo no tatame vê a mesma coisa em tempo real.</div>
       <div class="tx-work-empty-btns">
         <button class="tx-work-empty-btn" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Abrir um Board</span></button>
         <button class="tx-work-empty-btn" onclick="_txSetPanel('lab')">${_TX_ICO.lab}<span>Abrir um Lab</span></button>
@@ -42808,10 +42809,10 @@ async function _txInviteFlow() {
   const ext = _chatState.extended;
   if (!ext) return;
   const ok = await appConfirm('Convidar pro tatame',
-    `Vou postar uma mensagem em <strong>#${_esc(ext.channelName)}</strong> avisando que tem sessão colaborativa rolando agora. Quem quiser entra clicando no botão "Estender Tatame".`,
+    `Vou postar uma mensagem em <strong>#${_esc(ext.channelName)}</strong> avisando a galera que você subiu no tatame. Quem quiser entra clicando no botão "Subir no tatame".`,
     { okLabel: 'Postar convite', cancelLabel:'Cancelar', icon:'🎴', html:true });
   if (!ok) return;
-  const body = `🎴 *Sessão no tatame em andamento* — voz + workspace compartilhado. Clica em "Estender Tatame" no rodapé do canal pra entrar.`;
+  const body = `🎴 *Subi no tatame* — sessão ao vivo com voz + workspace compartilhado. Clica em "Subir no tatame" no rodapé do canal pra entrar.`;
   if (typeof _chatSendMessage === 'function') {
     try { await _chatSendMessage(body, null); } catch(e){ console.error('[tx] invite send fail', e); }
   }
@@ -42874,9 +42875,9 @@ function _chatRenderTatameBanner(channelId) {
   return `<div class="chat-tatame-banner">
     <div class="chat-tatame-banner-l">
       <span class="chat-tatame-banner-dot"></span>
-      <span><strong>Sessão no tatame em andamento</strong> <span class="chat-tatame-banner-meta">${count} pessoa${count!==1?'s':''} no tatame agora</span></span>
+      <span><strong>Tem gente no tatame agora</strong> <span class="chat-tatame-banner-meta">${count} pessoa${count!==1?'s':''} ao vivo · voz + workspace compartilhado</span></span>
     </div>
-    <button class="chat-tatame-banner-btn" onclick="_txOpen()">🎴 Entrar</button>
+    <button class="chat-tatame-banner-btn" onclick="_txOpen()">🎴 Subir no tatame</button>
   </div>`;
 }
 function _chatRefreshTatameBanner(channelId) {
