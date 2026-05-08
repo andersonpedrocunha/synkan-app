@@ -5701,6 +5701,7 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 
 /* Status badge inline (nas mensagens, DMs, header) */
 .chat-user-status{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);padding:1px 7px;border-radius:999px;margin-left:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chat-msg-status{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);padding:1px 7px;border-radius:999px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;}
 
 /* Status picker (modal) */
 .sp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px;}
@@ -39783,6 +39784,7 @@ function _chatRenderMessage(m, isThreadReply) {
       <div class="chat-msg-body">
         <div class="chat-msg-h">
           <span class="chat-msg-name">${_esc(u.name)}</span>
+          ${(u.status_text) ? `<span class="chat-msg-status" title="${_esc(u.status_text)}${u.status_expires_at?` · expira em ${_esc(new Date(u.status_expires_at).toLocaleString('pt-BR'))}`:''}">${_esc(u.status_emoji||'•')} ${_esc(u.status_text)}</span>` : ''}
           <span class="chat-msg-time">${time}</span>
           ${editedTag}
           ${pinTag}
@@ -44099,6 +44101,11 @@ function _chatToggleDojoMap() {
 // Click numa sala do mapa: fecha o mapa e navega pro canal
 function _chatEnterRoomFromMap(channelId) {
   _chatState.dojoMapMode = false;
+  // Se já é o canal atual, _chatSelectChannel sai cedo — força re-render manual
+  if (_chatState.currentChannelId === channelId) {
+    _chatRenderMessagesView();
+    return;
+  }
   if (typeof _chatSelectChannel === 'function') {
     _chatSelectChannel(channelId);
   } else {
@@ -44186,7 +44193,7 @@ function _chatRenderDojoMap() {
       ${zone('会 Praça', 'salas abertas do workspace', workspace, 'Onde a galera toda se encontra')}
       ${zone('🗝 Salas privadas', 'só membros explícitos veem', private_, '')}
       ${zone('▤ Salas de treino', 'cada sala vinculada a um board', boards, 'Conversa específica de cada projeto')}
-      ${zone('@ Encontros pessoais', 'mensagens diretas', dms, '')}
+      ${zone('@ Pessoal', 'mensagens diretas', dms, '')}
     </div>
   </div>`;
 }
