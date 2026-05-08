@@ -6070,6 +6070,46 @@ body.tx-active .belt-ring::after{
 
 /* Prefixo dos canais — Mincho serif pra kanji 会 ficar bonito */
 .chat-ch-prefix{font-family:var(--tatami-mincho);font-size:13px;}
+
+/* ── DMs: avatar + @ italic mincho prefixando o nome ─────────────── */
+.chat-ch-prefix.is-dm{
+  width:22px;display:inline-flex;align-items:center;justify-content:center;
+  margin-right:6px;flex-shrink:0;
+}
+.chat-dm-avatar{
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:50%;
+  font-size:10px;font-weight:700;color:#fff;
+  flex-shrink:0;line-height:1;
+  border:0.5px solid rgba(0,0,0,.08);
+  overflow:hidden;
+}
+.chat-dm-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;}
+.chat-ch-at,
+.dojo-room-at,
+.chat-channel-h-at{
+  font-family:var(--tatami-mincho);
+  font-style:italic;
+  font-weight:500;
+  color:var(--tatami-hinomaru);
+  letter-spacing:-0.01em;
+  margin-right:1px;
+}
+.chat-ch-row.has-unread:not(.is-current) .chat-ch-at{font-weight:600;}
+/* No mapa do tatami — @ no card .dojo-room */
+.dojo-room-prefix.is-dm{
+  display:inline-flex;align-items:center;justify-content:center;width:auto;
+}
+.dojo-room-at{font-size:18px;line-height:1;}
+/* No header do canal aberto — avatar maior + @ */
+.chat-channel-h-prefix.is-dm{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:auto;font-size:initial;
+}
+.chat-channel-h-prefix.is-dm .chat-dm-avatar{
+  width:28px;height:28px;font-size:12px;
+}
+.chat-channel-h-at{font-size:18px;margin-left:6px;}
 /* Ícone SVG da chave (canal privado) — herda cor de currentColor pra integrar com tema */
 .chat-ninja-ico{display:inline-block;vertical-align:-3px;width:16px;height:16px;color:var(--tatami-sumi);}
 .chat-ninja-ico-lg{width:22px;height:22px;vertical-align:-4px;}
@@ -39956,10 +39996,15 @@ function _chatRenderShell(channels) {
         statusTitle = `${otherUser.status_text||''}${isOnline ? ' · online' : ' · offline'}`;
       }
     }
+    const isDmCh = ch.type === 'dm';
     return `<div class="chat-ch-row${isCurrent?' is-current':''}${unread?' has-unread':''}${isArchived?' is-archived':''}">
       <button class="chat-ch" data-private="${isPriv}" onclick="_chatSelectChannel('${ch.id}')" title="${isPriv ? 'Canal privado — só membros explícitos veem' : (statusTitle || '')}">
-        <span class="chat-ch-prefix">${prefix}</span>
-        <span class="chat-ch-name">${_esc(ch.name)}</span>
+        ${isDmCh
+          ? `<span class="chat-ch-prefix is-dm">${_chatRenderDMAvatar(ch, 22)}</span>
+             <span class="chat-ch-name"><em class="chat-ch-at">@</em>${_esc(ch.name)}</span>`
+          : `<span class="chat-ch-prefix">${prefix}</span>
+             <span class="chat-ch-name">${_esc(ch.name)}</span>`
+        }
         ${statusBadge || statusDot}
         ${unread ? `<span class="chat-ch-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
       </button>
@@ -40420,8 +40465,12 @@ function _chatRenderMessagesView() {
   const headerHTML = `
     <div class="chat-channel-h">
       <div class="chat-channel-h-l">
-        <span class="chat-channel-h-prefix" data-private="${!!ch.is_private}">${headerPrefix}</span>
-        <h3 class="chat-channel-h-name">${_esc(ch.name)}</h3>
+        ${isDM
+          ? `<span class="chat-channel-h-prefix is-dm" data-private="${!!ch.is_private}">${_chatRenderDMAvatar(ch, 28)}<em class="chat-channel-h-at">@</em></span>
+             <h3 class="chat-channel-h-name">${_esc(ch.name)}</h3>`
+          : `<span class="chat-channel-h-prefix" data-private="${!!ch.is_private}">${headerPrefix}</span>
+             <h3 class="chat-channel-h-name">${_esc(ch.name)}</h3>`
+        }
         ${dmStatusBadge}
         ${dmCustomStatus}
         ${ch.is_private ? `<span class="chat-channel-h-priv-badge" title="Canal privado">${_NINJA_SVG} privado</span>` : ''}
@@ -44510,6 +44559,29 @@ function _chatRefreshTatameBanner(channelId) {
   slot.innerHTML = _chatRenderTatameBanner(channelId);
 }
 
+// ── Avatar do DM (helper usado em sidebar, mapa, header) ──────────────
+// Retorna HTML <span class="chat-dm-avatar"> com a inicial colorida ou
+// <img> se a pessoa tem foto. Usado nos 3 lugares onde DMs aparecem.
+function _chatRenderDMAvatar(ch, size) {
+  size = size || 22;
+  if (!ch || ch.type !== 'dm') return '';
+  let displayUser = null;
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  if (!ch.dm_user_a || !ch.dm_user_b || (ch.dm_user_a === ch.dm_user_b)) {
+    // Self-DM (notas pessoais) — usa o próprio user
+    const myName = (myId && supaUser?.user_metadata?.full_name) || supaUser?.email || 'Você';
+    displayUser = { name: myName, avatar: supaUser?.user_metadata?.avatar_url || null };
+  } else {
+    const otherId = (myId && ch.dm_user_a === myId) ? ch.dm_user_b : ch.dm_user_a;
+    displayUser = _chatState.userMap[otherId] || { name: ch.name || 'Usuário', avatar: null };
+  }
+  const inner = displayUser.avatar
+    ? `<img src="${_esc(displayUser.avatar)}" alt=""/>`
+    : `${_esc(typeof avatarInitials === 'function' ? avatarInitials(displayUser.name) : (displayUser.name||'?').slice(0,1).toUpperCase())}`;
+  const bg = (typeof avatarColor === 'function') ? avatarColor(displayUser.name) : '#3C3489';
+  return `<span class="chat-dm-avatar" style="width:${size}px;height:${size}px;background:${bg};">${inner}</span>`;
+}
+
 // ── Banner "ex-membro" em DMs com pessoa que saiu da empresa ──────────
 // Detecta se a DM é com alguém offboardado e retorna banner amarelo
 // avisando que é leitura. Vazio se for canal/DM normal.
@@ -45232,8 +45304,12 @@ function _chatRenderDojoMap() {
         <svg width="14" height="14" viewBox="0 0 16 16" fill="${isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M10 1 L3 9 L7 9 L5.5 15 L13 7 L9 7 L10 1 Z"/></svg>
       </button>
       <div class="dojo-room-h">
-        <span class="dojo-room-prefix">${prefix}</span>
-        <span class="dojo-room-name">${_esc(ch.name)}</span>
+        ${ch.type === 'dm'
+          ? `<span class="dojo-room-prefix is-dm">${_chatRenderDMAvatar(ch, 26)}</span>
+             <span class="dojo-room-name"><em class="dojo-room-at">@</em>${_esc(ch.name)}</span>`
+          : `<span class="dojo-room-prefix">${prefix}</span>
+             <span class="dojo-room-name">${_esc(ch.name)}</span>`
+        }
       </div>
       ${ch.description ? `<div class="dojo-room-desc">${_esc(ch.description)}</div>` : ''}
       <div class="dojo-room-foot">
