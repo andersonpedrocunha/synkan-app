@@ -5370,6 +5370,9 @@ body.tx-active .belt-ring::after{
 .tx-work-tab{padding:12px 17px;border:none;background:transparent;color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:color .12s,border-color .12s;display:inline-flex;align-items:center;gap:7px;}
 .tx-work-tab:hover{color:var(--tatami-sumi);}
 .tx-work-tab.is-active{color:var(--tatami-hinomaru);border-bottom-color:var(--tatami-hinomaru);font-weight:600;}
+.tx-work-tab.is-locked{opacity:.35;cursor:not-allowed;pointer-events:auto;}
+.tx-work-tab.is-locked:hover{color:var(--tatami-ink-soft);}
+.tx-work-tab.is-locked::after{content:'🔒';font-size:9px;margin-left:2px;opacity:.7;}
 .tx-work-tab svg{width:13px;height:13px;}
 .tx-work-content{flex:1;min-height:0;overflow:auto;}
 
@@ -42532,8 +42535,9 @@ function _txOpen() {
     participants: [],
     rtChannel: null,
     chatRtChannel: null,  // realtime do chat-thread
-    panelMode: 'empty',
-    panelRef: null,
+    // Em canal de board: já abre direto no Board específico (Lab e OKRs ficam travados)
+    panelMode: (ch.type === 'board' && ch.board_id) ? 'board' : 'empty',
+    panelRef:  (ch.type === 'board' && ch.board_id) ? ch.board_id : null,
     voiceJoined: false,
     micMuted: false,
     peerConns: {},
@@ -42695,10 +42699,18 @@ function _txRenderOverlay() {
         </div>
         <div class="tx-work">
           <div class="tx-work-tabs">
-            <button class="tx-work-tab ${ext.panelMode==='empty'?'is-active':''}" onclick="_txSetPanel('empty')">${_TX_ICO.lobby}<span>Lobby</span></button>
-            <button class="tx-work-tab ${ext.panelMode==='board'?'is-active':''}" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Board</span></button>
-            <button class="tx-work-tab ${ext.panelMode==='lab'?'is-active':''}" onclick="_txSetPanel('lab')">${_TX_ICO.lab}<span>Lab</span></button>
-            <button class="tx-work-tab ${ext.panelMode==='okrs'?'is-active':''}" onclick="_txSetPanel('okrs')">${_TX_ICO.okrs}<span>OKRs</span></button>
+            ${ext.boardLockId ? `
+              <!-- Canal de board: abas Lobby/Lab/OKRs ficam travadas com tooltip explicativo -->
+              <button class="tx-work-tab is-locked" disabled title="Canal de board · use o canal #geral pro Lobby">${_TX_ICO.lobby}<span>Lobby</span></button>
+              <button class="tx-work-tab is-active" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Board</span></button>
+              <button class="tx-work-tab is-locked" disabled title="Canal de board · só mostra esse board. Pra Lab use outro canal.">${_TX_ICO.lab}<span>Lab</span></button>
+              <button class="tx-work-tab is-locked" disabled title="Canal de board · só mostra esse board. Pra OKRs use outro canal.">${_TX_ICO.okrs}<span>OKRs</span></button>
+            ` : `
+              <button class="tx-work-tab ${ext.panelMode==='empty'?'is-active':''}" onclick="_txSetPanel('empty')">${_TX_ICO.lobby}<span>Lobby</span></button>
+              <button class="tx-work-tab ${ext.panelMode==='board'?'is-active':''}" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Board</span></button>
+              <button class="tx-work-tab ${ext.panelMode==='lab'?'is-active':''}" onclick="_txSetPanel('lab')">${_TX_ICO.lab}<span>Lab</span></button>
+              <button class="tx-work-tab ${ext.panelMode==='okrs'?'is-active':''}" onclick="_txSetPanel('okrs')">${_TX_ICO.okrs}<span>OKRs</span></button>
+            `}
           </div>
           <div class="tx-work-content" id="tx-work-content">${_txRenderWork()}</div>
         </div>
@@ -43547,6 +43559,8 @@ function _txPickLabFormat(format) {
 function _txSetPanel(mode) {
   const ext = _chatState.extended;
   if (!ext) return;
+  // Canal de board é travado no Board: ignora tentativas de ir pra Lobby/Lab/OKRs
+  if (ext.boardLockId && mode !== 'board') return;
   ext.panelMode = mode;
   // Se a aba é Board e o canal tem board travado, já abre direto nele (sem picker)
   if (mode === 'board' && ext.boardLockId) {
