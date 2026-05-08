@@ -16089,16 +16089,16 @@ function _settingsPlanoSection() {
       ${(() => {
         const plans = [
           { code:'trial',       label:'Trial',        sub:'5 dias',     price:'Grátis',
-            ai:'30',     boards:'∞',     canvas:'∞',  okrs:'∞',  unified:'∞',
+            ai:'30',     boards:'∞',     canvas:'∞',  okrs:'∞',  unified:'∞', tatami:'liberado',
             admin:'só você', editor:'—',         viewer:'1 board' },
           { code:'faixa_azul',  label:'Faixa Azul',   sub:'Pessoal',    price:'R$ 14,90/mês',
-            ai:'100',    boards:'5',     canvas:'5',  okrs:'3',  unified:'∞',
+            ai:'100',    boards:'5',     canvas:'5',  okrs:'3',  unified:'∞', tatami:'—',
             admin:'só você', editor:'3 boards',  viewer:'5 boards' },
           { code:'faixa_roxa',  label:'Faixa Roxa',   sub:'Profissional', price:'R$ 29,90/mês',
-            ai:'300',    boards:'10',    canvas:'10', okrs:'∞',  unified:'∞',
+            ai:'300',    boards:'10',    canvas:'10', okrs:'∞',  unified:'∞', tatami:'incluso',
             admin:'∞',       editor:'3 boards',  viewer:'5 boards' },
           { code:'faixa_preta', label:'Faixa Preta',  sub:'Empresarial', price:'R$ 79,90/mês',
-            ai:'1000',   boards:'∞',     canvas:'∞',  okrs:'∞',  unified:'∞',
+            ai:'1000',   boards:'∞',     canvas:'∞',  okrs:'∞',  unified:'∞', tatami:'incluso',
             admin:'∞',       editor:'5 boards',  viewer:'10 boards' },
         ];
         const cell = (txt, isCur) => `<td style="padding:9px 12px;font-size:12.5px;color:${isCur?'var(--color-text-primary)':'var(--color-text-secondary)'};border-bottom:1px solid var(--color-border-tertiary);text-align:center;${isCur?'font-weight:600;background:rgba(60,52,137,.05);':''}">${txt}</td>`;
@@ -16124,6 +16124,7 @@ function _settingsPlanoSection() {
               <tr>${labelCell('Lab / Canvas','mindmaps, fluxos, OKR canvas')}${plans.map(p => cell(p.canvas, p.code===code)).join('')}</tr>
               <tr>${labelCell('OKRs','objetivos ativos')}${plans.map(p => cell(p.okrs, p.code===code)).join('')}</tr>
               <tr>${labelCell('Board Unificado','vista agregada')}${plans.map(p => cell(p.unified, p.code===code)).join('')}</tr>
+              <tr>${labelCell('Tatami','chat + voz no tatame')}${plans.map(p => cell(p.tatami, p.code===code)).join('')}</tr>
               ${sectionRow('Membros')}
               <tr>${labelCell('Admin','acesso total · seat pago')}${plans.map(p => cell(p.admin, p.code===code)).join('')}</tr>
               <tr>${labelCell('Editor (externo)','grátis · só boards compartilhados')}${plans.map(p => cell(p.editor, p.code===code)).join('')}</tr>
