@@ -38850,47 +38850,90 @@ const _STATUS_PRESETS = [
   { emoji:'🔕', text:'Não perturbar',    hours:0   },
 ];
 
-// Define status do user atual via RPC. duration=0 ou null = sem expirar.
+// Define status do user atual. Tenta RPC primeiro, fallback pra UPDATE direto,
+// e por último salva em localStorage pra UX funcionar mesmo sem migration.
 async function _chatSetMyStatus(emoji, text, hoursDuration) {
-  const c = await _chatGetClient();
-  if (!c) return false;
+  if (!supaUser?.id) return false;
   const expires = (hoursDuration && hoursDuration > 0)
     ? new Date(Date.now() + hoursDuration * 3600 * 1000).toISOString()
     : null;
+  const cleanEmoji = text ? (emoji || null) : null;
+  const cleanText  = text || null;
+
+  // Atualiza UI local IMEDIATAMENTE (otimista) — pra picker fechar e user ver
+  if (_chatState.userMap[supaUser.id]) {
+    _chatState.userMap[supaUser.id].status_emoji = cleanEmoji;
+    _chatState.userMap[supaUser.id].status_text  = cleanText;
+    _chatState.userMap[supaUser.id].status_expires_at = expires;
+  } else {
+    _chatState.userMap[supaUser.id] = {
+      name: 'Você', avatar: null,
+      status_emoji: cleanEmoji, status_text: cleanText, status_expires_at: expires,
+    };
+  }
+  // Backup em localStorage (UX funciona mesmo offline / sem migration)
+  try {
+    localStorage.setItem('synkan_status_' + supaUser.id, JSON.stringify({
+      emoji: cleanEmoji, text: cleanText, expires_at: expires,
+    }));
+  } catch(_){}
+  // Re-render imediato
+  if (typeof renderUserAccountFooter === 'function') { try { renderUserAccountFooter(); } catch(_){} }
+  if (typeof renderChat === 'function' && currentTab === 'chat') { try { renderChat(); } catch(_){} }
+
+  // Persiste no banco (em background)
+  const c = await _chatGetClient();
+  if (!c) return true;  // mesmo sem cliente, UI já tá atualizada
+  // Tenta RPC primeiro
+  let saved = false;
+  let lastError = null;
   try {
     const { error } = await c.rpc('set_user_status', {
-      p_emoji: emoji || null,
-      p_text:  text  || null,
+      p_emoji: cleanEmoji,
+      p_text:  cleanText,
       p_expires_at: expires,
     });
     if (error) throw error;
-    // Atualiza userMap local
-    if (supaUser?.id && _chatState.userMap[supaUser.id]) {
-      _chatState.userMap[supaUser.id].status_emoji = (text ? emoji : null);
-      _chatState.userMap[supaUser.id].status_text  = text || null;
-      _chatState.userMap[supaUser.id].status_expires_at = expires;
-    }
-    // Re-render sidebar pra mostrar
-    if (typeof renderUserAccountFooter === 'function') {
-      try { renderUserAccountFooter(); } catch(_){}
-    }
-    if (typeof renderChat === 'function' && currentTab === 'chat') {
-      try { renderChat(); } catch(_){}
-    }
-    return true;
+    saved = true;
   } catch(e) {
-    console.error('[status] set fail', e);
-    const msg = e.message || String(e);
-    // Detecta migration pendente (RPC não existe)
-    if (/function.*does not exist|404|not found/i.test(msg)) {
-      if (typeof appAlert === 'function') {
-        appAlert('Migration pendente', 'A função <code>set_user_status</code> não existe no banco. Rode <strong>MIGRATION_USER_STATUS.sql</strong> no Supabase SQL Editor pra ativar status.', { icon:'⚠️', html:true });
-      }
-    } else if (typeof appAlert === 'function') {
-      appAlert('Erro ao salvar status', msg, { icon:'⚠️' });
+    lastError = e;
+    console.warn('[status] RPC set_user_status falhou, tentando UPDATE direto:', e.message || e);
+  }
+  // Fallback: UPDATE direto na tabela profiles (precisa que as colunas existam)
+  if (!saved) {
+    try {
+      const { error: upErr } = await c.from('profiles').upsert({
+        id: supaUser.id,
+        status_emoji: cleanEmoji,
+        status_text:  cleanText,
+        status_expires_at: expires,
+        status_set_at: cleanText ? new Date().toISOString() : null,
+      }, { onConflict: 'id' });
+      if (upErr) throw upErr;
+      saved = true;
+      console.log('[status] salvo via UPDATE direto');
+    } catch(e2) {
+      lastError = e2;
+      console.warn('[status] UPDATE direto também falhou:', e2.message || e2);
+    }
+  }
+  // Se nada funcionou, avisa o user (mas mantém a UI funcionando via localStorage)
+  if (!saved && lastError) {
+    const msg = lastError.message || String(lastError);
+    let hint = '';
+    if (/column.*does not exist|status_emoji|status_text/i.test(msg)) {
+      hint = '<br><br><strong>Solução:</strong> rode <code>MIGRATION_USER_STATUS.sql</code> no Supabase SQL Editor pra adicionar as colunas <code>status_*</code> em <code>profiles</code>.';
+    } else if (/function.*does not exist|PGRST202|not found|404/i.test(msg)) {
+      hint = '<br><br><strong>Solução:</strong> rode <code>MIGRATION_USER_STATUS.sql</code> no Supabase SQL Editor pra criar a função <code>set_user_status</code>.';
+    }
+    if (typeof appAlert === 'function') {
+      appAlert('Status salvo só localmente',
+        `Não consegui salvar no banco. Status aparece pra você mas não pra outros users.<br><br><em>${_esc(msg)}</em>${hint}`,
+        { icon:'⚠️', html:true });
     }
     return false;
   }
+  return true;
 }
 
 // Picker visual — modal com presets + custom + limpar
@@ -39501,9 +39544,22 @@ function _chatOverrideOwnUserMap() {
   const localName = (typeof getProfileName === 'function') ? getProfileName() : null;
   const localAvatar = (typeof getProfileAvatar === 'function') ? getProfileAvatar() : null;
   const existing = _chatState.userMap[supaUser.id] || {};
+  // Restore status do localStorage (pra UX funcionar mesmo sem migration)
+  let cachedStatus = null;
+  try {
+    const raw = localStorage.getItem('synkan_status_' + supaUser.id);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const expired = parsed.expires_at && new Date(parsed.expires_at).getTime() < Date.now();
+      if (!expired && parsed.text) cachedStatus = parsed;
+    }
+  } catch(_){}
   _chatState.userMap[supaUser.id] = {
     name: localName || existing.name || 'Você',
     avatar: localAvatar || existing.avatar || null,
+    status_emoji: existing.status_emoji || (cachedStatus && cachedStatus.emoji) || null,
+    status_text:  existing.status_text  || (cachedStatus && cachedStatus.text)  || null,
+    status_expires_at: existing.status_expires_at || (cachedStatus && cachedStatus.expires_at) || null,
   };
 }
 
