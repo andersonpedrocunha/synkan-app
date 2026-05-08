@@ -39323,6 +39323,20 @@ function _chatRenderMessagesView() {
             <span>Modo foco</span>
           </button>`;
         }
+        if (_kind === 'dm1on1') {
+          // Resolve nome do outro user da DM
+          const _myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+          const _otherId = (ch.dm_user_a === _myId) ? ch.dm_user_b : ch.dm_user_a;
+          const _otherName = (_chatState.userMap[_otherId] && _chatState.userMap[_otherId].name)
+            || (ch.name||'').replace(/^dm-/, '')
+            || 'pessoa';
+          // Trunca pra não estourar o botão
+          const _short = _otherName.length > 14 ? (_otherName.slice(0,14) + '…') : _otherName;
+          return `<button type="button" class="chat-extend-btn" onclick="_txOpen()" title="Subir no tatame com ${_esc(_otherName)} — chamada de voz 1 a 1 com workspace compartilhado (board, lab, OKRs)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1.5"/><line x1="14" y1="5" x2="14" y2="19"/><path d="M11 10l-2 2 2 2"/><path d="M17 10l2 2-2 2"/></svg>
+            <span>Tatame com ${_esc(_short)}</span>
+          </button>`;
+        }
         return `<button type="button" class="chat-extend-btn" onclick="_txOpen()" title="Subir no tatame — sessão colaborativa ao vivo com voz e workspace compartilhado (board, lab e OKRs)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1.5"/><line x1="14" y1="5" x2="14" y2="19"/><path d="M11 10l-2 2 2 2"/><path d="M17 10l2 2-2 2"/></svg>
           <span>Subir no tatame</span>
@@ -39363,7 +39377,7 @@ function _chatRenderMessage(m, isThreadReply) {
 
   const cardLinksHTML = (m.card_links && m.card_links.length)
     ? '<div class="chat-msg-cardlinks">' + m.card_links.map(cl =>
-        `<span class="chat-msg-cardlink" title="Card criado em ${_esc(cl.board_name||'')}">📋 ${_esc(cl.card_name || 'Card')}</span>`
+        `<span class="chat-msg-cardlink" title="Card &quot;${_esc(cl.card_name||'Card')}&quot; criado em ${_esc(cl.board_name||'board')}">📋 task criada${cl.board_name?` · ${_esc(cl.board_name)}`:''}</span>`
       ).join('') + '</div>'
     : '';
 
