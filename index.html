@@ -1044,7 +1044,7 @@ body.density-compact .card-cf-row{font-size:10px;}
 }
 
 /* ── Modal ── */
-.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center;}
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9500;align-items:center;justify-content:center;}
 .ov.open{display:flex;}
 .modal{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.5rem;width:440px;max-width:96vw;max-height:92vh;overflow-y:auto;}
 .mh{font-size:16px;font-weight:500;color:var(--color-text-primary);margin-bottom:1.25rem;}
@@ -3209,7 +3209,7 @@ body.density-compact .col{padding:7px;}
 .reg-stat-value.amber{color:#854F0B;}
 
 /* Modal de cadastro (compartilhado entre pessoa e documento) */
-.reg-modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:300;}
+.reg-modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:9600;}
 .reg-modal.open{display:flex;}
 .reg-modal-card{background:var(--color-background-primary);border-radius:12px;padding:22px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.18);}
 .reg-modal-card h3{font-size:17px;font-weight:600;margin:0 0 16px;color:var(--color-text-primary);}
@@ -6033,6 +6033,7 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
       </label>
       <div id="modal-ai-panel"></div>
     </div>
+    <div id="modal-origin-section" style="display:none;margin-top:14px;padding-top:10px;border-top:0.5px dashed var(--color-border-tertiary);"></div>
     <div class="mfoot">
       <button class="btn-del" id="btn-del" style="display:none;" onclick="deleteCard()">✕ excluir</button>
       <button class="btn-dup" id="btn-dup" style="display:none;" onclick="copyCard()">⎘ duplicar</button>
@@ -18916,7 +18917,6 @@ function render() {
               </div>`:''}
               ${zaiBadge}${depBadge}${effortBadge?'<div style="margin-top:5px;display:flex;justify-content:flex-end;">'+effortBadge+'</div>':''}
               ${(allBoards[currentBoardId]?.isKaizen && c.col === 'kaizen_acao' && !isDone) ? `<button class="kaizen-promote-btn" onclick="event.stopPropagation();promoteKaizenAction(${cidArg})" title="Transformar esta ação em card real em outro board"><span class="kaizen-promote-icon">→</span> Promover pra board</button>` : ''}
-              ${_cardOriginBadge(c)}
             </div>
             ${!isDone?`<button class="card-done-btn" onclick="event.stopPropagation();toggleDone(${cidArg})">✓ done</button>`:''}
           </div>`;
@@ -19453,6 +19453,18 @@ function editCard(id) {
   } else {
     doneStats.style.display='none';
     doneStats.innerHTML='';
+  }
+  // Origem do card (de onde veio + quem criou + quando) — abaixo do Mestre Kan
+  const originSec = document.getElementById('modal-origin-section');
+  if (originSec) {
+    const originHTML = (typeof _cardOriginBadge === 'function') ? _cardOriginBadge(card) : '';
+    if (originHTML) {
+      originSec.innerHTML = originHTML;
+      originSec.style.display = 'block';
+    } else {
+      originSec.innerHTML = '';
+      originSec.style.display = 'none';
+    }
   }
   // Aplica modo read-only se card está trancado por assinatura
   if (typeof _applyModalLockState === 'function') _applyModalLockState(card);
