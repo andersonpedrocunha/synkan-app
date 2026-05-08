@@ -5480,9 +5480,60 @@ body.tx-active .app-dialog-overlay{z-index:9500 !important;}
   .tx-overlay{padding:0;}
   .tx-shell{width:100vw;height:100vh;border-radius:0;border:none;}
   .tx-body{grid-template-columns:1fr;grid-template-rows:auto 1fr;}
-  .tx-side{border-right:none;border-bottom:1px solid var(--tatami-tan);max-height:260px;}
+  .tx-side{border-right:none;border-bottom:1px solid var(--tatami-tan);max-height:200px;}
   .tx-top-btn span{display:none;}
+  .tx-top-title{font-size:14px;}
+  .tx-top-sub{font-size:11px;}
+  .tx-work-tab{padding:9px 11px;font-size:12px;}
+  .tx-lab-format-grid{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .tx-picker-grid{grid-template-columns:1fr;}
 }
+
+/* Cronômetro no top bar */
+.tx-timer{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:var(--tatami-paper);border:0.5px solid var(--tatami-tan);border-radius:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:var(--tatami-sumi);margin-left:10px;}
+.tx-timer-dot{width:6px;height:6px;border-radius:50%;background:#45b369;animation:txPulse 2s infinite;}
+@keyframes txPulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* Botão minimizar no top bar */
+.tx-top-btn.tx-min-btn{background:var(--tatami-paper);}
+
+/* Mini-bar flutuante quando minimizado */
+.tx-minibar{position:fixed;bottom:18px;right:18px;z-index:9100;background:var(--tatami-sumi);color:#fff;padding:9px 14px;border-radius:32px;display:inline-flex;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(0,0,0,.28);font-family:var(--tatami-mincho);font-size:13px;animation:txMinIn .25s ease;}
+@keyframes txMinIn{from{transform:translateY(20px);opacity:0;}to{transform:none;opacity:1;}}
+.tx-minibar-dot{width:8px;height:8px;border-radius:50%;background:#45b369;animation:txPulse 2s infinite;flex-shrink:0;}
+.tx-minibar-text{display:inline-flex;align-items:center;gap:6px;}
+.tx-minibar-timer{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;opacity:.85;}
+.tx-minibar-btn{background:var(--tatami-hinomaru);color:#fff;border:none;border-radius:18px;padding:5px 12px;font-family:var(--tatami-mincho);font-size:12px;cursor:pointer;transition:filter .12s;}
+.tx-minibar-btn:hover{filter:brightness(1.1);}
+.tx-minibar-close{background:transparent;color:#fff;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1;opacity:.6;display:inline-flex;align-items:center;justify-content:center;}
+.tx-minibar-close:hover{opacity:1;background:rgba(255,255,255,.1);}
+
+/* Banner "Sessão ativa" no canal de chat */
+.chat-tatame-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 12px 4px;padding:9px 14px;background:linear-gradient(90deg,rgba(159,0,38,.08),rgba(159,0,38,.03));border:1px solid rgba(159,0,38,.25);border-left:3px solid var(--tatami-hinomaru);border-radius:8px;font-family:var(--tatami-mincho);}
+.chat-tatame-banner-l{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--tatami-sumi);}
+.chat-tatame-banner-dot{width:9px;height:9px;border-radius:50%;background:#45b369;animation:txPulse 2s infinite;}
+.chat-tatame-banner-meta{font-size:11.5px;color:var(--tatami-ink-soft);font-style:italic;margin-left:6px;}
+.chat-tatame-banner-btn{background:var(--tatami-hinomaru);color:#fff;border:none;border-radius:6px;padding:6px 13px;font-family:var(--tatami-mincho);font-style:italic;font-size:12.5px;cursor:pointer;transition:filter .12s;flex-shrink:0;}
+.chat-tatame-banner-btn:hover{filter:brightness(1.1);}
+
+/* Ring de "está falando" — animado */
+.tx-p-avatar.is-speaking{box-shadow:0 0 0 2.5px #45b369;animation:txSpeakRing 1.4s ease-in-out infinite;}
+@keyframes txSpeakRing{0%,100%{box-shadow:0 0 0 2.5px #45b369;}50%{box-shadow:0 0 0 3.5px rgba(69,179,105,.5);}}
+
+/* Botões de moderação por participante (kick/mute) */
+.tx-p-row{position:relative;}
+.tx-p-mod{display:none;gap:4px;margin-left:auto;flex-shrink:0;}
+.tx-p-row:hover .tx-p-mod{display:inline-flex;}
+.tx-p-mod-btn{background:transparent;border:0.5px solid var(--tatami-tan);color:var(--tatami-ink-soft);width:24px;height:24px;border-radius:5px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;justify-content:center;transition:all .12s;}
+.tx-p-mod-btn:hover{color:var(--tatami-hinomaru);border-color:var(--tatami-hinomaru);background:var(--tatami-paper);}
+
+/* Anexos no chat-thread */
+.tx-cm-att{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);border-radius:6px;font-size:11.5px;color:var(--tatami-sumi);text-decoration:none;font-family:var(--tatami-mincho);font-style:italic;margin-top:4px;}
+.tx-cm-att:hover{border-color:var(--tatami-hinomaru);color:var(--tatami-hinomaru);}
+.tx-cm-att-img{display:block;max-width:200px;max-height:160px;border-radius:6px;margin-top:5px;border:0.5px solid var(--tatami-tan);}
+.tx-chat-attach-btn{background:transparent;border:0.5px solid var(--tatami-tan);color:var(--tatami-ink-soft);border-radius:5px;padding:5px 9px;font-size:11.5px;cursor:pointer;font-family:var(--tatami-mincho);font-style:italic;transition:all .12s;}
+.tx-chat-attach-btn:hover{color:var(--tatami-hinomaru);border-color:var(--tatami-hinomaru);}
+.tx-chat-composer-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;}
 
 /* Audit log list (modal) */
 .chat-audit-list{display:flex;flex-direction:column;gap:0;max-height:480px;overflow-y:auto;}
@@ -16863,6 +16914,16 @@ function switchTab(tab) {
   if (tab==='chat') renderChat();
   // Limpa subscription realtime do chat ao sair da aba (pra não vazar conexões)
   if (tab !== 'chat' && typeof _chatUnsubscribeRealtime === 'function') _chatUnsubscribeRealtime();
+  // Tatame: ao sair do chat, minimiza pra não ocupar a tela; ao entrar, reativa monitor
+  if (tab !== 'chat') {
+    if (typeof _chatStopTatameMonitor === 'function') _chatStopTatameMonitor();
+    const _ext = (typeof _chatState !== 'undefined' && _chatState.extended) ? _chatState.extended : null;
+    if (_ext && _ext.open && !_ext.minimized && typeof _txMinimize === 'function') _txMinimize();
+  } else {
+    if (_chatState.currentChannelId && typeof _chatStartTatameMonitor === 'function') {
+      _chatStartTatameMonitor(_chatState.currentChannelId);
+    }
+  }
   if (tab==='dojo') renderDojo();
   if (tab==='settings') renderSettings();
   if (tab==='table') renderTableView();
@@ -38974,6 +39035,7 @@ async function _chatSelectChannel(channelId) {
   _chatRenderMessagesView();
   _chatSubscribeRealtime(channelId);
   _chatMarkRead(channelId);
+  _chatStartTatameMonitor(channelId);
 }
 
 // ── Carrega mensagens ────────────────────────────────────────────────
@@ -39107,6 +39169,7 @@ function _chatRenderMessagesView() {
 
   pane.innerHTML = `
     ${headerHTML}
+    <div id="chat-tatame-banner-slot">${_chatRenderTatameBanner(ch.id)}</div>
     <div class="chat-msgs-wrap" id="chat-msgs-wrap"
          ondragover="_chatDragOver(event)"
          ondragleave="_chatDragLeave(event)"
@@ -41388,6 +41451,10 @@ const _TX_ICO = {
   extend: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1.5"/><line x1="14" y1="5" x2="14" y2="19"/><path d="M11 10l-2 2 2 2"/><path d="M17 10l2 2-2 2"/></svg>',
   invite: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>',
   close:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  minimize: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="19"/></svg>',
+  kick: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>',
+  muteOther: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><path d="M15 9.34V4a3 3 0 0 0-5.94-.6"/></svg>',
+  attach: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
   mic:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>',
   micOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/><path d="M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>',
   leave:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
@@ -41417,6 +41484,7 @@ function _txOpen() {
     channelName: ch.name || 'canal',
     participants: [],
     rtChannel: null,
+    chatRtChannel: null,  // realtime do chat-thread
     panelMode: 'empty',
     panelRef: null,
     voiceJoined: false,
@@ -41424,22 +41492,49 @@ function _txOpen() {
     peerConns: {},
     localStream: null,
     speakingMap: {},
-    leftTab: 'pessoas',  // 'pessoas' | 'chat'
+    analysers: {},        // analyser por peer pra detecção de fala
+    audioCtx: null,
+    speakingLoop: null,
+    leftTab: 'pessoas',
     chatMessages: [],
     kickoffMsgId: null,
+    startedAt: Date.now(),
+    minimized: false,
+    _lastPresenceIds: [], // pra detectar entrar/sair (toast)
+    _timerLoop: null,
+    _reconnectAttempts: {},
   };
   document.body.classList.add('tx-active');
   _txRenderOverlay();
   _txStartPresence();
+  _txStartTimerLoop();
+  // Audit log
+  try { _chatAudit(ch.id, 'tatame.opened', { sessionId }); } catch(_){}
 }
 
 function _txClose() {
-  if (!_chatState.extended || !_chatState.extended.open) return;
+  const ext = _chatState.extended;
+  if (!ext || !ext.open) return;
+  // Audit
+  try { _chatAudit(ext.channelId, 'tatame.closed', {
+    duration_sec: Math.floor((Date.now() - (ext.startedAt||Date.now()))/1000),
+    voice_was_joined: !!ext.voiceJoined,
+  }); } catch(_){}
   try { _txUnmountEmbed(); } catch(e){}
   try { _txLeaveVoice(); } catch(e){}
   try { _txStopPresence(); } catch(e){}
+  // Tear down chat realtime
+  if (ext.chatRtChannel) { try { ext.chatRtChannel.unsubscribe(); } catch(_){} ext.chatRtChannel = null; }
+  // Tear down timer
+  if (ext._timerLoop) { clearInterval(ext._timerLoop); ext._timerLoop = null; }
+  // Tear down speaking detection
+  if (ext.speakingLoop) { clearInterval(ext.speakingLoop); ext.speakingLoop = null; }
+  if (ext.audioCtx) { try { ext.audioCtx.close(); } catch(_){} ext.audioCtx = null; }
+  ext.analysers = {};
+  // Remove UI
   const ov = document.getElementById('tx-overlay');
   if (ov) ov.remove();
+  _txRemoveMiniBar();
   document.body.classList.remove('tx-active');
   document.removeEventListener('keydown', _txOnEscape);
   _chatState.extended = null;
@@ -41469,7 +41564,7 @@ function _txRenderOverlay() {
         <div class="tx-top-l">
           <div class="tx-top-icon">${_TX_ICO.extend}</div>
           <div>
-            <div class="tx-top-title">Tatame estendido</div>
+            <div class="tx-top-title">Tatame estendido <span class="tx-timer" id="tx-timer-wrap"><span class="tx-timer-dot"></span><span id="tx-timer">${_txFormatDuration()}</span></span></div>
             <div class="tx-top-sub">#${_esc(ext.channelName)} · sessão colaborativa em tempo real</div>
           </div>
         </div>
@@ -41477,8 +41572,11 @@ function _txRenderOverlay() {
           <button class="tx-top-btn" onclick="_txInviteFlow()" title="Avisar o canal que tem sessão rolando">
             ${_TX_ICO.invite}<span>Convidar</span>
           </button>
-          <button class="tx-top-btn is-danger" onclick="_txClose()" title="Sair do tatame">
-            ${_TX_ICO.close}<span>Sair</span>
+          <button class="tx-top-btn tx-min-btn" onclick="_txMinimize()" title="Minimizar (mantém a voz rolando)">
+            ${_TX_ICO.minimize}<span>Minimizar</span>
+          </button>
+          <button class="tx-top-btn is-danger" onclick="_txClose()" title="Encerrar sessão">
+            ${_TX_ICO.close}<span>Encerrar</span>
           </button>
         </div>
       </div>
@@ -41535,6 +41633,7 @@ function _txRenderParticipants() {
   if (!list.length) {
     return '<div style="padding:14px 8px;font-style:italic;color:var(--tatami-ink-soft);font-size:12.5px;font-family:var(--tatami-mincho);text-align:center;">Esperando alguém entrar…</div>';
   }
+  const canMod = _txCanModerate();
   return list.map(p => {
     const u = _chatState.userMap[p.user_id] || { name: 'Carregando…', avatar: null };
     const isMe = p.user_id === myId;
@@ -41543,12 +41642,17 @@ function _txRenderParticipants() {
       : (u.name || '?').slice(0,1).toUpperCase();
     const cls = (p.voice_active ? (p.voice_muted ? 'is-muted' : (ext.speakingMap[p.user_id] ? 'is-speaking' : '')) : '');
     const status = p.voice_active ? (p.voice_muted ? 'mic mudo' : 'na chamada') : 'no tatame';
+    const modBtns = (canMod && !isMe) ? `<div class="tx-p-mod">
+      ${p.voice_active && !p.voice_muted ? `<button class="tx-p-mod-btn" onclick="_txRemoteMute('${_esc(p.user_id)}')" title="Mutar microfone desse usuário">${_TX_ICO.muteOther}</button>` : ''}
+      <button class="tx-p-mod-btn" onclick="_txRemoteKick('${_esc(p.user_id)}','${_esc(u.name)}')" title="Remover do tatame">${_TX_ICO.kick}</button>
+    </div>` : '';
     return `<div class="tx-p-row">
       <div class="tx-p-avatar ${cls}">${av}</div>
       <div class="tx-p-info">
         <div class="tx-p-name ${isMe?'tx-p-self':''}">${_esc(u.name)}${isMe?' · você':''}</div>
         <div class="tx-p-status">${status}</div>
       </div>
+      ${modBtns}
     </div>`;
   }).join('');
 }
@@ -41914,8 +42018,40 @@ async function _txEnsureKickoffMessage() {
         try { ext.rtChannel.send({ type:'broadcast', event:'tx-kickoff', payload:{ from: myId, kickoffMsgId: data.id }}); } catch(e){}
       }
       _txLoadChatThread();
+      _txSubscribeChatThread();
     }
   } catch(e){ console.warn('[tx] kickoff fail', e); }
+}
+
+// Subscribe realtime na thread (mensagens novas aparecem em tempo real)
+async function _txSubscribeChatThread() {
+  const ext = _chatState.extended;
+  if (!ext || !ext.kickoffMsgId || ext.chatRtChannel) return;
+  const c = await _chatGetClient();
+  if (!c) return;
+  ext.chatRtChannel = c.channel(`tatami-thread-${ext.kickoffMsgId}`)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'chat_messages',
+      filter: `parent_id=eq.${ext.kickoffMsgId}`,
+    }, (payload) => {
+      const msg = payload && payload.new;
+      if (!msg) return;
+      if (!Array.isArray(ext.chatMessages)) ext.chatMessages = [];
+      // dedup
+      if (ext.chatMessages.some(m => m.id === msg.id)) return;
+      ext.chatMessages.push(msg);
+      const needsHydrate = msg.user_id && !_chatState.userMap[msg.user_id];
+      if (needsHydrate && typeof _chatHydrateUsers === 'function') {
+        _chatHydrateUsers([msg.user_id]).then(() => {
+          if (ext.leftTab === 'chat') _txRenderChatPane();
+          else _txRenderOverlay(); // pra atualizar o badge de count na tab
+        });
+      } else {
+        if (ext.leftTab === 'chat') _txRenderChatPane();
+        else _txRenderOverlay();
+      }
+    })
+    .subscribe();
 }
 
 async function _txLoadChatThread() {
@@ -41977,33 +42113,31 @@ function _txOnChatKey(e) {
 function _txRenderChatPane() {
   const root = document.getElementById('tx-chat-pane');
   if (!root) return;
-  const ext = _chatState.extended;
-  if (!ext) return;
-  const msgs = ext.chatMessages || [];
-  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
-  const list = msgs.length
-    ? msgs.map(m => {
-        const u = _chatState.userMap[m.user_id] || { name:'Usuário', avatar:null };
-        const isMe = m.user_id === myId;
-        const time = (typeof _chatFormatTime === 'function') ? _chatFormatTime(m.created_at) : '';
-        const av = u.avatar ? `<img src="${_esc(u.avatar)}" alt=""/>` : (u.name||'?').slice(0,1).toUpperCase();
-        return `<div class="tx-cm ${isMe?'tx-cm-me':''}">
-          <div class="tx-cm-av">${av}</div>
-          <div class="tx-cm-body">
-            <div class="tx-cm-meta"><strong>${_esc(u.name)}</strong> <span>${time}</span></div>
-            <div class="tx-cm-text">${_esc(m.body||'')}</div>
-          </div>
-        </div>`;
-      }).join('')
-    : '<div class="tx-cm-empty">Sem mensagens ainda. Tudo o que for digitado aqui fica salvo como thread no canal #' + _esc(ext.channelName) + '.</div>';
-  root.innerHTML = `
-    <div class="tx-chat-list" id="tx-chat-list">${list}</div>
-    <div class="tx-chat-composer">
-      <textarea id="tx-chat-input" class="tx-chat-input" rows="2" placeholder="Mensagem pra galera no tatame…" onkeydown="_txOnChatKey(event)"></textarea>
-      <button class="tx-chat-send" onclick="_txSendChat()" title="Enviar (Enter)">Enviar →</button>
-    </div>`;
+  root.innerHTML = _txRenderChatPaneStatic();
   const listEl = document.getElementById('tx-chat-list');
   if (listEl) listEl.scrollTop = listEl.scrollHeight;
+}
+
+// Helper: renderiza HTML de uma mensagem do chat-thread (com anexos)
+function _txRenderChatMsg(m, myId) {
+  const u = _chatState.userMap[m.user_id] || { name:'Usuário', avatar:null };
+  const isMe = m.user_id === myId;
+  const time = (typeof _chatFormatTime === 'function') ? _chatFormatTime(m.created_at) : '';
+  const av = u.avatar ? `<img src="${_esc(u.avatar)}" alt=""/>` : (u.name||'?').slice(0,1).toUpperCase();
+  const atts = Array.isArray(m.attachments) ? m.attachments : [];
+  const attHtml = atts.map(a => {
+    const isImg = (a.mime_type||'').startsWith('image/');
+    if (isImg) return `<a href="${_esc(a.url)}" target="_blank" rel="noopener"><img class="tx-cm-att-img" src="${_esc(a.url)}" alt="${_esc(a.name||'imagem')}"/></a>`;
+    return `<a class="tx-cm-att" href="${_esc(a.url)}" target="_blank" rel="noopener" download="${_esc(a.name||'arquivo')}">📎 ${_esc(a.name||'arquivo')}</a>`;
+  }).join('');
+  return `<div class="tx-cm ${isMe?'tx-cm-me':''}">
+    <div class="tx-cm-av">${av}</div>
+    <div class="tx-cm-body">
+      <div class="tx-cm-meta"><strong>${_esc(u.name)}</strong> <span>${time}</span></div>
+      ${m.body ? `<div class="tx-cm-text">${_esc(m.body)}</div>` : ''}
+      ${attHtml}
+    </div>
+  </div>`;
 }
 
 function _txSwitchLeftTab(tab) {
@@ -42013,7 +42147,7 @@ function _txSwitchLeftTab(tab) {
   _txRenderOverlay();
   if (tab === 'chat') {
     if (!ext.kickoffMsgId) _txEnsureKickoffMessage();
-    else _txLoadChatThread();
+    else { _txLoadChatThread(); _txSubscribeChatThread(); }
   }
 }
 
@@ -42024,24 +42158,16 @@ function _txRenderChatPaneStatic() {
   const msgs = ext.chatMessages || [];
   const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
   const list = msgs.length
-    ? msgs.map(m => {
-        const u = _chatState.userMap[m.user_id] || { name:'Usuário', avatar:null };
-        const isMe = m.user_id === myId;
-        const time = (typeof _chatFormatTime === 'function') ? _chatFormatTime(m.created_at) : '';
-        const av = u.avatar ? `<img src="${_esc(u.avatar)}" alt=""/>` : (u.name||'?').slice(0,1).toUpperCase();
-        return `<div class="tx-cm ${isMe?'tx-cm-me':''}">
-          <div class="tx-cm-av">${av}</div>
-          <div class="tx-cm-body">
-            <div class="tx-cm-meta"><strong>${_esc(u.name)}</strong> <span>${time}</span></div>
-            <div class="tx-cm-text">${_esc(m.body||'')}</div>
-          </div>
-        </div>`;
-      }).join('')
+    ? msgs.map(m => _txRenderChatMsg(m, myId)).join('')
     : '<div class="tx-cm-empty">Sem mensagens ainda. Tudo o que for digitado aqui fica salvo como thread no canal #' + _esc(ext.channelName) + '.</div>';
   return `<div class="tx-chat-list" id="tx-chat-list">${list}</div>
     <div class="tx-chat-composer">
       <textarea id="tx-chat-input" class="tx-chat-input" rows="2" placeholder="Mensagem pra galera no tatame…" onkeydown="_txOnChatKey(event)"></textarea>
-      <button class="tx-chat-send" onclick="_txSendChat()" title="Enviar (Enter)">Enviar →</button>
+      <input type="file" id="tx-chat-file-input" multiple style="display:none;" onchange="_txChatHandleFiles(this.files);this.value='';"/>
+      <div class="tx-chat-composer-actions">
+        <button class="tx-chat-attach-btn" onclick="_txChatPickFile()" title="Anexar arquivo (até 10 MB)">📎 Anexar</button>
+        <button class="tx-chat-send" onclick="_txSendChat()" title="Enviar (Enter)">Enviar →</button>
+      </div>
     </div>`;
 }
 
@@ -42261,6 +42387,7 @@ function _txSetPanel(mode) {
   _chatState.extended.panelRef = null;
   _txRenderOverlay();
   _txBroadcastState();
+  try { _chatAudit(_chatState.extended.channelId, 'tatame.panel_changed', { mode }); } catch(_){}
 }
 
 function _txPickBoard(id) {
@@ -42330,12 +42457,35 @@ async function _txStartPresence() {
         });
       });
       const newIds = list.map(p => p.user_id).filter(id => !_chatState.userMap[id]);
-      if (newIds.length && typeof _chatHydrateUsers === 'function') {
-        _chatHydrateUsers(newIds).then(() => { ext.participants = list; _txRenderOverlay(); _txReconcilePeers(list.map(p=>p.user_id)); });
-      } else {
+      const finishSync = () => {
+        // Toast entrar/sair (diff vs último sync)
+        const newIdSet = list.map(p => String(p.user_id));
+        const oldIdSet = ext._lastPresenceIds || [];
+        if (oldIdSet.length || ext.participants.length) { // pula no primeiro sync
+          newIdSet.forEach(id => {
+            if (!oldIdSet.includes(id) && id !== String(myId)) {
+              const u = _chatState.userMap[id] || { name:'Alguém' };
+              if (typeof showToastMsg === 'function') showToastMsg(`🎴 ${u.name} entrou no tatame`);
+              _txPlayDing(880);
+            }
+          });
+          oldIdSet.forEach(id => {
+            if (!newIdSet.includes(id) && id !== String(myId)) {
+              const u = _chatState.userMap[id] || { name:'Alguém' };
+              if (typeof showToastMsg === 'function') showToastMsg(`👋 ${u.name} saiu do tatame`);
+              _txPlayDing(440);
+            }
+          });
+        }
+        ext._lastPresenceIds = newIdSet;
         ext.participants = list;
         _txRenderOverlay();
         _txReconcilePeers(list.map(p=>p.user_id));
+      };
+      if (newIds.length && typeof _chatHydrateUsers === 'function') {
+        _chatHydrateUsers(newIds).then(finishSync);
+      } else {
+        finishSync();
       }
     })
     .on('broadcast', { event: 'tx-state' }, (msg) => {
@@ -42359,6 +42509,18 @@ async function _txStartPresence() {
       const p = (msg && msg.payload) || {};
       if (p.from === myId) return;
       _txApplyRemoteLab(p.labId, p.snapshot);
+    })
+    .on('broadcast', { event: 'tx-kick' }, (msg) => {
+      const p = (msg && msg.payload) || {};
+      if (p.target !== myId) return;
+      if (typeof showToastMsg === 'function') showToastMsg('Você foi removido do tatame pelo dono');
+      _txClose();
+    })
+    .on('broadcast', { event: 'tx-mute' }, (msg) => {
+      const p = (msg && msg.payload) || {};
+      if (p.target !== myId || !ext.voiceJoined || ext.micMuted) return;
+      _txToggleMute();
+      if (typeof showToastMsg === 'function') showToastMsg('Você foi mutado pelo dono');
     })
     .on('broadcast', { event: 'tx-kickoff' }, (msg) => {
       const p = (msg && msg.payload) || {};
@@ -42412,7 +42574,11 @@ async function _txJoinVoice() {
       try { await ext.rtChannel.track({ voice_active: true, voice_muted: false, ts: Date.now() }); } catch(e){}
     }
     _txReconcilePeers(ext.participants.map(p => p.user_id));
+    // Detecção de fala pro próprio mic
+    const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || 'self';
+    _txAttachSpeakingAnalyser(myId, stream);
     _txRenderOverlay();
+    try { _chatAudit(ext.channelId, 'tatame.joined_voice', {}); } catch(_){}
   } catch (e) {
     console.error('[tx] mic error', e);
     if (typeof appAlert === 'function') appAlert('Sem permissão pra microfone', 'Libere o microfone nas permissões do navegador e tente de novo.', { icon:'🎙' });
@@ -42431,10 +42597,14 @@ function _txLeaveVoice() {
   document.querySelectorAll('.tx-remote-audio').forEach(a => a.remove());
   ext.voiceJoined = false;
   ext.micMuted = false;
+  ext.analysers = {};
+  ext.speakingMap = {};
+  if (ext.speakingLoop) { clearInterval(ext.speakingLoop); ext.speakingLoop = null; }
   if (ext.rtChannel) {
     try { ext.rtChannel.track({ voice_active: false, voice_muted: false, ts: Date.now() }); } catch(e){}
   }
   _txRenderOverlay();
+  try { _chatAudit(ext.channelId, 'tatame.left_voice', {}); } catch(_){}
 }
 
 function _txToggleMute() {
@@ -42493,12 +42663,38 @@ function _txCreatePeerConn(peerId, isOfferer) {
       document.body.appendChild(audio);
     }
     audio.srcObject = ev.streams[0];
+    // Detecção de fala pra esse peer
+    _txAttachSpeakingAnalyser(peerId, ev.streams[0]);
   };
   pc.onicecandidate = (ev) => {
     if (ev.candidate) _txSendSignal(peerId, { type: 'ice', candidate: ev.candidate });
   };
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+    if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+      // Auto-reconnect com backoff
+      try { pc.close(); } catch(e){}
+      delete ext.peerConns[peerId];
+      const audio = document.getElementById('tx-audio-' + peerId);
+      if (audio) audio.remove();
+      // Limpa analyser desse peer
+      if (ext.analysers && ext.analysers[peerId]) delete ext.analysers[peerId];
+      delete ext.speakingMap[peerId];
+      // Re-tenta após delay (max 3 tentativas)
+      const attempts = (ext._reconnectAttempts[peerId] || 0) + 1;
+      ext._reconnectAttempts[peerId] = attempts;
+      if (attempts <= 3 && ext.voiceJoined && ext.participants.some(p => p.user_id === peerId)) {
+        setTimeout(() => {
+          if (!ext.voiceJoined) return;
+          if (ext.peerConns[peerId]) return;
+          const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+          const isOff = String(myId) > String(peerId);
+          _txCreatePeerConn(peerId, isOff);
+        }, 1500 * attempts);
+      }
+    } else if (pc.connectionState === 'connected') {
+      // Reset contador na conexão estável
+      delete ext._reconnectAttempts[peerId];
+    } else if (pc.connectionState === 'closed') {
       try { pc.close(); } catch(e){}
       delete ext.peerConns[peerId];
     }
@@ -42561,6 +42757,287 @@ async function _txInviteFlow() {
   const body = `🎴 *Sessão no tatame em andamento* — voz + workspace compartilhado. Clica em "Estender Tatame" no rodapé do canal pra entrar.`;
   if (typeof _chatSendMessage === 'function') {
     try { await _chatSendMessage(body, null); } catch(e){ console.error('[tx] invite send fail', e); }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Tatame · Banner "Sessão ativa" no canal (monitor passivo de presence)
+// ════════════════════════════════════════════════════════════════════
+// Quando o user abre um canal de chat, monitora passivamente a presence
+// do tatame `tatami-ext-${ch.id}`. Se count > 0, banner no topo
+// "🎴 Sessão ativa · X pessoas · entrar". Atualiza em real-time.
+
+if (typeof _chatState.tatameMonitor === 'undefined') _chatState.tatameMonitor = null;
+
+async function _chatStartTatameMonitor(channelId) {
+  // Tear down monitor anterior
+  _chatStopTatameMonitor();
+  if (!channelId) return;
+  const c = await _chatGetClient();
+  if (!c) return;
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || 'anon';
+  const sessionId = `tatami-ext-${channelId}`;
+  const channel = c.channel(sessionId, {
+    config: { presence: { key: 'mon-' + myId + '-' + Date.now() }, broadcast: { self: false } }
+  });
+  _chatState.tatameMonitor = { channelId, channel, count: 0 };
+  channel
+    .on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState();
+      // Conta peers excluindo monitores (chave começa com 'mon-')
+      let count = 0;
+      Object.keys(state).forEach(k => { if (!k.startsWith('mon-')) count++; });
+      // Se eu estou no tatame desse canal, desconto a mim mesmo da contagem do "outros"
+      _chatState.tatameMonitor.count = count;
+      _chatRefreshTatameBanner(channelId);
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        // Track como "monitor" pra não contar como participante
+        try { await channel.track({ monitor: true, ts: Date.now() }); } catch(_){}
+      }
+    });
+}
+function _chatStopTatameMonitor() {
+  const m = _chatState.tatameMonitor;
+  if (m && m.channel) {
+    try { m.channel.untrack(); } catch(_){}
+    try { m.channel.unsubscribe(); } catch(_){}
+  }
+  _chatState.tatameMonitor = null;
+}
+function _chatRenderTatameBanner(channelId) {
+  const m = _chatState.tatameMonitor;
+  if (!m || m.channelId !== channelId) return '';
+  // Se eu estou DENTRO do tatame desse canal, não mostro banner (já estou lá)
+  const ext = _chatState.extended;
+  if (ext && ext.open && ext.channelId === channelId) return '';
+  const count = m.count || 0;
+  if (!count) return '';
+  return `<div class="chat-tatame-banner">
+    <div class="chat-tatame-banner-l">
+      <span class="chat-tatame-banner-dot"></span>
+      <span><strong>Sessão no tatame em andamento</strong> <span class="chat-tatame-banner-meta">${count} pessoa${count!==1?'s':''} no tatame agora</span></span>
+    </div>
+    <button class="chat-tatame-banner-btn" onclick="_txOpen()">🎴 Entrar</button>
+  </div>`;
+}
+function _chatRefreshTatameBanner(channelId) {
+  const slot = document.getElementById('chat-tatame-banner-slot');
+  if (!slot) return;
+  if (_chatState.currentChannelId !== channelId) return;
+  slot.innerHTML = _chatRenderTatameBanner(channelId);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Tatame · Helpers extras (minimize, timer, speaking, moderação, som)
+// ════════════════════════════════════════════════════════════════════
+
+// Cronômetro da sessão
+function _txFormatDuration() {
+  const ext = _chatState.extended;
+  if (!ext) return '00:00';
+  const sec = Math.max(0, Math.floor((Date.now() - (ext.startedAt||Date.now())) / 1000));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  const pad = n => String(n).padStart(2,'0');
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+function _txStartTimerLoop() {
+  const ext = _chatState.extended;
+  if (!ext || ext._timerLoop) return;
+  ext._timerLoop = setInterval(() => {
+    const el = document.getElementById('tx-timer');
+    if (el) el.textContent = _txFormatDuration();
+    const mb = document.getElementById('tx-minibar-timer');
+    if (mb) mb.textContent = _txFormatDuration();
+  }, 1000);
+}
+
+// ── Minimize / restore ──
+function _txMinimize() {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  ext.minimized = true;
+  const ov = document.getElementById('tx-overlay');
+  if (ov) ov.style.display = 'none';
+  document.body.classList.remove('tx-active');
+  _txRenderMiniBar();
+}
+function _txRestore() {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  ext.minimized = false;
+  const ov = document.getElementById('tx-overlay');
+  if (ov) ov.style.display = '';
+  document.body.classList.add('tx-active');
+  _txRemoveMiniBar();
+}
+function _txRenderMiniBar() {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  let bar = document.getElementById('tx-minibar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'tx-minibar';
+    bar.className = 'tx-minibar';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = `
+    <span class="tx-minibar-dot" aria-hidden="true"></span>
+    <span class="tx-minibar-text">🎴 sessão · #${_esc(ext.channelName)} · <span class="tx-minibar-timer" id="tx-minibar-timer">${_txFormatDuration()}</span></span>
+    <button class="tx-minibar-btn" onclick="_txRestore()">Voltar</button>
+    <button class="tx-minibar-close" onclick="_txClose()" title="Encerrar sessão">×</button>
+  `;
+}
+function _txRemoveMiniBar() {
+  const bar = document.getElementById('tx-minibar');
+  if (bar) bar.remove();
+}
+
+// ── Speaking indicator (Web Audio analyser) ──
+function _txAttachSpeakingAnalyser(peerId, stream) {
+  const ext = _chatState.extended;
+  if (!ext || !stream) return;
+  if (!ext.audioCtx) {
+    try { ext.audioCtx = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){ return; }
+  }
+  try {
+    const source = ext.audioCtx.createMediaStreamSource(stream);
+    const analyser = ext.audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.6;
+    source.connect(analyser);
+    if (!ext.analysers) ext.analysers = {};
+    ext.analysers[peerId] = analyser;
+  } catch(e){ return; }
+  if (!ext.speakingLoop) {
+    ext.speakingLoop = setInterval(_txTickSpeaking, 220);
+  }
+}
+function _txTickSpeaking() {
+  const ext = _chatState.extended;
+  if (!ext || !ext.analysers) return;
+  let anyChanged = false;
+  Object.keys(ext.analysers).forEach(peerId => {
+    const a = ext.analysers[peerId];
+    if (!a) return;
+    const data = new Uint8Array(a.frequencyBinCount);
+    a.getByteFrequencyData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) sum += data[i];
+    const avg = sum / data.length;
+    const speaking = avg > 14;
+    // Mapeia peerId 'self' → próprio user.id
+    const realId = (peerId === 'self')
+      ? ((typeof supaUser !== 'undefined' && supaUser && supaUser.id) || 'self')
+      : peerId;
+    // Se mutado, nunca está falando
+    const isSelf = (peerId === 'self');
+    if (isSelf && ext.micMuted) {
+      if (ext.speakingMap[realId]) { ext.speakingMap[realId] = false; anyChanged = true; }
+      return;
+    }
+    if (ext.speakingMap[realId] !== speaking) {
+      ext.speakingMap[realId] = speaking;
+      anyChanged = true;
+    }
+  });
+  if (anyChanged && ext.leftTab === 'pessoas' && !ext.minimized) {
+    const partsEl = document.getElementById('tx-participants');
+    if (partsEl) partsEl.innerHTML = _txRenderParticipants();
+  }
+}
+
+// ── Moderação ──
+function _txCanModerate() {
+  const ext = _chatState.extended;
+  if (!ext) return false;
+  const ch = _chatState.channels.find(c => c.id === ext.channelId);
+  if (!ch) return false;
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  if (!myId) return false;
+  return ch.workspace_owner === myId || ch.created_by === myId;
+}
+async function _txRemoteKick(targetId, targetName) {
+  const ext = _chatState.extended;
+  if (!ext || !_txCanModerate()) return;
+  if (typeof appConfirm !== 'function') return;
+  const ok = await appConfirm('Remover do tatame', `Tirar <strong>${_esc(targetName||'esse usuário')}</strong> da sessão? Vai sair imediatamente da chamada.`, { okLabel:'Remover', cancelLabel:'Cancelar', danger:true, html:true, icon:'⚠️' });
+  if (!ok) return;
+  if (ext.rtChannel) {
+    try { ext.rtChannel.send({ type:'broadcast', event:'tx-kick', payload:{ from:(typeof supaUser !== 'undefined' && supaUser && supaUser.id)||null, target: targetId }}); } catch(_){}
+  }
+  try { _chatAudit(ext.channelId, 'tatame.kicked', { target: targetId }); } catch(_){}
+}
+function _txRemoteMute(targetId) {
+  const ext = _chatState.extended;
+  if (!ext || !_txCanModerate()) return;
+  if (ext.rtChannel) {
+    try { ext.rtChannel.send({ type:'broadcast', event:'tx-mute', payload:{ from:(typeof supaUser !== 'undefined' && supaUser && supaUser.id)||null, target: targetId }}); } catch(_){}
+  }
+  try { _chatAudit(ext.channelId, 'tatame.muted', { target: targetId }); } catch(_){}
+}
+
+// ── Som de notificação (oscillator simples) ──
+function _txPlayDing(freq) {
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('synkan_tatame_silent') === '1') return;
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq || 880;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+    setTimeout(() => { try { ctx.close(); } catch(_){} }, 500);
+  } catch(_){}
+}
+
+// ── Anexar arquivo no chat-thread ──
+function _txChatPickFile() {
+  const inp = document.getElementById('tx-chat-file-input');
+  if (inp) inp.click();
+}
+async function _txChatHandleFiles(fileList) {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  const files = Array.from(fileList || []);
+  for (const file of files) await _txChatUploadAndSend(file);
+}
+async function _txChatUploadAndSend(file) {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  if (typeof _CHAT_MAX_FILE_SIZE !== 'undefined' && file.size > _CHAT_MAX_FILE_SIZE) {
+    if (typeof appAlert === 'function') appAlert('Arquivo grande demais', `Limite: 10 MB por arquivo.`, { icon:'⚠️' });
+    return;
+  }
+  const c = await _chatGetClient();
+  if (!c) return;
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  if (!myId) return;
+  if (!ext.kickoffMsgId) await _txEnsureKickoffMessage();
+  if (!ext.kickoffMsgId) return;
+  const ext2 = (file.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const path = `${myId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext2}`;
+  try {
+    const { error: upErr } = await c.storage.from(_CHAT_BUCKET).upload(path, file, { cacheControl:'3600', upsert:false });
+    if (upErr) throw upErr;
+    const { data: urlData } = c.storage.from(_CHAT_BUCKET).getPublicUrl(path);
+    const att = { url: urlData.publicUrl, path, name: file.name, size: file.size, mime_type: file.type || 'application/octet-stream' };
+    const { data, error } = await c.from('chat_messages').insert({
+      channel_id: ext.channelId, user_id: myId, parent_id: ext.kickoffMsgId, body:'', attachments:[att],
+    }).select().single();
+    if (!error && data) {
+      // Realtime já vai entregar pra todos (incluindo eu)
+    }
+  } catch(e) {
+    if (typeof appAlert === 'function') appAlert('Falha no upload', e.message || 'Tenta de novo.', { icon:'⚠️' });
   }
 }
 
