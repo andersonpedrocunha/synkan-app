@@ -21962,7 +21962,7 @@ function _renderHelpRecursosTopic(id) {
         <h4 class="help-topic-h">Próximas (em desenvolvimento)</h4>
         <p>PWA instalável (ícone na tela do celular), 2FA via TOTP, status page pública, email sequence durante trial, comparativo "alternativa a Trello/Asana".</p>
 
-        <p style="margin-top:18px;font-size:12px;color:var(--color-text-tertiary);">Sugestões de feature? Vai em <strong>Contato</strong> e manda pra <a href="mailto:bugs@synkan.com.br">bugs@synkan.com.br</a>.</p>
+        <p style="margin-top:18px;font-size:12px;color:var(--color-text-tertiary);">Sugestões de feature? Vai em <strong>Contato</strong> e manda pra <a href="mailto:suporte@synkan.com.br">suporte@synkan.com.br</a>.</p>
       `,
     },
   };
@@ -21999,7 +21999,7 @@ function _renderHelpContato() {
           <div class="help-contact-icon">💬</div>
           <div class="help-contact-h">Bug ou sugestão</div>
           <p class="help-contact-d">Reporta com print + descrição do que esperava.</p>
-          <a class="help-btn" href="mailto:bugs@synkan.com.br?subject=Bug%20%2F%20Sugest%C3%A3o">bugs@synkan.com.br</a>
+          <a class="help-btn" href="mailto:suporte@synkan.com.br?subject=Bug%20%2F%20Sugest%C3%A3o">suporte@synkan.com.br</a>
         </div>
         <div class="help-contact-card">
           <div class="help-contact-icon">💼</div>
@@ -22011,7 +22011,7 @@ function _renderHelpContato() {
           <div class="help-contact-icon">🌐</div>
           <div class="help-contact-h">Status do serviço</div>
           <p class="help-contact-d">Veja se algum sistema está com problema.</p>
-          <a class="help-btn" href="https://status.synkan.com.br" target="_blank" rel="noopener">status.synkan.com.br</a>
+          <a class="help-btn" href="https://synkan.com.br/status" target="_blank" rel="noopener">synkan.com.br/status</a>
         </div>
       </div>
     </div>`;
@@ -25573,7 +25573,7 @@ async function callClaudeAPI({ system, instruction, context, max_tokens, images 
     }
     return { error: _isDevHost()
       ? 'Não consegui falar com o servidor local (' + KANBAN_SYNC_BASE + '). Confirme que o kanban_sync_server.py está rodando com ANTHROPIC_API_KEY exportada.'
-      : 'Não consegui falar com o Mestre Kan agora. Tente novamente em alguns instantes — se persistir, veja status.synkan.com.br.' };
+      : 'Não consegui falar com o Mestre Kan agora. Tente novamente em alguns instantes — se persistir, veja synkan.com.br/status.' };
   }
 }
 
