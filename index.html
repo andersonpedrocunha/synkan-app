@@ -431,6 +431,9 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .board-tile.is-unified .board-tile-action:hover{background:var(--color-invert-text);color:var(--color-invert-bg);}
 
 /* ── Pílula "de [Board]" no card no modo unificado ── */
+.card-origin{display:block;margin-top:6px;padding-top:5px;border-top:0.5px dashed var(--color-border-tertiary);font-size:9.5px;font-style:italic;color:var(--color-text-tertiary);opacity:.75;font-family:var(--font-sans);letter-spacing:.01em;line-height:1.35;user-select:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.card-origin:hover{opacity:1;}
+body.density-compact .card-origin{font-size:9px;margin-top:4px;padding-top:3px;}
 .card-source{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:var(--color-text-tertiary);background:var(--color-background-secondary);border-radius:999px;padding:2px 8px;margin-bottom:5px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .card-source-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 body.density-compact .card-source{font-size:9px;padding:1px 6px;margin-bottom:3px;}
@@ -11100,6 +11103,8 @@ function _doPromoteKaizen(cardId, targetBoardId) {
     doneAt: null,
     responsavel: c.responsavel || null,
     customFieldValues: {},
+    createdFrom: 'kaizen',
+    createdBy: (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null,
   };
   target.cards = target.cards || [];
   target.cards.push(newCard);
@@ -18190,6 +18195,62 @@ function delGlobalTag(id) {
 
 function pLbl(p) { return {alta:'Alta',media:'Média',baixa:'Baixa'}[p]; }
 
+// Origem do card — badge discreto no rodapé mostrando de onde veio
+// e quem criou. Só renderiza se o card tem `createdFrom` setado (cards
+// antigos sem essa info ficam silenciosos).
+function _cardOriginBadge(c) {
+  const from = c && c.createdFrom;
+  if (!from) return '';
+  // Resolve nome do criador (tenta userMap → team do board → próprio user)
+  let creatorName = '';
+  if (c.createdBy) {
+    const u = (typeof _chatState !== 'undefined' && _chatState && _chatState.userMap && _chatState.userMap[c.createdBy]) || null;
+    if (u && u.name) creatorName = u.name;
+    if (!creatorName && typeof allBoards !== 'undefined') {
+      const b = allBoards[currentBoardId];
+      const member = ((b && b.team) || []).find(m => m && (m.userId === c.createdBy || m.id === c.createdBy));
+      if (member) creatorName = member.name || member.email || '';
+    }
+    if (!creatorName && typeof supaUser !== 'undefined' && supaUser && supaUser.id === c.createdBy) {
+      creatorName = (supaUser.user_metadata && supaUser.user_metadata.full_name) || supaUser.email || 'você';
+    }
+  }
+  // Formata data/hora (ex: "7 mai · 14:32")
+  let dateStr = '';
+  if (c.createdAt) {
+    const d = new Date(c.createdAt);
+    if (!isNaN(d.getTime())) {
+      const day = d.getDate();
+      const monthShort = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][d.getMonth()];
+      const hh = String(d.getHours()).padStart(2,'0');
+      const mm = String(d.getMinutes()).padStart(2,'0');
+      dateStr = `${day} ${monthShort} · ${hh}:${mm}`;
+    }
+  }
+  // Origem → ícone + label
+  const ch = c._sourceChannel ? ` #${c._sourceChannel}` : '';
+  const lab = c._sourceLabName ? ` "${c._sourceLabName}"` : '';
+  const sources = {
+    'kanban':       { ico:'▤',  lbl:'kanban' },
+    'tatami':       { ico:'💬', lbl:'chat' + ch },
+    'tatame':       { ico:'🎴', lbl:'tatame' + ch },
+    'lab':          { ico:'⚗', lbl:'lab' + lab },
+    'kaizen':       { ico:'→', lbl:'kaizen' },
+    'recurrence':   { ico:'↻', lbl:'recorrência' },
+    'import':       { ico:'⤓',  lbl:'importado' },
+  };
+  const src = sources[from] || { ico:'•', lbl:_esc(from) };
+  const parts = [`${src.ico} ${_esc(src.lbl)}`];
+  if (creatorName) parts.push(_esc(creatorName));
+  if (dateStr) parts.push(_esc(dateStr));
+  const titleParts = [];
+  titleParts.push(`Origem: ${src.lbl}`);
+  if (creatorName) titleParts.push(`Por: ${creatorName}`);
+  if (dateStr) titleParts.push(`Em: ${dateStr}`);
+  return `<div class="card-origin" title="${_esc(titleParts.join(' · '))}">${parts.join(' · ')}</div>`;
+}
+
+
 function deadlineBadge(deadline, isDone) {
   if(!deadline) return '';
   const today = new Date(); today.setHours(0,0,0,0);
@@ -18845,6 +18906,7 @@ function render() {
               </div>`:''}
               ${zaiBadge}${depBadge}${effortBadge?'<div style="margin-top:5px;display:flex;justify-content:flex-end;">'+effortBadge+'</div>':''}
               ${(allBoards[currentBoardId]?.isKaizen && c.col === 'kaizen_acao' && !isDone) ? `<button class="kaizen-promote-btn" onclick="event.stopPropagation();promoteKaizenAction(${cidArg})" title="Transformar esta ação em card real em outro board"><span class="kaizen-promote-icon">→</span> Promover pra board</button>` : ''}
+              ${_cardOriginBadge(c)}
             </div>
             ${!isDone?`<button class="card-done-btn" onclick="event.stopPropagation();toggleDone(${cidArg})">✓ done</button>`:''}
           </div>`;
@@ -19521,7 +19583,8 @@ function saveCard() {
     if (movedToDone && card.recurrence) _spawnRecurrence(card);
   } else {
     const now=new Date().toISOString();
-    const newCard={id:nCard++,name,priority,col,tagIds,deadline,responsavel,assignedUserId,contactId,recurrence,threads:[],attachments:[],subtasks:[],customFieldValues:{...cCustomValues},createdAt:now,doneAt:col===TERMINAL_COL?now:null};
+    const _myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+    const newCard={id:nCard++,name,priority,col,tagIds,deadline,responsavel,assignedUserId,contactId,recurrence,threads:[],attachments:[],subtasks:[],customFieldValues:{...cCustomValues},createdAt:now,doneAt:col===TERMINAL_COL?now:null,createdFrom:'kanban',createdBy:_myId};
     audit('card.created', { cardId: newCard.id, name, col });
     fireWebhook('card.created', { cardId: newCard.id, name, col, priority, deadline, responsavel });
     if (typeof _calSyncCardEvent === 'function') _calSyncCardEvent(newCard, 'upsert');
@@ -30290,6 +30353,9 @@ function confirmConvertToBoard() {
     card.tagIds = card.tagIds||[];
     card.createdAt = now; card.doneAt = card.col === (board.TERMINAL_COL||'done') ? now : null;
     card._fromCanvas = card._fromCanvas || { canvasId: cv.id };
+    card.createdFrom = card.createdFrom || 'lab';
+    card.createdBy   = card.createdBy   || ((typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null);
+    card._sourceLabName = card._sourceLabName || cv.name || null;
     board.cards.push(card);
     createdCount++;
     return card.id;
@@ -40939,11 +41005,19 @@ async function _chatVirarCardFromText(text, sourceMessageId) {
   const cardDesc = text + '\n\n_Criado a partir do chat._';
   const cardId = (board.nCard || 1);
   board.cards = board.cards || [];
+  // Pega nome do canal de origem (se conhecido)
+  let _srcChannelName = null;
+  try {
+    const _curCh = (_chatState.channels || []).find(x => x.id === _chatState.currentChannelId);
+    if (_curCh) _srcChannelName = _curCh.name;
+  } catch(_){}
   const newCard = {
     id: cardId, name: cardName, priority: 'media', col: firstCol.id, tagIds: [],
     threads: [{ id: Date.now(), text: cardDesc, date: new Date().toISOString(), type: 'auto' }],
     attachments: [], subtasks: [], deadline: null,
     createdAt: new Date().toISOString(), doneAt: null, responsavel: null, customFieldValues: {},
+    createdFrom: 'tatami', createdBy: (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null,
+    _sourceChannel: _srcChannelName,
   };
   board.cards.push(newCard);
   board.nCard = cardId + 1;
@@ -41940,10 +42014,12 @@ async function _txAddCardPrompt(colId) {
   if (!board) return;
   if (!Array.isArray(board.cards)) board.cards = [];
   const newId = 'c_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  const _myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
   board.cards.push({
     id: newId, name: name.trim(), priority: 'media', col: colId,
     tagIds: [], threads: [], subtasks: [], attachments: [],
     createdAt: new Date().toISOString(),
+    createdFrom: 'tatame', createdBy: _myId, _sourceChannel: ext.channelName || null,
   });
   if (typeof board.nCard === 'number') board.nCard++;
   _txPersistBoard(ext.panelRef);
