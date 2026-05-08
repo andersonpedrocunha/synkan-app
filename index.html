@@ -5625,6 +5625,31 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 .chat-ch-status{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:var(--tatami-tan);margin-right:5px;display:inline-block;}
 .chat-ch-status.is-online{background:#45b369;box-shadow:0 0 0 2px rgba(69,179,105,.18);}
 .chat-ch-custom-status{flex-shrink:0;font-size:13px;line-height:1;margin-right:5px;display:inline-block;}
+
+/* #1+#3 Compromisso / Selo de honra */
+.chat-commit-btn{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:4px 10px;background:#fff8e1;border:0.5px dashed #ba7517;color:#854f0b;font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;border-radius:6px;cursor:pointer;transition:all .12s;}
+.chat-commit-btn:hover{background:#ba7517;color:#fff;border-style:solid;}
+.chat-commit-block{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;padding:6px 10px;background:#fff8e1;border:0.5px solid #ffd54f;border-left:3px solid #ba7517;border-radius:6px;font-family:var(--tatami-mincho);font-size:12px;color:#5d4e00;}
+.chat-commit-block.done{background:#eaf3de;border-color:#97c459;border-left-color:#3b6d11;color:#3b6d11;}
+.chat-commit-block.failed{background:#fcebeb;border-color:#f09595;border-left-color:#9f0026;color:#791f1f;}
+.chat-commit-block.is-overdue{background:#fbe9e9;border-left-color:#9f0026;}
+.chat-commit-act{padding:3px 9px;border:0.5px solid currentColor;background:transparent;color:inherit;font-family:inherit;font-size:11px;border-radius:5px;cursor:pointer;font-style:italic;}
+.chat-commit-act.done:hover{background:#3b6d11;color:#fff;border-color:#3b6d11;}
+.chat-commit-act.fail:hover{background:#9f0026;color:#fff;border-color:#9f0026;}
+
+/* #6 Mensagens efêmeras — visual de hourglass */
+.chat-msg-text:has(> .chat-eph-marker){background:#f4ecd8;border-left:2px solid #d4c4a8;padding-left:10px;}
+
+/* #7 Mapa do dojo */
+.dojo-map{padding:24px;height:100%;overflow:auto;background:var(--tatami-paper);}
+.dojo-map-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:12px;border-bottom:0.5px solid var(--tatami-tan);}
+.dojo-map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
+.dojo-room{background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;font-family:var(--tatami-mincho);text-align:center;position:relative;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.dojo-room:hover{border-color:var(--tatami-hinomaru);transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.07);}
+.dojo-room-prefix{font-size:28px;color:var(--tatami-hinomaru);margin-bottom:8px;font-family:'Hiragino Mincho ProN',serif;line-height:1;}
+.dojo-room-name{font-size:13px;font-weight:600;color:var(--tatami-sumi);margin-bottom:3px;}
+.dojo-room-sub{font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;}
+.dojo-room-mat{position:absolute;bottom:6px;left:6px;right:6px;height:3px;background:repeating-linear-gradient(90deg,var(--tatami-tan) 0,var(--tatami-tan) 8px,transparent 8px,transparent 12px);opacity:.4;border-radius:2px;}
 .chat-ch-fav{flex-shrink:0;width:28px;height:28px;background:transparent;border:none;cursor:pointer;color:var(--tatami-ink-soft);display:inline-flex;align-items:center;justify-content:center;border-radius:6px;margin-right:4px;opacity:0;transition:opacity .15s, color .12s, transform .12s;padding:0;}
 .chat-ch-row:hover .chat-ch-fav{opacity:.5;}
 .chat-ch-fav:hover{opacity:1 !important;color:var(--tatami-sumi);background:rgba(26,22,18,.06);transform:scale(1.1);}
@@ -39011,6 +39036,8 @@ async function renderChat() {
       // Inicia presence + carrega menções não-lidas (idempotente)
       if (!_chatPresenceChannel) _chatStartPresence();
       _chatLoadMentions();
+      // #5 Resumo do amanhecer (idempotente, 1x por dia)
+      try { _chatDawnSummaryMaybe(); } catch(_){}
       _chatState.loading = false;
     } catch (e) {
       console.error('[chat] load channels:', e);
@@ -39350,11 +39377,13 @@ async function _chatLoadMessages(channelId) {
   const c = await _chatGetClient();
   if (!c) return;
   // Pega últimas 100 mensagens "raiz" (parent_id IS NULL)
+  // Filtra expiradas (#6 efêmero): expires_at IS NULL OR expires_at > now()
   const { data, error } = await c.from('chat_messages')
     .select('*')
     .eq('channel_id', channelId)
     .is('parent_id', null)
     .is('deleted_at', null)
+    .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) {
@@ -39363,6 +39392,26 @@ async function _chatLoadMessages(channelId) {
     return;
   }
   _chatState.messages = (data || []).reverse(); // ordem cronológica
+  // Carrega compromissos do canal pra anexar nos messages
+  try {
+    const { data: commits } = await c.from('chat_commitments')
+      .select('id,message_id,source,deadline,completed_at,failed_at')
+      .eq('channel_id', channelId);
+    if (Array.isArray(commits)) {
+      const byMsg = {};
+      commits.forEach(cm => { if (cm.message_id) byMsg[cm.message_id] = cm; });
+      _chatState.messages.forEach(m => {
+        const cm = byMsg[m.id];
+        if (cm) {
+          m._commitId = cm.id;
+          m._commitSource = cm.source;
+          m._commitDeadline = cm.deadline;
+          m._commitCompleted = cm.completed_at;
+          m._commitFailed = cm.failed_at;
+        }
+      });
+    }
+  } catch(_){}
 
   // Carrega reações de todas mensagens em batch
   if (_chatState.messages.length) {
@@ -39646,6 +39695,7 @@ function _chatRenderMessage(m, isThreadReply) {
         ${bodyHTML}
         ${attachmentsHTML}
         ${cardLinksHTML}
+        ${(typeof _chatRenderCommitmentBlock === 'function') ? _chatRenderCommitmentBlock(m) : ''}
         ${reactionsHTML}
         ${replyBadge}
         <div class="chat-msg-actions">
@@ -39824,6 +39874,30 @@ const _CHAT_COMMANDS = [
     desc: 'Lista todos os comandos disponíveis',
     icon: '?',
   },
+  {
+    cmd:  '/kata',
+    args: 'daily | retro | planning',
+    desc: 'Inicia kata estruturado (daily, retro ou planning)',
+    icon: '🥋',
+  },
+  {
+    cmd:  '/selo',
+    args: '<o que você se compromete>',
+    desc: 'Selo de honra: compromisso público com consequência no Dojo',
+    icon: '🤝',
+  },
+  {
+    cmd:  '/efemero',
+    args: '<duração> <texto>',
+    desc: 'Mensagem que some após X tempo (ex: /efemero 1h vou almoçar)',
+    icon: '⏳',
+  },
+  {
+    cmd:  '/duelo',
+    args: '',
+    desc: 'Mestre Kan estrutura debate em pros/contras + experimento',
+    icon: '⚔',
+  },
 ];
 
 // Estado do popup de autocomplete
@@ -39983,8 +40057,38 @@ async function _chatSendFromComposer() {
     if (text === '/help' || text === '/ajuda') {
       input.value = '';
       appAlert('Comandos do chat',
-        '<strong>/kanban [texto]</strong> · cria card a partir do texto<br/><strong>/resumo</strong> · Mestre Kan resume a conversa<br/><strong>/ajuda</strong> · esta lista',
+        '<strong>/kanban [texto]</strong> · cria card a partir do texto<br/>' +
+        '<strong>/resumo</strong> · Mestre Kan resume a conversa<br/>' +
+        '<strong>/kata daily|retro|planning</strong> · inicia kata estruturado<br/>' +
+        '<strong>/selo [texto]</strong> · selo de honra (compromisso público)<br/>' +
+        '<strong>/efemero [duração] [texto]</strong> · mensagem que some (ex: /efemero 1h vou almoçar)<br/>' +
+        '<strong>/duelo</strong> · Mestre Kan estrutura debate da conversa<br/>' +
+        '<strong>/ajuda</strong> · esta lista',
         { html: true, icon: '⌨' });
+      return;
+    }
+    if (text.startsWith('/kata')) {
+      const kind = text.replace(/^\/kata\s*/, '').trim().toLowerCase() || 'daily';
+      input.value = '';
+      _chatStartKata(kind);
+      return;
+    }
+    if (text.startsWith('/selo')) {
+      const arg = text.replace(/^\/selo\s*/, '').trim();
+      input.value = '';
+      _chatStartSeal(arg);
+      return;
+    }
+    if (text.startsWith('/efemero') || text.startsWith('/efêmero')) {
+      const m = text.match(/^\/ef[êe]mero\s+(\S+)\s+(.+)/i);
+      input.value = '';
+      if (m) _chatSendEphemeral(m[1], m[2]);
+      else _chatSendEphemeral(null, null); // mostra ajuda
+      return;
+    }
+    if (text === '/duelo' || text === '/debate') {
+      input.value = '';
+      _chatMestreKanDuelo();
       return;
     }
     // Comando desconhecido — mantém toast porque sem ele o user fica sem feedback
@@ -39993,6 +40097,12 @@ async function _chatSendFromComposer() {
       input.value = '';
       return;
     }
+  }
+
+  // #4 Ausência respeitada: confirma antes de mandar com @ pra quem tá fora
+  if (text && typeof _chatAusenciaCheck === 'function') {
+    const okSend = await _chatAusenciaCheck(text);
+    if (!okSend) return;
   }
 
   // Envia mensagem (texto + anexos, ou só um dos dois)
@@ -43520,6 +43630,419 @@ async function _txChatUploadAndSend(file) {
 }
 
 // ── Como usar o Tatami (instruções inline) ──────────────────────────
+// ════════════════════════════════════════════════════════════════════
+// Tatami · Diferenciações do Slack
+// ────────────────────────────────────────────────────────────────────
+// #1 Compromisso detectado · #2 Modo Kata · #3 Selo de honra
+// #4 Ausência respeitada · #5 Resumo do amanhecer · #6 Mensagens efêmeras
+// #7 Mapa do dojo · #8 Mestre Kan duelo
+// ════════════════════════════════════════════════════════════════════
+
+// ─── #1 Detecção de compromisso ─────────────────────────────────────
+// Detecta padrões "vou X até DATA" / "farei X amanhã" / "entrego X sexta".
+// Retorna { matched: true, deadline: Date } ou null.
+function _chatDetectCommitment(body) {
+  if (!body || typeof body !== 'string') return null;
+  const t = body.toLowerCase();
+  const verbs = /\b(vou|farei|entrego|entrego pra você|envio|mando|termino|finalizo|resolvo|fecho|preparo)\b/;
+  if (!verbs.test(t)) return null;
+  // Tenta extrair deadline (palavras + dd/mm)
+  const today = new Date(); today.setHours(0,0,0,0);
+  const deadlineHints = [
+    { re:/\bhoje\b/,                offset:0,   hour:18 },
+    { re:/\bagora\b/,               offset:0,   hour:Math.min(23, today.getHours()+1) },
+    { re:/\bamanh[ãa]\b/,           offset:1,   hour:18 },
+    { re:/\bdepois de amanh[ãa]\b/, offset:2,   hour:18 },
+    { re:/\bsegunda(-feira)?\b/,    offset:'wd1', hour:18 },
+    { re:/\bter[çc]a(-feira)?\b/,   offset:'wd2', hour:18 },
+    { re:/\bquarta(-feira)?\b/,     offset:'wd3', hour:18 },
+    { re:/\bquinta(-feira)?\b/,     offset:'wd4', hour:18 },
+    { re:/\bsexta(-feira)?\b/,      offset:'wd5', hour:18 },
+    { re:/\bs[áa]bado\b/,           offset:'wd6', hour:12 },
+    { re:/\bdomingo\b/,             offset:'wd0', hour:12 },
+    { re:/\bsemana que vem\b/,      offset:7,   hour:18 },
+    { re:/\bm[êe]s que vem\b/,      offset:30,  hour:18 },
+  ];
+  let deadline = null;
+  for (const h of deadlineHints) {
+    if (h.re.test(t)) {
+      const d = new Date(today);
+      if (typeof h.offset === 'number') {
+        d.setDate(d.getDate() + h.offset);
+      } else if (h.offset.startsWith('wd')) {
+        const target = parseInt(h.offset.slice(2), 10);
+        let diff = (target - d.getDay() + 7) % 7;
+        if (diff === 0) diff = 7; // hoje mesmo já é aquele dia → próximo
+        d.setDate(d.getDate() + diff);
+      }
+      d.setHours(h.hour, 0, 0, 0);
+      deadline = d;
+      break;
+    }
+  }
+  // Tenta dd/mm explícito
+  const dm = t.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+  if (dm) {
+    const day = parseInt(dm[1], 10);
+    const mon = parseInt(dm[2], 10);
+    const yr  = dm[3] ? (parseInt(dm[3], 10) < 100 ? 2000 + parseInt(dm[3], 10) : parseInt(dm[3], 10)) : today.getFullYear();
+    if (day >= 1 && day <= 31 && mon >= 1 && mon <= 12) {
+      deadline = new Date(yr, mon - 1, day, 18, 0, 0, 0);
+    }
+  }
+  if (!deadline) return null;
+  return { matched: true, deadline };
+}
+
+// Bloco completo do compromisso: render abaixo do body do msg
+function _chatRenderCommitmentBlock(m) {
+  if (!m) return '';
+  // Já é compromisso → mostra status (cumprido / falhou / em aberto)
+  if (m._commitId) {
+    const isMine = m.user_id === supaUser?.id;
+    if (m._commitCompleted) {
+      return `<div class="chat-commit-block done" title="Compromisso cumprido em ${_esc(new Date(m._commitCompleted).toLocaleString('pt-BR'))}">
+        ✅ <strong>cumprido</strong> ${m._commitDeadline?` · meta: ${_esc(new Date(m._commitDeadline).toLocaleDateString('pt-BR'))}`:''}
+      </div>`;
+    }
+    if (m._commitFailed) {
+      return `<div class="chat-commit-block failed">
+        ❌ <strong>não cumprido</strong>
+      </div>`;
+    }
+    // Em aberto — autor pode marcar
+    const overdue = m._commitDeadline && new Date(m._commitDeadline) < new Date();
+    return `<div class="chat-commit-block open ${overdue?'is-overdue':''}">
+      <span>${m._commitSource==='selo'?'🤝 <strong>selo de honra</strong>':'🤝 compromisso'}${m._commitDeadline?` · até ${_esc(new Date(m._commitDeadline).toLocaleDateString('pt-BR'))}`:''}${overdue?' · <em style="color:#9f0026;">venceu</em>':''}</span>
+      ${isMine ? `
+        <button class="chat-commit-act done" onclick="event.stopPropagation();_chatCompleteCommitment('${m._commitId}','completed')">✓ cumpri</button>
+        <button class="chat-commit-act fail" onclick="event.stopPropagation();_chatCompleteCommitment('${m._commitId}','failed')">✕ não consegui</button>
+      `:''}
+    </div>`;
+  }
+  // Sem commit ainda — só autor vê o botão de marcar
+  if (m.user_id !== supaUser?.id) return '';
+  const d = _chatDetectCommitment(m.body);
+  if (!d) return '';
+  return `<button class="chat-commit-btn" onclick="event.stopPropagation();_chatMarkAsCommitment('${m.id}')" title="Criar compromisso público com deadline">🤝 marcar como compromisso · ${d.deadline.toLocaleDateString('pt-BR')}</button>`;
+}
+
+async function _chatCompleteCommitment(commitId, status) {
+  const c = await _chatGetClient();
+  if (!c) return;
+  let reason = null;
+  if (status === 'failed' && typeof appPrompt === 'function') {
+    reason = await appPrompt('O que aconteceu?', { icon:'😔', placeholder:'Opcional · ajuda a aprender', okLabel:'Registrar' });
+    if (reason === null) return;
+  }
+  try {
+    await c.rpc('complete_commitment', { p_commit_id: commitId, p_status: status, p_reason: reason });
+    if (status === 'completed' && typeof _gamifAddXP === 'function') {
+      try { _gamifAddXP(10, 'Compromisso cumprido'); } catch(_){}
+    }
+    _chatLoadMessages(_chatState.currentChannelId).then(() => _chatRenderMessagesView());
+    if (typeof showToastMsg === 'function') {
+      showToastMsg(status === 'completed' ? '✅ Compromisso registrado como cumprido (+10 XP)' : '❌ Compromisso registrado como não cumprido');
+    }
+  } catch(e) {
+    if (typeof appAlert === 'function') appAlert('Erro', e.message || String(e), { icon:'⚠️' });
+  }
+}
+
+async function _chatMarkAsCommitment(messageId) {
+  const m = _chatState.messages.find(x => x.id === messageId);
+  if (!m) return;
+  const det = _chatDetectCommitment(m.body);
+  const deadlineISO = det ? det.deadline.toISOString() : null;
+  const c = await _chatGetClient();
+  if (!c) return;
+  try {
+    const { data, error } = await c.rpc('create_commitment', {
+      p_channel_id: _chatState.currentChannelId,
+      p_message_id: messageId,
+      p_text:       m.body || '',
+      p_source:     'detected',
+      p_deadline:   deadlineISO,
+    });
+    if (error) throw error;
+    m._commitId = data;
+    if (typeof showToastMsg === 'function') {
+      showToastMsg('🤝 Compromisso registrado' + (det ? ' · deadline ' + det.deadline.toLocaleDateString('pt-BR') : ''));
+    }
+    _chatRenderMessagesView();
+  } catch(e) {
+    if (typeof appAlert === 'function') appAlert('Erro', e.message || String(e), { icon:'⚠️' });
+  }
+}
+
+// ─── #2 Modo Kata ────────────────────────────────────────────────────
+const _KATAS = {
+  daily: {
+    title: 'Daily standup · 5 min',
+    intro: '🥋 *Iniciando kata daily.* Cada um responde abaixo em thread.',
+    questions: ['1️⃣ O que fez ontem?','2️⃣ O que vai fazer hoje?','3️⃣ Algum bloqueio?'],
+  },
+  retro: {
+    title: 'Retrospectiva · 15 min',
+    intro: '🥋 *Iniciando kata de retrospectiva.* Reflita honestamente, vai virar plano de ação.',
+    questions: ['🌱 O que melhorou desde a última vez?','⚠ O que travou ou frustrou?','🎯 Qual ação concreta vai levar pra frente?'],
+  },
+  planning: {
+    title: 'Planning · 10 min',
+    intro: '🥋 *Iniciando kata de planning.* Vamos alinhar o que entra no próximo ciclo.',
+    questions: ['🎯 Qual o objetivo principal do ciclo?','📋 Quais os 3 itens prioritários?','⏱ Qual o prazo realista?','🚧 Que riscos antecipo?'],
+  },
+};
+async function _chatStartKata(kind) {
+  const kata = _KATAS[kind];
+  if (!kata) {
+    if (typeof appAlert === 'function') appAlert('Kata não existe', `Tipos disponíveis: ${Object.keys(_KATAS).join(', ')}`, { icon:'🥋' });
+    return;
+  }
+  const body = `${kata.intro}\n\n${kata.questions.join('\n')}\n\n_Quando todo mundo responder, peça \`/resumo\` pro Mestre Kan extrair ações._`;
+  if (typeof _chatSendMessage === 'function') {
+    await _chatSendMessage(body, null);
+  }
+}
+
+// ─── #3 Selo de honra ───────────────────────────────────────────────
+async function _chatStartSeal(text) {
+  text = (text || '').trim();
+  if (!text) {
+    if (typeof appAlert === 'function') appAlert('Selo precisa de texto', 'Use: /selo <o que você está se comprometendo>', { icon:'🤝' });
+    return;
+  }
+  // Posta a mensagem com prefixo de selo
+  const body = `🤝 *Selo de honra:* ${text}`;
+  if (typeof _chatSendMessage !== 'function') return;
+  // Captura o id da mensagem que vai ser inserida pra criar compromisso vinculado
+  const c = await _chatGetClient();
+  if (!c) return;
+  try {
+    const { data: msgRow, error: msgErr } = await c.from('chat_messages').insert({
+      channel_id: _chatState.currentChannelId,
+      user_id: supaUser.id,
+      parent_id: null,
+      body, attachments: [],
+    }).select().single();
+    if (msgErr) throw msgErr;
+    // Cria commitment vinculado tipo 'selo'
+    await c.rpc('create_commitment', {
+      p_channel_id: _chatState.currentChannelId,
+      p_message_id: msgRow.id,
+      p_text: text,
+      p_source: 'selo',
+      p_deadline: null,
+    });
+    // Re-render pra mostrar
+    _chatLoadMessages(_chatState.currentChannelId).then(() => _chatRenderMessagesView());
+    if (typeof showToastMsg === 'function') showToastMsg('🤝 Selo registrado · use os botões na mensagem pra marcar como cumprido');
+  } catch(e) {
+    if (typeof appAlert === 'function') appAlert('Erro', e.message || String(e), { icon:'⚠️' });
+  }
+}
+
+// ─── #4 Ausência respeitada ─────────────────────────────────────────
+// Antes de enviar mensagem com @, verifica se o mencionado tem status
+// de ausência longa (férias, doente, etc). Mostra confirm.
+async function _chatAusenciaCheck(body) {
+  // Procura por @nomes no body
+  const matches = (body.match(/@([\w.\-áéíóúâêôãõç]+)/gi) || []).map(m => m.slice(1).toLowerCase());
+  if (!matches.length) return true;
+  // Resolve cada @ pra user_id via userMap (full_name prefix match)
+  const absentUsers = [];
+  for (const handle of matches) {
+    let foundUser = null;
+    for (const [uid, u] of Object.entries(_chatState.userMap)) {
+      const name = (u.name || '').toLowerCase();
+      if (name.startsWith(handle) && uid !== supaUser?.id) {
+        foundUser = { id: uid, ...u };
+        break;
+      }
+    }
+    if (!foundUser) continue;
+    if (!foundUser.status_text) continue;
+    // Status considerado "ausente" se contém férias/doente/fora/sair
+    const ABSENT_RE = /(f[ée]rias|doente|fora|saí|sumir|n[ãa]o perturbar|dnd|away)/i;
+    if (ABSENT_RE.test(foundUser.status_text)) {
+      absentUsers.push(foundUser);
+    }
+  }
+  if (!absentUsers.length) return true;
+  // Confirma
+  if (typeof appConfirm !== 'function') return true;
+  const list = absentUsers.map(u => `<strong>${_esc(u.name)}</strong> ${_esc(u.status_emoji||'')} <em>${_esc(u.status_text)}</em>`).join('<br>');
+  const ok = await appConfirm('Pessoas ausentes mencionadas',
+    `Você está mencionando:<br><br>${list}<br><br>Mandar mesmo assim?`,
+    { okLabel:'Mandar', cancelLabel:'Pensar melhor', icon:'🏖', html:true });
+  return ok;
+}
+
+// ─── #5 Resumo do amanhecer ─────────────────────────────────────────
+// Primeira abertura do dia → posta TL;DR no #notas-pessoais
+async function _chatDawnSummaryMaybe() {
+  if (!supaUser?.id) return;
+  const KEY = 'synkan_tatami_dawn_' + supaUser.id;
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    if (localStorage.getItem(KEY) === today) return; // já rodou hoje
+    localStorage.setItem(KEY, today);
+  } catch(_){}
+  // Acha o canal notas-pessoais (self-DM)
+  const selfDM = (_chatState.channels || []).find(ch =>
+    ch.type === 'dm' && ch.dm_user_a === ch.dm_user_b && ch.dm_user_a === supaUser.id);
+  if (!selfDM) return;
+  const c = await _chatGetClient();
+  if (!c) return;
+  // Coleta dados rápidos:
+  // - Total de mensagens novas em todos canais (24h)
+  // - Mentions pendentes
+  // - Compromissos vencendo amanhã
+  let newMsgs = 0, openMentions = 0, dueTomorrow = [];
+  try {
+    const since = new Date(Date.now() - 24*3600*1000).toISOString();
+    const { count: nm } = await c.from('chat_messages').select('id', { count:'exact', head:true }).gt('created_at', since).neq('user_id', supaUser.id);
+    newMsgs = nm || 0;
+    const { count: mn } = await c.from('chat_message_mentions').select('user_id', { count:'exact', head:true }).eq('user_id', supaUser.id).is('read_at', null);
+    openMentions = mn || 0;
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1); tomorrow.setHours(23,59,59);
+    const todayEnd = new Date(); todayEnd.setHours(23,59,59);
+    const { data: cm } = await c.from('chat_commitments')
+      .select('id,text,deadline')
+      .eq('user_id', supaUser.id)
+      .is('completed_at', null)
+      .is('failed_at', null)
+      .not('deadline','is', null)
+      .lte('deadline', tomorrow.toISOString());
+    dueTomorrow = cm || [];
+  } catch(_){}
+  // Monta resumo
+  const lines = [`🌅 *Bom dia, treinador.* Aqui o briefing:`];
+  if (newMsgs)      lines.push(`📨 ${newMsgs} mensagens novas em canais (últimas 24h)`);
+  if (openMentions) lines.push(`👋 ${openMentions} menção${openMentions>1?'ões':''} aguardando você`);
+  if (dueTomorrow.length) {
+    lines.push(`⏰ Compromissos vencendo:`);
+    dueTomorrow.forEach(c2 => {
+      const dl = c2.deadline ? new Date(c2.deadline).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+      lines.push(`   • ${c2.text} _(até ${dl})_`);
+    });
+  }
+  if (lines.length === 1) lines.push(`Tudo limpo. Bom treino. 🥋`);
+  // Posta no self-DM
+  try {
+    await c.from('chat_messages').insert({
+      channel_id: selfDM.id, user_id: supaUser.id, parent_id: null,
+      body: lines.join('\n'), attachments: [],
+    });
+  } catch(_){}
+}
+
+// ─── #6 Mensagens efêmeras ──────────────────────────────────────────
+async function _chatSendEphemeral(durationStr, text) {
+  // duration tipo "1h", "30min", "1d"
+  const m = (durationStr||'').match(/^(\d+)\s*(min|m|h|d)$/i);
+  if (!m || !text || !text.trim()) {
+    if (typeof appAlert === 'function') appAlert('Uso: /efemero <duração> <texto>', 'Exemplo: <code>/efemero 1h Vou almoçar</code>', { icon:'⏳', html:true });
+    return;
+  }
+  const n = parseInt(m[1], 10);
+  let ms = 0;
+  switch(m[2].toLowerCase()) {
+    case 'min':
+    case 'm':  ms = n * 60 * 1000; break;
+    case 'h':  ms = n * 3600 * 1000; break;
+    case 'd':  ms = n * 86400 * 1000; break;
+  }
+  if (!ms) return;
+  const expires = new Date(Date.now() + ms).toISOString();
+  const c = await _chatGetClient();
+  if (!c) return;
+  try {
+    await c.from('chat_messages').insert({
+      channel_id: _chatState.currentChannelId,
+      user_id: supaUser.id,
+      parent_id: null,
+      body: '⏳ ' + text.trim(),
+      attachments: [],
+      expires_at: expires,
+    });
+    _chatLoadMessages(_chatState.currentChannelId).then(() => _chatRenderMessagesView());
+  } catch(e) {
+    if (typeof appAlert === 'function') appAlert('Erro', e.message || String(e), { icon:'⚠️' });
+  }
+}
+
+// ─── #7 Mapa do dojo ───────────────────────────────────────────────
+function _chatToggleDojoMap() {
+  _chatState.dojoMapMode = !_chatState.dojoMapMode;
+  renderChat();
+}
+function _chatRenderDojoMap() {
+  const myId = supaUser?.id;
+  const channels = (_chatState.channels || []).filter(ch => !ch.archived_at);
+  // Pra cada canal, conta quem tá em tatame ativo (precisaria monitorar todos, simplifica)
+  // Por enquanto mostra só presença geral (online users)
+  const tiles = channels.map(ch => {
+    const prefix = ch.type === 'dm' ? '@'
+                 : ch.type === 'board' ? '▤'
+                 : (ch.is_private ? '🗝' : '会');
+    const name = ch.name || 'sala';
+    const subtitle = ch.type === 'dm' ? 'mensagem direta' : (ch.type === 'board' ? 'canal de board' : (ch.is_private ? 'sala privada' : 'sala aberta'));
+    return `<div class="dojo-room" onclick="_chatSelectChannel('${ch.id}')">
+      <div class="dojo-room-prefix">${prefix}</div>
+      <div class="dojo-room-name">${_esc(name)}</div>
+      <div class="dojo-room-sub">${subtitle}</div>
+      <div class="dojo-room-mat"></div>
+    </div>`;
+  }).join('');
+  return `<div class="dojo-map">
+    <div class="dojo-map-h">
+      <h2 style="font-family:var(--tatami-mincho);font-size:18px;color:var(--tatami-sumi);margin:0;">畳 Mapa do dojo</h2>
+      <button class="tx-embed-mini" onclick="_chatToggleDojoMap()">← Voltar pra lista</button>
+    </div>
+    <div class="dojo-map-grid">${tiles}</div>
+  </div>`;
+}
+
+// ─── #8 Mestre Kan duelo ───────────────────────────────────────────
+// Abre um modal de duelo a partir de uma thread/canal selecionado.
+async function _chatMestreKanDuelo() {
+  const ch = _chatState.channels.find(c => c.id === _chatState.currentChannelId);
+  if (!ch) return;
+  const c = await _chatGetClient();
+  if (!c) return;
+  // Pega últimas 30 mensagens do canal pra contexto
+  const { data: msgs } = await c.from('chat_messages')
+    .select('body,user_id,created_at')
+    .eq('channel_id', ch.id)
+    .is('deleted_at', null)
+    .order('created_at', { ascending:false })
+    .limit(30);
+  const ctx = (msgs || []).reverse().map(m => {
+    const u = _chatState.userMap[m.user_id] || { name:'?' };
+    return `${u.name}: ${m.body}`;
+  }).join('\n');
+  if (!ctx) {
+    if (typeof appAlert === 'function') appAlert('Sem contexto', 'Não há mensagens recentes pra duelar.', { icon:'⚔' });
+    return;
+  }
+  if (typeof showToastMsg === 'function') showToastMsg('⚔ Mestre Kan analisando o duelo…');
+  // Chama Mestre Kan via wrapper existente (tenta achar a função)
+  let answer = '';
+  try {
+    if (typeof callMestreKan === 'function') {
+      answer = await callMestreKan({
+        system: 'Você é Mestre Kan. Analise a conversa e identifique o ponto de divergência. Estruture em: PONTO DE DIVERGÊNCIA, LADO A (pros e contras), LADO B (pros e contras), EXPERIMENTO MÍNIMO sugerido pra resolver. Seja conciso, direto, sem rodeios.',
+        prompt: ctx,
+      });
+    } else {
+      answer = '_(Mestre Kan indisponível neste contexto. Tenta no botão "Mestre Kan" do canal.)_';
+    }
+  } catch(e) { answer = '_(Erro chamando Mestre Kan: ' + (e.message||e) + ')_'; }
+  // Posta a análise no canal
+  await _chatSendMessage(`⚔ *Análise de duelo* (Mestre Kan)\n\n${answer}`, null);
+}
+
 function _chatShowHowTo() {
   const overlay = document.createElement('div');
   overlay.className = 'chat-kan-ov';
