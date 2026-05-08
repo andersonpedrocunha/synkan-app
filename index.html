@@ -6073,18 +6073,69 @@ body.tx-active .belt-ring::after{
 
 /* ── DMs: avatar + @ italic mincho prefixando o nome ─────────────── */
 .chat-ch-prefix.is-dm{
-  width:22px;display:inline-flex;align-items:center;justify-content:center;
+  width:auto;display:inline-flex;align-items:center;justify-content:center;
   margin-right:6px;flex-shrink:0;
 }
+.chat-dm-avatar-wrap{
+  position:relative;display:inline-flex;flex-shrink:0;vertical-align:middle;
+}
 .chat-dm-avatar{
+  width:100%;height:100%;
   display:inline-flex;align-items:center;justify-content:center;
   border-radius:50%;
   font-size:10px;font-weight:700;color:#fff;
-  flex-shrink:0;line-height:1;
+  line-height:1;
   border:0.5px solid rgba(0,0,0,.08);
   overflow:hidden;
 }
 .chat-dm-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;}
+
+/* Status badge no canto inferior-direito do avatar */
+.chat-dm-status{
+  position:absolute;
+  bottom:-1px;right:-1px;
+  border-radius:50%;
+  border:1.5px solid var(--tatami-paper);
+  z-index:2;
+  display:inline-flex;align-items:center;justify-content:center;
+  pointer-events:none;
+}
+.chat-dm-status.is-online{
+  background:#45b369;
+  width:8px;height:8px;
+  box-shadow:0 0 0 1.5px rgba(69,179,105,.22);
+  animation:dmStatusPulse 2.6s ease-in-out infinite;
+}
+@keyframes dmStatusPulse {
+  0%,100% { box-shadow:0 0 0 1.5px rgba(69,179,105,.22); }
+  50%     { box-shadow:0 0 0 3px rgba(69,179,105,.10); }
+}
+.chat-dm-status.is-ex{
+  background:#7A6E5C;width:7px;height:7px;
+  filter:grayscale(100%);
+  animation:none;
+}
+.chat-dm-status.is-custom{
+  width:14px;height:14px;
+  bottom:-3px;right:-3px;
+  background:var(--tatami-paper);
+  font-size:9px;line-height:1;
+  border-width:1.5px;
+  box-shadow:0 1px 3px rgba(0,0,0,.15);
+}
+
+/* Tamanhos por contexto: sidebar/mapa/header */
+.chat-ch-prefix.is-dm .chat-dm-status.is-online{width:8px;height:8px;}
+.dojo-room-prefix.is-dm .chat-dm-status.is-online{width:9px;height:9px;}
+.chat-channel-h-prefix.is-dm .chat-dm-status.is-online{width:10px;height:10px;}
+.chat-ch-prefix.is-dm .chat-dm-status.is-custom{width:13px;height:13px;font-size:8.5px;}
+.dojo-room-prefix.is-dm .chat-dm-status.is-custom{width:16px;height:16px;font-size:10px;}
+.chat-channel-h-prefix.is-dm .chat-dm-status.is-custom{width:18px;height:18px;font-size:11px;}
+
+/* Borda do badge usa cor do contexto */
+.chat-ch-prefix.is-dm .chat-dm-status{border-color:var(--tatami-cream);}
+.dojo-room-prefix.is-dm .chat-dm-status{border-color:var(--tatami-cream);}
+.chat-channel-h-prefix.is-dm .chat-dm-status{border-color:var(--tatami-paper);}
 .chat-ch-at,
 .dojo-room-at,
 .chat-channel-h-at{
@@ -6101,6 +6152,45 @@ body.tx-active .belt-ring::after{
   display:inline-flex;align-items:center;justify-content:center;width:auto;
 }
 .dojo-room-at{font-size:18px;line-height:1;}
+
+/* Footer da DM no mapa do tatami — texto de status */
+.dojo-room-foot.dojo-room-foot-dm{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-top:auto;padding-top:6px;
+  border-top:0.5px dashed var(--tatami-tan);
+}
+.dojo-room-dm-status{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--tatami-mincho);font-size:11px;font-style:italic;
+  font-weight:500;
+}
+.dojo-room-dm-status.is-online{color:#3a6b2c;}
+.dojo-room-dm-status.is-online::before{
+  content:'';width:7px;height:7px;border-radius:50%;background:#45b369;
+  box-shadow:0 0 0 2px rgba(69,179,105,.18);
+  animation:dmStatusPulse 2.6s ease-in-out infinite;
+}
+.dojo-room-dm-status.is-offline{color:var(--tatami-ink-soft);}
+.dojo-room-dm-status.is-offline::before{
+  content:'';width:7px;height:7px;border-radius:50%;background:var(--tatami-tan);
+}
+.dojo-room-dm-status.is-self{color:var(--tatami-ink-soft);}
+.dojo-room-dm-status.is-self::before{
+  content:'✎ ';font-style:normal;
+}
+.dojo-room-dm-status.is-ex{color:var(--tatami-ink-soft);font-style:italic;font-size:10.5px;}
+.dojo-room-dm-status.is-ex::before{
+  content:'';width:7px;height:7px;border-radius:50%;background:#7A6E5C;filter:grayscale(100%);
+}
+.dojo-room-dm-custom{
+  display:inline-flex;align-items:center;gap:4px;
+  font-family:var(--tatami-mincho);font-size:10.5px;font-style:italic;
+  color:var(--tatami-ink-soft);
+  background:rgba(255,255,255,.4);
+  padding:1px 8px;border-radius:999px;
+  border:0.5px solid var(--tatami-tan);
+  max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
 /* No header do canal aberto — avatar maior + @ */
 .chat-channel-h-prefix.is-dm{
   display:inline-flex;align-items:center;justify-content:center;
@@ -44560,26 +44650,61 @@ function _chatRefreshTatameBanner(channelId) {
 }
 
 // ── Avatar do DM (helper usado em sidebar, mapa, header) ──────────────
-// Retorna HTML <span class="chat-dm-avatar"> com a inicial colorida ou
-// <img> se a pessoa tem foto. Usado nos 3 lugares onde DMs aparecem.
+// Retorna HTML do avatar circular com:
+//   - foto OU inicial colorida
+//   - bolinha de status no canto inferior-direito (online/offline)
+//   - emoji do status custom substituindo a bolinha quando existe
+// Self-DMs (notas pessoais) não mostram bolinha (sou eu mesmo).
 function _chatRenderDMAvatar(ch, size) {
   size = size || 22;
   if (!ch || ch.type !== 'dm') return '';
   let displayUser = null;
+  let otherId = null;
+  let isSelfDM = false;
   const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
   if (!ch.dm_user_a || !ch.dm_user_b || (ch.dm_user_a === ch.dm_user_b)) {
-    // Self-DM (notas pessoais) — usa o próprio user
+    isSelfDM = true;
     const myName = (myId && supaUser?.user_metadata?.full_name) || supaUser?.email || 'Você';
     displayUser = { name: myName, avatar: supaUser?.user_metadata?.avatar_url || null };
   } else {
-    const otherId = (myId && ch.dm_user_a === myId) ? ch.dm_user_b : ch.dm_user_a;
+    otherId = (myId && ch.dm_user_a === myId) ? ch.dm_user_b : ch.dm_user_a;
     displayUser = _chatState.userMap[otherId] || { name: ch.name || 'Usuário', avatar: null };
   }
+
+  // Status — só pra DM 1-on-1 com outra pessoa (não self)
+  const onlineSet = _chatState.onlineUsers || new Set();
+  const isOnline    = !isSelfDM && otherId && onlineSet.has(otherId);
+  const customEmoji = !isSelfDM && displayUser?.status_emoji ? displayUser.status_emoji : null;
+  const customText  = !isSelfDM && displayUser?.status_text  ? displayUser.status_text  : null;
+  const isExMember  = !isSelfDM && !!displayUser?.is_offboarded;
+
+  // Inner avatar (foto ou inicial)
   const inner = displayUser.avatar
     ? `<img src="${_esc(displayUser.avatar)}" alt=""/>`
     : `${_esc(typeof avatarInitials === 'function' ? avatarInitials(displayUser.name) : (displayUser.name||'?').slice(0,1).toUpperCase())}`;
   const bg = (typeof avatarColor === 'function') ? avatarColor(displayUser.name) : '#3C3489';
-  return `<span class="chat-dm-avatar" style="width:${size}px;height:${size}px;background:${bg};">${inner}</span>`;
+
+  // Status badge no canto
+  let statusBadge = '';
+  if (isExMember) {
+    // Ex-membro: bolinha cinza, sem texto
+    statusBadge = '<span class="chat-dm-status is-ex" title="ex-membro"></span>';
+  } else if (customEmoji) {
+    statusBadge = `<span class="chat-dm-status is-custom" title="${_esc(customText||'')}">${_esc(customEmoji)}</span>`;
+  } else if (isOnline) {
+    statusBadge = '<span class="chat-dm-status is-online" title="online agora"></span>';
+  }
+  // Offline e self-DM: sem badge
+
+  // Aplica grayscale na imagem se for ex-membro
+  const avatarStyle = isExMember
+    ? `background:${bg};filter:grayscale(100%);`
+    : `background:${bg};`;
+
+  return `<span class="chat-dm-avatar-wrap" style="width:${size}px;height:${size}px;">
+    <span class="chat-dm-avatar" style="${avatarStyle}">${inner}</span>
+    ${statusBadge}
+  </span>`;
 }
 
 // ── Banner "ex-membro" em DMs com pessoa que saiu da empresa ──────────
@@ -45312,10 +45437,37 @@ function _chatRenderDojoMap() {
         }
       </div>
       ${ch.description ? `<div class="dojo-room-desc">${_esc(ch.description)}</div>` : ''}
-      <div class="dojo-room-foot">
-        <div class="dojo-room-avs">${avatarsHTML || '<span class="dojo-room-quiet">silencioso</span>'}</div>
-        ${onlineCount ? `<span class="dojo-room-meta" title="${onlineCount} online">${onlineCount}</span>` : ''}
-      </div>
+      ${(() => {
+        // DMs 1-on-1: footer mostra status da pessoa (online/offline/custom/ex)
+        if (ch.type === 'dm' && ch.dm_user_a && ch.dm_user_b && ch.dm_user_a !== ch.dm_user_b) {
+          const otherIdL = (ch.dm_user_a === myId) ? ch.dm_user_b : ch.dm_user_a;
+          const uL = _chatState.userMap[otherIdL] || {};
+          const isOnL = onlineSet.has(otherIdL);
+          if (uL.is_offboarded) {
+            return `<div class="dojo-room-foot dojo-room-foot-dm">
+              <span class="dojo-room-dm-status is-ex">não faz mais parte do workspace</span>
+            </div>`;
+          }
+          const customLine = uL.status_text
+            ? `<span class="dojo-room-dm-custom">${_esc(uL.status_emoji||'•')} ${_esc(uL.status_text)}</span>`
+            : '';
+          return `<div class="dojo-room-foot dojo-room-foot-dm">
+            <span class="dojo-room-dm-status ${isOnL?'is-online':'is-offline'}">${isOnL ? 'online agora' : 'offline'}</span>
+            ${customLine}
+          </div>`;
+        }
+        // Self-DM (notas pessoais): mostra "só você"
+        if (ch.type === 'dm') {
+          return `<div class="dojo-room-foot dojo-room-foot-dm">
+            <span class="dojo-room-dm-status is-self">suas notas pessoais</span>
+          </div>`;
+        }
+        // Outros tipos: comportamento padrão (avatares + count)
+        return `<div class="dojo-room-foot">
+          <div class="dojo-room-avs">${avatarsHTML || '<span class="dojo-room-quiet">silencioso</span>'}</div>
+          ${onlineCount ? `<span class="dojo-room-meta" title="${onlineCount} online">${onlineCount}</span>` : ''}
+        </div>`;
+      })()}
       ${liveStrip}
       ${liveStrip ? '' : '<div class="dojo-room-mat"></div>'}
     </div>`;
