@@ -39303,9 +39303,10 @@ async function renderChat() {
       _chatLoadMentions();
       // #5 Resumo do amanhecer (idempotente, 1x por dia)
       try { _chatDawnSummaryMaybe(); } catch(_){}
-      // Restaura preferência de view (lista é default; mapa só se user salvou)
+      // Default agora é MAPA — só vai pra lista se o user explicitamente escolheu
       try {
-        if (localStorage.getItem('synkan_tatami_view') === 'mapa') {
+        const savedView = localStorage.getItem('synkan_tatami_view');
+        if (savedView !== 'lista') {
           _chatState.dojoMapMode = true;
         }
       } catch(_){}
@@ -44421,10 +44422,9 @@ function _chatSetView(view) {
   const wantMap = view === 'mapa';
   if (!!_chatState.dojoMapMode === wantMap) return;
   _chatState.dojoMapMode = wantMap;
-  // Persiste preferência localmente (lista é default sempre, então só salva se mapa)
+  // Persiste preferência explicitamente (mapa é default agora, então salva os dois)
   try {
-    if (wantMap) localStorage.setItem('synkan_tatami_view', 'mapa');
-    else localStorage.removeItem('synkan_tatami_view');
+    localStorage.setItem('synkan_tatami_view', wantMap ? 'mapa' : 'lista');
   } catch(_){}
   document.getElementById('chat-root').innerHTML = _chatRenderShell(_chatState.channels);
   _chatRenderMessagesView();
