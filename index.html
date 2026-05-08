@@ -6090,6 +6090,33 @@ body.tx-active .belt-ring::after{
 }
 .chat-dm-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;}
 
+/* Hover state e click — deixa óbvio que avatar é clicável */
+.chat-dm-avatar-wrap{cursor:pointer;transition:transform .12s ease;}
+.chat-dm-avatar-wrap:hover{transform:scale(1.12);}
+.chat-dm-avatar-wrap:hover .chat-dm-avatar{
+  box-shadow:0 0 0 2px var(--tatami-hinomaru);
+}
+.chat-dm-avatar-wrap:active{transform:scale(1.05);}
+/* Padding invisível pra aumentar área de click sem bagunçar layout */
+.chat-dm-avatar-wrap::before{
+  content:'';position:absolute;inset:-4px;border-radius:50%;
+}
+
+/* Avatar das mensagens — também tem hover claro */
+.chat-msg-avatar{cursor:pointer;transition:transform .12s ease, box-shadow .12s ease;}
+.chat-msg-avatar:hover{transform:scale(1.08);box-shadow:0 0 0 2px var(--tatami-hinomaru);}
+
+/* Avatar atribuído nos cards do kanban — também ganha hover scale */
+.card-resp[data-user-id]:hover > span:first-child{
+  transform:scale(1.15);
+  box-shadow:0 0 0 1.5px var(--tatami-hinomaru);
+  transition:all .12s ease;
+}
+.card-resp[data-user-id] > span:first-child{transition:all .12s ease;}
+.card-resp[data-user-id]:hover > span:last-child{
+  color:var(--tatami-hinomaru) !important;
+}
+
 /* Status badge no canto inferior-direito do avatar */
 .chat-dm-status{
   position:absolute;
@@ -6405,6 +6432,23 @@ body.tx-active .belt-ring::after{
 
 /* Edit profile modal */
 .tp-edit-pane{background:var(--tatami-paper);border:1px solid var(--tatami-tan);border-radius:12px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;padding:20px 24px;box-shadow:0 30px 70px rgba(0,0,0,.30);font-family:var(--font-sans);}
+.tp-edit-avatar-wrap{
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  padding:14px 0 18px;margin-bottom:16px;
+  border-bottom:1px solid var(--tatami-tan);
+}
+.tp-edit-avatar{
+  width:90px;height:90px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-family:var(--tatami-mincho);font-size:30px;font-weight:600;color:#fff;
+  border:3px solid var(--tatami-paper);
+  box-shadow:0 0 0 2px var(--tatami-hinomaru), 0 6px 20px rgba(0,0,0,.18);
+  overflow:hidden;
+}
+.tp-edit-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.tp-edit-avatar-actions{display:flex;gap:8px;}
+.tp-edit-avatar-actions button{padding:6px 12px;font-size:12px;}
+.tp-edit-avatar-hint{margin:0;font-family:var(--tatami-mincho);font-style:italic;font-size:10.5px;color:var(--tatami-ink-soft);}
 .tp-edit-h{display:flex;align-items:center;gap:10px;margin-bottom:18px;border-bottom:1px solid var(--tatami-tan);padding-bottom:12px;}
 .tp-edit-h h3{margin:0;font-family:var(--tatami-mincho);font-size:17px;color:var(--tatami-sumi);font-weight:600;flex:1;}
 .tp-edit-row{margin-bottom:14px;}
@@ -40241,14 +40285,46 @@ async function renderChat() {
     } catch (e) {
       console.error('[chat] load channels:', e);
       _chatState.loading = false;
+
+      // ── JWT expired? Tenta refresh automático antes de mostrar erro ──
+      const errMsg = (e?.message || String(e)).toLowerCase();
+      const isJwtExpired = errMsg.includes('jwt') && (errMsg.includes('expired') || errMsg.includes('expir'));
+      if (isJwtExpired && !_chatState._jwtRefreshTried) {
+        _chatState._jwtRefreshTried = true;  // evita loop infinito
+        try {
+          if (typeof supaClient !== 'undefined' && supaClient?.auth?.refreshSession) {
+            console.log('[chat] JWT expirado — tentando refresh da sessão…');
+            const { data, error: refErr } = await supaClient.auth.refreshSession();
+            if (!refErr && data?.session) {
+              console.log('[chat] sessão renovada com sucesso, tentando carregar chat de novo');
+              // Atualiza supaUser em memória
+              if (data.user) supaUser = data.user;
+              // Tenta carregar de novo
+              _chatState._jwtRefreshTried = false;
+              return renderChat();
+            }
+          }
+        } catch(refE) { console.warn('[chat] refresh falhou:', refE); }
+      }
+
+      // Erro genérico OU refresh já tentou e falhou
+      const friendlyMsg = isJwtExpired
+        ? 'Sua sessão expirou. Clique em "Entrar de novo" pra renovar — seus dados estão a salvo.'
+        : _esc(e?.message || String(e));
+      const showRelogin = isJwtExpired;
+
       root.innerHTML = `<div style="padding:48px 24px;text-align:center;color:var(--color-text-secondary);">
         <div style="font-size:42px;margin-bottom:12px;">⚠</div>
-        <h2 style="margin:0 0 8px;font-size:18px;color:var(--color-text-primary);">Não consegui carregar o chat</h2>
-        <p style="margin:0 0 14px;font-size:13px;line-height:1.6;">${_esc(e?.message || String(e))}</p>
-        <p style="margin:0 0 16px;font-size:11.5px;color:var(--color-text-tertiary);">
+        <h2 style="margin:0 0 8px;font-size:18px;color:var(--color-text-primary);">${isJwtExpired ? 'Sessão expirada' : 'Não consegui carregar o chat'}</h2>
+        <p style="margin:0 0 14px;font-size:13px;line-height:1.6;">${friendlyMsg}</p>
+        ${!isJwtExpired ? `<p style="margin:0 0 16px;font-size:11.5px;color:var(--color-text-tertiary);">
           Se as tabelas <code>chat_*</code> não existem ainda, rode a migration <code>MIGRATION_CHAT_MODULE.sql</code> no Supabase SQL Editor.
-        </p>
-        <button class="btn-c" onclick="renderChat()">Tentar de novo</button>
+        </p>` : ''}
+        ${showRelogin
+          ? `<button class="btn-c" onclick="(async()=>{try{await supaClient.auth.refreshSession();}catch(_){};_chatState._jwtRefreshTried=false;renderChat();})()">↻ Renovar sessão</button>
+             <button class="btn-c" style="margin-left:8px;background:transparent;color:var(--color-text-secondary);" onclick="if(typeof signOut==='function')signOut();else location.reload();">Entrar de novo</button>`
+          : `<button class="btn-c" onclick="renderChat()">Tentar de novo</button>`
+        }
       </div>`;
       return;
     }
@@ -44961,6 +45037,8 @@ let _tpMiniCurrentEl = null; // elemento ancorado no momento
 // ── Helpers de cálculo ─────────────────────────────────────────────
 function _tpComputeBelt(plan, joinedAt) {
   // Faixa: trial=trial, faixa azul=basic, faixa roxa=pro, faixa preta=enterprise
+  // Kyu (級) = graduação de aprendiz nas artes marciais (9º iniciante → 1º quase mestre)
+  // Dan (段) = graduação de mestre, depois da faixa preta
   const code = (plan || '').toLowerCase();
   if (code === 'trial' || code === 'free') return { name:'Trial', cls:'is-trial', kyu:'9º kyu' };
   if (code === 'azul' || code === 'basic')  return { name:'Faixa Azul',  cls:'is-azul',  kyu:'8º kyu' };
@@ -45223,7 +45301,7 @@ function _tpRenderPanel(data, userId) {
         </div>
         <h2 class="tp-name">${_esc(p.full_name || 'Sem nome')}</h2>
         <p class="tp-role">${_esc(p.role || (p.bio ? p.bio : (isMe ? 'clique em editar pra adicionar seu cargo' : '')))}</p>
-        <div class="tp-belt ${belt.cls}">
+        <div class="tp-belt ${belt.cls}" title="Kyu (級) é graduação de aprendiz nas artes marciais — vai do 9º kyu (iniciante) ao 1º kyu (quase mestre). Dan (段) é graduação de mestre. Aqui mapeado pro plano: Trial=9º kyu · Azul=8º · Roxa=6º · Preta=1º dan.">
           <span class="tp-belt-dot"></span>
           ${belt.name} · ${belt.kyu} · ${_esc(_tpFormatJoined(p.dojo_joined_at))}
         </div>
@@ -45341,42 +45419,68 @@ function _tpBindPanelActions(panel, userId, data) {
 
 // ── Mais opções (menu kebab) ───────────────────────────────────────
 function _tpShowMoreMenu(anchor, userId, data) {
-  // Menu simples — abre no lugar do botão
-  document.getElementById('tp-more-menu')?.remove();
+  // Se já está aberto, fecha (toggle behavior)
+  const existing = document.getElementById('tp-more-menu');
+  if (existing) { existing.remove(); return; }
+
   const menu = document.createElement('div');
   menu.id = 'tp-more-menu';
   menu.className = 'chat-ch-menu-pop';
+  // z-index inline pra ficar acima do painel (10001)
+  menu.style.zIndex = '10050';
   const rect = anchor.getBoundingClientRect();
   menu.style.position = 'fixed';
   menu.style.top = (rect.bottom + 4) + 'px';
-  menu.style.right = (window.innerWidth - rect.right) + 'px';
+  // posição: alinhar à direita do botão, mas ficar dentro da viewport
+  const right = window.innerWidth - rect.right;
+  menu.style.right = Math.max(8, right) + 'px';
   menu.style.left = '';
+
   const isMe = userId === supaUser?.id;
   const isOwner = (typeof allBoards !== 'undefined') && Object.values(allBoards||{}).some(b => b && b.owner_id === supaUser?.id);
   const isExMember = data.profile.status === 'offboarded' || data.profile.status === 'deleted';
   menu.innerHTML = `
-    ${!isMe ? `<button data-act="copy-id">Copiar ID</button>` : ''}
-    <button data-act="refresh">Atualizar perfil</button>
+    <button data-act="copy-id"><span class="chat-ch-menu-ico">⎘</span> Copiar ID</button>
+    <button data-act="refresh"><span class="chat-ch-menu-ico">↻</span> Atualizar perfil</button>
+    ${!isMe ? `<button data-act="dm"><span class="chat-ch-menu-ico">@</span> Mandar DM</button>` : ''}
     ${(isOwner && !isMe && !isExMember) ? `<div class="chat-ch-menu-divider"></div>
-      <button data-act="offboard" class="is-danger">Pessoa saiu da empresa…</button>` : ''}
+      <button data-act="offboard" class="is-danger"><span class="chat-ch-menu-ico">↪</span> Pessoa saiu da empresa…</button>` : ''}
   `;
   document.body.appendChild(menu);
-  const close = () => menu.remove();
+
+  const close = () => {
+    menu.remove();
+    document.removeEventListener('click', onDocClick, true);
+  };
+  function onDocClick(e) {
+    // ignora clicks dentro do menu (mas trata clicks no anchor pra toggle)
+    if (menu.contains(e.target)) return;
+    if (anchor.contains && anchor.contains(e.target)) return; // anchor toggle handler
+    close();
+  }
+
   menu.querySelectorAll('button[data-act]').forEach(b => {
     b.addEventListener('click', () => {
       const a = b.dataset.act;
       close();
-      if (a === 'copy-id') { try { navigator.clipboard.writeText(userId); } catch(_){} }
+      if (a === 'copy-id') {
+        try { navigator.clipboard.writeText(userId); } catch(_){}
+        if (typeof appAlert === 'function') appAlert('Copiado', 'ID do usuário copiado pra clipboard.', { icon:'⎘' });
+      }
       if (a === 'refresh') { _tpProfileCache.delete(userId); _chatOpenTatamiProfile(userId); }
+      if (a === 'dm' && typeof _chatOpenDMWith === 'function') {
+        _chatCloseTatamiProfile();
+        _chatOpenDMWith(userId);
+      }
       if (a === 'offboard' && typeof _offboardMemberFlow === 'function') {
         _chatCloseTatamiProfile();
         _offboardMemberFlow(userId, data.profile.full_name || 'Esta pessoa');
       }
     });
   });
-  setTimeout(() => document.addEventListener('click', function once(e){
-    if (!menu.contains(e.target)) { close(); document.removeEventListener('click', once); }
-  }), 0);
+  // Adiciona o listener depois do tick atual (ignora o evento que abriu)
+  // Usa capture pra pegar antes de outros handlers e evitar race
+  setTimeout(() => document.addEventListener('click', onDocClick, true), 50);
 }
 
 // ── Mestre Kan analisa katas ───────────────────────────────────────
@@ -45467,6 +45571,21 @@ function _tpOpenEditProfile(currentProfile) {
         <h3>Editar perfil</h3>
         <button class="tp-close" id="tp-edit-close" type="button" aria-label="Fechar">×</button>
       </div>
+
+      <!-- Avatar upload -->
+      <div class="tp-edit-avatar-wrap">
+        <div class="tp-edit-avatar" id="tp-edit-avatar-preview" style="background:${(typeof avatarColor==='function')?avatarColor(p.full_name):'#3C3489'};">
+          ${p.avatar_url
+            ? `<img src="${_esc(p.avatar_url)}" alt=""/>`
+            : `${_esc(typeof avatarInitials==='function' ? avatarInitials(p.full_name) : (p.full_name||'?').slice(0,1).toUpperCase())}`}
+        </div>
+        <div class="tp-edit-avatar-actions">
+          <button type="button" class="tp-edit-btn tp-edit-btn-cancel" id="tp-edit-avatar-pick">📷 Trocar foto</button>
+          ${p.avatar_url ? '<button type="button" class="tp-edit-btn tp-edit-btn-cancel" id="tp-edit-avatar-remove" style="color:#A32D2D;">remover</button>' : ''}
+        </div>
+        <p class="tp-edit-avatar-hint">JPG ou PNG · até 4 MB · será redimensionada pra 256×256</p>
+      </div>
+
       <div class="tp-edit-row">
         <label class="tp-edit-label">Nome</label>
         <input type="text" id="tp-edit-name" value="${_esc(p.full_name||'')}" placeholder="Seu nome"/>
@@ -45501,6 +45620,54 @@ function _tpOpenEditProfile(currentProfile) {
   document.body.appendChild(ov);
   ov.querySelector('#tp-edit-close').addEventListener('click', () => ov.remove());
   ov.querySelector('#tp-edit-cancel').addEventListener('click', () => ov.remove());
+
+  // Avatar pick — usa o resize existente + sincroniza nos 3 lugares
+  let _pendingAvatarDataURL = null; // null = sem mudança · '' = remover · 'data:...' = nova
+  ov.querySelector('#tp-edit-avatar-pick').addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = e.target.files && e.target.files[0]; if (!file) return;
+      if (!/^image\//.test(file.type)) {
+        if (typeof appAlert === 'function') appAlert('Imagem inválida', 'Selecione um arquivo de imagem.', { icon:'⚠️' });
+        return;
+      }
+      if (file.size > 4*1024*1024) {
+        if (typeof appAlert === 'function') appAlert('Imagem grande', 'Máximo 4 MB. Redimensione antes ou escolha outra.', { icon:'⚠️' });
+        return;
+      }
+      try {
+        const dataURL = await _resizeImageToDataURL(file, 256, 0.85);
+        _pendingAvatarDataURL = dataURL;
+        const preview = ov.querySelector('#tp-edit-avatar-preview');
+        if (preview) preview.innerHTML = `<img src="${dataURL}" alt=""/>`;
+        // Mostra botão "remover" se ainda não tem
+        if (!ov.querySelector('#tp-edit-avatar-remove')) {
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.id = 'tp-edit-avatar-remove';
+          removeBtn.className = 'tp-edit-btn tp-edit-btn-cancel';
+          removeBtn.style.color = '#A32D2D';
+          removeBtn.textContent = 'remover';
+          removeBtn.addEventListener('click', _avatarRemove);
+          ov.querySelector('.tp-edit-avatar-actions').appendChild(removeBtn);
+        }
+      } catch(err) {
+        if (typeof appAlert === 'function') appAlert('Erro', 'Não consegui processar essa imagem: ' + (err?.message||err), { icon:'⚠️' });
+      }
+    };
+    input.click();
+  });
+  function _avatarRemove() {
+    _pendingAvatarDataURL = '';
+    const preview = ov.querySelector('#tp-edit-avatar-preview');
+    if (preview) preview.innerHTML = `${_esc(typeof avatarInitials==='function' ? avatarInitials(p.full_name) : (p.full_name||'?').slice(0,1).toUpperCase())}`;
+    const rm = ov.querySelector('#tp-edit-avatar-remove');
+    if (rm) rm.remove();
+  }
+  const removeBtn = ov.querySelector('#tp-edit-avatar-remove');
+  if (removeBtn) removeBtn.addEventListener('click', _avatarRemove);
+
   ov.querySelector('#tp-edit-save').addEventListener('click', async () => {
     const btn = ov.querySelector('#tp-edit-save');
     btn.disabled = true; btn.textContent = 'Salvando…';
@@ -45519,6 +45686,36 @@ function _tpOpenEditProfile(currentProfile) {
       };
       const { error } = await c.rpc('update_my_profile', payload);
       if (error) throw error;
+
+      // Avatar — sincroniza em 3 lugares: profiles.avatar_url, auth.user_metadata,
+      // local cache. Só se houve mudança (null = unchanged, '' = remove, dataURL = nova)
+      if (_pendingAvatarDataURL !== null) {
+        const newAvatar = _pendingAvatarDataURL || null;
+        try {
+          // 1) Tabela profiles
+          await c.from('profiles').update({ avatar_url: newAvatar }).eq('id', supaUser.id);
+        } catch(e) { console.warn('[avatar] profiles update fail', e); }
+        try {
+          // 2) auth.user_metadata (compatibilidade com pickProfileAvatar antigo)
+          if (typeof supaClient !== 'undefined' && supaClient?.auth?.updateUser) {
+            await Promise.race([
+              supaClient.auth.updateUser({ data: { avatar_url: newAvatar } }),
+              new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000)),
+            ]).catch(err => console.warn('[avatar] auth update timeout/fail', err));
+          }
+        } catch(e) { /* ignora */ }
+        // 3) Local cache + memória
+        if (supaUser) supaUser.user_metadata = { ...(supaUser.user_metadata||{}), avatar_url: newAvatar };
+        if (typeof getLocalProfile === 'function' && typeof setLocalProfile === 'function') {
+          const local = getLocalProfile(); local.avatar = newAvatar; setLocalProfile(local);
+        }
+        if (typeof refreshAccountUI === 'function') { try { refreshAccountUI(); } catch(_){} }
+        // userMap também — pra outros componentes pegarem na hora
+        if (_chatState?.userMap?.[supaUser.id]) {
+          _chatState.userMap[supaUser.id].avatar = newAvatar;
+        }
+      }
+
       ov.remove();
       _tpProfileCache.delete(supaUser.id);
       if (document.getElementById('tp-panel')?.classList.contains('is-open')) {
