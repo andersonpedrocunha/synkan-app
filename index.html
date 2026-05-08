@@ -5641,15 +5641,35 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 .chat-msg-text:has(> .chat-eph-marker){background:#f4ecd8;border-left:2px solid #d4c4a8;padding-left:10px;}
 
 /* #7 Mapa do dojo */
-.dojo-map{padding:24px;height:100%;overflow:auto;background:var(--tatami-paper);}
-.dojo-map-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:12px;border-bottom:0.5px solid var(--tatami-tan);}
-.dojo-map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
-.dojo-room{background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;font-family:var(--tatami-mincho);text-align:center;position:relative;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.dojo-map{padding:28px;height:100%;overflow:auto;background:var(--tatami-paper);}
+.dojo-map-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--tatami-tan);gap:18px;}
+.dojo-map-zones{display:flex;flex-direction:column;gap:28px;}
+
+.dojo-zone{}
+.dojo-zone-h{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;padding-bottom:6px;border-bottom:0.5px dashed var(--tatami-tan);}
+.dojo-zone-title{font-family:var(--tatami-mincho);font-size:15px;font-weight:600;color:var(--tatami-sumi);margin:0;}
+.dojo-zone-sub{font-family:var(--tatami-mincho);font-size:11.5px;font-style:italic;color:var(--tatami-ink-soft);}
+.dojo-zone-hint{margin-top:8px;font-size:11px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);}
+.dojo-zone-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+
+.dojo-room{background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:10px;padding:14px 14px 18px;cursor:pointer;transition:all .15s;font-family:var(--tatami-mincho);position:relative;display:flex;flex-direction:column;gap:8px;min-height:118px;}
 .dojo-room:hover{border-color:var(--tatami-hinomaru);transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.07);}
-.dojo-room-prefix{font-size:28px;color:var(--tatami-hinomaru);margin-bottom:8px;font-family:'Hiragino Mincho ProN',serif;line-height:1;}
-.dojo-room-name{font-size:13px;font-weight:600;color:var(--tatami-sumi);margin-bottom:3px;}
-.dojo-room-sub{font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;}
-.dojo-room-mat{position:absolute;bottom:6px;left:6px;right:6px;height:3px;background:repeating-linear-gradient(90deg,var(--tatami-tan) 0,var(--tatami-tan) 8px,transparent 8px,transparent 12px);opacity:.4;border-radius:2px;}
+.dojo-room.has-unread{border-left:3px solid var(--tatami-hinomaru);}
+.dojo-room-h{display:flex;align-items:center;gap:8px;}
+.dojo-room-prefix{font-size:22px;color:var(--tatami-hinomaru);font-family:'Hiragino Mincho ProN',serif;line-height:1;flex-shrink:0;}
+.dojo-room-name{font-size:13.5px;font-weight:600;color:var(--tatami-sumi);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dojo-room-unread{background:var(--tatami-hinomaru);color:#fff;font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;flex-shrink:0;}
+.dojo-room-desc{font-size:11px;color:var(--tatami-ink-soft);font-style:italic;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.dojo-room-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:6px;border-top:0.5px dashed var(--tatami-tan);}
+.dojo-room-avs{display:flex;align-items:center;gap:-4px;}
+.dojo-room-av{width:22px;height:22px;border-radius:50%;background:var(--tatami-tan);border:1.5px solid var(--tatami-cream);margin-left:-6px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--tatami-sumi);overflow:hidden;position:relative;}
+.dojo-room-av:first-child{margin-left:0;}
+.dojo-room-av img{width:100%;height:100%;object-fit:cover;}
+.dojo-room-av.is-online::after{content:'';position:absolute;bottom:-2px;right:-2px;width:7px;height:7px;border-radius:50%;background:#45b369;border:1.5px solid var(--tatami-cream);}
+.dojo-room-meta{font-size:10.5px;color:#3a6b2c;font-style:italic;font-weight:500;}
+.dojo-room-quiet{font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;}
+.dojo-room-live{position:absolute;top:8px;right:8px;background:var(--tatami-hinomaru);color:#fff;font-size:9.5px;padding:2px 7px;border-radius:999px;font-style:italic;animation:txPulse 2s infinite;}
+.dojo-room-mat{position:absolute;bottom:5px;left:8px;right:8px;height:3px;background:repeating-linear-gradient(90deg,var(--tatami-tan) 0,var(--tatami-tan) 8px,transparent 8px,transparent 12px);opacity:.4;border-radius:2px;}
 .chat-ch-fav{flex-shrink:0;width:28px;height:28px;background:transparent;border:none;cursor:pointer;color:var(--tatami-ink-soft);display:inline-flex;align-items:center;justify-content:center;border-radius:6px;margin-right:4px;opacity:0;transition:opacity .15s, color .12s, transform .12s;padding:0;}
 .chat-ch-row:hover .chat-ch-fav{opacity:.5;}
 .chat-ch-fav:hover{opacity:1 !important;color:var(--tatami-sumi);background:rgba(26,22,18,.06);transform:scale(1.1);}
@@ -44075,30 +44095,99 @@ function _chatToggleDojoMap() {
   _chatState.dojoMapMode = !_chatState.dojoMapMode;
   _chatRenderMessagesView();
 }
+
+// Click numa sala do mapa: fecha o mapa e navega pro canal
+function _chatEnterRoomFromMap(channelId) {
+  _chatState.dojoMapMode = false;
+  if (typeof _chatSelectChannel === 'function') {
+    _chatSelectChannel(channelId);
+  } else {
+    _chatState.currentChannelId = channelId;
+    _chatRenderMessagesView();
+  }
+}
 function _chatRenderDojoMap() {
   const myId = supaUser?.id;
   const channels = (_chatState.channels || []).filter(ch => !ch.archived_at);
-  // Pra cada canal, conta quem tá em tatame ativo (precisaria monitorar todos, simplifica)
-  // Por enquanto mostra só presença geral (online users)
-  const tiles = channels.map(ch => {
+  const onlineSet = _chatState.onlineUsers || new Set();
+
+  // Helper pra renderizar UMA sala (tile)
+  const renderRoom = (ch) => {
     const prefix = ch.type === 'dm' ? '@'
                  : ch.type === 'board' ? '▤'
                  : (ch.is_private ? '🗝' : '会');
-    const name = ch.name || 'sala';
-    const subtitle = ch.type === 'dm' ? 'mensagem direta' : (ch.type === 'board' ? 'canal de board' : (ch.is_private ? 'sala privada' : 'sala aberta'));
-    return `<div class="dojo-room" onclick="_chatSelectChannel('${ch.id}')">
-      <div class="dojo-room-prefix">${prefix}</div>
-      <div class="dojo-room-name">${_esc(name)}</div>
-      <div class="dojo-room-sub">${subtitle}</div>
+    const unread = ch._unread || 0;
+    // Online: pra DM 1-on-1 = a outra pessoa; pra outros = todos online (aproximação)
+    let onlineCount = 0;
+    let avatarsHTML = '';
+    if (ch.type === 'dm' && ch.dm_user_a !== ch.dm_user_b) {
+      const otherId = (ch.dm_user_a === myId) ? ch.dm_user_b : ch.dm_user_a;
+      const isOn = onlineSet.has(otherId);
+      onlineCount = isOn ? 1 : 0;
+      const u = _chatState.userMap[otherId] || {};
+      const av = u.avatar
+        ? `<img src="${_esc(u.avatar)}" alt=""/>`
+        : (u.name || '?').slice(0,1).toUpperCase();
+      avatarsHTML = `<div class="dojo-room-av ${isOn?'is-online':''}" title="${_esc(u.name||'')}${isOn?' · online':''}">${av}</div>`;
+    } else {
+      // Pra canais multi: mostra até 4 avatares de gente online no workspace
+      const onlineUsers = [...onlineSet].slice(0, 4).map(uid => _chatState.userMap[uid]).filter(Boolean);
+      onlineCount = onlineSet.size;
+      avatarsHTML = onlineUsers.map(u => {
+        const av = u.avatar ? `<img src="${_esc(u.avatar)}" alt=""/>` : (u.name||'?').slice(0,1).toUpperCase();
+        return `<div class="dojo-room-av is-online" title="${_esc(u.name||'')} · online">${av}</div>`;
+      }).join('');
+    }
+    // Tatame ativo? (se eu tô no extended desse canal)
+    const ext = _chatState.extended;
+    const sessionLive = (ext && ext.open && ext.channelId === ch.id) ? '<span class="dojo-room-live">🎴 você está aqui</span>' : '';
+    return `<div class="dojo-room ${unread?'has-unread':''}" onclick="_chatEnterRoomFromMap('${ch.id}')" title="Entrar em ${_esc(ch.name)}">
+      <div class="dojo-room-h">
+        <span class="dojo-room-prefix">${prefix}</span>
+        <span class="dojo-room-name">${_esc(ch.name)}</span>
+        ${unread ? `<span class="dojo-room-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
+      </div>
+      ${ch.description ? `<div class="dojo-room-desc">${_esc(ch.description)}</div>` : ''}
+      <div class="dojo-room-foot">
+        <div class="dojo-room-avs">${avatarsHTML || '<span class="dojo-room-quiet">silencioso</span>'}</div>
+        ${onlineCount ? `<span class="dojo-room-meta">${onlineCount} online</span>` : ''}
+      </div>
+      ${sessionLive}
       <div class="dojo-room-mat"></div>
     </div>`;
-  }).join('');
+  };
+
+  // Distribui em 4 zonas
+  const workspace = channels.filter(c => c.type === 'workspace' && !c.is_private);
+  const private_  = channels.filter(c => c.type === 'workspace' && c.is_private);
+  const boards    = channels.filter(c => c.type === 'board');
+  const dms       = channels.filter(c => c.type === 'dm');
+
+  const zone = (title, sub, list, hint) => list.length ? `
+    <section class="dojo-zone">
+      <div class="dojo-zone-h">
+        <h3 class="dojo-zone-title">${title}</h3>
+        <span class="dojo-zone-sub">${sub}</span>
+      </div>
+      <div class="dojo-zone-grid">${list.map(renderRoom).join('')}</div>
+      ${hint ? `<div class="dojo-zone-hint">${hint}</div>` : ''}
+    </section>
+  ` : '';
+
   return `<div class="dojo-map">
     <div class="dojo-map-h">
-      <h2 style="font-family:var(--tatami-mincho);font-size:18px;color:var(--tatami-sumi);margin:0;">畳 Mapa do dojo</h2>
+      <div>
+        <h2 style="font-family:var(--tatami-mincho);font-size:20px;color:var(--tatami-sumi);margin:0 0 3px;">畳 Mapa do dojo</h2>
+        <p style="font-size:12.5px;color:var(--tatami-ink-soft);font-style:italic;margin:0;font-family:var(--tatami-mincho);">Ar do workspace · click numa sala pra entrar</p>
+      </div>
       <button class="tx-embed-mini" onclick="_chatToggleDojoMap()">← Voltar pra lista</button>
     </div>
-    <div class="dojo-map-grid">${tiles}</div>
+    <div class="dojo-map-zones">
+      ${zone('会 Praça', 'salas abertas do workspace', workspace, 'Onde a galera toda se encontra')}
+      ${zone('🗝 Salas privadas', 'só membros explícitos veem', private_, '')}
+      ${zone('▤ Salas de treino', 'cada sala vinculada a um board', boards, 'Conversa específica de cada projeto')}
+      ${zone('@ Encontros pessoais', 'mensagens diretas', dms, '')}
+    </div>
   </div>`;
 }
 
