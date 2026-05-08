@@ -5624,6 +5624,7 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
    - Marcado: amarelo-âmbar (cor de raio), sempre visível, micro-pulse no hover */
 .chat-ch-status{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:var(--tatami-tan);margin-right:5px;display:inline-block;}
 .chat-ch-status.is-online{background:#45b369;box-shadow:0 0 0 2px rgba(69,179,105,.18);}
+.chat-ch-custom-status{flex-shrink:0;font-size:13px;line-height:1;margin-right:5px;display:inline-block;}
 .chat-ch-fav{flex-shrink:0;width:28px;height:28px;background:transparent;border:none;cursor:pointer;color:var(--tatami-ink-soft);display:inline-flex;align-items:center;justify-content:center;border-radius:6px;margin-right:4px;opacity:0;transition:opacity .15s, color .12s, transform .12s;padding:0;}
 .chat-ch-row:hover .chat-ch-fav{opacity:.5;}
 .chat-ch-fav:hover{opacity:1 !important;color:var(--tatami-sumi);background:rgba(26,22,18,.06);transform:scale(1.1);}
@@ -5649,6 +5650,24 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 .chat-channel-h-online.is-online{color:#3a6b2c;background:#eaf5e0;border-color:rgba(69,179,105,.3);}
 .chat-channel-h-online-dot{width:7px;height:7px;border-radius:50%;background:var(--tatami-tan);}
 .chat-channel-h-online.is-online .chat-channel-h-online-dot{background:#45b369;animation:txPulse 2.4s infinite;}
+
+/* Status custom do user — sidebar */
+.sb-account-status{font-size:10.5px;color:var(--color-text-tertiary);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;max-width:170px;}
+
+/* Status badge inline (nas mensagens, DMs, header) */
+.chat-user-status{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);padding:1px 7px;border-radius:999px;margin-left:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* Status picker (modal) */
+.sp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px;}
+.sp-preset{display:flex;align-items:center;gap:8px;padding:9px 11px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;cursor:pointer;font:inherit;color:var(--color-text-primary);text-align:left;transition:all .12s;}
+.sp-preset:hover{border-color:var(--color-text-primary);background:var(--color-background-secondary);}
+.sp-emoji{font-size:18px;flex-shrink:0;}
+.sp-text{flex:1;font-size:13px;}
+.sp-dur{font-size:10.5px;color:var(--color-text-tertiary);font-style:italic;}
+.sp-divider{margin:14px 0 8px;font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;text-align:center;font-weight:500;}
+.sp-custom{display:flex;gap:6px;align-items:center;}
+.sp-custom input,.sp-custom select{padding:8px 10px;border:1px solid var(--color-border-tertiary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font:inherit;font-size:13px;}
+.sp-custom input:focus,.sp-custom select:focus{border-color:var(--color-text-primary);outline:none;}
 
 /* Pane principal — fundo papel, sem cinza Slack */
 .chat-main{background:var(--tatami-paper);}
@@ -21264,16 +21283,31 @@ function _refreshAccountUIInternal() {
       </button>`;
     }
   } catch(e) { dojoItem = ''; }
+  // Status custom do user (carregado via _chatHydrateUsers)
+  let myStatusHTML = '';
+  let menuStatusItem = '';
+  try {
+    const me = (typeof _chatState !== 'undefined' && supaUser?.id) ? _chatState.userMap[supaUser.id] : null;
+    if (me && me.status_text) {
+      myStatusHTML = `<span class="sb-account-status" title="Seu status: ${_esc(me.status_text)}">${_esc(me.status_emoji||'•')} ${_esc(me.status_text)}</span>`;
+    }
+    menuStatusItem = `
+      <button class="sb-account-menu-item" onclick="closeAccountMenu();_chatShowStatusPicker();">
+        <span class="sb-icon">${me && me.status_text ? _esc(me.status_emoji||'•') : '○'}</span>
+        <span>${me && me.status_text ? 'Mudar status' : 'Definir status'}</span>
+      </button>`;
+  } catch(_){}
   wrap.innerHTML = `
     <button class="sb-account-btn" id="sb-account-btn" onclick="toggleAccountMenu(event)" title="${_esc(email||name)} · Faixa ${_esc(gst?.name||'Branca')}">
       ${beltedAvatar}
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
         <span class="sb-account-name" style="display:flex;align-items:center;">${_esc(name||'Você')}${streakHTML}</span>
-        ${titleHTML}
+        ${myStatusHTML || titleHTML}
       </div>
       <span class="sb-account-caret">▾</span>
     </button>
     <div class="sb-account-menu" id="sb-account-menu">
+      ${menuStatusItem}
       ${dojoItem}
       <button class="sb-account-menu-item" onclick="closeAccountMenu();switchTab('settings');">
         <span class="sb-icon">⚙</span><span>Configurações</span>
@@ -38766,6 +38800,134 @@ async function _chatGetClient() {
   return _ensureSupaClient && _ensureSupaClient();
 }
 
+// ════════════════════════════════════════════════════════════════════
+// Status do usuário (estilo Slack: "🍽 Almoçando", "🏖 De férias")
+// ════════════════════════════════════════════════════════════════════
+
+// Presets prontos — emoji + texto + duração padrão
+const _STATUS_PRESETS = [
+  { emoji:'🍽', text:'Almoçando',       hours:1   },
+  { emoji:'☕', text:'Tomando café',     hours:0.5 },
+  { emoji:'🎯', text:'Em reunião',       hours:1   },
+  { emoji:'💻', text:'Foco profundo',    hours:2   },
+  { emoji:'🎧', text:'Em call',          hours:1   },
+  { emoji:'🚶', text:'Saí rapidinho',    hours:0.5 },
+  { emoji:'🏖', text:'De férias',        hours:0   }, // 0 = sem expirar
+  { emoji:'🤒', text:'Doente',           hours:0   },
+  { emoji:'🔕', text:'Não perturbar',    hours:0   },
+];
+
+// Define status do user atual via RPC. duration=0 ou null = sem expirar.
+async function _chatSetMyStatus(emoji, text, hoursDuration) {
+  const c = await _chatGetClient();
+  if (!c) return false;
+  const expires = (hoursDuration && hoursDuration > 0)
+    ? new Date(Date.now() + hoursDuration * 3600 * 1000).toISOString()
+    : null;
+  try {
+    const { error } = await c.rpc('set_user_status', {
+      p_emoji: emoji || null,
+      p_text:  text  || null,
+      p_expires_at: expires,
+    });
+    if (error) throw error;
+    // Atualiza userMap local
+    if (supaUser?.id && _chatState.userMap[supaUser.id]) {
+      _chatState.userMap[supaUser.id].status_emoji = (text ? emoji : null);
+      _chatState.userMap[supaUser.id].status_text  = text || null;
+      _chatState.userMap[supaUser.id].status_expires_at = expires;
+    }
+    // Re-render sidebar pra mostrar
+    if (typeof renderUserAccountFooter === 'function') {
+      try { renderUserAccountFooter(); } catch(_){}
+    }
+    if (typeof renderChat === 'function' && currentTab === 'chat') {
+      try { renderChat(); } catch(_){}
+    }
+    return true;
+  } catch(e) {
+    console.error('[status] set fail', e);
+    if (typeof appAlert === 'function') {
+      appAlert('Erro ao salvar status', e.message || String(e), { icon:'⚠️' });
+    }
+    return false;
+  }
+}
+
+// Picker visual — modal com presets + custom + limpar
+function _chatShowStatusPicker() {
+  const myId = supaUser?.id;
+  const me = (myId && _chatState.userMap[myId]) || {};
+  const cur = (me.status_text)
+    ? `<div style="margin:0 0 14px;padding:9px 12px;background:#fff8e1;border:0.5px solid #ffd54f;border-radius:8px;font-size:12.5px;color:#5d4e00;">
+         <strong>Status atual:</strong> ${_esc(me.status_emoji||'•')} ${_esc(me.status_text)}
+         ${me.status_expires_at ? `<div style="margin-top:3px;font-size:11px;opacity:.7;">expira em ${_esc(new Date(me.status_expires_at).toLocaleString('pt-BR'))}</div>`:''}
+       </div>`
+    : '';
+  const presetsHTML = _STATUS_PRESETS.map((s, i) => {
+    const dur = s.hours === 0 ? 'não expira' : (s.hours < 1 ? `${s.hours*60}min` : `${s.hours}h`);
+    return `<button class="sp-preset" onclick="_chatPickStatusPreset(${i})">
+      <span class="sp-emoji">${s.emoji}</span>
+      <span class="sp-text">${_esc(s.text)}</span>
+      <span class="sp-dur">${dur}</span>
+    </button>`;
+  }).join('');
+  const ov = document.createElement('div');
+  ov.className = 'app-dialog-overlay is-open';
+  ov.id = 'sp-overlay';
+  ov.innerHTML = `
+    <div class="app-dialog-card" style="max-width:480px;">
+      <div class="app-dialog-icon">🎴</div>
+      <h3 class="app-dialog-title">Definir status</h3>
+      ${cur}
+      <div class="sp-grid">${presetsHTML}</div>
+      <div class="sp-divider">ou personalize</div>
+      <div class="sp-custom">
+        <input type="text" id="sp-emoji-input" placeholder="📚" maxlength="2" style="width:50px;text-align:center;font-size:18px;"/>
+        <input type="text" id="sp-text-input" placeholder="Ex: Estudando inglês" maxlength="80" style="flex:1;"/>
+        <select id="sp-dur-input" style="width:110px;">
+          <option value="0.5">30 min</option>
+          <option value="1" selected>1 hora</option>
+          <option value="2">2 horas</option>
+          <option value="4">4 horas</option>
+          <option value="8">8 horas</option>
+          <option value="24">Hoje</option>
+          <option value="0">Sem expirar</option>
+        </select>
+      </div>
+      <div class="app-dialog-actions" style="margin-top:14px;">
+        <button class="app-dialog-btn" onclick="_chatClearMyStatus()" style="color:#9f0026;">Limpar status</button>
+        <button class="app-dialog-btn" onclick="document.getElementById('sp-overlay').remove()">Cancelar</button>
+        <button class="app-dialog-btn is-primary" onclick="_chatSaveCustomStatus()">Salvar custom</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  setTimeout(() => document.getElementById('sp-text-input')?.focus(), 50);
+}
+async function _chatPickStatusPreset(idx) {
+  const s = _STATUS_PRESETS[idx];
+  if (!s) return;
+  document.getElementById('sp-overlay')?.remove();
+  await _chatSetMyStatus(s.emoji, s.text, s.hours);
+}
+async function _chatSaveCustomStatus() {
+  const emoji = (document.getElementById('sp-emoji-input')?.value || '').trim();
+  const text  = (document.getElementById('sp-text-input')?.value  || '').trim();
+  const dur   = parseFloat(document.getElementById('sp-dur-input')?.value || '1');
+  if (!text) {
+    document.getElementById('sp-text-input')?.focus();
+    return;
+  }
+  document.getElementById('sp-overlay')?.remove();
+  await _chatSetMyStatus(emoji || null, text, dur);
+}
+async function _chatClearMyStatus() {
+  document.getElementById('sp-overlay')?.remove();
+  await _chatSetMyStatus(null, null, 0);
+}
+
 // Helper: gera slug amigável pra nomes de canal/DM.
 // Normaliza acentos primeiro (NFD + strip diacríticos), pra que "visão" vire
 // "visao" em vez de "vis-o" (regex anterior despejava o ã como caractere
@@ -38908,20 +39070,27 @@ function _chatRenderShell(channels) {
                  : ch.type === 'board' ? '▤'
                  : (ch.is_private ? _NINJA_SVG : '会');
     const isPriv = !!ch.is_private;
-    // Status online (só pra DM 1-on-1) — verde se a outra pessoa tá online
+    // Status online + custom (só pra DM 1-on-1)
     let statusDot = '';
     let statusTitle = '';
+    let statusBadge = '';
     if (ch.type === 'dm' && ch.dm_user_a && ch.dm_user_b && ch.dm_user_a !== ch.dm_user_b) {
       const otherId = (ch.dm_user_a === supaUser.id) ? ch.dm_user_b : ch.dm_user_a;
       const isOnline = _chatState.onlineUsers && _chatState.onlineUsers.has(otherId);
+      const otherUser = _chatState.userMap[otherId] || {};
       statusDot = `<span class="chat-ch-status${isOnline ? ' is-online' : ''}" title="${isOnline ? 'online agora' : 'offline'}"></span>`;
       statusTitle = isOnline ? 'online agora' : 'offline';
+      // Status custom tem precedência visual (mostra emoji em vez do dot)
+      if (otherUser.status_emoji || otherUser.status_text) {
+        statusBadge = `<span class="chat-ch-custom-status" title="${_esc(otherUser.status_text||'')}">${_esc(otherUser.status_emoji||'•')}</span>`;
+        statusTitle = `${otherUser.status_text||''}${isOnline ? ' · online' : ' · offline'}`;
+      }
     }
     return `<div class="chat-ch-row${isCurrent?' is-current':''}${unread?' has-unread':''}${isArchived?' is-archived':''}">
       <button class="chat-ch" data-private="${isPriv}" onclick="_chatSelectChannel('${ch.id}')" title="${isPriv ? 'Canal privado — só membros explícitos veem' : (statusTitle || '')}">
         <span class="chat-ch-prefix">${prefix}</span>
         <span class="chat-ch-name">${_esc(ch.name)}</span>
-        ${statusDot}
+        ${statusBadge || statusDot}
         ${unread ? `<span class="chat-ch-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
       </button>
       <button class="chat-ch-fav${isFav ? ' is-fav' : ''}"
@@ -39237,9 +39406,19 @@ async function _chatHydrateUsers(userIds) {
   const c = await _chatGetClient();
   if (!c) return;
   try {
-    const { data } = await c.from('profiles').select('id,full_name,avatar_url').in('id', missing);
+    const { data } = await c.from('profiles')
+      .select('id,full_name,avatar_url,status_emoji,status_text,status_expires_at')
+      .in('id', missing);
+    const now = Date.now();
     (data || []).forEach(p => {
-      _chatState.userMap[p.id] = { name: p.full_name || 'Usuário', avatar: p.avatar_url || null };
+      const expired = p.status_expires_at && new Date(p.status_expires_at).getTime() < now;
+      _chatState.userMap[p.id] = {
+        name: p.full_name || 'Usuário',
+        avatar: p.avatar_url || null,
+        status_emoji: expired ? null : (p.status_emoji || null),
+        status_text:  expired ? null : (p.status_text  || null),
+        status_expires_at: p.status_expires_at || null,
+      };
     });
     // Garante que falta = pelo menos placeholder
     missing.forEach(uid => {
@@ -39280,12 +39459,17 @@ function _chatRenderMessagesView() {
                      : ch.type === 'board' ? '▤'
                      : (ch.is_private ? _NINJA_SVG_BIG : '会');
   const isDM = ch.type === 'dm';
-  // Status online no header do canal — só aparece em DM 1-on-1
+  // Status online + status custom no header do canal — só aparece em DM 1-on-1
   let dmStatusBadge = '';
+  let dmCustomStatus = '';
   if (isDM && ch.dm_user_a && ch.dm_user_b && ch.dm_user_a !== ch.dm_user_b) {
     const otherId = (ch.dm_user_a === supaUser.id) ? ch.dm_user_b : ch.dm_user_a;
+    const otherUser = _chatState.userMap[otherId] || {};
     const isOnline = _chatState.onlineUsers && _chatState.onlineUsers.has(otherId);
     dmStatusBadge = `<span class="chat-channel-h-online${isOnline ? ' is-online' : ''}" title="${isOnline ? 'online agora' : 'offline'}"><span class="chat-channel-h-online-dot"></span>${isOnline ? 'online' : 'offline'}</span>`;
+    if (otherUser.status_text) {
+      dmCustomStatus = `<span class="chat-user-status" title="Status: ${_esc(otherUser.status_text)}${otherUser.status_expires_at ? ' · expira em '+_esc(new Date(otherUser.status_expires_at).toLocaleString('pt-BR')) : ''}">${_esc(otherUser.status_emoji||'•')} ${_esc(otherUser.status_text)}</span>`;
+    }
   }
   const headerHTML = `
     <div class="chat-channel-h">
@@ -39293,6 +39477,7 @@ function _chatRenderMessagesView() {
         <span class="chat-channel-h-prefix" data-private="${!!ch.is_private}">${headerPrefix}</span>
         <h3 class="chat-channel-h-name">${_esc(ch.name)}</h3>
         ${dmStatusBadge}
+        ${dmCustomStatus}
         ${ch.is_private ? `<span class="chat-channel-h-priv-badge" title="Canal privado">${_NINJA_SVG} privado</span>` : ''}
         ${ch.description ? `<span class="chat-channel-h-desc"> · ${_esc(ch.description)}</span>` : ''}
       </div>
@@ -41692,6 +41877,29 @@ function _txOpen() {
   _txStartTimerLoop();
   // Audit log
   try { _chatAudit(ch.id, 'tatame.opened', { sessionId }); } catch(_){}
+  // Auto-post discreto no canal avisando que subiu no tatame.
+  // Só pra canais multi (não spam em DM/self) e com debounce de 30 min
+  // por canal (evita posts repetidos quando user abre/fecha várias vezes).
+  if (_chatState.extended.channelKind === 'multi') {
+    try { _txAutoPostOpen(); } catch(_){}
+  }
+}
+
+async function _txAutoPostOpen() {
+  const ext = _chatState.extended;
+  if (!ext) return;
+  const KEY = 'synkan_tatame_autopost_' + ext.channelId;
+  const DEBOUNCE_MS = 30 * 60 * 1000; // 30 min
+  try {
+    const last = parseInt(localStorage.getItem(KEY) || '0', 10);
+    if (Date.now() - last < DEBOUNCE_MS) return;
+    localStorage.setItem(KEY, String(Date.now()));
+  } catch(_){}
+  // Posta mensagem no canal
+  if (typeof _chatSendMessage !== 'function') return;
+  const myName = (typeof supaUser !== 'undefined' && supaUser && (supaUser.user_metadata?.full_name || supaUser.email)) || 'alguém';
+  const body = `🎴 *${myName} subiu no tatame* — sessão ao vivo (voz + workspace compartilhado). Clica em "Subir no tatame" pra entrar.`;
+  try { await _chatSendMessage(body, null); } catch(e){ console.warn('[tx] auto-post fail', e); }
 }
 
 function _txClose() {
