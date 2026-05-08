@@ -5680,7 +5680,10 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 .dojo-room-av:first-child{margin-left:0;}
 .dojo-room-av img{width:100%;height:100%;object-fit:cover;}
 .dojo-room-av.is-online::after{content:'';position:absolute;bottom:-2px;right:-2px;width:7px;height:7px;border-radius:50%;background:#45b369;border:1.5px solid var(--tatami-cream);}
-.dojo-room-meta{font-size:10.5px;color:#3a6b2c;font-style:italic;font-weight:500;}
+.dojo-room-av-more{display:inline-flex;align-items:center;justify-content:center;height:18px;padding:0 7px;margin-left:-2px;background:var(--tatami-tan);color:var(--tatami-sumi);font-size:10px;font-weight:600;border-radius:999px;font-family:var(--tatami-mincho);line-height:1;}
+.dojo-room-meta{font-size:10.5px;color:#3a6b2c;font-style:italic;font-weight:500;display:inline-flex;align-items:center;gap:5px;}
+.dojo-room-meta::before{content:'';width:7px;height:7px;border-radius:50%;background:#45b369;box-shadow:0 0 0 2px rgba(69,179,105,.18);animation:dojoOnlinePulse 2.4s ease-in-out infinite;}
+@keyframes dojoOnlinePulse{0%,100%{box-shadow:0 0 0 2px rgba(69,179,105,.18);}50%{box-shadow:0 0 0 4px rgba(69,179,105,.08);}}
 .dojo-room-quiet{font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;}
 .dojo-room-live{position:absolute;top:8px;right:8px;background:var(--tatami-hinomaru);color:#fff;font-size:9.5px;padding:2px 7px;border-radius:999px;font-style:italic;animation:txPulse 2s infinite;font-family:var(--tatami-mincho);}
 .dojo-room-live.is-others{background:#45b369;}
@@ -5697,17 +5700,18 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 /* (removido) ⚡ inline antes do nome — favorito já aparece no botão do canto */
 .dojo-room-mat{position:absolute;bottom:5px;left:8px;right:8px;height:3px;background:repeating-linear-gradient(90deg,var(--tatami-tan) 0,var(--tatami-tan) 8px,transparent 8px,transparent 12px);opacity:.4;border-radius:2px;}
 
-/* Switcher de vista (lista | mapa) — fixo no canto sup. dir. do Tatami */
+/* Switcher de vista (lista | mapa) — fica dentro do header do canal/mapa */
 .chat-view-switch{display:inline-flex;background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:8px;padding:2px;gap:2px;}
 .chat-view-btn{padding:5px 11px;background:transparent;border:none;color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;cursor:pointer;border-radius:6px;transition:all .12s;}
 .chat-view-btn:hover{color:var(--tatami-sumi);}
 .chat-view-btn.is-active{background:var(--tatami-paper);color:var(--tatami-hinomaru);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06);}
-.chat-view-switch-fixed{position:absolute;top:12px;right:14px;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(6px);box-shadow:0 2px 10px rgba(0,0,0,.06);}
-.chat-layout{position:relative;}
+.chat-view-switch-inline{margin-right:6px;}
 
 /* Mapa-mode: esconde a sidebar, expande o main pra ocupar 100% */
 .chat-layout.is-map-mode{grid-template-columns:1fr !important;}
-.chat-layout.is-map-mode .chat-sidebar{display:none !important;}
+.chat-layout.is-map-mode > aside.chat-sidebar,
+.chat-layout.is-map-mode .chat-sidebar{display:none !important;visibility:hidden !important;width:0 !important;border:none !important;overflow:hidden !important;}
+.chat-layout.is-map-mode > main.chat-main,
 .chat-layout.is-map-mode .chat-main{grid-column:1 / -1 !important;width:100% !important;}
 
 /* Botão "+ criar" nas zonas do mapa */
@@ -39296,10 +39300,6 @@ function _chatRenderShell(channels) {
   const _isMapMode = !!_chatState.dojoMapMode;
   return `
     <div class="chat-layout ${_isMapMode?'is-map-mode':''}">
-      <div class="chat-view-switch chat-view-switch-fixed">
-        <button class="chat-view-btn ${!_isMapMode?'is-active':''}" onclick="_chatSetView('lista')" title="Vista clássica em lista">≡ Lista</button>
-        <button class="chat-view-btn ${_isMapMode?'is-active':''}" onclick="_chatSetView('mapa')" title="Vista em mapa do Tatami">畳 Mapa</button>
-      </div>
       <aside class="chat-sidebar">
         <div class="chat-sb-h">
           <h2><span style="color:#3C3489;margin-right:7px;display:inline-flex;vertical-align:-3px;"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1 -1.5 1.5h-6L4 14v-2H3a1.5 1.5 0 0 1 -1.5 -1.5v-5.5A1.5 1.5 0 0 1 3 3.5z"/><line x1="5" y1="6.4" x2="11" y2="6.4"/><line x1="5" y1="8.7" x2="9" y2="8.7"/></svg></span>Tatami</h2>
@@ -39409,6 +39409,26 @@ async function _chatLoadChannels() {
         ch._unread = count || 0;
       } catch(_) {}
     }));
+  } catch(_) {}
+
+  // Pré-carrega autores recentes pra priorizar avatars no Mapa do Tatami
+  try {
+    const chIds = _chatState.channels.map(c => c.id);
+    if (chIds.length) {
+      const { data: recentMsgs } = await c.from('chat_messages')
+        .select('channel_id,user_id,created_at')
+        .in('channel_id', chIds)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      const byChannel = {};
+      (recentMsgs || []).forEach(m => {
+        if (!m.user_id) return;
+        if (!byChannel[m.channel_id]) byChannel[m.channel_id] = [];
+        if (!byChannel[m.channel_id].includes(m.user_id)) byChannel[m.channel_id].push(m.user_id);
+      });
+      _chatState.channels.forEach(ch => { ch._recentAuthors = byChannel[ch.id] || []; });
+    }
   } catch(_) {}
 
   _chatUpdateSidebarBadge();
@@ -39709,7 +39729,10 @@ function _chatRenderMessagesView() {
         ${ch.description ? `<span class="chat-channel-h-desc"> · ${_esc(ch.description)}</span>` : ''}
       </div>
       <div class="chat-channel-h-r">
-        <button class="chat-channel-h-help" onclick="_chatToggleDojoMap()" title="Ver workspace como mapa do Tatami (cada canal = sala)">畳</button>
+        <div class="chat-view-switch chat-view-switch-inline">
+          <button class="chat-view-btn ${!_chatState.dojoMapMode?'is-active':''}" onclick="_chatSetView('lista')" title="Vista clássica em lista">≡ Lista</button>
+          <button class="chat-view-btn ${_chatState.dojoMapMode?'is-active':''}" onclick="_chatSetView('mapa')" title="Vista em mapa do Tatami">畳 Mapa</button>
+        </div>
         <button class="chat-channel-h-help" onclick="_chatOpenSearch()" title="Buscar mensagens">🔍</button>
         <button class="chat-channel-h-help" onclick="_chatShowHowTo()" title="Como usar o Tatami">?</button>
         <button class="chat-channel-h-action" onclick="_chatMestreKanModal()" title="Mestre Kan analisa a conversa">
@@ -44312,13 +44335,31 @@ function _chatRenderDojoMap() {
         : (u.name || '?').slice(0,1).toUpperCase();
       avatarsHTML = `<div class="dojo-room-av ${isOn?'is-online':''}" title="${_esc(u.name||'')}${isOn?' · online':''}">${av}</div>`;
     } else {
-      // Pra canais multi: mostra até 4 avatares de gente online no workspace
-      const onlineUsers = [...onlineSet].slice(0, 4).map(uid => _chatState.userMap[uid]).filter(Boolean);
+      // Pra canais multi: prioriza autores recentes do canal que estão online,
+      // depois resto de gente online. Mostra até 5 avatars + pill "+N" se sobrar.
+      const recentAuthors = ch._recentAuthors || [];
+      const seen = new Set();
+      const ordered = [];
+      // 1) Autores recentes que estão online
+      recentAuthors.forEach(uid => {
+        if (onlineSet.has(uid) && !seen.has(uid)) { seen.add(uid); ordered.push(uid); }
+      });
+      // 2) Resto dos online (em ordem do Set)
+      onlineSet.forEach(uid => {
+        if (!seen.has(uid)) { seen.add(uid); ordered.push(uid); }
+      });
+      const MAX = 5;
+      const visibleIds = ordered.slice(0, MAX);
+      const visibleUsers = visibleIds.map(uid => _chatState.userMap[uid]).filter(Boolean);
       onlineCount = onlineSet.size;
-      avatarsHTML = onlineUsers.map(u => {
+      const overflow = Math.max(0, onlineCount - visibleUsers.length);
+      avatarsHTML = visibleUsers.map(u => {
         const av = u.avatar ? `<img src="${_esc(u.avatar)}" alt=""/>` : (u.name||'?').slice(0,1).toUpperCase();
         return `<div class="dojo-room-av is-online" title="${_esc(u.name||'')} · online">${av}</div>`;
       }).join('');
+      if (overflow > 0) {
+        avatarsHTML += `<span class="dojo-room-av-more" title="${overflow} mais online">+${overflow}</span>`;
+      }
     }
     // Tatame ativo? (se EU tô no extended desse canal OU tem peers no presence)
     const ext = _chatState.extended;
@@ -44346,7 +44387,7 @@ function _chatRenderDojoMap() {
         <div class="dojo-room-avs">${avatarsHTML || '<span class="dojo-room-quiet">silencioso</span>'}</div>
         ${unread
           ? `<span class="dojo-room-unread-foot">${unread} não lida${unread>1?'s':''}</span>`
-          : (onlineCount ? `<span class="dojo-room-meta">${onlineCount} online</span>` : '')}
+          : (onlineCount ? `<span class="dojo-room-meta" title="${onlineCount} online">${onlineCount}</span>` : '')}
       </div>
       ${liveBadge}
       <div class="dojo-room-mat"></div>
@@ -44385,6 +44426,12 @@ function _chatRenderDojoMap() {
       <div>
         <h2 style="font-family:var(--tatami-mincho);font-size:20px;color:var(--tatami-sumi);margin:0 0 3px;">畳 Mapa do Tatami</h2>
         <p style="font-size:12.5px;color:var(--tatami-ink-soft);font-style:italic;margin:0;font-family:var(--tatami-mincho);">Cada sala = um canal · click pra entrar</p>
+      </div>
+      <div class="dojo-map-h-r">
+        <div class="chat-view-switch chat-view-switch-inline">
+          <button class="chat-view-btn" onclick="_chatSetView('lista')" title="Voltar pra vista em lista">≡ Lista</button>
+          <button class="chat-view-btn is-active" onclick="_chatSetView('mapa')" title="Você está na vista mapa">畳 Mapa</button>
+        </div>
       </div>
     </div>
     <div class="dojo-map-zones">
