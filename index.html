@@ -5189,6 +5189,18 @@ body.density-compact .col{padding:7px;}
 .chat-members-empty{padding:14px 12px;font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-ink-soft);font-size:13px;line-height:1.55;}
 .chat-mem-row{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:8px;}
 .chat-mem-row:hover{background:var(--tatami-cream);}
+.chat-mem-row.is-online .chat-mem-name{color:var(--tatami-sumi);font-weight:600;}
+.chat-mem-row:not(.is-online) .chat-mem-name{color:var(--tatami-ink-soft);}
+.chat-mem-row:not(.is-online) .chat-mem-avatar{opacity:.55;}
+
+/* Avatar com bolinha de online no canto */
+.chat-mem-avatar-wrap{position:relative;display:inline-flex;flex-shrink:0;}
+.chat-mem-online-dot{
+  position:absolute;bottom:-1px;right:-1px;
+  width:9px;height:9px;border-radius:50%;
+  background:#45b369;border:2px solid var(--tatami-paper);
+  box-shadow:0 0 0 1px rgba(69,179,105,.35);
+}
 .chat-mem-avatar{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;object-fit:cover;flex-shrink:0;}
 .chat-mem-body{flex:1;min-width:0;}
 .chat-mem-name{font-size:13.5px;font-weight:500;color:var(--tatami-sumi);}
@@ -39959,6 +39971,16 @@ function _chatRenderMessagesView() {
           <button class="chat-view-btn ${!_chatState.dojoMapHideSidebar?'is-active':''}" onclick="_chatSetView('lista')" title="Vista clássica em lista">≡ Lista</button>
           <button class="chat-view-btn ${_chatState.dojoMapHideSidebar?'is-active':''}" onclick="_chatSetView('mapa')" title="Vista em mapa do Tatami">畳 Mapa</button>
         </div>
+        ${!isDM ? `
+          <button class="chat-channel-h-help chat-channel-h-members" onclick="_chatChannelMembersModal('${ch.id}')" title="Ver pessoas no canal">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="6.5" cy="6" r="2.3"/>
+              <path d="M2 13.5c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5"/>
+              <circle cx="11" cy="5" r="1.7" opacity=".55"/>
+              <path d="M11.5 8.5c2 0 3.5 1.6 3.5 4" opacity=".55"/>
+            </svg>
+          </button>
+        ` : ''}
         <button class="chat-channel-h-help" onclick="_chatOpenSearch()" title="Buscar mensagens">🔍</button>
         <button class="chat-channel-h-help" onclick="_chatShowHowTo()" title="Como usar o Tatami">?</button>
         <button class="chat-channel-h-action" onclick="_chatMestreKanModal()" title="Mestre Kan analisa a conversa">
@@ -41474,42 +41496,95 @@ async function _chatToggleArchiveChannel(channelId) {
   } catch(e) { appAlert('Não consegui ' + action, e?.message || String(e), { icon: '⚠️' }); }
 }
 
-// ── Gerenciar membros do canal (workspace) ────────────────────────
+// ── Pessoas no canal — modal acessível a todos os membros ──────────
+// Mostra membros agrupados por online/offline. Owner do workspace/board
+// também pode adicionar candidatos (no caso de canal workspace).
 async function _chatChannelMembersModal(channelId) {
   document.getElementById('chat-ch-menu-pop')?.remove();
   const ch = _chatState.channels.find(c => c.id === channelId);
-  if (!ch || ch.type !== 'workspace') return;
+  if (!ch) return;
+  if (ch.type === 'dm') return; // DMs não usam esse modal
 
   const c = await _chatGetClient();
   if (!c) return;
 
-  // Carrega membros atuais
-  const { data: members } = await c.from('chat_channel_members')
-    .select('user_id,joined_at')
-    .eq('channel_id', channelId)
-    .order('joined_at', { ascending: true });
-
-  const memberIds = (members || []).map(m => m.user_id);
-  await _chatHydrateUsers(memberIds);
-
-  // Candidatos: admins + editors dos boards do user, que ainda não são membros
-  const ownedBoardIds = Object.keys(allBoards||{}).filter(id =>
-    allBoards[id].owner_id === supaUser.id && id !== UNIFIED_BOARD_ID);
-  let candidateMap = {};
-  try {
+  // Carrega membros conforme tipo do canal
+  let memberIds = [];
+  if (ch.type === 'workspace') {
+    const { data: members } = await c.from('chat_channel_members')
+      .select('user_id,joined_at')
+      .eq('channel_id', channelId)
+      .order('joined_at', { ascending: true });
+    memberIds = (members || []).map(m => m.user_id);
+  } else if (ch.type === 'board' && ch.board_id) {
     const { data: bm } = await c.from('board_members')
       .select('user_id,role')
-      .in('board_id', ownedBoardIds)
-      .in('role', ['admin', 'editor']);
-    const memberSet = new Set(memberIds);
-    (bm || []).forEach(m => {
-      if (m.user_id !== supaUser.id && !memberSet.has(m.user_id)) {
-        if (!candidateMap[m.user_id] || m.role === 'admin') candidateMap[m.user_id] = m.role;
-      }
-    });
-  } catch(_) {}
-  const candidates = Object.keys(candidateMap);
-  await _chatHydrateUsers(candidates);
+      .eq('board_id', ch.board_id);
+    memberIds = (bm || []).map(m => m.user_id);
+    // Garante que o owner do board apareça mesmo se não for membership explícito
+    const board = allBoards[ch.board_id];
+    if (board && board.owner_id && !memberIds.includes(board.owner_id)) {
+      memberIds.unshift(board.owner_id);
+    }
+  }
+  await _chatHydrateUsers(memberIds);
+
+  // Pode editar? (owner do workspace OU owner do board)
+  const isWsOwner    = ch.type === 'workspace' && ch.workspace_owner === supaUser.id;
+  const isBoardOwner = ch.type === 'board' && ch.board_id && allBoards[ch.board_id]?.owner_id === supaUser.id;
+  const canEdit      = isWsOwner || isBoardOwner;
+
+  // Agrupa em online vs offline (presence em tempo real)
+  const onlineSet      = _chatState.onlineUsers || new Set();
+  const onlineMembers  = memberIds.filter(uid => onlineSet.has(uid));
+  const offlineMembers = memberIds.filter(uid => !onlineSet.has(uid));
+
+  // Candidatos pra adicionar — só pra owner do workspace
+  let candidateMap = {};
+  let candidates = [];
+  if (canEdit && ch.type === 'workspace') {
+    const ownedBoardIds = Object.keys(allBoards||{}).filter(id =>
+      allBoards[id].owner_id === supaUser.id && id !== UNIFIED_BOARD_ID);
+    try {
+      const { data: bm } = await c.from('board_members')
+        .select('user_id,role')
+        .in('board_id', ownedBoardIds)
+        .in('role', ['admin', 'editor']);
+      const memberSet = new Set(memberIds);
+      (bm || []).forEach(m => {
+        if (m.user_id !== supaUser.id && !memberSet.has(m.user_id)) {
+          if (!candidateMap[m.user_id] || m.role === 'admin') candidateMap[m.user_id] = m.role;
+        }
+      });
+    } catch(_) {}
+    candidates = Object.keys(candidateMap);
+    await _chatHydrateUsers(candidates);
+  }
+
+  // Render uma linha de membro
+  const renderMemberRow = (uid, isOnline) => {
+    const u = _chatState.userMap[uid] || { name: 'Usuário', avatar: null };
+    const isThisWsOwner    = ch.type === 'workspace' && uid === ch.workspace_owner;
+    const isThisBoardOwner = ch.type === 'board' && ch.board_id && allBoards[ch.board_id]?.owner_id === uid;
+    const ownerLabel = isThisWsOwner ? 'owner do workspace' : (isThisBoardOwner ? 'owner do board' : '');
+    const avatar = u.avatar
+      ? `<img src="${_esc(u.avatar)}" class="chat-mem-avatar" alt=""/>`
+      : `<span class="chat-mem-avatar" style="background:${avatarColor(u.name)};">${_esc(avatarInitials(u.name))}</span>`;
+    const statusEmoji = u.status_emoji ? `${_esc(u.status_emoji)} ` : '';
+    const statusText  = u.status_text ? _esc(u.status_text) : (isOnline ? 'online' : 'offline');
+    const canRemove = canEdit && ch.type === 'workspace' && !isThisWsOwner && uid !== supaUser.id;
+    return `<div class="chat-mem-row ${isOnline?'is-online':''}">
+      <span class="chat-mem-avatar-wrap">
+        ${avatar}
+        ${isOnline ? '<span class="chat-mem-online-dot" aria-hidden="true"></span>' : ''}
+      </span>
+      <div class="chat-mem-body">
+        <div class="chat-mem-name">${_esc(u.name)}${ownerLabel ? ` <span class="chat-mem-meta" style="display:inline;font-size:10.5px;">· ${ownerLabel}</span>` : ''}</div>
+        <div class="chat-mem-meta">${statusEmoji}${statusText}</div>
+      </div>
+      ${canRemove ? `<button class="chat-mem-remove" onclick="_chatRemoveMember('${channelId}','${uid}')" title="Remover do canal">remover</button>` : ''}
+    </div>`;
+  };
 
   // Modal
   const ov = document.createElement('div');
@@ -41521,50 +41596,51 @@ async function _chatChannelMembersModal(channelId) {
   ov.innerHTML = `
     <div class="chat-members-pane">
       <div class="chat-members-h">
-        <h3>Membros · #${_esc(ch.name)} ${ninjaTag}</h3>
-        <button class="chat-members-close" onclick="document.getElementById('chat-members-ov').remove()">×</button>
+        <h3>Pessoas · #${_esc(ch.name)} ${ninjaTag}</h3>
+        <button class="chat-members-close" onclick="document.getElementById('chat-members-ov').remove()" aria-label="Fechar">×</button>
       </div>
 
-      <div class="chat-members-section-h">No canal (${(members||[]).length})</div>
-      <div class="chat-members-list">
-        ${(members || []).map(m => {
-          const u = _chatState.userMap[m.user_id] || { name: 'Usuário', avatar: null };
-          const isOwner = m.user_id === ch.workspace_owner;
-          const avatar = u.avatar
-            ? `<img src="${_esc(u.avatar)}" class="chat-mem-avatar"/>`
-            : `<span class="chat-mem-avatar" style="background:${avatarColor(u.name)};">${_esc(avatarInitials(u.name))}</span>`;
-          return `<div class="chat-mem-row">
-            ${avatar}
-            <div class="chat-mem-body">
-              <div class="chat-mem-name">${_esc(u.name)}</div>
-              ${isOwner ? '<div class="chat-mem-meta">owner do workspace</div>' : ''}
-            </div>
-            ${!isOwner ? `<button class="chat-mem-remove" onclick="_chatRemoveMember('${channelId}','${m.user_id}')" title="Remover do canal">remover</button>` : ''}
-          </div>`;
-        }).join('')}
-      </div>
+      ${onlineMembers.length > 0 ? `
+        <div class="chat-members-section-h">No tatame agora · ${onlineMembers.length}</div>
+        <div class="chat-members-list">
+          ${onlineMembers.map(uid => renderMemberRow(uid, true)).join('')}
+        </div>
+      ` : ''}
 
-      <div class="chat-members-section-h">Adicionar (${candidates.length})</div>
-      <div class="chat-members-list">
-        ${candidates.length === 0
-          ? `<div class="chat-members-empty">Nenhum candidato disponível.<br/><span style="font-size:11.5px;color:var(--tatami-ink-soft);">Convide pessoas pros seus boards primeiro em <strong>Configurações → Membros</strong>. Depois elas aparecem aqui pra adicionar no canal.</span></div>`
-          : candidates.map(uid => {
-              const u = _chatState.userMap[uid] || { name: 'Usuário', avatar: null };
-              const role = candidateMap[uid];
-              const avatar = u.avatar
-                ? `<img src="${_esc(u.avatar)}" class="chat-mem-avatar"/>`
-                : `<span class="chat-mem-avatar" style="background:${avatarColor(u.name)};">${_esc(avatarInitials(u.name))}</span>`;
-              return `<div class="chat-mem-row chat-mem-candidate">
-                ${avatar}
-                <div class="chat-mem-body">
-                  <div class="chat-mem-name">${_esc(u.name)}</div>
-                  <div class="chat-mem-meta">${role === 'admin' ? 'Admin' : 'Editor'} dos seus boards</div>
-                </div>
-                <button class="chat-mem-add" onclick="_chatAddMember('${channelId}','${uid}', this)">+ Adicionar</button>
-              </div>`;
-            }).join('')
-        }
-      </div>
+      ${offlineMembers.length > 0 ? `
+        <div class="chat-members-section-h">Ausentes · ${offlineMembers.length}</div>
+        <div class="chat-members-list">
+          ${offlineMembers.map(uid => renderMemberRow(uid, false)).join('')}
+        </div>
+      ` : ''}
+
+      ${memberIds.length === 0 ? `
+        <div class="chat-members-empty">Nenhuma pessoa neste canal ainda.</div>
+      ` : ''}
+
+      ${canEdit && ch.type === 'workspace' ? `
+        <div class="chat-members-section-h">Adicionar · ${candidates.length}</div>
+        <div class="chat-members-list">
+          ${candidates.length === 0
+            ? `<div class="chat-members-empty">Nenhum candidato disponível.<br/><span style="font-size:11.5px;color:var(--tatami-ink-soft);">Convide pessoas pros seus boards primeiro em <strong>Configurações → Membros</strong>. Depois elas aparecem aqui pra adicionar no canal.</span></div>`
+            : candidates.map(uid => {
+                const u = _chatState.userMap[uid] || { name: 'Usuário', avatar: null };
+                const role = candidateMap[uid];
+                const avatar = u.avatar
+                  ? `<img src="${_esc(u.avatar)}" class="chat-mem-avatar" alt=""/>`
+                  : `<span class="chat-mem-avatar" style="background:${avatarColor(u.name)};">${_esc(avatarInitials(u.name))}</span>`;
+                return `<div class="chat-mem-row chat-mem-candidate">
+                  <span class="chat-mem-avatar-wrap">${avatar}</span>
+                  <div class="chat-mem-body">
+                    <div class="chat-mem-name">${_esc(u.name)}</div>
+                    <div class="chat-mem-meta">${role === 'admin' ? 'Admin' : 'Editor'} dos seus boards</div>
+                  </div>
+                  <button class="chat-mem-add" onclick="_chatAddMember('${channelId}','${uid}', this)">+ Adicionar</button>
+                </div>`;
+              }).join('')
+          }
+        </div>
+      ` : ''}
     </div>
   `;
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
