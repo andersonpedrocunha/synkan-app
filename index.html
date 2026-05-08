@@ -5450,7 +5450,8 @@ body.tx-active .app-dialog-overlay{z-index:9500 !important;}
 .tx-embed-live > .tx-embed-h{padding:12px 18px;margin-bottom:0;border-bottom:0.5px solid var(--tatami-tan);}
 .tx-embed-mount{flex:1;min-height:0;overflow:auto;background:var(--color-background-primary);position:relative;}
 .tx-embed-mount > #view-kanban,
-.tx-embed-mount > #view-canvas{display:block !important;height:100%;width:100%;}
+.tx-embed-mount > #view-canvas,
+.tx-embed-mount > #view-okrs{display:block !important;height:100%;width:100%;}
 
 /* Lab preview inline (custom) */
 .tx-lab-content{flex:1;min-height:0;overflow:auto;padding:18px 22px;background:var(--tatami-paper);}
@@ -41462,6 +41463,7 @@ const _TX_ICO = {
   lobby:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20"/></svg>',
   board:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
   lab:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6"/><path d="M10 2v6L5.5 17a2 2 0 0 0 1.7 3h9.6a2 2 0 0 0 1.7-3L14 8V2"/><path d="M7 14h10"/></svg>',
+  okrs:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>',
 };
 
 // Estado sob _chatState.extended:
@@ -41607,6 +41609,7 @@ function _txRenderOverlay() {
             <button class="tx-work-tab ${ext.panelMode==='empty'?'is-active':''}" onclick="_txSetPanel('empty')">${_TX_ICO.lobby}<span>Lobby</span></button>
             <button class="tx-work-tab ${ext.panelMode==='board'?'is-active':''}" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Board</span></button>
             <button class="tx-work-tab ${ext.panelMode==='lab'?'is-active':''}" onclick="_txSetPanel('lab')">${_TX_ICO.lab}<span>Lab</span></button>
+            <button class="tx-work-tab ${ext.panelMode==='okrs'?'is-active':''}" onclick="_txSetPanel('okrs')">${_TX_ICO.okrs}<span>OKRs</span></button>
           </div>
           <div class="tx-work-content" id="tx-work-content">${_txRenderWork()}</div>
         </div>
@@ -41669,12 +41672,26 @@ function _txRenderWork() {
       <div class="tx-work-empty-btns">
         <button class="tx-work-empty-btn" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Abrir um Board</span></button>
         <button class="tx-work-empty-btn" onclick="_txSetPanel('lab')">${_TX_ICO.lab}<span>Abrir um Lab</span></button>
+        <button class="tx-work-empty-btn" onclick="_txSetPanel('okrs')">${_TX_ICO.okrs}<span>Abrir OKRs</span></button>
       </div>
     </div>`;
   }
   if (ext.panelMode === 'board') return _txRenderBoardPanel();
   if (ext.panelMode === 'lab')   return _txRenderLabPanel();
+  if (ext.panelMode === 'okrs')  return _txRenderOkrsPanel();
   return '';
+}
+
+function _txRenderOkrsPanel() {
+  const ext = _chatState.extended;
+  if (!ext) return '';
+  setTimeout(() => _txMountOkrsEmbed(), 0);
+  return `<div class="tx-embed tx-embed-live">
+    <div class="tx-embed-h">
+      <div class="tx-embed-title">${_TX_ICO.okrs} OKRs <span style="font-size:11px;font-weight:400;color:var(--tatami-ink-soft);font-style:italic;margin-left:6px;">· objetivos e key-results</span></div>
+    </div>
+    <div id="tx-okrs-mount" class="tx-embed-mount"></div>
+  </div>`;
 }
 
 function _txRenderBoardPanel() {
@@ -41747,8 +41764,9 @@ function _txMountBoardEmbed(boardId) {
       origDisplay: view.style.display,
     };
   }
-  // Desmonta lab embed se houver
+  // Desmonta lab/okrs embed se houver
   _txUnmountLabEmbedOnly();
+  _txUnmountOkrsEmbedOnly();
   // Switch board pra carregar globals
   if (typeof currentBoardId === 'undefined' || currentBoardId !== boardId) {
     if (typeof switchBoard === 'function') {
@@ -41779,6 +41797,7 @@ function _txMountLabEmbed(labId) {
     };
   }
   _txUnmountBoardEmbedOnly();
+  _txUnmountOkrsEmbedOnly();
   // Aponta pro lab escolhido
   if (typeof _currentCanvasId !== 'undefined') _currentCanvasId = labId;
   if (typeof _canvasView !== 'undefined') _canvasView = 'editor';
@@ -41825,9 +41844,46 @@ function _txUnmountLabEmbedOnly() {
   ext._canvasOrig = null;
 }
 
+function _txMountOkrsEmbed() {
+  const mount = document.getElementById('tx-okrs-mount');
+  if (!mount) return;
+  const view = document.getElementById('view-okrs');
+  if (!view) return;
+  const ext = _chatState.extended;
+  if (!ext) return;
+  if (!ext._okrsOrig) {
+    ext._okrsOrig = {
+      parent: view.parentNode,
+      next: view.nextSibling,
+      origDisplay: view.style.display,
+    };
+  }
+  // Desmonta os outros embeds primeiro
+  _txUnmountBoardEmbedOnly();
+  _txUnmountLabEmbedOnly();
+  if (view.parentNode !== mount) mount.appendChild(view);
+  view.style.display = '';
+  if (typeof renderOKRs === 'function') { try { renderOKRs(); } catch(e){} }
+}
+
+function _txUnmountOkrsEmbedOnly() {
+  const ext = _chatState.extended;
+  if (!ext || !ext._okrsOrig) return;
+  const view = document.getElementById('view-okrs');
+  if (!view) return;
+  const o = ext._okrsOrig;
+  try {
+    if (o.next && o.next.parentNode === o.parent) o.parent.insertBefore(view, o.next);
+    else o.parent.appendChild(view);
+  } catch(e){}
+  view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'okrs') ? '' : 'none';
+  ext._okrsOrig = null;
+}
+
 function _txUnmountEmbed() {
   _txUnmountBoardEmbedOnly();
   _txUnmountLabEmbedOnly();
+  _txUnmountOkrsEmbedOnly();
 }
 
 // ── Board legacy (drag-drop custom) — mantido pra fallback caso algo dê erro no mount ──
