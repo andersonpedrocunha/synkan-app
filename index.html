@@ -42574,11 +42574,15 @@ function _txOpen() {
 async function _txAutoPostOpen() {
   const ext = _chatState.extended;
   if (!ext) return;
-  const KEY = 'synkan_tatame_autopost_' + ext.channelId;
-  const DEBOUNCE_MS = 30 * 60 * 1000; // 30 min — não pergunta de novo no mesmo canal
+  // Debounce só evita SPAM no canal: se o usuário JÁ postou um aviso recente
+  // do tatame nesse canal, não pergunta de novo nem deixa postar de novo.
+  // Se o usuário escolheu "entrar discreto" (não postou), perguntamos da
+  // próxima vez normalmente — a intenção pode mudar a cada sessão.
+  const KEY = 'synkan_tatame_autoposted_' + ext.channelId;
+  const POST_DEBOUNCE_MS = 30 * 60 * 1000; // 30 min só após postar
   try {
-    const last = parseInt(localStorage.getItem(KEY) || '0', 10);
-    if (Date.now() - last < DEBOUNCE_MS) return;
+    const lastPost = parseInt(localStorage.getItem(KEY) || '0', 10);
+    if (Date.now() - lastPost < POST_DEBOUNCE_MS) return;
   } catch(_){}
   // Pergunta antes de postar — usuário decide se quer alertar o canal ou entrar discreto
   if (typeof appConfirm !== 'function') return;
@@ -42590,14 +42594,16 @@ async function _txAutoPostOpen() {
       { icon: '🎴', html: true, okLabel: 'Sim, avisar o canal', cancelLabel: 'Não, entrar discreto' }
     );
   } catch(_){ alertar = false; }
-  // Marca debounce sempre (independente da resposta) pra não perguntar de novo logo
-  try { localStorage.setItem(KEY, String(Date.now())); } catch(_){}
-  if (!alertar) return;
-  // Posta mensagem no canal
+  if (!alertar) return; // entrou discreto — não marca debounce, pergunta de novo na próxima
+  // Posta mensagem no canal — agora sim marca debounce pra não dar spam
   if (typeof _chatSendMessage !== 'function') return;
   const myName = (typeof supaUser !== 'undefined' && supaUser && (supaUser.user_metadata?.full_name || supaUser.email)) || 'alguém';
   const body = `🎴 *${myName} subiu no tatame* — sessão ao vivo (voz + workspace compartilhado). Clica em "Subir no tatame" pra entrar.`;
-  try { await _chatSendMessage(body, null); } catch(e){ console.warn('[tx] auto-post fail', e); }
+  try {
+    await _chatSendMessage(body, null);
+    // Só marca debounce quando o post foi efetivamente disparado
+    try { localStorage.setItem(KEY, String(Date.now())); } catch(_){}
+  } catch(e){ console.warn('[tx] auto-post fail', e); }
 }
 
 function _txClose() {
