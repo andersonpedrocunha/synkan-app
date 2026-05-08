@@ -5670,7 +5670,9 @@ body.tx-active .belt-ring::after{
 .chat-msg-text:has(> .chat-eph-marker){background:#f4ecd8;border-left:2px solid #d4c4a8;padding-left:10px;}
 
 /* #7 Mapa do Tatami */
-.dojo-map{padding:28px;height:100%;overflow:auto;background:var(--tatami-paper);position:relative;}
+.dojo-map{padding:0;height:100%;overflow:hidden;background:var(--tatami-paper);position:relative;}
+/* Camada interna que scrolla — passa POR CIMA da imagem de fundo */
+.dojo-map-scroll{position:relative;z-index:2;height:100%;overflow:auto;padding:28px;}
 
 /* ── Fundo Hokusai (imagem) + película de leitura ── */
 .dojo-map-bg{
@@ -5687,9 +5689,7 @@ body.tx-active .belt-ring::after{
 :root.dark .dojo-map-veil{
   background:radial-gradient(ellipse 95% 95% at 50% 50%, rgba(31,26,20,.30) 0%, rgba(31,26,20,.65) 100%);
 }
-/* O conteúdo do mapa fica acima das camadas */
-.dojo-map > .dojo-map-h,
-.dojo-map > .dojo-map-zones{position:relative;z-index:2;}
+/* O conteúdo do mapa fica acima das camadas (.dojo-map-scroll já tem z-index:2) */
 
 /* Intensidades */
 .dojo-map[data-bg-intensity="off"]    .dojo-map-bg{opacity:0;}
@@ -44556,11 +44556,12 @@ function _chatRenderDojoMap() {
   };
 
   // Carrega preferências salvas do fundo Hokusai
-  const _bgPrefs = (typeof _chatGetMapBgPrefs === 'function') ? _chatGetMapBgPrefs() : {intensity:'medium', variant:'full'};
+  const _bgPrefs = (typeof _chatGetMapBgPrefs === 'function') ? _chatGetMapBgPrefs() : {intensity:'strong', variant:'full'};
 
   return `<div class="dojo-map" data-bg-intensity="${_bgPrefs.intensity}" data-bg-variant="${_bgPrefs.variant}">
     <div class="dojo-map-bg" aria-hidden="true"></div>
     <div class="dojo-map-veil" aria-hidden="true"></div>
+    <div class="dojo-map-scroll">
     <div class="dojo-map-h">
       <div>
         <h2 style="font-family:var(--tatami-mincho);font-size:20px;color:var(--tatami-sumi);margin:0 0 3px;">畳 Mapa do Tatami</h2>
@@ -44598,6 +44599,7 @@ function _chatRenderDojoMap() {
               'nova DM',
               'Inicie uma DM com alguém da sua equipe.')}
     </div>
+    </div>
   </div>`;
 }
 
@@ -44609,12 +44611,12 @@ function _chatGetMapBgPrefs(){
     if (raw){
       const p = JSON.parse(raw);
       return {
-        intensity: p.intensity || 'medium',
+        intensity: p.intensity || 'strong',
         variant:   p.variant   || 'full',
       };
     }
   } catch(e){}
-  return { intensity:'medium', variant:'full' };
+  return { intensity:'strong', variant:'full' };
 }
 function _chatSaveMapBgPrefs(prefs){
   try { localStorage.setItem(_DOJO_MAP_BG_KEY, JSON.stringify(prefs)); } catch(e){}
