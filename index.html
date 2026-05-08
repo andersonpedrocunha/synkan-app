@@ -5701,7 +5701,28 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 
 /* Status badge inline (nas mensagens, DMs, header) */
 .chat-user-status{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);padding:1px 7px;border-radius:999px;margin-left:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.chat-msg-status{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);padding:1px 7px;border-radius:999px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;}
+.chat-msg-status{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);padding:1px 7px;border-radius:999px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;cursor:help;position:relative;}
+/* Tooltip estilizado do status — aparece ao hover, não confia no title nativo */
+.chat-msg-status:hover::after{
+  content:attr(data-emoji) ' ' attr(data-text) '\A' attr(data-expires);
+  white-space:pre;
+  position:absolute;left:0;bottom:calc(100% + 6px);z-index:200;
+  min-width:200px;max-width:280px;padding:9px 12px;
+  background:var(--tatami-sumi);color:var(--tatami-paper);
+  border-radius:8px;font-family:var(--tatami-mincho);font-style:normal;font-size:12px;
+  line-height:1.5;box-shadow:0 6px 20px rgba(0,0,0,.25);text-align:left;
+  pointer-events:none;
+}
+.chat-msg-status:hover::before{
+  content:'';position:absolute;left:14px;bottom:calc(100% - 1px);
+  border:6px solid transparent;border-top-color:var(--tatami-sumi);
+  pointer-events:none;
+}
+.chat-msg-status[data-expires=""]:hover::after,
+.chat-msg-status:not([data-expires]):hover::after{
+  content:attr(data-emoji) ' ' attr(data-text);
+  white-space:nowrap;
+}
 
 /* Status picker (modal) */
 .sp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px;}
@@ -38899,7 +38920,7 @@ async function _chatSetMyStatus(emoji, text, hoursDuration) {
     }));
   } catch(_){}
   // Re-render imediato
-  if (typeof renderUserAccountFooter === 'function') { try { renderUserAccountFooter(); } catch(_){} }
+  if (typeof refreshAccountUI === 'function') { try { refreshAccountUI(); } catch(_){} }
   if (typeof renderChat === 'function' && currentTab === 'chat') { try { renderChat(); } catch(_){} }
 
   // Persiste no banco (em background)
@@ -39731,8 +39752,8 @@ function _chatRenderMessage(m, isThreadReply) {
   const u = _chatState.userMap[m.user_id] || { name: 'Usuário', avatar: null };
   const time = _chatFormatTime(m.created_at);
   const avatar = u.avatar
-    ? `<img src="${_esc(u.avatar)}" class="chat-msg-avatar" alt=""/>`
-    : `<span class="chat-msg-avatar" style="background:${avatarColor(u.name)};">${_esc(avatarInitials(u.name))}</span>`;
+    ? `<img src="${_esc(u.avatar)}" class="chat-msg-avatar" alt="" ondblclick="event.stopPropagation();_chatOpenDMWith('${_esc(m.user_id)}')" title="Duplo clique abre DM com ${_esc(u.name)}" style="cursor:pointer;"/>`
+    : `<span class="chat-msg-avatar" style="background:${avatarColor(u.name)};cursor:pointer;" ondblclick="event.stopPropagation();_chatOpenDMWith('${_esc(m.user_id)}')" title="Duplo clique abre DM com ${_esc(u.name)}">${_esc(avatarInitials(u.name))}</span>`;
 
   // Reações agrupadas
   const reactionsHTML = (m._reactions && Object.keys(m._reactions).length)
@@ -39783,8 +39804,8 @@ function _chatRenderMessage(m, isThreadReply) {
       ${avatar}
       <div class="chat-msg-body">
         <div class="chat-msg-h">
-          <span class="chat-msg-name">${_esc(u.name)}</span>
-          ${(u.status_text) ? `<span class="chat-msg-status" title="${_esc(u.status_text)}${u.status_expires_at?` · expira em ${_esc(new Date(u.status_expires_at).toLocaleString('pt-BR'))}`:''}">${_esc(u.status_emoji||'•')} ${_esc(u.status_text)}</span>` : ''}
+          <span class="chat-msg-name" ondblclick="event.stopPropagation();_chatOpenDMWith('${_esc(m.user_id)}')" title="Duplo clique abre DM com ${_esc(u.name)}">${_esc(u.name)}</span>
+          ${(u.status_text) ? `<span class="chat-msg-status" data-emoji="${_esc(u.status_emoji||'•')}" data-text="${_esc(u.status_text)}"${u.status_expires_at?` data-expires="expira em ${_esc(new Date(u.status_expires_at).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}))}"`:''}>${_esc(u.status_emoji||'•')} ${_esc(u.status_text)}</span>` : ''}
           <span class="chat-msg-time">${time}</span>
           ${editedTag}
           ${pinTag}
@@ -41430,6 +41451,38 @@ async function _chatCreateDMFlow() {
     await _chatLoadChannels();
     renderChat();
   } catch(e) { appAlert('Não consegui criar DM', e?.message || String(e), { icon: '⚠️' }); }
+}
+
+// Abre DM com um user específico — usado no dblclick do nome/avatar
+async function _chatOpenDMWith(userId) {
+  if (!userId) return;
+  if (!_chatUserCanCreate()) {
+    appAlert('Trial ou plano pago requerido',
+      'DMs no Tatami são exclusivas do Trial ativo, Faixa Roxa ou Faixa Preta.',
+      { icon: '🔒' });
+    return;
+  }
+  const c = await _chatGetClient();
+  if (!c) return;
+  try {
+    const isSelf = userId === supaUser?.id;
+    const otherName = (_chatState.userMap[userId]?.name) || 'pessoa';
+    const targetName = isSelf
+      ? 'notas-pessoais'
+      : ('dm-' + _chatSlugify(otherName, 'pessoa').slice(0, 20));
+    const { data: newId, error } = await c.rpc('create_chat_channel', {
+      p_type: 'dm',
+      p_name: targetName,
+      p_dm_target: userId,
+      p_description: isSelf ? 'Notas pessoais — só você vê.' : null,
+    });
+    if (error) throw error;
+    _chatState.currentChannelId = newId;
+    await _chatLoadChannels();
+    renderChat();
+  } catch(e) {
+    appAlert('Não consegui abrir a DM', e?.message || String(e), { icon: '⚠️' });
+  }
 }
 
 // ── Virar card a partir de mensagem ─────────────────────────────────
@@ -44051,9 +44104,9 @@ function _chatToggleDawnSummary() {
     localStorage.setItem(key, '1');
     if (typeof showToastMsg === 'function') showToastMsg('🔕 Briefing matinal desativado · pode reativar a qualquer momento no menu do seu avatar');
   }
-  // Re-render do account footer pra atualizar o label
-  if (typeof renderUserAccountFooter === 'function') {
-    try { renderUserAccountFooter(); } catch(_){}
+  // Re-render do account footer pra atualizar o label do toggle
+  if (typeof refreshAccountUI === 'function') {
+    try { refreshAccountUI(); } catch(_){}
   }
 }
 
