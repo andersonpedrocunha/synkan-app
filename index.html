@@ -41637,6 +41637,9 @@ function _txOpen() {
     channelId: ch.id,
     channelName: ch.name || 'canal',
     channelKind: _chatChannelKind(ch),  // 'self' | 'dm1on1' | 'multi'
+    // Se o canal é de um board específico (type='board'), trava o picker
+    // de Board no tatame nesse board — não faz sentido conversar sobre outro.
+    boardLockId: (ch.type === 'board' && ch.board_id) ? ch.board_id : null,
     participants: [],
     rtChannel: null,
     chatRtChannel: null,  // realtime do chat-thread
@@ -41862,6 +41865,10 @@ function _txRenderOkrsPanel() {
 function _txRenderBoardPanel() {
   const ext = _chatState.extended;
   const boardsRef = (typeof allBoards !== 'undefined' && allBoards) ? allBoards : {};
+  // Se o canal é de board, trava no board do canal — auto-seleciona e pula picker
+  if (ext.boardLockId && !ext.panelRef && boardsRef[ext.boardLockId]) {
+    ext.panelRef = ext.boardLockId;
+  }
   if (!ext.panelRef) {
     _txUnmountEmbed();
     const boards = Object.entries(boardsRef)
@@ -41895,11 +41902,12 @@ function _txRenderBoardPanel() {
   }
   // Mount real do view-kanban no painel — render fiel do módulo original.
   setTimeout(() => _txMountBoardEmbed(ext.panelRef), 0);
+  const isLocked = ext.boardLockId && ext.boardLockId === ext.panelRef;
   return `<div class="tx-embed tx-embed-live">
     <div class="tx-embed-h">
-      <div class="tx-embed-title">${_esc(board.icon||'▤')} ${_esc(board.name||'Board')}</div>
+      <div class="tx-embed-title">${_esc(board.icon||'▤')} ${_esc(board.name||'Board')}${isLocked ? ' <span style="font-size:11px;font-weight:400;color:var(--tatami-ink-soft);font-style:italic;margin-left:6px;">· canal vinculado a esse board</span>' : ''}</div>
       <div class="tx-embed-actions">
-        <button class="tx-embed-mini" onclick="_txClearPanelRef()">Trocar board</button>
+        ${isLocked ? '' : '<button class="tx-embed-mini" onclick="_txClearPanelRef()">Trocar board</button>'}
       </div>
     </div>
     <div id="tx-board-mount" class="tx-embed-mount"></div>
@@ -42613,12 +42621,18 @@ function _txPickLabFormat(format) {
 }
 
 function _txSetPanel(mode) {
-  if (!_chatState.extended) return;
-  _chatState.extended.panelMode = mode;
-  _chatState.extended.panelRef = null;
+  const ext = _chatState.extended;
+  if (!ext) return;
+  ext.panelMode = mode;
+  // Se a aba é Board e o canal tem board travado, já abre direto nele (sem picker)
+  if (mode === 'board' && ext.boardLockId) {
+    ext.panelRef = ext.boardLockId;
+  } else {
+    ext.panelRef = null;
+  }
   _txRenderOverlay();
   _txBroadcastState();
-  try { _chatAudit(_chatState.extended.channelId, 'tatame.panel_changed', { mode }); } catch(_){}
+  try { _chatAudit(ext.channelId, 'tatame.panel_changed', { mode }); } catch(_){}
 }
 
 function _txPickBoard(id) {
