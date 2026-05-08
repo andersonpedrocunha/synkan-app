@@ -6200,6 +6200,228 @@ body.tx-active .belt-ring::after{
   width:28px;height:28px;font-size:12px;
 }
 .chat-channel-h-at{font-size:18px;margin-left:6px;}
+/* ════════════════════════════════════════════════════════════════════
+   TATAMI PROFILE — slide-in panel + mini preview + edit modal
+   ════════════════════════════════════════════════════════════════════ */
+.tp-backdrop{position:fixed;inset:0;background:rgba(15,15,30,.45);z-index:10000;display:none;animation:tpFadeIn .18s ease;}
+.tp-backdrop.is-open{display:block;}
+@keyframes tpFadeIn{from{opacity:0;}to{opacity:1;}}
+
+.tp-panel{
+  position:fixed;top:0;right:0;height:100vh;width:400px;max-width:96vw;z-index:10001;
+  background:var(--tatami-paper);border-left:1px solid var(--tatami-tan);
+  box-shadow:-20px 0 60px rgba(0,0,0,.40);
+  transform:translateX(100%);transition:transform .26s cubic-bezier(.2,.8,.2,1);
+  display:flex;flex-direction:column;font-family:var(--font-sans);
+  overflow:hidden;
+}
+.tp-panel.is-open{transform:translateX(0);}
+.tp-scroll{flex:1;overflow-y:auto;}
+
+/* Hero */
+.tp-hero{
+  position:relative;padding:28px 22px 18px;
+  background:linear-gradient(180deg,#FBF6E8 0%,#F5EFE6 100%);
+  border-bottom:1px solid var(--tatami-tan);
+}
+.tp-hero::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(circle 1px at 12% 28%, rgba(28,22,18,.06) 1px, transparent 1px),
+                   radial-gradient(circle 1px at 78% 12%, rgba(28,22,18,.04) 1px, transparent 1px),
+                   radial-gradient(circle 1px at 32% 88%, rgba(28,22,18,.05) 1px, transparent 1px);
+  background-size:160px 160px,200px 200px,180px 180px;
+}
+.tp-close{
+  position:absolute;top:12px;right:12px;z-index:5;
+  background:transparent;border:none;font-size:20px;cursor:pointer;
+  color:var(--tatami-ink-soft);width:32px;height:32px;border-radius:6px;line-height:1;
+}
+.tp-close:hover{background:var(--tatami-cream);color:var(--tatami-sumi);}
+
+/* Hanko stamp — agora com SVG limpo (não kanji 畳) */
+.tp-hanko{
+  position:absolute;top:18px;left:20px;z-index:3;
+  width:34px;height:34px;border-radius:5px;
+  background:linear-gradient(180deg,#D32842,#9F0026);
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid #1A1612;transform:rotate(-4deg);
+  box-shadow:0 2px 6px rgba(0,0,0,.18);
+  color:#FBF6E8;
+}
+.tp-hanko svg{width:18px;height:18px;display:block;}
+
+.tp-avatar-wrap{position:relative;width:96px;height:96px;margin:6px auto 14px;z-index:2;}
+.tp-avatar{
+  width:100%;height:100%;border-radius:50%;
+  background:#3C3489;color:#fff;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-family:var(--tatami-mincho);font-size:32px;font-weight:600;
+  border:3px solid var(--tatami-paper);
+  box-shadow:0 0 0 2px var(--tatami-hinomaru), 0 8px 24px rgba(0,0,0,.18);
+  overflow:hidden;
+}
+.tp-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.tp-status-dot{
+  position:absolute;bottom:4px;right:4px;
+  width:18px;height:18px;border-radius:50%;
+  border:3px solid var(--tatami-paper);
+  background:#45b369;animation:tpDotPulse 2.4s ease-in-out infinite;
+}
+@keyframes tpDotPulse{0%,100%{box-shadow:0 0 0 2px rgba(69,179,105,.30);}50%{box-shadow:0 0 0 5px rgba(69,179,105,.10);}}
+.tp-status-dot.is-tatame{
+  background:#FFE680;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:9px;color:#9F0026;
+  animation:tpRedPulse 1.4s ease-in-out infinite;
+}
+@keyframes tpRedPulse{0%,100%{box-shadow:0 0 0 2px rgba(255,230,128,.45);}50%{box-shadow:0 0 0 4px rgba(255,230,128,.10);}}
+.tp-status-dot.is-offline{background:#A89478;animation:none;}
+.tp-status-dot.is-ex{background:#7A6E5C;filter:grayscale(100%);animation:none;}
+
+.tp-name{text-align:center;font-family:var(--tatami-mincho);font-size:22px;font-weight:600;color:var(--tatami-sumi);margin:0 0 3px;letter-spacing:.005em;position:relative;z-index:2;}
+.tp-role{text-align:center;font-family:var(--tatami-mincho);font-style:italic;font-size:13px;color:var(--tatami-ink-soft);margin:0 0 12px;position:relative;z-index:2;}
+.tp-belt{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  background:linear-gradient(90deg,#3C3489 0%,#7F65C0 100%);
+  color:#fff;padding:6px 14px;border-radius:999px;
+  font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;
+  font-weight:500;width:fit-content;margin:0 auto;
+  box-shadow:0 3px 10px rgba(60,52,137,.30);position:relative;z-index:2;
+}
+.tp-belt-dot{width:6px;height:6px;border-radius:50%;background:#FFE680;}
+.tp-belt.is-azul{background:linear-gradient(90deg,#1F3A5F,#2E5288);box-shadow:0 3px 10px rgba(31,58,95,.30);}
+.tp-belt.is-preta{background:linear-gradient(90deg,#1A1612,#3A3225);box-shadow:0 3px 10px rgba(0,0,0,.40);}
+.tp-belt.is-trial{background:linear-gradient(90deg,#B89149,#E8C374);box-shadow:0 3px 10px rgba(184,145,73,.30);color:#5C3D1F;}
+
+/* Status pill */
+.tp-status-section{padding:14px 22px;border-bottom:1px solid var(--tatami-tan);background:rgba(245,239,230,.5);}
+.tp-status-pill{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:10px;
+  font-family:var(--tatami-mincho);font-size:13px;
+  background:linear-gradient(90deg,#BC002D 0%,#9F0026 100%);
+  color:#FBF6E8;animation:tpRedPulseBg 2.4s ease-in-out infinite;
+}
+@keyframes tpRedPulseBg{0%,100%{box-shadow:0 0 0 3px rgba(188,0,45,.16),0 4px 14px rgba(188,0,45,.22);}50%{box-shadow:0 0 0 6px rgba(188,0,45,.10),0 6px 22px rgba(188,0,45,.36);}}
+.tp-status-pill .icon{font-size:18px;}
+.tp-status-pill strong{font-weight:600;}
+.tp-status-pill em{font-style:italic;font-size:11.5px;opacity:.85;}
+.tp-status-pill .tp-join{margin-left:auto;background:rgba(255,255,255,.18);border:0;color:#fff;font-family:inherit;font-size:11.5px;font-style:italic;padding:4px 11px;border-radius:999px;cursor:pointer;}
+.tp-status-pill.is-online{background:linear-gradient(90deg,#3a6b2c 0%,#2E5025 100%);animation:none;box-shadow:0 2px 8px rgba(58,107,44,.25);}
+.tp-status-pill.is-offline{background:linear-gradient(90deg,#685D54 0%,#4A4239 100%);animation:none;box-shadow:none;}
+.tp-status-pill.is-ex{background:linear-gradient(90deg,#5C5247 0%,#3A3225 100%);animation:none;box-shadow:none;}
+.tp-status-custom{display:flex;align-items:center;gap:8px;margin-top:8px;padding:6px 12px;background:rgba(255,255,255,.5);border:1px solid var(--tatami-tan);border-radius:999px;font-family:var(--tatami-mincho);font-style:italic;font-size:12px;color:var(--tatami-sumi);width:fit-content;}
+
+/* Sections gerais */
+.tp-section{padding:14px 22px;border-bottom:1px solid var(--tatami-tan);}
+.tp-section-h{font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;color:var(--tatami-ink-soft);margin-bottom:10px;letter-spacing:.04em;display:flex;align-items:center;gap:6px;}
+.tp-section-h .tp-section-action{margin-left:auto;background:transparent;border:0.5px dashed var(--tatami-tan);color:var(--tatami-ink-soft);font-family:inherit;font-style:italic;font-size:10.5px;padding:3px 9px;border-radius:5px;cursor:pointer;}
+.tp-section-h .tp-section-action:hover{border-color:var(--tatami-hinomaru);color:var(--tatami-hinomaru);}
+
+/* Selo de honra */
+.tp-honor{display:flex;align-items:center;gap:10px;}
+.tp-honor-num{font-family:var(--tatami-mincho);font-size:24px;font-weight:600;color:var(--tatami-hinomaru);line-height:1;}
+.tp-honor-num small{font-size:13px;color:var(--tatami-ink-soft);font-weight:400;}
+.tp-honor-stack{display:flex;flex-direction:column;flex:1;}
+.tp-honor-label{font-family:var(--tatami-mincho);font-size:11.5px;color:var(--tatami-sumi);font-style:italic;margin-bottom:5px;}
+.tp-honor-marks{display:flex;gap:3px;flex-wrap:wrap;}
+.tp-honor-mark{width:9px;height:9px;border-radius:2px;background:var(--tatami-tan);}
+.tp-honor-mark.is-kept{background:#3a6b2c;}
+.tp-honor-mark.is-broken{background:var(--tatami-hinomaru);}
+
+/* Cards em andamento */
+.tp-cards{display:flex;flex-direction:column;gap:6px;}
+.tp-card{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:7px;font-size:12px;color:var(--tatami-sumi);cursor:pointer;transition:all .12s;}
+.tp-card:hover{border-color:var(--tatami-hinomaru);transform:translateX(2px);}
+.tp-card-tag{font-family:var(--tatami-mincho);font-style:italic;font-size:9.5px;padding:1px 7px;border-radius:999px;background:#1F3A5F;color:#fff;flex-shrink:0;}
+.tp-card-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tp-card-deadline{font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);}
+.tp-card-deadline.is-overdue{color:var(--tatami-hinomaru);font-weight:600;}
+.tp-cards-empty{padding:12px;text-align:center;font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-ink-soft);font-size:12px;background:var(--tatami-cream);border:0.5px dashed var(--tatami-tan);border-radius:7px;}
+
+/* Katas */
+.tp-katas{display:flex;flex-wrap:wrap;gap:6px;}
+.tp-kata{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:8px;font-family:var(--tatami-mincho);font-size:11.5px;color:var(--tatami-sumi);cursor:pointer;}
+.tp-kata:hover{border-color:var(--tatami-hinomaru);background:rgba(188,0,45,.04);}
+.tp-kata-kanji{font-size:14px;color:var(--tatami-hinomaru);font-weight:600;}
+.tp-kata-empty{padding:10px;text-align:center;font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-ink-soft);font-size:12px;}
+.tp-kata-loading{display:inline-flex;align-items:center;gap:8px;font-style:italic;color:var(--tatami-ink-soft);font-size:11.5px;}
+
+/* Ações rápidas */
+.tp-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:14px 22px;background:var(--tatami-cream);border-bottom:1px solid var(--tatami-tan);}
+.tp-action{display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 4px;background:var(--tatami-paper);border:1px solid var(--tatami-tan);border-radius:9px;font-family:var(--tatami-mincho);font-size:10.5px;color:var(--tatami-sumi);cursor:pointer;transition:all .12s;font-style:italic;}
+.tp-action:hover{border-color:var(--tatami-hinomaru);color:var(--tatami-hinomaru);}
+.tp-action svg{width:18px;height:18px;color:var(--tatami-ink-soft);}
+.tp-action:hover svg{color:var(--tatami-hinomaru);}
+.tp-action[disabled]{opacity:.4;cursor:not-allowed;}
+.tp-action[disabled]:hover{border-color:var(--tatami-tan);color:var(--tatami-sumi);}
+.tp-action[disabled]:hover svg{color:var(--tatami-ink-soft);}
+.tp-action.tp-action-primary{background:var(--tatami-hinomaru);border-color:var(--tatami-hinomaru);color:#fff;}
+.tp-action.tp-action-primary svg{color:#fff;}
+.tp-action.tp-action-primary:hover{background:#9F0026;color:#fff;}
+
+/* Contato */
+.tp-contact{padding:12px 22px;background:rgba(245,239,230,.4);}
+.tp-contact-row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:12px;color:var(--tatami-sumi);}
+.tp-contact-icon{width:18px;height:18px;color:var(--tatami-ink-soft);flex-shrink:0;}
+.tp-contact-label{font-family:var(--tatami-mincho);font-style:italic;font-size:10.5px;color:var(--tatami-ink-soft);}
+.tp-contact-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;}
+.tp-contact-value a{color:var(--tatami-hinomaru);text-decoration:none;}
+.tp-contact-value a:hover{text-decoration:underline;}
+.tp-contact-copy{background:transparent;border:none;cursor:pointer;color:var(--tatami-ink-soft);font-size:11px;padding:3px 6px;border-radius:4px;}
+.tp-contact-copy:hover{background:var(--tatami-paper);color:var(--tatami-sumi);}
+
+/* Stats footer */
+.tp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:0;padding:14px 0;text-align:center;background:var(--tatami-sumi);color:#FBF6E8;}
+.tp-stat-num{font-family:var(--tatami-mincho);font-size:20px;font-weight:600;color:#FBE9B6;line-height:1;}
+.tp-stat-label{font-family:var(--tatami-mincho);font-style:italic;font-size:10px;color:rgba(255,230,128,.65);margin-top:2px;letter-spacing:.04em;}
+
+/* Mini preview (hover @menção) */
+.tp-mini{
+  position:fixed;z-index:10005;
+  background:var(--tatami-paper);border:1px solid var(--tatami-tan);
+  border-radius:12px;width:280px;padding:14px 16px;
+  box-shadow:0 12px 30px rgba(0,0,0,.30);font-family:var(--font-sans);
+  pointer-events:auto;
+  animation:tpMiniIn .14s ease-out;
+}
+@keyframes tpMiniIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+.tp-mini-h{display:flex;align-items:center;gap:11px;margin-bottom:10px;}
+.tp-mini-avatar-wrap{position:relative;width:42px;height:42px;flex-shrink:0;}
+.tp-mini-avatar{width:100%;height:100%;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-family:var(--tatami-mincho);font-size:14px;font-weight:600;color:#fff;border:1.5px solid var(--tatami-paper);box-shadow:0 0 0 1.5px var(--tatami-hinomaru);overflow:hidden;}
+.tp-mini-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.tp-mini-dot{position:absolute;bottom:0;right:0;width:11px;height:11px;border-radius:50%;background:#45b369;border:2px solid var(--tatami-paper);}
+.tp-mini-dot.is-offline{background:#A89478;}
+.tp-mini-dot.is-tatame{background:#FFE680;}
+.tp-mini-name{font-family:var(--tatami-mincho);font-size:14.5px;font-weight:600;color:var(--tatami-sumi);margin:0;line-height:1.2;}
+.tp-mini-role{font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;color:var(--tatami-ink-soft);margin:0;}
+.tp-mini-summary{display:flex;gap:8px;margin-bottom:10px;font-family:var(--tatami-mincho);font-size:11px;color:var(--tatami-ink-soft);font-style:italic;flex-wrap:wrap;}
+.tp-mini-summary strong{color:var(--tatami-hinomaru);font-weight:600;}
+.tp-mini-actions{display:flex;gap:6px;}
+.tp-mini-btn{flex:1;padding:6px 10px;border-radius:6px;font-family:var(--tatami-mincho);font-style:italic;font-size:11px;background:transparent;border:1px solid var(--tatami-tan);color:var(--tatami-sumi);cursor:pointer;transition:all .12s;}
+.tp-mini-btn:hover{border-color:var(--tatami-hinomaru);color:var(--tatami-hinomaru);}
+.tp-mini-btn.is-primary{background:var(--tatami-hinomaru);border-color:var(--tatami-hinomaru);color:#fff;}
+.tp-mini-btn.is-primary:hover{background:#9F0026;}
+
+/* Edit profile modal */
+.tp-edit-pane{background:var(--tatami-paper);border:1px solid var(--tatami-tan);border-radius:12px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;padding:20px 24px;box-shadow:0 30px 70px rgba(0,0,0,.30);font-family:var(--font-sans);}
+.tp-edit-h{display:flex;align-items:center;gap:10px;margin-bottom:18px;border-bottom:1px solid var(--tatami-tan);padding-bottom:12px;}
+.tp-edit-h h3{margin:0;font-family:var(--tatami-mincho);font-size:17px;color:var(--tatami-sumi);font-weight:600;flex:1;}
+.tp-edit-row{margin-bottom:14px;}
+.tp-edit-label{display:block;font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;color:var(--tatami-ink-soft);margin-bottom:6px;}
+.tp-edit-row input[type="text"],.tp-edit-row textarea,.tp-edit-row select{width:100%;padding:9px 11px;border:1px solid var(--tatami-tan);border-radius:7px;background:var(--tatami-paper);color:var(--tatami-sumi);font-size:13.5px;font-family:var(--font-sans);outline:none;}
+.tp-edit-row input:focus,.tp-edit-row textarea:focus{border-color:var(--tatami-hinomaru);box-shadow:0 0 0 3px rgba(188,0,45,.10);}
+.tp-edit-row textarea{resize:vertical;min-height:60px;}
+.tp-edit-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;border-top:1px solid var(--tatami-tan);padding-top:14px;}
+.tp-edit-btn{padding:9px 16px;border-radius:8px;font-family:var(--tatami-mincho);font-style:italic;font-size:13px;cursor:pointer;font-weight:500;transition:all .12s;border:1px solid;}
+.tp-edit-btn-cancel{background:transparent;border-color:var(--tatami-tan);color:var(--tatami-ink-soft);}
+.tp-edit-btn-save{background:var(--tatami-hinomaru);border-color:var(--tatami-hinomaru);color:#fff;}
+.tp-edit-btn-save:hover{background:#9F0026;}
+
+/* Dark mode */
+:root.dark .tp-panel{background:var(--tatami-paper);}
+:root.dark .tp-hero{background:linear-gradient(180deg,#2A241D 0%,#1F1A14 100%);}
+
 /* Ícone SVG da chave (canal privado) — herda cor de currentColor pra integrar com tema */
 .chat-ninja-ico{display:inline-block;vertical-align:-3px;width:16px;height:16px;color:var(--tatami-sumi);}
 .chat-ninja-ico-lg{width:22px;height:22px;vertical-align:-4px;}
@@ -40700,8 +40922,8 @@ function _chatRenderMessage(m, isThreadReply) {
   const u = _chatState.userMap[m.user_id] || { name: 'Usuário', avatar: null };
   const time = _chatFormatTime(m.created_at);
   const avatar = u.avatar
-    ? `<img src="${_esc(u.avatar)}" class="chat-msg-avatar" alt="" ondblclick="event.stopPropagation();_chatOpenDMWith('${_esc(m.user_id)}')" title="Duplo clique abre DM com ${_esc(u.name)}" style="cursor:pointer;"/>`
-    : `<span class="chat-msg-avatar" style="background:${avatarColor(u.name)};cursor:pointer;" ondblclick="event.stopPropagation();_chatOpenDMWith('${_esc(m.user_id)}')" title="Duplo clique abre DM com ${_esc(u.name)}">${_esc(avatarInitials(u.name))}</span>`;
+    ? `<img src="${_esc(u.avatar)}" class="chat-msg-avatar" alt="" data-user-id="${_esc(m.user_id)}" onclick="event.stopPropagation();_chatOpenTatamiProfile('${_esc(m.user_id)}')" ondblclick="event.stopPropagation();_chatOpenDMWith('${_esc(m.user_id)}')" title="Click: ver perfil · Duplo: abrir DM" style="cursor:pointer;"/>`
+    : `<span class="chat-msg-avatar" style="background:${avatarColor(u.name)};cursor:pointer;" data-user-id="${_esc(m.user_id)}" onclick="event.stopPropagation();_chatOpenTatamiProfile('${_esc(m.user_id)}')" ondblclick="event.stopPropagation();_chatOpenDMWith('${_esc(m.user_id)}')" title="Click: ver perfil · Duplo: abrir DM">${_esc(avatarInitials(u.name))}</span>`;
 
   // Reações agrupadas
   const reactionsHTML = (m._reactions && Object.keys(m._reactions).length)
@@ -44701,11 +44923,710 @@ function _chatRenderDMAvatar(ch, size) {
     ? `background:${bg};filter:grayscale(100%);`
     : `background:${bg};`;
 
-  return `<span class="chat-dm-avatar-wrap" style="width:${size}px;height:${size}px;">
+  // user-id pra abrir profile no click (não em self-DM)
+  const targetUserId = (!isSelfDM && otherId) ? otherId : (myId || '');
+  const clickAttr = targetUserId
+    ? ` data-user-id="${_esc(targetUserId)}" onclick="event.stopPropagation();_chatOpenTatamiProfile('${_esc(targetUserId)}')" style="cursor:pointer;${avatarStyle.includes('filter')?'':''}"`
+    : '';
+
+  return `<span class="chat-dm-avatar-wrap" style="width:${size}px;height:${size}px;"${clickAttr} title="Ver perfil">
     <span class="chat-dm-avatar" style="${avatarStyle}">${inner}</span>
     ${statusBadge}
   </span>`;
 }
+
+// ════════════════════════════════════════════════════════════════════
+// TATAMI PROFILE — painel de identidade do dojo
+// ════════════════════════════════════════════════════════════════════
+// Click em qualquer avatar abre o painel slide-in da direita.
+// Hover em @menção mostra mini preview de 280px.
+// Mestre Kan auto-popula katas via análise dos cards/mensagens.
+// O próprio user pode editar role/bio/contato via "Editar perfil".
+
+const _TP_HANKO_ICON = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <!-- Person silhouette in clean abstract style -->
+  <circle cx="12" cy="8" r="3.2"/>
+  <path d="M5 19.5 c0-3.5 3.2-5.7 7-5.7 s7 2.2 7 5.7 v.5 H5 z"/>
+</svg>`;
+
+// Cache de profiles carregados (evita re-fetch redundante)
+const _tpProfileCache = new Map();
+let _tpMiniHover = null;     // timer pra delay de hover
+let _tpMiniCurrentEl = null; // elemento ancorado no momento
+
+// ── Helpers de cálculo ─────────────────────────────────────────────
+function _tpComputeBelt(plan, joinedAt) {
+  // Faixa: trial=trial, faixa azul=basic, faixa roxa=pro, faixa preta=enterprise
+  const code = (plan || '').toLowerCase();
+  if (code === 'trial' || code === 'free') return { name:'Trial', cls:'is-trial', kyu:'9º kyu' };
+  if (code === 'azul' || code === 'basic')  return { name:'Faixa Azul',  cls:'is-azul',  kyu:'8º kyu' };
+  if (code === 'roxa' || code === 'pro')    return { name:'Faixa Roxa',  cls:'',         kyu:'6º kyu' };
+  if (code === 'preta' || code === 'enterprise') return { name:'Faixa Preta', cls:'is-preta', kyu:'1º dan' };
+  return { name:'Faixa Roxa', cls:'', kyu:'6º kyu' };
+}
+function _tpFormatJoined(d) {
+  if (!d) return '';
+  const date = new Date(d);
+  const months = Math.max(1, Math.round((Date.now() - date.getTime()) / (30*24*3600*1000)));
+  if (months < 12) return `${months} ${months===1?'mês':'meses'} no dojo`;
+  const years = Math.floor(months/12);
+  return `${years} ${years===1?'ano':'anos'} no dojo`;
+}
+function _tpFormatDeadline(d) {
+  if (!d) return '';
+  const target = new Date(d);
+  const now = new Date();
+  const dayMs = 24*3600*1000;
+  const diff = Math.round((target.getTime() - now.getTime()) / dayMs);
+  if (diff < 0) return { text:`venceu ${Math.abs(diff)}d atrás`, overdue:true };
+  if (diff === 0) return { text:'hoje', overdue:false };
+  if (diff === 1) return { text:'amanhã', overdue:false };
+  if (diff < 7) return { text:`${diff} dias`, overdue:false };
+  if (diff < 30) return { text:`${Math.round(diff/7)} sem`, overdue:false };
+  return { text:`${Math.round(diff/30)} mês`, overdue:false };
+}
+function _tpLocalTime(timezone) {
+  try {
+    const tz = timezone || 'America/Sao_Paulo';
+    const now = new Date();
+    const time = now.toLocaleTimeString('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+    const tzAbbr = now.toLocaleString('pt-BR', { timeZone: tz, timeZoneName: 'short' }).split(' ').pop();
+    const city = (tz.split('/').pop() || '').replace(/_/g,' ');
+    return `${time} ${tzAbbr} · ${city}`;
+  } catch(_) { return ''; }
+}
+
+// ── Carrega dados do profile (com cache) ────────────────────────────
+async function _tpLoadProfile(userId, opts) {
+  const useCache = !(opts && opts.refresh);
+  if (useCache && _tpProfileCache.has(userId)) return _tpProfileCache.get(userId);
+  const c = (typeof _getOrCreateIsolatedClient === 'function')
+    ? await _getOrCreateIsolatedClient()
+    : (typeof _ensureSupaClient === 'function' ? _ensureSupaClient() : null);
+  if (!c) return null;
+
+  // Profile principal
+  let profile = null;
+  try {
+    const { data } = await c.from('profiles')
+      .select('id,full_name,email,avatar_url,role,bio,katas,phone,linkedin,timezone,dojo_joined_at,status,status_emoji,status_text,status_expires_at')
+      .eq('id', userId).maybeSingle();
+    profile = data;
+  } catch(e) { console.warn('[tp] profile fetch falhou', e); }
+
+  if (!profile) return null;
+
+  // Stats agregadas (best-effort)
+  let stats = { cards_in_progress:0, cards_delivered_30d:0, msgs_30d:0, tatames_total:0, honor_kept:0, honor_total:0 };
+  try {
+    const { data } = await c.rpc('tatami_profile_stats', { p_user_id: userId });
+    if (data) stats = Object.assign(stats, data);
+  } catch(e) { /* tolera — RPC pode não existir ainda */ }
+
+  // Cards em andamento (lista)
+  let cards = [];
+  try {
+    const { data } = await c.rpc('tatami_profile_cards', { p_user_id: userId, p_limit: 5 });
+    cards = data || [];
+  } catch(e) { /* tolera */ }
+
+  const result = { profile, stats, cards };
+  _tpProfileCache.set(userId, result);
+  return result;
+}
+
+// ── Abre o painel principal ────────────────────────────────────────
+async function _chatOpenTatamiProfile(userId) {
+  if (!userId) return;
+  // Esconde mini se aberto
+  _tpHideMiniProfile();
+  // Cria backdrop e painel se ainda não existem
+  let backdrop = document.getElementById('tp-backdrop');
+  let panel = document.getElementById('tp-panel');
+  if (!backdrop) {
+    backdrop = document.createElement('div');
+    backdrop.id = 'tp-backdrop';
+    backdrop.className = 'tp-backdrop';
+    backdrop.addEventListener('click', _chatCloseTatamiProfile);
+    document.body.appendChild(backdrop);
+  }
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'tp-panel';
+    panel.className = 'tp-panel';
+    document.body.appendChild(panel);
+  }
+  // Loading
+  panel.innerHTML = `<div style="padding:60px 20px;text-align:center;font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-ink-soft);">Carregando perfil…</div>`;
+  backdrop.classList.add('is-open');
+  // Force reflow pra animação funcionar
+  // eslint-disable-next-line no-unused-expressions
+  panel.offsetHeight;
+  panel.classList.add('is-open');
+
+  // Tecla Esc
+  if (!_tpEscBound) {
+    document.addEventListener('keydown', _tpOnEscape);
+    _tpEscBound = true;
+  }
+
+  const data = await _tpLoadProfile(userId);
+  if (!data || !data.profile) {
+    panel.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);">
+      <div style="font-size:32px;margin-bottom:10px;">🥋</div>
+      <p>Não consegui carregar esse perfil agora.</p>
+      <button class="tp-edit-btn tp-edit-btn-cancel" onclick="_chatCloseTatamiProfile()" style="margin-top:14px;">Fechar</button>
+    </div>`;
+    return;
+  }
+  panel.innerHTML = _tpRenderPanel(data, userId);
+  // Bindings dos botões internos
+  _tpBindPanelActions(panel, userId, data);
+}
+
+let _tpEscBound = false;
+function _tpOnEscape(e) {
+  if (e.key === 'Escape') _chatCloseTatamiProfile();
+}
+function _chatCloseTatamiProfile() {
+  const panel = document.getElementById('tp-panel');
+  const backdrop = document.getElementById('tp-backdrop');
+  if (panel) panel.classList.remove('is-open');
+  if (backdrop) backdrop.classList.remove('is-open');
+  if (_tpEscBound) {
+    document.removeEventListener('keydown', _tpOnEscape);
+    _tpEscBound = false;
+  }
+}
+
+// ── Render do painel ───────────────────────────────────────────────
+function _tpRenderPanel(data, userId) {
+  const p = data.profile;
+  const stats = data.stats || {};
+  const cards = data.cards || [];
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  const isMe = userId === myId;
+  const onlineSet = _chatState?.onlineUsers || new Set();
+
+  // Estados
+  const isExMember = (p.status === 'offboarded' || p.status === 'deleted');
+  const ext = _chatState?.extended;
+  const inTatame = ext && ext.open && _chatState?.tatameMonitor && _chatState.tatameMonitor.userIds && _chatState.tatameMonitor.userIds.has?.(userId);
+  // Heurística simples: se a pessoa tem extended.open e channelId match com tatame monitor, considera "in tatame"
+  // (o monitor preciso depende de presence interna; usamos placeholder)
+  const isOnline = !isExMember && onlineSet.has(userId);
+
+  // Avatar inner
+  const avatarInner = p.avatar_url
+    ? `<img src="${_esc(p.avatar_url)}" alt=""/>`
+    : `${_esc(typeof avatarInitials === 'function' ? avatarInitials(p.full_name) : (p.full_name||'?').slice(0,1).toUpperCase())}`;
+  const avatarBg = (typeof avatarColor === 'function') ? avatarColor(p.full_name) : '#3C3489';
+
+  // Status dot class
+  let dotCls = 'is-offline';
+  let dotInner = '';
+  if (isExMember) dotCls = 'is-ex';
+  else if (inTatame) { dotCls = 'is-tatame'; dotInner = '🎴'; }
+  else if (isOnline) dotCls = '';
+
+  // Belt
+  const planCode = (typeof getCurrentPlanCode === 'function' && isMe) ? getCurrentPlanCode() : 'roxa';
+  const belt = _tpComputeBelt(planCode, p.dojo_joined_at);
+
+  // Status pill content
+  let statusPillHTML = '';
+  if (isExMember) {
+    statusPillHTML = `<div class="tp-status-pill is-ex"><span class="icon">🥋</span><strong>Ex-membro</strong><em>· não faz mais parte do workspace</em></div>`;
+  } else if (inTatame) {
+    statusPillHTML = `<div class="tp-status-pill"><span class="icon">🎴</span><strong>No tatame ao vivo</strong><em>· sessão em curso</em><button class="tp-join">subir</button></div>`;
+  } else if (isOnline) {
+    statusPillHTML = `<div class="tp-status-pill is-online"><span class="icon">🟢</span><strong>Online agora</strong></div>`;
+  } else {
+    statusPillHTML = `<div class="tp-status-pill is-offline"><span class="icon">⚪</span><strong>Offline</strong></div>`;
+  }
+
+  // Custom status
+  const customExpired = p.status_expires_at && new Date(p.status_expires_at).getTime() < Date.now();
+  const showCustom = !isExMember && p.status_text && !customExpired;
+  const customHTML = showCustom
+    ? `<div class="tp-status-custom">${_esc(p.status_emoji||'•')} ${_esc(p.status_text)}</div>`
+    : '';
+
+  // Honor
+  const honorTotal = stats.honor_total || 0;
+  const honorKept  = stats.honor_kept || 0;
+  const honorPct   = honorTotal > 0 ? Math.round((honorKept/honorTotal)*100) : 100;
+  const honorMarks = honorTotal > 0
+    ? Array.from({length: Math.min(honorTotal, 30)}, (_, i) => {
+        const isKept = i < honorKept;
+        return `<span class="tp-honor-mark ${isKept?'is-kept':'is-broken'}"></span>`;
+      }).join('')
+    : '<span class="tp-honor-mark"></span>'.repeat(8);
+
+  // Cards
+  const cardsHTML = cards.length > 0
+    ? cards.map(c => {
+        const dl = _tpFormatDeadline(c.deadline);
+        return `<div class="tp-card" onclick="_chatCloseTatamiProfile();if(typeof switchBoard==='function')switchBoard('${_esc(c.board_id)}',{goTo:'kanban'});if(typeof editCard==='function')setTimeout(()=>editCard(${parseInt(c.id,10)||0}),200);">
+          <span class="tp-card-tag">${_esc((c.board_name||'board').slice(0,12))}</span>
+          <span class="tp-card-name">${_esc(c.name)}</span>
+          ${dl ? `<span class="tp-card-deadline ${dl.overdue?'is-overdue':''}">${_esc(dl.text)}</span>` : ''}
+        </div>`;
+      }).join('')
+    : '<div class="tp-cards-empty">Nenhum card em andamento.</div>';
+
+  // Katas
+  const katas = Array.isArray(p.katas) ? p.katas : [];
+  const katasHTML = katas.length > 0
+    ? katas.map(k => `<span class="tp-kata"><span class="tp-kata-kanji">${_esc(k.kanji||'?')}</span>${_esc(k.label||'')}</span>`).join('')
+    : `<div class="tp-kata-empty">${isMe ? 'Clique em "Mestre Kan analisa" pra detectar suas especialidades' : 'Nenhuma especialidade detectada ainda'}</div>`;
+
+  // Contact rows
+  const contactRows = [];
+  if (p.email) {
+    contactRows.push(`<div class="tp-contact-row">
+      <svg class="tp-contact-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2.5 4l5.5 4 5.5-4"/></svg>
+      <div style="flex:1;min-width:0;"><div class="tp-contact-label">email</div><div class="tp-contact-value"><a href="mailto:${_esc(p.email)}">${_esc(p.email)}</a></div></div>
+      <button class="tp-contact-copy" data-copy="${_esc(p.email)}" title="Copiar">⎘</button>
+    </div>`);
+  }
+  if (p.phone) {
+    contactRows.push(`<div class="tp-contact-row">
+      <svg class="tp-contact-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M3 3l3 0 1 4-2 1c1 2 2 3 4 4l1-2 4 1v3a1 1 0 0 1-1 1c-6 0-11-5-11-11a1 1 0 0 1 1-1z"/></svg>
+      <div style="flex:1;min-width:0;"><div class="tp-contact-label">telefone</div><div class="tp-contact-value">${_esc(p.phone)}</div></div>
+      <button class="tp-contact-copy" data-copy="${_esc(p.phone)}" title="Copiar">⎘</button>
+    </div>`);
+  }
+  if (p.linkedin) {
+    contactRows.push(`<div class="tp-contact-row">
+      <svg class="tp-contact-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 7v5M5 5v.01M8 12V8c0-1 1-1 1-1s1 0 1 1v4M11 12V8"/></svg>
+      <div style="flex:1;min-width:0;"><div class="tp-contact-label">linkedin</div><div class="tp-contact-value"><a href="${_esc(p.linkedin)}" target="_blank" rel="noopener">${_esc(p.linkedin.replace(/^https?:\/\//,''))}</a></div></div>
+    </div>`);
+  }
+  contactRows.push(`<div class="tp-contact-row">
+    <svg class="tp-contact-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg>
+    <div style="flex:1;min-width:0;"><div class="tp-contact-label">hora local</div><div class="tp-contact-value">${_esc(_tpLocalTime(p.timezone) || '—')}</div></div>
+  </div>`);
+
+  return `
+    <div class="tp-scroll">
+      <div class="tp-hero">
+        <div class="tp-hanko" aria-hidden="true">${_TP_HANKO_ICON}</div>
+        <button class="tp-close" type="button" aria-label="Fechar">×</button>
+        <div class="tp-avatar-wrap">
+          <div class="tp-avatar" style="background:${avatarBg};${isExMember?'filter:grayscale(100%);':''}">${avatarInner}</div>
+          <span class="tp-status-dot ${dotCls}">${dotInner}</span>
+        </div>
+        <h2 class="tp-name">${_esc(p.full_name || 'Sem nome')}</h2>
+        <p class="tp-role">${_esc(p.role || (p.bio ? p.bio : (isMe ? 'clique em editar pra adicionar seu cargo' : '')))}</p>
+        <div class="tp-belt ${belt.cls}">
+          <span class="tp-belt-dot"></span>
+          ${belt.name} · ${belt.kyu} · ${_esc(_tpFormatJoined(p.dojo_joined_at))}
+        </div>
+      </div>
+
+      <div class="tp-status-section">
+        ${statusPillHTML}
+        ${customHTML}
+      </div>
+
+      <div class="tp-section">
+        <div class="tp-section-h">⚖ Selo de honra · últimos 30 dias</div>
+        <div class="tp-honor">
+          <div class="tp-honor-num">${honorKept}<small>/${honorTotal||'—'}</small></div>
+          <div class="tp-honor-stack">
+            <div class="tp-honor-label">${honorTotal>0 ? `${honorPct}% de promessas cumpridas` : 'sem deadlines registrados nos últimos 30 dias'}</div>
+            <div class="tp-honor-marks">${honorMarks}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tp-section">
+        <div class="tp-section-h">📋 Hoje em andamento · ${stats.cards_in_progress||cards.length} card${(stats.cards_in_progress||cards.length)===1?'':'s'}</div>
+        <div class="tp-cards">${cardsHTML}</div>
+      </div>
+
+      <div class="tp-section">
+        <div class="tp-section-h">
+          ⚔ Katas · especialidades
+          ${isMe ? `<button class="tp-section-action" data-action="analyze-katas">${katas.length>0?'atualizar análise':'Mestre Kan analisa'}</button>` : ''}
+        </div>
+        <div class="tp-katas">${katasHTML}</div>
+      </div>
+
+      <div class="tp-actions">
+        ${!isMe ? `
+          <button class="tp-action tp-action-primary" data-action="dm">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1 -1.5 1.5h-6L4 14v-2H3a1.5 1.5 0 0 1 -1.5 -1.5v-5.5A1.5 1.5 0 0 1 3 3.5z"/></svg>
+            <span>DM</span>
+          </button>
+        ` : `
+          <button class="tp-action tp-action-primary" data-action="edit">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2l3 3-9 9H2v-3z"/></svg>
+            <span>Editar</span>
+          </button>
+        `}
+        <button class="tp-action" data-action="cards" ${stats.cards_in_progress===0?'disabled':''}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="1.5"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>
+          <span>Cards</span>
+        </button>
+        <button class="tp-action" data-action="tatame" ${(!isOnline&&!inTatame)?'disabled':''}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M11 4l4 4-4 4"/></svg>
+          <span>Tatame</span>
+        </button>
+        <button class="tp-action" data-action="more">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="3" r="1.2"/><circle cx="8" cy="13" r="1.2"/></svg>
+          <span>Mais</span>
+        </button>
+      </div>
+
+      <div class="tp-contact">${contactRows.join('')}</div>
+
+      <div class="tp-stats">
+        <div><div class="tp-stat-num">${stats.tatames_total||0}</div><div class="tp-stat-label">tatames</div></div>
+        <div><div class="tp-stat-num">${stats.msgs_30d||0}</div><div class="tp-stat-label">msgs · 30d</div></div>
+        <div><div class="tp-stat-num">${stats.cards_delivered_30d||0}</div><div class="tp-stat-label">entregues · 30d</div></div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Bind dos botões/ações do painel ────────────────────────────────
+function _tpBindPanelActions(panel, userId, data) {
+  panel.querySelector('.tp-close')?.addEventListener('click', _chatCloseTatamiProfile);
+  // Copy buttons
+  panel.querySelectorAll('.tp-contact-copy').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const txt = btn.dataset.copy || '';
+      try { navigator.clipboard?.writeText(txt); btn.textContent = '✓'; setTimeout(()=>btn.textContent='⎘', 1200); } catch(_){}
+    });
+  });
+  // Action buttons
+  panel.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const act = btn.dataset.action;
+      if (act === 'dm') {
+        _chatCloseTatamiProfile();
+        if (typeof _chatOpenDMWith === 'function') _chatOpenDMWith(userId);
+      } else if (act === 'edit') {
+        _tpOpenEditProfile(data.profile);
+      } else if (act === 'cards') {
+        _chatCloseTatamiProfile();
+        // Navega pro primeiro card em andamento
+        const firstCard = data.cards && data.cards[0];
+        if (firstCard && typeof switchBoard === 'function') {
+          switchBoard(firstCard.board_id, { goTo: 'kanban' });
+        }
+      } else if (act === 'tatame') {
+        _chatCloseTatamiProfile();
+        // Convidar pra tatame: abre o tatame se eu já tô em algum, ou abre uma DM e oferece
+        if (_chatState?.extended && _chatState.extended.open) {
+          // já tô num tatame — só notifica
+          if (typeof appAlert === 'function') appAlert('Convidar', 'Mande uma mensagem na DM convidando essa pessoa pro tatame.', { icon:'🎴' });
+        } else {
+          if (typeof _chatOpenDMWith === 'function') _chatOpenDMWith(userId);
+        }
+      } else if (act === 'more') {
+        _tpShowMoreMenu(btn, userId, data);
+      } else if (act === 'analyze-katas') {
+        _tpAnalyzeKatas(userId);
+      }
+    });
+  });
+}
+
+// ── Mais opções (menu kebab) ───────────────────────────────────────
+function _tpShowMoreMenu(anchor, userId, data) {
+  // Menu simples — abre no lugar do botão
+  document.getElementById('tp-more-menu')?.remove();
+  const menu = document.createElement('div');
+  menu.id = 'tp-more-menu';
+  menu.className = 'chat-ch-menu-pop';
+  const rect = anchor.getBoundingClientRect();
+  menu.style.position = 'fixed';
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.right = (window.innerWidth - rect.right) + 'px';
+  menu.style.left = '';
+  const isMe = userId === supaUser?.id;
+  const isOwner = (typeof allBoards !== 'undefined') && Object.values(allBoards||{}).some(b => b && b.owner_id === supaUser?.id);
+  const isExMember = data.profile.status === 'offboarded' || data.profile.status === 'deleted';
+  menu.innerHTML = `
+    ${!isMe ? `<button data-act="copy-id">Copiar ID</button>` : ''}
+    <button data-act="refresh">Atualizar perfil</button>
+    ${(isOwner && !isMe && !isExMember) ? `<div class="chat-ch-menu-divider"></div>
+      <button data-act="offboard" class="is-danger">Pessoa saiu da empresa…</button>` : ''}
+  `;
+  document.body.appendChild(menu);
+  const close = () => menu.remove();
+  menu.querySelectorAll('button[data-act]').forEach(b => {
+    b.addEventListener('click', () => {
+      const a = b.dataset.act;
+      close();
+      if (a === 'copy-id') { try { navigator.clipboard.writeText(userId); } catch(_){} }
+      if (a === 'refresh') { _tpProfileCache.delete(userId); _chatOpenTatamiProfile(userId); }
+      if (a === 'offboard' && typeof _offboardMemberFlow === 'function') {
+        _chatCloseTatamiProfile();
+        _offboardMemberFlow(userId, data.profile.full_name || 'Esta pessoa');
+      }
+    });
+  });
+  setTimeout(() => document.addEventListener('click', function once(e){
+    if (!menu.contains(e.target)) { close(); document.removeEventListener('click', once); }
+  }), 0);
+}
+
+// ── Mestre Kan analisa katas ───────────────────────────────────────
+async function _tpAnalyzeKatas(userId) {
+  const isMe = userId === supaUser?.id;
+  if (!isMe) return; // só o próprio user pode atualizar
+  const btn = document.querySelector('.tp-section-action[data-action="analyze-katas"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Mestre Kan pensando…'; }
+
+  try {
+    const c = (typeof _getOrCreateIsolatedClient === 'function')
+      ? await _getOrCreateIsolatedClient()
+      : _ensureSupaClient();
+    if (!c) throw new Error('Sem cliente Supabase');
+
+    // Pega últimas 30 mensagens do user + cards em andamento como contexto
+    const [{ data: recentMsgs }, { data: cards }] = await Promise.all([
+      c.from('chat_messages').select('body').eq('user_id', userId).order('created_at',{ascending:false}).limit(30),
+      c.rpc('tatami_profile_cards', { p_user_id: userId, p_limit: 10 })
+    ]);
+    const msgsBlob = (recentMsgs || []).map(m => m.body).join(' ').slice(0, 2000);
+    const cardsBlob = (cards || []).map(c => c.name + (c.col?` (${c.col})`:'')).join(' · ');
+
+    // Usa o pipeline do Mestre Kan se existir; senão, fallback heurístico
+    let katas = null;
+    if (typeof callKanbanSyncIA === 'function') {
+      const prompt = `Analise as últimas atividades dessa pessoa e proponha 4 "katas" (especialidades) representando o estilo de trabalho dela. Retorne JSON estrito: {"katas":[{"kanji":"X","label":"Descrição curta em PT-BR"}]}.
+
+Cards atribuídos: ${cardsBlob}
+
+Mensagens recentes: ${msgsBlob}
+
+Use kanji simples e relevante (ex: 商=negócios, 設=design, 解=decisão, 速=velocidade, 細=detalhes, 話=cliente, 写=escrita, 創=criação). Máx 4 katas.`;
+      try {
+        const result = await callKanbanSyncIA({ prompt, max_tokens: 400 });
+        if (result?.text) {
+          const match = result.text.match(/\{[\s\S]*\}/);
+          if (match) {
+            const parsed = JSON.parse(match[0]);
+            if (Array.isArray(parsed.katas)) katas = parsed.katas.slice(0, 4);
+          }
+        }
+      } catch(e) { console.warn('[tp] AI katas fail', e); }
+    }
+
+    // Fallback: heurística simples baseada em palavras-chave
+    if (!katas) {
+      katas = [];
+      const corpus = (msgsBlob + ' ' + cardsBlob).toLowerCase();
+      const checks = [
+        { test:/(design|mockup|ux|ui|figma|protótipo)/, kanji:'設', label:'Design' },
+        { test:/(venda|cliente|negócio|deal|comercial|propos)/, kanji:'商', label:'Negociação' },
+        { test:/(decis|estrat|plano|roadmap|prio)/, kanji:'解', label:'Decisão' },
+        { test:/(rápido|urgente|asap|hoje|sprint)/, kanji:'速', label:'Velocidade' },
+        { test:/(detalh|review|qa|bug|fix)/, kanji:'細', label:'Detalhes' },
+        { test:/(escrev|copy|texto|conteúd|artigo)/, kanji:'写', label:'Escrita' },
+        { test:/(cri|ideia|brain|inovar)/, kanji:'創', label:'Criação' },
+      ];
+      checks.forEach(ch => { if (ch.test.test(corpus) && katas.length < 4) katas.push({ kanji: ch.kanji, label: ch.label }); });
+      if (katas.length === 0) katas = [{ kanji:'始', label:'Começando' }];
+    }
+
+    // Salva
+    await c.rpc('save_my_katas', { p_katas: katas });
+    _tpProfileCache.delete(userId);
+    if (typeof appAlert === 'function') {
+      appAlert('Análise pronta', `Mestre Kan detectou ${katas.length} katas no seu estilo de trabalho.`, { icon:'⚔️' });
+    }
+    // Re-render
+    _chatOpenTatamiProfile(userId);
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Mestre Kan analisa'; }
+    if (typeof appAlert === 'function') appAlert('Erro na análise', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+// ── Edit profile (próprio user) ─────────────────────────────────────
+function _tpOpenEditProfile(currentProfile) {
+  document.getElementById('tp-edit-ov')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'tp-edit-ov';
+  ov.className = 'app-dialog-overlay is-open';
+  ov.style.zIndex = 10020;
+  const p = currentProfile || {};
+  ov.innerHTML = `
+    <div class="tp-edit-pane" role="dialog" aria-label="Editar perfil">
+      <div class="tp-edit-h">
+        <h3>Editar perfil</h3>
+        <button class="tp-close" id="tp-edit-close" type="button" aria-label="Fechar">×</button>
+      </div>
+      <div class="tp-edit-row">
+        <label class="tp-edit-label">Nome</label>
+        <input type="text" id="tp-edit-name" value="${_esc(p.full_name||'')}" placeholder="Seu nome"/>
+      </div>
+      <div class="tp-edit-row">
+        <label class="tp-edit-label">Cargo / Função</label>
+        <input type="text" id="tp-edit-role" value="${_esc(p.role||'')}" placeholder="Ex: product · business" maxlength="80"/>
+      </div>
+      <div class="tp-edit-row">
+        <label class="tp-edit-label">Bio (opcional, 1 linha)</label>
+        <textarea id="tp-edit-bio" maxlength="200" placeholder="Como você se apresentaria em 1 linha">${_esc(p.bio||'')}</textarea>
+      </div>
+      <div class="tp-edit-row">
+        <label class="tp-edit-label">Telefone</label>
+        <input type="text" id="tp-edit-phone" value="${_esc(p.phone||'')}" placeholder="+55 11 99999-9999"/>
+      </div>
+      <div class="tp-edit-row">
+        <label class="tp-edit-label">LinkedIn</label>
+        <input type="text" id="tp-edit-linkedin" value="${_esc(p.linkedin||'')}" placeholder="https://linkedin.com/in/seunome"/>
+      </div>
+      <div class="tp-edit-row">
+        <label class="tp-edit-label">Fuso horário</label>
+        <input type="text" id="tp-edit-tz" value="${_esc(p.timezone||'America/Sao_Paulo')}" placeholder="America/Sao_Paulo"/>
+      </div>
+      <div class="tp-edit-actions">
+        <button class="tp-edit-btn tp-edit-btn-cancel" id="tp-edit-cancel" type="button">Cancelar</button>
+        <button class="tp-edit-btn tp-edit-btn-save" id="tp-edit-save" type="button">Salvar</button>
+      </div>
+    </div>
+  `;
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  ov.querySelector('#tp-edit-close').addEventListener('click', () => ov.remove());
+  ov.querySelector('#tp-edit-cancel').addEventListener('click', () => ov.remove());
+  ov.querySelector('#tp-edit-save').addEventListener('click', async () => {
+    const btn = ov.querySelector('#tp-edit-save');
+    btn.disabled = true; btn.textContent = 'Salvando…';
+    try {
+      const c = (typeof _getOrCreateIsolatedClient === 'function')
+        ? await _getOrCreateIsolatedClient()
+        : _ensureSupaClient();
+      if (!c) throw new Error('Sem cliente Supabase');
+      const payload = {
+        p_full_name: ov.querySelector('#tp-edit-name').value.trim() || null,
+        p_role:      ov.querySelector('#tp-edit-role').value.trim() || null,
+        p_bio:       ov.querySelector('#tp-edit-bio').value.trim() || null,
+        p_phone:     ov.querySelector('#tp-edit-phone').value.trim() || null,
+        p_linkedin:  ov.querySelector('#tp-edit-linkedin').value.trim() || null,
+        p_timezone:  ov.querySelector('#tp-edit-tz').value.trim() || null,
+      };
+      const { error } = await c.rpc('update_my_profile', payload);
+      if (error) throw error;
+      ov.remove();
+      _tpProfileCache.delete(supaUser.id);
+      if (document.getElementById('tp-panel')?.classList.contains('is-open')) {
+        _chatOpenTatamiProfile(supaUser.id);
+      }
+      if (typeof appAlert === 'function') appAlert('Salvo', 'Seu perfil foi atualizado.', { icon:'✓' });
+    } catch(e) {
+      btn.disabled = false; btn.textContent = 'Salvar';
+      if (typeof appAlert === 'function') appAlert('Erro ao salvar', e?.message || String(e), { icon:'⚠️' });
+    }
+  });
+}
+
+// ── Mini preview (hover em @menção ou avatar) ───────────────────────
+async function _tpShowMiniProfile(userId, anchorEl) {
+  if (!userId || !anchorEl) return;
+  _tpHideMiniProfile();
+  _tpMiniCurrentEl = anchorEl;
+  // Cria com placeholder
+  const data = await _tpLoadProfile(userId);
+  if (!data || !data.profile || _tpMiniCurrentEl !== anchorEl) return; // anchor mudou
+  const p = data.profile;
+  const onlineSet = _chatState?.onlineUsers || new Set();
+  const isOnline = onlineSet.has(userId);
+  const isExMember = p.status === 'offboarded' || p.status === 'deleted';
+  const stats = data.stats || {};
+  const honorPct = (stats.honor_total>0) ? Math.round((stats.honor_kept/stats.honor_total)*100) : null;
+  const avatarInner = p.avatar_url
+    ? `<img src="${_esc(p.avatar_url)}" alt=""/>`
+    : `${_esc(typeof avatarInitials === 'function' ? avatarInitials(p.full_name) : (p.full_name||'?').slice(0,1).toUpperCase())}`;
+  const avatarBg = (typeof avatarColor === 'function') ? avatarColor(p.full_name) : '#3C3489';
+  let dotCls = 'is-offline';
+  if (isExMember) dotCls = 'is-ex';
+  else if (isOnline) dotCls = '';
+
+  const mini = document.createElement('div');
+  mini.className = 'tp-mini';
+  mini.id = 'tp-mini';
+  mini.innerHTML = `
+    <div class="tp-mini-h">
+      <div class="tp-mini-avatar-wrap">
+        <div class="tp-mini-avatar" style="background:${avatarBg};${isExMember?'filter:grayscale(100%);':''}">${avatarInner}</div>
+        <span class="tp-mini-dot ${dotCls}"></span>
+      </div>
+      <div>
+        <h4 class="tp-mini-name">${_esc(p.full_name||'Sem nome')}</h4>
+        <p class="tp-mini-role">${_esc(p.role || (p.status_text ? `${p.status_emoji||'•'} ${p.status_text}` : ''))}</p>
+      </div>
+    </div>
+    <div class="tp-mini-summary">
+      ${honorPct !== null ? `<span><strong>${honorPct}%</strong> honra</span><span>·</span>` : ''}
+      ${stats.cards_in_progress ? `<span>${stats.cards_in_progress} card${stats.cards_in_progress!==1?'s':''}</span>` : '<span>0 cards</span>'}
+      ${isExMember ? '<span>·</span><span style="color:var(--tatami-ink-soft);">ex-membro</span>' : ''}
+    </div>
+    <div class="tp-mini-actions">
+      <button class="tp-mini-btn is-primary" data-act="dm">DM</button>
+      <button class="tp-mini-btn" data-act="profile">ver perfil</button>
+      <button class="tp-mini-btn" data-act="cards">cards</button>
+    </div>
+  `;
+  document.body.appendChild(mini);
+  // Posiciona perto do anchor
+  const rect = anchorEl.getBoundingClientRect();
+  const miniW = 280;
+  const miniH = mini.offsetHeight;
+  let left = rect.left;
+  let top  = rect.bottom + 6;
+  if (left + miniW > window.innerWidth - 12) left = window.innerWidth - miniW - 12;
+  if (top + miniH > window.innerHeight - 12) top = rect.top - miniH - 6;
+  mini.style.left = Math.max(8, left) + 'px';
+  mini.style.top = Math.max(8, top) + 'px';
+
+  // Bindings
+  mini.querySelectorAll('button[data-act]').forEach(b => {
+    b.addEventListener('click', e => {
+      const act = b.dataset.act;
+      _tpHideMiniProfile();
+      if (act === 'dm' && typeof _chatOpenDMWith === 'function') _chatOpenDMWith(userId);
+      else if (act === 'profile') _chatOpenTatamiProfile(userId);
+      else if (act === 'cards' && data.cards && data.cards[0] && typeof switchBoard === 'function') {
+        switchBoard(data.cards[0].board_id, { goTo:'kanban' });
+      }
+    });
+  });
+  // Mantém mini aberto se o mouse entra nele
+  mini.addEventListener('mouseenter', () => { clearTimeout(_tpMiniHover); });
+  mini.addEventListener('mouseleave', () => { _tpHideMiniProfile(); });
+}
+
+function _tpHideMiniProfile() {
+  document.getElementById('tp-mini')?.remove();
+  _tpMiniCurrentEl = null;
+}
+
+// ── Bind hover global em @menções ────────────────────────────────────
+document.addEventListener('mouseover', (e) => {
+  const mention = e.target.closest('[data-user-id]');
+  if (!mention) return;
+  const uid = mention.dataset.userId;
+  if (!uid) return;
+  clearTimeout(_tpMiniHover);
+  _tpMiniHover = setTimeout(() => _tpShowMiniProfile(uid, mention), 350);
+});
+document.addEventListener('mouseout', (e) => {
+  const mention = e.target.closest('[data-user-id]');
+  if (!mention) return;
+  // Pequeno delay pra mouse poder migrar pra dentro do mini
+  clearTimeout(_tpMiniHover);
+  _tpMiniHover = setTimeout(() => {
+    if (!document.getElementById('tp-mini')?.matches(':hover')) _tpHideMiniProfile();
+  }, 200);
+});
 
 // ── Banner "ex-membro" em DMs com pessoa que saiu da empresa ──────────
 // Detecta se a DM é com alguém offboardado e retorna banner amarelo
