@@ -5449,7 +5449,8 @@ body.tx-active .app-dialog-overlay{z-index:9500 !important;}
 .tx-embed-live{padding:0;display:flex;flex-direction:column;}
 .tx-embed-live > .tx-embed-h{padding:12px 18px;margin-bottom:0;border-bottom:0.5px solid var(--tatami-tan);}
 .tx-embed-mount{flex:1;min-height:0;overflow:auto;background:var(--color-background-primary);position:relative;}
-.tx-embed-mount > #view-kanban{display:block !important;height:100%;width:100%;}
+.tx-embed-mount > #view-kanban,
+.tx-embed-mount > #view-canvas{display:block !important;height:100%;width:100%;}
 
 /* Lab preview inline (custom) */
 .tx-lab-content{flex:1;min-height:0;overflow:auto;padding:18px 22px;background:var(--tatami-paper);}
@@ -42222,20 +42223,20 @@ function _txRenderLabPanel() {
       <div class="tx-work-empty-btns"><button class="tx-work-empty-btn" onclick="_txClearPanelRef()">Escolher outro</button></div>
     </div>`;
   }
-  // Garantia: desmonta qualquer embed anterior pra não conflitar
-  _txUnmountEmbed();
   const meta = META[lab.format] || {};
   const ico = (meta.icon||'').indexOf('<svg')===0
     ? `<span class="tx-lab-tile-svg tx-lab-${_esc(lab.format)}" style="display:inline-block;width:18px;height:18px;vertical-align:-3px;">${meta.icon}</span>`
     : `<span style="font-size:16px;">${meta.icon||'⚗'}</span>`;
-  return `<div class="tx-embed">
+  // Mount real do view-canvas — render fiel do módulo Lab original
+  setTimeout(() => _txMountLabEmbed(ext.panelRef), 0);
+  return `<div class="tx-embed tx-embed-live">
     <div class="tx-embed-h">
       <div class="tx-embed-title">${ico} ${_esc(lab.name||'Lab')} <span style="font-size:11px;font-weight:400;color:var(--tatami-ink-soft);font-style:italic;margin-left:6px;">· ${_esc(meta.label||lab.format||'lab')}</span></div>
       <div class="tx-embed-actions">
         <button class="tx-embed-mini" onclick="_txClearPanelRef()">Trocar lab</button>
       </div>
     </div>
-    <div class="tx-lab-content" id="tx-lab-content">${_txRenderLabContent(lab)}</div>
+    <div id="tx-lab-mount" class="tx-embed-mount"></div>
   </div>`;
 }
 
