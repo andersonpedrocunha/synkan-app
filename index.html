@@ -13450,6 +13450,10 @@ function setSettingsTab(t) {
   if (t === 'membros') {
     setTimeout(() => { try { _loadMembersDashboard(); } catch(e) { console.warn('membros dashboard', e); } }, 50);
   }
+  // Quando entra na aba Dojo, hooka o toggle de Selo de Honra
+  if (t === 'dojo') {
+    setTimeout(() => { try { _wireHonorSealToggle(); } catch(e) { console.warn('honor toggle', e); } }, 50);
+  }
   // Quando entra na aba Sincronização, carrega tokens calendário + config WhatsApp (assíncrono)
   if (t === 'sync') {
     const promises = [];
@@ -25917,6 +25921,11 @@ const TOUR_STEPS = [
     body: 'Em qualquer card você tem o Mestre Kan, sábio assistente do Synkan: quebra em subtarefas, redige e-mail de cobrança, sugere próxima ação. No Dashboard, ele resume os últimos 7 dias e identifica o que está travado.',
   },
   {
+    icon: '畳',
+    title: 'Tatami — chat e tatame ao vivo',
+    body: '<strong>Tatami</strong> é o módulo de comunicação do Synkan. Tem canais de equipe, DMs e cada canal pode subir num <strong>tatame ao vivo</strong> (voz + workspace compartilhado em tempo real). Click no avatar de qualquer pessoa abre o <strong>Tatami Profile</strong> dela: status, cards em andamento, especialidades. Configurações que afetam o time (como o Selo de Honra) ficam em <kbd>Configurações → Dojo</kbd>.',
+  },
+  {
     icon: '🎉',
     title: 'Pronto pra começar!',
     body: 'Crie seu primeiro card com <kbd>N</kbd> ou explore um template na Gallery. Boa produtividade!',
@@ -33660,6 +33669,30 @@ function _settingsDojoSection() {
         </label>
       </div>
     </div>
+
+    <!-- ── Tatami Profile · Selo de Honra (workspace-wide, só owner) ── -->
+    ${(typeof allBoards !== 'undefined' && Object.values(allBoards||{}).some(b => b && b.owner_id === supaUser?.id)) ? `
+    <div class="settings-card">
+      <div class="settings-card-title" style="display:flex;align-items:center;gap:10px;">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg>
+        Tatami Profile · Selo de Honra
+        <span style="font-size:11px;font-weight:400;color:var(--color-text-tertiary);background:var(--color-background-secondary);padding:2px 8px;border-radius:999px;">Workspace</span>
+      </div>
+      <div class="settings-card-sub" style="margin-bottom:12px;">
+        <strong>Selo de Honra</strong> mostra a porcentagem de prazos cumpridos em cada Tatami Profile (cards entregues no prazo / total dos últimos 30 dias). Pode incentivar entregas — mas também <strong>gera pressão indevida</strong> em times sensíveis ou em fases de transição. Vem <strong>desativado por padrão</strong>. Decida com critério.
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Mostrar Selo de Honra nos profiles</div>
+          <div class="settings-row-hint">Quando desligado, ninguém do workspace vê % de prazos cumpridos. Pode ligar/desligar a qualquer momento.</div>
+        </div>
+        <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+          <span id="ws-honor-seal-status" style="font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;color:var(--color-text-tertiary);min-width:60px;text-align:right;">carregando…</span>
+          <input type="checkbox" id="ws-honor-seal-toggle" style="width:18px;height:18px;cursor:pointer;"/>
+        </label>
+      </div>
+    </div>
+    ` : ''}
 
     <div class="settings-card">
       <div class="settings-card-title">XP por ação</div>
@@ -45112,7 +45145,28 @@ async function _tpLoadProfile(userId, opts) {
     cards = data || [];
   } catch(e) { /* tolera */ }
 
-  const result = { profile, stats, cards };
+  // Workspace settings — descobre o owner relevante (caller é o foco) e lê flags
+  let workspaceSettings = { honor_seal_enabled: false };
+  try {
+    const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+    let ownerId = null;
+    if (userId === myId) {
+      // Olhando próprio profile — sou eu mesmo o owner se tenho boards
+      const isOwner = (typeof allBoards !== 'undefined') && Object.values(allBoards||{}).some(b => b && b.owner_id === myId);
+      ownerId = isOwner ? myId : null;
+    }
+    if (!ownerId) {
+      // Procura o workspace owner (primeiro board do user) via RPC
+      const { data: wsOwner } = await c.rpc('workspace_owner_for_user', { p_user_id: userId });
+      ownerId = wsOwner || myId;
+    }
+    if (ownerId) {
+      const { data: ws } = await c.rpc('get_workspace_settings', { p_owner_id: ownerId });
+      if (ws) workspaceSettings = ws;
+    }
+  } catch(e) { /* tolera — segue com default desabilitado */ }
+
+  const result = { profile, stats, cards, workspaceSettings };
   _tpProfileCache.set(userId, result);
   return result;
 }
@@ -45312,8 +45366,9 @@ function _tpRenderPanel(data, userId) {
         ${customHTML}
       </div>
 
+      ${(data.workspaceSettings?.honor_seal_enabled) ? `
       <div class="tp-section">
-        <div class="tp-section-h">⚖ Selo de honra · últimos 30 dias</div>
+        <div class="tp-section-h" title="Selo de honra mostra a porcentagem de prazos cumpridos. Owner do workspace pode ativar/desativar em Configurações.">⚖ Selo de honra · últimos 30 dias</div>
         <div class="tp-honor">
           <div class="tp-honor-num">${honorKept}<small>/${honorTotal||'—'}</small></div>
           <div class="tp-honor-stack">
@@ -45322,6 +45377,7 @@ function _tpRenderPanel(data, userId) {
           </div>
         </div>
       </div>
+      ` : ''}
 
       <div class="tp-section">
         <div class="tp-section-h">📋 Hoje em andamento · ${stats.cards_in_progress||cards.length} card${(stats.cards_in_progress||cards.length)===1?'':'s'}</div>
@@ -45828,6 +45884,54 @@ document.addEventListener('mouseout', (e) => {
     if (!document.getElementById('tp-mini')?.matches(':hover')) _tpHideMiniProfile();
   }, 200);
 });
+
+// ── Toggle do Selo de Honra (Configurações → Dojo, owner only) ─────────
+async function _wireHonorSealToggle() {
+  const checkbox = document.getElementById('ws-honor-seal-toggle');
+  const statusEl = document.getElementById('ws-honor-seal-status');
+  if (!checkbox) return; // não é owner ou não tá na aba
+
+  // Carrega estado atual
+  try {
+    const c = (typeof _getOrCreateIsolatedClient === 'function')
+      ? await _getOrCreateIsolatedClient()
+      : (typeof _ensureSupaClient === 'function' ? _ensureSupaClient() : null);
+    if (!c) {
+      if (statusEl) statusEl.textContent = 'sem conexão';
+      return;
+    }
+    const { data, error } = await c.rpc('get_workspace_settings', { p_owner_id: supaUser.id });
+    if (error) throw error;
+    const enabled = !!(data?.honor_seal_enabled);
+    checkbox.checked = enabled;
+    if (statusEl) statusEl.textContent = enabled ? 'ativado' : 'desativado';
+
+    // Listener
+    checkbox.onchange = async () => {
+      const newVal = !!checkbox.checked;
+      checkbox.disabled = true;
+      if (statusEl) statusEl.textContent = 'salvando…';
+      try {
+        const { error: setErr } = await c.rpc('set_my_workspace_setting', {
+          p_key: 'honor_seal_enabled', p_value: newVal
+        });
+        if (setErr) throw setErr;
+        if (statusEl) statusEl.textContent = newVal ? 'ativado' : 'desativado';
+        // Limpa cache do tatami profile pra refletir na próxima abertura
+        if (typeof _tpProfileCache !== 'undefined') _tpProfileCache.clear();
+      } catch(e) {
+        checkbox.checked = !newVal; // reverte
+        if (statusEl) statusEl.textContent = 'erro ao salvar';
+        if (typeof appAlert === 'function') appAlert('Erro', e?.message || String(e), { icon:'⚠️' });
+      } finally {
+        checkbox.disabled = false;
+      }
+    };
+  } catch(e) {
+    console.warn('[honor-toggle]', e);
+    if (statusEl) statusEl.textContent = 'erro';
+  }
+}
 
 // ── Banner "ex-membro" em DMs com pessoa que saiu da empresa ──────────
 // Detecta se a DM é com alguém offboardado e retorna banner amarelo
