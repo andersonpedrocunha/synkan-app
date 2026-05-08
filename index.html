@@ -5634,6 +5634,16 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 .chat-commit-block.failed{background:#fcebeb;border-color:#f09595;border-left-color:#9f0026;color:#791f1f;}
 .chat-commit-block.is-overdue{background:#fbe9e9;border-left-color:#9f0026;}
 .chat-commit-act{padding:3px 9px;border:0.5px solid currentColor;background:transparent;color:inherit;font-family:inherit;font-size:11px;border-radius:5px;cursor:pointer;font-style:italic;}
+/* Selo de honra — bloco mais épico (hanko vermelho japonês) */
+.chat-commit-block.is-seal{background:linear-gradient(180deg,#fff8f0 0%,#fbeaea 100%);border-color:#A32D2D;border-left:3px solid #A32D2D;color:#5c0a0a;}
+.chat-commit-block.is-seal.is-overdue{background:#fbe9e9;}
+.chat-seal-mark{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:#A32D2D;color:#fff;font-family:'Hiragino Mincho ProN','Songti SC','STSong',serif;font-size:20px;font-weight:700;border-radius:6px;flex-shrink:0;box-shadow:0 2px 6px rgba(159,0,38,.3),inset 0 0 0 2px rgba(255,255,255,.2);transform:rotate(-3deg);letter-spacing:0;line-height:1;padding-bottom:1px;}
+.chat-commit-block.is-seal:not(.is-overdue) .chat-seal-mark{animation:sealStamp .5s ease-out;}
+@keyframes sealStamp{
+  0%{transform:rotate(-15deg) scale(1.4);opacity:0;}
+  60%{transform:rotate(0deg) scale(1.05);opacity:1;}
+  100%{transform:rotate(-3deg) scale(1);opacity:1;}
+}
 .chat-commit-act.done:hover{background:#3b6d11;color:#fff;border-color:#3b6d11;}
 .chat-commit-act.fail:hover{background:#9f0026;color:#fff;border-color:#9f0026;}
 
@@ -43928,8 +43938,10 @@ function _chatRenderCommitmentBlock(m) {
     }
     // Em aberto — autor pode marcar
     const overdue = m._commitDeadline && new Date(m._commitDeadline) < new Date();
-    return `<div class="chat-commit-block open ${overdue?'is-overdue':''}">
-      <span>${m._commitSource==='selo'?'🤝 <strong>selo de honra</strong>':'🤝 compromisso'}${m._commitDeadline?` · até ${_esc(new Date(m._commitDeadline).toLocaleDateString('pt-BR'))}`:''}${overdue?' · <em style="color:#9f0026;">venceu</em>':''}</span>
+    const isSeal = m._commitSource === 'selo';
+    return `<div class="chat-commit-block open ${overdue?'is-overdue':''} ${isSeal?'is-seal':''}">
+      ${isSeal ? '<span class="chat-seal-mark" title="Selo de honra · vínculo com o Dojo">印</span>' : ''}
+      <span>${isSeal?'<strong>selo de honra</strong> · honor +15 XP':'🤝 compromisso'}${m._commitDeadline?` · até ${_esc(new Date(m._commitDeadline).toLocaleDateString('pt-BR'))}`:''}${overdue?' · <em style="color:#9f0026;">venceu</em>':''}</span>
       ${isMine ? `
         <button class="chat-commit-act done" onclick="event.stopPropagation();_chatCompleteCommitment('${m._commitId}','completed')">✓ cumpri</button>
         <button class="chat-commit-act fail" onclick="event.stopPropagation();_chatCompleteCommitment('${m._commitId}','failed')">✕ não consegui</button>
@@ -43953,12 +43965,12 @@ async function _chatCompleteCommitment(commitId, status) {
   }
   try {
     await c.rpc('complete_commitment', { p_commit_id: commitId, p_status: status, p_reason: reason });
-    if (status === 'completed' && typeof _gamifAddXP === 'function') {
-      try { _gamifAddXP(10, 'Compromisso cumprido'); } catch(_){}
+    if (status === 'completed' && typeof awardXP === 'function') {
+      try { awardXP(15, 'Selo de honra cumprido', 'commitment'); } catch(_){}
     }
     _chatLoadMessages(_chatState.currentChannelId).then(() => _chatRenderMessagesView());
     if (typeof showToastMsg === 'function') {
-      showToastMsg(status === 'completed' ? '✅ Compromisso registrado como cumprido (+10 XP)' : '❌ Compromisso registrado como não cumprido');
+      showToastMsg(status === 'completed' ? '✅ Cumprido · +15 XP no Dojo' : '❌ Registrado como não cumprido');
     }
   } catch(e) {
     if (typeof appAlert === 'function') appAlert('Erro', e.message || String(e), { icon:'⚠️' });
@@ -44028,8 +44040,8 @@ async function _chatStartSeal(text) {
     if (typeof appAlert === 'function') appAlert('Selo precisa de texto', 'Use: /selo <o que você está se comprometendo>', { icon:'🤝' });
     return;
   }
-  // Posta a mensagem com prefixo de selo
-  const body = `🤝 *Selo de honra:* ${text}`;
+  // Posta a mensagem com prefixo de selo (印 = kanji "selo/carimbo" em japonês)
+  const body = `印 *Selo de honra:* ${text}`;
   if (typeof _chatSendMessage !== 'function') return;
   // Captura o id da mensagem que vai ser inserida pra criar compromisso vinculado
   const c = await _chatGetClient();
