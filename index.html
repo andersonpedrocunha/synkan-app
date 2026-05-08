@@ -39308,6 +39308,10 @@ async function renderChat() {
         const savedView = localStorage.getItem('synkan_tatami_view');
         if (savedView !== 'lista') {
           _chatState.dojoMapMode = true;
+          _chatState.dojoMapHideSidebar = true;
+        } else {
+          _chatState.dojoMapMode = false;
+          _chatState.dojoMapHideSidebar = false;
         }
       } catch(_){}
       _chatState.loading = false;
@@ -39411,8 +39415,9 @@ function _chatRenderShell(channels) {
   ` : '';
 
   const _isMapMode = !!_chatState.dojoMapMode;
-  // Em modo mapa: NÃO renderiza a sidebar (em vez de depender só de CSS pra esconder)
-  if (_isMapMode) {
+  // Esconde sidebar se: está vendo o mapa OU entrou num canal vindo do mapa
+  const _hideSidebar = _isMapMode || !!_chatState.dojoMapHideSidebar;
+  if (_hideSidebar) {
     return `
     <div class="chat-layout is-map-mode">
       <main class="chat-main" id="chat-main-pane">
@@ -39853,8 +39858,8 @@ function _chatRenderMessagesView() {
       </div>
       <div class="chat-channel-h-r">
         <div class="chat-view-switch chat-view-switch-inline">
-          <button class="chat-view-btn ${!_chatState.dojoMapMode?'is-active':''}" onclick="_chatSetView('lista')" title="Vista clássica em lista">≡ Lista</button>
-          <button class="chat-view-btn ${_chatState.dojoMapMode?'is-active':''}" onclick="_chatSetView('mapa')" title="Vista em mapa do Tatami">畳 Mapa</button>
+          <button class="chat-view-btn ${!_chatState.dojoMapHideSidebar?'is-active':''}" onclick="_chatSetView('lista')" title="Vista clássica em lista">≡ Lista</button>
+          <button class="chat-view-btn ${_chatState.dojoMapHideSidebar?'is-active':''}" onclick="_chatSetView('mapa')" title="Vista em mapa do Tatami">畳 Mapa</button>
         </div>
         <button class="chat-channel-h-help" onclick="_chatOpenSearch()" title="Buscar mensagens">🔍</button>
         <button class="chat-channel-h-help" onclick="_chatShowHowTo()" title="Como usar o Tatami">?</button>
@@ -44411,7 +44416,8 @@ async function _chatSendEphemeral(durationStr, text) {
 
 // ─── #7 Mapa do Tatami ──────────────────────────────────────────────
 function _chatToggleDojoMap() {
-  _chatState.dojoMapMode = !_chatState.dojoMapMode;
+  _chatState.dojoMapMode        = !_chatState.dojoMapMode;
+  _chatState.dojoMapHideSidebar = _chatState.dojoMapMode;  // sincroniza
   // Re-render shell todo (sidebar muda de visibilidade)
   document.getElementById('chat-root').innerHTML = _chatRenderShell(_chatState.channels);
   _chatRenderMessagesView();
@@ -44419,10 +44425,13 @@ function _chatToggleDojoMap() {
 
 // Setter explícito da visão (chamado pelos botões do switch)
 function _chatSetView(view) {
-  const wantMap = view === 'mapa';
-  if (!!_chatState.dojoMapMode === wantMap) return;
-  _chatState.dojoMapMode = wantMap;
-  // Persiste preferência explicitamente (mapa é default agora, então salva os dois)
+  const wantMap        = view === 'mapa';
+  const wantHide       = wantMap;  // mapa esconde sidebar; lista mostra
+  // Early return só se AMBOS já batem
+  if (!!_chatState.dojoMapMode === wantMap && !!_chatState.dojoMapHideSidebar === wantHide) return;
+  _chatState.dojoMapMode        = wantMap;
+  _chatState.dojoMapHideSidebar = wantHide;
+  // Persiste preferência
   try {
     localStorage.setItem('synkan_tatami_view', wantMap ? 'mapa' : 'lista');
   } catch(_){}
@@ -44430,9 +44439,13 @@ function _chatSetView(view) {
   _chatRenderMessagesView();
 }
 
-// Click numa sala do mapa: fecha o mapa e navega pro canal
+// Click numa sala do mapa: fecha o mapa de zonas mas MANTÉM sidebar oculta
+// (a sidebar só volta se o user clicar explicitamente em ≡ Lista)
 function _chatEnterRoomFromMap(channelId) {
-  _chatState.dojoMapMode = false;
+  _chatState.dojoMapMode        = false;  // não está mais vendo o mapa de zonas
+  _chatState.dojoMapHideSidebar = true;   // mas mantém o layout sem sidebar
+  // Re-renderiza shell pra garantir que sidebar continua escondida
+  document.getElementById('chat-root').innerHTML = _chatRenderShell(_chatState.channels);
   // Se já é o canal atual, _chatSelectChannel sai cedo — força re-render manual
   if (_chatState.currentChannelId === channelId) {
     _chatRenderMessagesView();
