@@ -21321,6 +21321,14 @@ function _refreshAccountUIInternal() {
         <span class="sb-icon">${me && me.status_text ? _esc(me.status_emoji||'•') : '○'}</span>
         <span>${me && me.status_text ? 'Mudar status' : 'Definir status'}</span>
       </button>`;
+    // Toggle do resumo do amanhecer (Mestre Kan no notas-pessoais)
+    const dawnOff = (typeof supaUser !== 'undefined' && supaUser?.id)
+      ? (localStorage.getItem('synkan_dawn_off_' + supaUser.id) === '1') : false;
+    menuStatusItem += `
+      <button class="sb-account-menu-item" onclick="closeAccountMenu();_chatToggleDawnSummary();" title="Liga/desliga o briefing matinal automático no notas-pessoais">
+        <span class="sb-icon">${dawnOff ? '🔕' : '🌅'}</span>
+        <span>${dawnOff ? 'Ligar briefing matinal' : 'Desligar briefing matinal'}</span>
+      </button>`;
   } catch(_){}
   wrap.innerHTML = `
     <button class="sb-account-btn" id="sb-account-btn" onclick="toggleAccountMenu(event)" title="${_esc(email||name)} · Faixa ${_esc(gst?.name||'Branca')}">
@@ -38872,8 +38880,14 @@ async function _chatSetMyStatus(emoji, text, hoursDuration) {
     return true;
   } catch(e) {
     console.error('[status] set fail', e);
-    if (typeof appAlert === 'function') {
-      appAlert('Erro ao salvar status', e.message || String(e), { icon:'⚠️' });
+    const msg = e.message || String(e);
+    // Detecta migration pendente (RPC não existe)
+    if (/function.*does not exist|404|not found/i.test(msg)) {
+      if (typeof appAlert === 'function') {
+        appAlert('Migration pendente', 'A função <code>set_user_status</code> não existe no banco. Rode <strong>MIGRATION_USER_STATUS.sql</strong> no Supabase SQL Editor pra ativar status.', { icon:'⚠️', html:true });
+      }
+    } else if (typeof appAlert === 'function') {
+      appAlert('Erro ao salvar status', msg, { icon:'⚠️' });
     }
     return false;
   }
@@ -39497,6 +39511,11 @@ function _chatOverrideOwnUserMap() {
 function _chatRenderMessagesView() {
   const pane = document.getElementById('chat-main-pane');
   if (!pane) return;
+  // #7 Mapa do dojo (vista alternativa)
+  if (_chatState.dojoMapMode && typeof _chatRenderDojoMap === 'function') {
+    pane.innerHTML = _chatRenderDojoMap();
+    return;
+  }
   const ch = _chatState.channels.find(c => c.id === _chatState.currentChannelId);
   if (!ch) { pane.innerHTML = _chatRenderEmptyState(); return; }
 
@@ -39531,6 +39550,7 @@ function _chatRenderMessagesView() {
         ${ch.description ? `<span class="chat-channel-h-desc"> · ${_esc(ch.description)}</span>` : ''}
       </div>
       <div class="chat-channel-h-r">
+        <button class="chat-channel-h-help" onclick="_chatToggleDojoMap()" title="Ver workspace como mapa do dojo (cada canal = sala)">畳</button>
         <button class="chat-channel-h-help" onclick="_chatOpenSearch()" title="Buscar mensagens">🔍</button>
         <button class="chat-channel-h-help" onclick="_chatShowHowTo()" title="Como usar o Tatami">?</button>
         <button class="chat-channel-h-action" onclick="_chatMestreKanModal()" title="Mestre Kan analisa a conversa">
@@ -43882,6 +43902,10 @@ async function _chatAusenciaCheck(body) {
 // Primeira abertura do dia → posta TL;DR no #notas-pessoais
 async function _chatDawnSummaryMaybe() {
   if (!supaUser?.id) return;
+  // Toggle do user — desligado pra de quem não quer ruído matinal
+  try {
+    if (localStorage.getItem('synkan_dawn_off_' + supaUser.id) === '1') return;
+  } catch(_){}
   const KEY = 'synkan_tatami_dawn_' + supaUser.id;
   const today = new Date().toISOString().slice(0, 10);
   try {
@@ -43937,6 +43961,24 @@ async function _chatDawnSummaryMaybe() {
   } catch(_){}
 }
 
+// Toggle do briefing matinal (#5)
+function _chatToggleDawnSummary() {
+  if (!supaUser?.id) return;
+  const key = 'synkan_dawn_off_' + supaUser.id;
+  const wasOff = localStorage.getItem(key) === '1';
+  if (wasOff) {
+    localStorage.removeItem(key);
+    if (typeof showToastMsg === 'function') showToastMsg('🌅 Briefing matinal ativado · vai aparecer amanhã no notas-pessoais');
+  } else {
+    localStorage.setItem(key, '1');
+    if (typeof showToastMsg === 'function') showToastMsg('🔕 Briefing matinal desativado · pode reativar a qualquer momento no menu do seu avatar');
+  }
+  // Re-render do account footer pra atualizar o label
+  if (typeof renderUserAccountFooter === 'function') {
+    try { renderUserAccountFooter(); } catch(_){}
+  }
+}
+
 // ─── #6 Mensagens efêmeras ──────────────────────────────────────────
 async function _chatSendEphemeral(durationStr, text) {
   // duration tipo "1h", "30min", "1d"
@@ -43975,7 +44017,7 @@ async function _chatSendEphemeral(durationStr, text) {
 // ─── #7 Mapa do dojo ───────────────────────────────────────────────
 function _chatToggleDojoMap() {
   _chatState.dojoMapMode = !_chatState.dojoMapMode;
-  renderChat();
+  _chatRenderMessagesView();
 }
 function _chatRenderDojoMap() {
   const myId = supaUser?.id;
@@ -44071,8 +44113,37 @@ function _chatShowHowTo() {
           <p style="margin:0;">
             <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;">/kanban &lt;texto&gt;</code> — cria card direto a partir do texto<br/>
             <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;">/resumo</code> — Mestre Kan resume a conversa<br/>
-            <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;">/ajuda</code> — lista de comandos
+            <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;">/kata daily|retro|planning</code> — fluxo guiado de daily/retro/planning<br/>
+            <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;">/selo &lt;texto&gt;</code> — selo de honra (compromisso público com consequência no Dojo)<br/>
+            <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;">/efemero 1h &lt;texto&gt;</code> — mensagem que some após X tempo<br/>
+            <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;">/duelo</code> — Mestre Kan estrutura debate em pros/contras + experimento<br/>
+            <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:12px;">/ajuda</code> — lista completa de comandos
           </p>
+        </div>
+
+        <div style="border-top:1px dashed var(--color-border-tertiary);padding-top:12px;">
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">🤝 Compromisso (auto-detect)</h4>
+          <p style="margin:0;">Mande mensagem tipo <em>"vou enviar o relatório sexta"</em> ou <em>"entrego amanhã"</em>. O Mestre Kan detecta o padrão e oferece um botão dourado <strong>"🤝 marcar como compromisso"</strong> com a deadline já preenchida. Click vira compromisso público no canal — depois você marca <strong>✓ cumpri</strong> (+10 XP no Dojo) ou <strong>✕ não consegui</strong>.</p>
+        </div>
+
+        <div>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">🎴 Status custom (almoçando, em reunião, férias…)</h4>
+          <p style="margin:0;">Click no seu avatar/nome no rodapé do sidebar → <strong>Definir status</strong>. Escolhe um dos 9 presets ou monta o seu (emoji + texto + duração). Aparece pra todo mundo na lista de DMs e no header da conversa.</p>
+        </div>
+
+        <div>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">🏖 Ausência respeitada</h4>
+          <p style="margin:0;">Se você @mencionar alguém com status de ausência (férias/doente/não perturbar), o Tatami pergunta antes de enviar: <em>"Maria está de férias até X. Mandar mesmo assim?"</em></p>
+        </div>
+
+        <div>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">🌅 Briefing do amanhecer</h4>
+          <p style="margin:0;">Toda primeira abertura do dia, posta resumo automático no <strong>@notas-pessoais</strong>: mensagens novas, menções pendentes, compromissos vencendo. <strong>Não consome IA</strong> — é só template com os dados do banco. Pra desligar: menu do seu avatar → <em>Desligar briefing matinal</em>.</p>
+        </div>
+
+        <div>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">畳 Mapa do dojo</h4>
+          <p style="margin:0;">Botão <strong>畳</strong> no header de qualquer canal (ao lado do 🔍). Vista alternativa do workspace: cada canal = uma sala/dojo no grid visual. Click numa sala entra no canal.</p>
         </div>
 
         <div>
