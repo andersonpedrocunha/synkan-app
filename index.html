@@ -5622,6 +5622,8 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 /* Raio ⚡ de acesso rápido — estilo samurai brushstroke:
    - Não marcado: invisível, aparece só no hover do canal em sumi suave
    - Marcado: amarelo-âmbar (cor de raio), sempre visível, micro-pulse no hover */
+.chat-ch-status{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:var(--tatami-tan);margin-right:5px;display:inline-block;}
+.chat-ch-status.is-online{background:#45b369;box-shadow:0 0 0 2px rgba(69,179,105,.18);}
 .chat-ch-fav{flex-shrink:0;width:28px;height:28px;background:transparent;border:none;cursor:pointer;color:var(--tatami-ink-soft);display:inline-flex;align-items:center;justify-content:center;border-radius:6px;margin-right:4px;opacity:0;transition:opacity .15s, color .12s, transform .12s;padding:0;}
 .chat-ch-row:hover .chat-ch-fav{opacity:.5;}
 .chat-ch-fav:hover{opacity:1 !important;color:var(--tatami-sumi);background:rgba(26,22,18,.06);transform:scale(1.1);}
@@ -5643,6 +5645,10 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 
 /* Badge "忍 privado" no header do canal — chip discreto pra reforçar privacidade */
 .chat-channel-h-priv-badge{display:inline-flex;align-items:center;gap:4px;background:var(--tatami-sumi);color:var(--tatami-paper);font-family:var(--tatami-mincho);font-style:italic;font-size:10.5px;padding:2px 8px;border-radius:999px;margin-left:8px;font-weight:500;letter-spacing:.02em;}
+.chat-channel-h-online{display:inline-flex;align-items:center;gap:5px;font-family:var(--tatami-mincho);font-style:italic;font-size:11px;color:var(--tatami-ink-soft);margin-left:10px;padding:2px 9px;border-radius:999px;background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);}
+.chat-channel-h-online.is-online{color:#3a6b2c;background:#eaf5e0;border-color:rgba(69,179,105,.3);}
+.chat-channel-h-online-dot{width:7px;height:7px;border-radius:50%;background:var(--tatami-tan);}
+.chat-channel-h-online.is-online .chat-channel-h-online-dot{background:#45b369;animation:txPulse 2.4s infinite;}
 
 /* Pane principal — fundo papel, sem cinza Slack */
 .chat-main{background:var(--tatami-paper);}
@@ -38902,10 +38908,20 @@ function _chatRenderShell(channels) {
                  : ch.type === 'board' ? '▤'
                  : (ch.is_private ? _NINJA_SVG : '会');
     const isPriv = !!ch.is_private;
+    // Status online (só pra DM 1-on-1) — verde se a outra pessoa tá online
+    let statusDot = '';
+    let statusTitle = '';
+    if (ch.type === 'dm' && ch.dm_user_a && ch.dm_user_b && ch.dm_user_a !== ch.dm_user_b) {
+      const otherId = (ch.dm_user_a === supaUser.id) ? ch.dm_user_b : ch.dm_user_a;
+      const isOnline = _chatState.onlineUsers && _chatState.onlineUsers.has(otherId);
+      statusDot = `<span class="chat-ch-status${isOnline ? ' is-online' : ''}" title="${isOnline ? 'online agora' : 'offline'}"></span>`;
+      statusTitle = isOnline ? 'online agora' : 'offline';
+    }
     return `<div class="chat-ch-row${isCurrent?' is-current':''}${unread?' has-unread':''}${isArchived?' is-archived':''}">
-      <button class="chat-ch" data-private="${isPriv}" onclick="_chatSelectChannel('${ch.id}')" title="${isPriv ? 'Canal privado — só membros explícitos veem' : ''}">
+      <button class="chat-ch" data-private="${isPriv}" onclick="_chatSelectChannel('${ch.id}')" title="${isPriv ? 'Canal privado — só membros explícitos veem' : (statusTitle || '')}">
         <span class="chat-ch-prefix">${prefix}</span>
         <span class="chat-ch-name">${_esc(ch.name)}</span>
+        ${statusDot}
         ${unread ? `<span class="chat-ch-badge">${unread > 99 ? '99+' : unread}</span>` : ''}
       </button>
       <button class="chat-ch-fav${isFav ? ' is-fav' : ''}"
@@ -39264,11 +39280,19 @@ function _chatRenderMessagesView() {
                      : ch.type === 'board' ? '▤'
                      : (ch.is_private ? _NINJA_SVG_BIG : '会');
   const isDM = ch.type === 'dm';
+  // Status online no header do canal — só aparece em DM 1-on-1
+  let dmStatusBadge = '';
+  if (isDM && ch.dm_user_a && ch.dm_user_b && ch.dm_user_a !== ch.dm_user_b) {
+    const otherId = (ch.dm_user_a === supaUser.id) ? ch.dm_user_b : ch.dm_user_a;
+    const isOnline = _chatState.onlineUsers && _chatState.onlineUsers.has(otherId);
+    dmStatusBadge = `<span class="chat-channel-h-online${isOnline ? ' is-online' : ''}" title="${isOnline ? 'online agora' : 'offline'}"><span class="chat-channel-h-online-dot"></span>${isOnline ? 'online' : 'offline'}</span>`;
+  }
   const headerHTML = `
     <div class="chat-channel-h">
       <div class="chat-channel-h-l">
         <span class="chat-channel-h-prefix" data-private="${!!ch.is_private}">${headerPrefix}</span>
         <h3 class="chat-channel-h-name">${_esc(ch.name)}</h3>
+        ${dmStatusBadge}
         ${ch.is_private ? `<span class="chat-channel-h-priv-badge" title="Canal privado">${_NINJA_SVG} privado</span>` : ''}
         ${ch.description ? `<span class="chat-channel-h-desc"> · ${_esc(ch.description)}</span>` : ''}
       </div>
