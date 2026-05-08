@@ -5665,11 +5665,14 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 
 .dojo-room{background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:10px;padding:14px 14px 18px;cursor:pointer;transition:all .15s;font-family:var(--tatami-mincho);position:relative;display:flex;flex-direction:column;gap:8px;min-height:118px;}
 .dojo-room:hover{border-color:var(--tatami-hinomaru);transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.07);}
-.dojo-room.has-unread{border-left:3px solid var(--tatami-hinomaru);}
+.dojo-room.has-unread{border-left:3px solid var(--tatami-hinomaru);background:linear-gradient(180deg,#fff8f0 0%,var(--tatami-cream) 60%);}
+.dojo-room.has-unread .dojo-room-name{color:var(--tatami-sumi);font-weight:700;}
 .dojo-room-h{display:flex;align-items:center;gap:8px;}
 .dojo-room-prefix{font-size:22px;color:var(--tatami-hinomaru);font-family:'Hiragino Mincho ProN',serif;line-height:1;flex-shrink:0;}
 .dojo-room-name{font-size:13.5px;font-weight:600;color:var(--tatami-sumi);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.dojo-room-unread{background:var(--tatami-hinomaru);color:#fff;font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;flex-shrink:0;}
+.dojo-room-unread{background:var(--tatami-hinomaru);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;flex-shrink:0;box-shadow:0 1px 4px rgba(159,0,38,.35);min-width:22px;text-align:center;animation:dojoUnreadPulse 2.4s ease-in-out infinite;}
+@keyframes dojoUnreadPulse{0%,100%{box-shadow:0 1px 4px rgba(159,0,38,.35);}50%{box-shadow:0 1px 4px rgba(159,0,38,.35),0 0 0 4px rgba(159,0,38,.12);}}
+.dojo-room-unread-foot{font-size:10.5px;color:var(--tatami-hinomaru);font-style:italic;font-weight:600;}
 .dojo-room-desc{font-size:11px;color:var(--tatami-ink-soft);font-style:italic;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .dojo-room-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:6px;border-top:0.5px dashed var(--tatami-tan);}
 .dojo-room-avs{display:flex;align-items:center;gap:-4px;}
@@ -5691,14 +5694,16 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 .dojo-room-fav:hover{background:var(--tatami-paper);color:#FBBF24;transform:scale(1.15);}
 /* Quando tem live badge, esconde o star (live ocupa o canto) */
 .dojo-room.is-live .dojo-room-fav{display:none;}
-.dojo-room.is-fav .dojo-room-name::before{content:'⚡ ';color:#D97706;}
+/* (removido) ⚡ inline antes do nome — favorito já aparece no botão do canto */
 .dojo-room-mat{position:absolute;bottom:5px;left:8px;right:8px;height:3px;background:repeating-linear-gradient(90deg,var(--tatami-tan) 0,var(--tatami-tan) 8px,transparent 8px,transparent 12px);opacity:.4;border-radius:2px;}
 
-/* Switcher de vista (lista | mapa) */
-.chat-view-switch{display:inline-flex;margin-top:10px;background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:8px;padding:2px;gap:2px;}
+/* Switcher de vista (lista | mapa) — fixo no canto sup. dir. do Tatami */
+.chat-view-switch{display:inline-flex;background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:8px;padding:2px;gap:2px;}
 .chat-view-btn{padding:5px 11px;background:transparent;border:none;color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;cursor:pointer;border-radius:6px;transition:all .12s;}
 .chat-view-btn:hover{color:var(--tatami-sumi);}
 .chat-view-btn.is-active{background:var(--tatami-paper);color:var(--tatami-hinomaru);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06);}
+.chat-view-switch-fixed{position:absolute;top:12px;right:14px;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(6px);box-shadow:0 2px 10px rgba(0,0,0,.06);}
+.chat-layout{position:relative;}
 
 /* Mapa-mode: esconde a sidebar, expande o main pra ocupar 100% */
 .chat-layout.is-map-mode{grid-template-columns:1fr !important;}
@@ -39291,14 +39296,14 @@ function _chatRenderShell(channels) {
   const _isMapMode = !!_chatState.dojoMapMode;
   return `
     <div class="chat-layout ${_isMapMode?'is-map-mode':''}">
+      <div class="chat-view-switch chat-view-switch-fixed">
+        <button class="chat-view-btn ${!_isMapMode?'is-active':''}" onclick="_chatSetView('lista')" title="Vista clássica em lista">≡ Lista</button>
+        <button class="chat-view-btn ${_isMapMode?'is-active':''}" onclick="_chatSetView('mapa')" title="Vista em mapa do Tatami">畳 Mapa</button>
+      </div>
       <aside class="chat-sidebar">
         <div class="chat-sb-h">
           <h2><span style="color:#3C3489;margin-right:7px;display:inline-flex;vertical-align:-3px;"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1 -1.5 1.5h-6L4 14v-2H3a1.5 1.5 0 0 1 -1.5 -1.5v-5.5A1.5 1.5 0 0 1 3 3.5z"/><line x1="5" y1="6.4" x2="11" y2="6.4"/><line x1="5" y1="8.7" x2="9" y2="8.7"/></svg></span>Tatami</h2>
           <p>A sala de conversa do dojo. Tempo real, vira card num clique.</p>
-          <div class="chat-view-switch">
-            <button class="chat-view-btn ${!_isMapMode?'is-active':''}" onclick="_chatSetView('lista')" title="Vista clássica em lista">≡ Lista</button>
-            <button class="chat-view-btn ${_isMapMode?'is-active':''}" onclick="_chatSetView('mapa')" title="Vista em mapa do Tatami">畳 Mapa</button>
-          </div>
         </div>
         ${upgradeNudge}
         ${(() => {
@@ -40070,7 +40075,7 @@ const _CHAT_COMMANDS = [
     cmd:  '/selo',
     args: '<o que você se compromete>',
     desc: 'Selo de honra: compromisso público com consequência no Dojo',
-    icon: '🤝',
+    icon: '<span style="display:inline-flex;transform:rotate(-8deg);"><svg width="14" height="14" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#A32D2D" stroke="rgba(255,255,255,.35)" stroke-width="1.5" stroke-dasharray="2 2"/><polygon points="20,8 23.3,17 33,17 25.3,22.5 28.3,32 20,26.5 11.7,32 14.7,22.5 7,17 16.7,17" fill="rgba(255,255,255,.95)"/></svg></span>',
   },
   {
     cmd:  '/efemero',
@@ -44339,7 +44344,9 @@ function _chatRenderDojoMap() {
       ${ch.description ? `<div class="dojo-room-desc">${_esc(ch.description)}</div>` : ''}
       <div class="dojo-room-foot">
         <div class="dojo-room-avs">${avatarsHTML || '<span class="dojo-room-quiet">silencioso</span>'}</div>
-        ${onlineCount ? `<span class="dojo-room-meta">${onlineCount} online</span>` : ''}
+        ${unread
+          ? `<span class="dojo-room-unread-foot">${unread} não lida${unread>1?'s':''}</span>`
+          : (onlineCount ? `<span class="dojo-room-meta">${onlineCount} online</span>` : '')}
       </div>
       ${liveBadge}
       <div class="dojo-room-mat"></div>
@@ -44378,12 +44385,6 @@ function _chatRenderDojoMap() {
       <div>
         <h2 style="font-family:var(--tatami-mincho);font-size:20px;color:var(--tatami-sumi);margin:0 0 3px;">畳 Mapa do Tatami</h2>
         <p style="font-size:12.5px;color:var(--tatami-ink-soft);font-style:italic;margin:0;font-family:var(--tatami-mincho);">Cada sala = um canal · click pra entrar</p>
-      </div>
-      <div class="dojo-map-h-r">
-        <div class="chat-view-switch">
-          <button class="chat-view-btn" onclick="_chatSetView('lista')" title="Voltar pra vista em lista">≡ Lista</button>
-          <button class="chat-view-btn is-active" onclick="_chatSetView('mapa')" title="Você está na vista mapa">畳 Mapa</button>
-        </div>
       </div>
     </div>
     <div class="dojo-map-zones">
