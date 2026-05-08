@@ -5702,6 +5702,8 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 /* Status badge inline (nas mensagens, DMs, header) */
 .chat-user-status{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);padding:1px 7px;border-radius:999px;margin-left:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .chat-msg-status{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);padding:1px 7px;border-radius:999px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;cursor:help;position:relative;}
+.chat-fmt-status{font-family:var(--tatami-mincho);font-style:italic;font-size:12px;color:var(--tatami-ink-soft);}
+.chat-fmt-status:hover{color:var(--tatami-hinomaru);}
 /* Tooltip estilizado do status — aparece ao hover, não confia no title nativo */
 .chat-msg-status:hover::after{
   content:attr(data-emoji) ' ' attr(data-text) '\A' attr(data-expires);
@@ -21350,28 +21352,16 @@ function _refreshAccountUIInternal() {
       </button>`;
     }
   } catch(e) { dojoItem = ''; }
-  // Status custom do user (carregado via _chatHydrateUsers)
+  // Status custom do user — só mostra abaixo do nome, sem item no menu
+  // (o picker vive no composer do chat agora)
   let myStatusHTML = '';
-  let menuStatusItem = '';
   try {
     const me = (typeof _chatState !== 'undefined' && supaUser?.id) ? _chatState.userMap[supaUser.id] : null;
     if (me && me.status_text) {
       myStatusHTML = `<span class="sb-account-status" title="Seu status: ${_esc(me.status_text)}">${_esc(me.status_emoji||'•')} ${_esc(me.status_text)}</span>`;
     }
-    menuStatusItem = `
-      <button class="sb-account-menu-item" onclick="closeAccountMenu();_chatShowStatusPicker();">
-        <span class="sb-icon">${me && me.status_text ? _esc(me.status_emoji||'•') : '○'}</span>
-        <span>${me && me.status_text ? 'Mudar status' : 'Definir status'}</span>
-      </button>`;
-    // Toggle do resumo do amanhecer (Mestre Kan no notas-pessoais)
-    const dawnOff = (typeof supaUser !== 'undefined' && supaUser?.id)
-      ? (localStorage.getItem('synkan_dawn_off_' + supaUser.id) === '1') : false;
-    menuStatusItem += `
-      <button class="sb-account-menu-item" onclick="closeAccountMenu();_chatToggleDawnSummary();" title="Liga/desliga o briefing matinal automático no notas-pessoais">
-        <span class="sb-icon">${dawnOff ? '🔕' : '🌅'}</span>
-        <span>${dawnOff ? 'Ligar briefing matinal' : 'Desligar briefing matinal'}</span>
-      </button>`;
   } catch(_){}
+  const menuStatusItem = ''; // movido pro composer do chat (status) e Settings (briefing)
   wrap.innerHTML = `
     <button class="sb-account-btn" id="sb-account-btn" onclick="toggleAccountMenu(event)" title="${_esc(email||name)} · Faixa ${_esc(gst?.name||'Branca')}">
       ${beltedAvatar}
@@ -39706,6 +39696,17 @@ function _chatRenderMessagesView() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           <span>Voz</span>
         </button>
+        <span class="chat-fmt-divider"></span>
+        ${(() => {
+          // Botão de status no composer (estilo dropdown, mostra status atual ou "Definir status")
+          const me = (typeof _chatState !== 'undefined' && supaUser?.id) ? _chatState.userMap[supaUser.id] : null;
+          const hasStatus = me && me.status_text;
+          const label = hasStatus ? `${_esc(me.status_emoji||'•')} ${_esc(me.status_text)}` : '✋ Status';
+          return `<button type="button" class="chat-fmt-btn chat-fmt-status" onclick="_chatShowStatusPicker()" title="${hasStatus ? 'Mudar status: ' + _esc(me.status_text) : 'Definir status (almoçando, em reunião, férias…)'}">
+            <span style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;">${label}</span>
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-left:3px;opacity:.55;"><polyline points="4 6 8 10 12 6"/></svg>
+          </button>`;
+        })()}
       </div>
       ${(() => {
         const _kind = _chatChannelKind(ch);
@@ -40017,6 +40018,12 @@ const _CHAT_COMMANDS = [
     desc: 'Mestre Kan estrutura debate em pros/contras + experimento',
     icon: '⚔',
   },
+  {
+    cmd:  '/briefing',
+    args: 'on | off',
+    desc: 'Liga ou desliga o briefing matinal automático no notas-pessoais',
+    icon: '🌅',
+  },
 ];
 
 // Estado do popup de autocomplete
@@ -40208,6 +40215,22 @@ async function _chatSendFromComposer() {
     if (text === '/duelo' || text === '/debate') {
       input.value = '';
       _chatMestreKanDuelo();
+      return;
+    }
+    if (text === '/briefing off' || text === '/briefing desligar') {
+      input.value = '';
+      if (supaUser?.id) {
+        localStorage.setItem('synkan_dawn_off_' + supaUser.id, '1');
+        _chatShowCmdToast('🔕 Briefing matinal desativado · use /briefing on pra reativar');
+      }
+      return;
+    }
+    if (text === '/briefing on' || text === '/briefing ligar') {
+      input.value = '';
+      if (supaUser?.id) {
+        localStorage.removeItem('synkan_dawn_off_' + supaUser.id);
+        _chatShowCmdToast('🌅 Briefing matinal ativado · vai aparecer amanhã');
+      }
       return;
     }
     // Comando desconhecido — mantém toast porque sem ele o user fica sem feedback
@@ -44083,6 +44106,9 @@ async function _chatDawnSummaryMaybe() {
     });
   }
   if (lines.length === 1) lines.push(`Tudo limpo. Bom treino. 🥋`);
+  // Linha de rodapé com link pra desligar (na própria mensagem)
+  lines.push('');
+  lines.push('_não quer mais este briefing? digite_ `/briefing off` _aqui no notas-pessoais_');
   // Posta no self-DM
   try {
     await c.from('chat_messages').insert({
@@ -44343,7 +44369,7 @@ function _chatShowHowTo() {
 
         <div>
           <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">🌅 Briefing do amanhecer</h4>
-          <p style="margin:0;">Toda primeira abertura do dia, posta resumo automático no <strong>@notas-pessoais</strong>: mensagens novas, menções pendentes, compromissos vencendo. <strong>Não consome IA</strong> — é só template com os dados do banco. Pra desligar: menu do seu avatar → <em>Desligar briefing matinal</em>.</p>
+          <p style="margin:0;">Toda primeira abertura do dia, posta resumo automático no <strong>@notas-pessoais</strong>: mensagens novas, menções pendentes, compromissos vencendo. <strong>Não consome IA</strong> — é só template com os dados do banco. Pra desligar: digita <code>/briefing off</code> em qualquer canal (ou clica no link no rodapé da própria mensagem do briefing).</p>
         </div>
 
         <div>
