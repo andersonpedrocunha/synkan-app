@@ -5291,6 +5291,24 @@ body.tx-active .reg-modal{z-index:9600 !important;}
 body.tx-active .reg-modal.open{z-index:9600 !important;}
 body.tx-active .chat-kan-ov{z-index:9700 !important;}
 body.tx-active .chat-members-ov{z-index:9700 !important;}
+/* Badge "no tatame agora" no avatar do user — aparece enquanto tx-active.
+ * Aplica no belt-ring (wrapper) pra funcionar tanto com <img> quanto com <span> avatar. */
+body.tx-active .belt-ring::after{
+  content:"畳";font-family:'Hiragino Mincho ProN','Yu Mincho',serif;
+  position:absolute;bottom:-3px;left:-4px;
+  width:14px;height:14px;border-radius:50%;
+  background:#9f0026;color:#fff;
+  font-size:9px;font-weight:700;line-height:14px;text-align:center;
+  border:1.5px solid var(--color-background-primary);
+  box-shadow:0 0 0 1px rgba(159,0,38,.25);
+  animation:txAvatarPulse 2.2s ease-in-out infinite;
+  z-index:5;
+  pointer-events:none;
+}
+@keyframes txAvatarPulse{
+  0%,100%{box-shadow:0 0 0 1px rgba(159,0,38,.25);}
+  50%{box-shadow:0 0 0 4px rgba(159,0,38,.12);}
+}
 @keyframes txFadeIn{from{opacity:0;}to{opacity:1;}}
 .tx-shell{width:96vw;height:94vh;max-width:1600px;background:var(--tatami-paper);border-radius:14px;border:1px solid var(--tatami-tan);box-shadow:0 30px 80px rgba(0,0,0,.4);display:flex;flex-direction:column;overflow:hidden;animation:txSlide .25s ease;}
 @keyframes txSlide{from{transform:translateY(20px);opacity:0;}to{transform:none;opacity:1;}}
@@ -42267,12 +42285,24 @@ async function _txAutoPostOpen() {
   const ext = _chatState.extended;
   if (!ext) return;
   const KEY = 'synkan_tatame_autopost_' + ext.channelId;
-  const DEBOUNCE_MS = 30 * 60 * 1000; // 30 min
+  const DEBOUNCE_MS = 30 * 60 * 1000; // 30 min — não pergunta de novo no mesmo canal
   try {
     const last = parseInt(localStorage.getItem(KEY) || '0', 10);
     if (Date.now() - last < DEBOUNCE_MS) return;
-    localStorage.setItem(KEY, String(Date.now()));
   } catch(_){}
+  // Pergunta antes de postar — usuário decide se quer alertar o canal ou entrar discreto
+  if (typeof appConfirm !== 'function') return;
+  let alertar = false;
+  try {
+    alertar = await appConfirm(
+      'Avisar #' + ext.channelName + '?',
+      'Você subiu no tatame. Quer postar uma mensagem no canal pra <strong>chamar a galera</strong>, ou entrar <strong>discreto</strong> (sem aviso)?',
+      { icon: '🎴', html: true, okLabel: 'Sim, avisar o canal', cancelLabel: 'Não, entrar discreto' }
+    );
+  } catch(_){ alertar = false; }
+  // Marca debounce sempre (independente da resposta) pra não perguntar de novo logo
+  try { localStorage.setItem(KEY, String(Date.now())); } catch(_){}
+  if (!alertar) return;
   // Posta mensagem no canal
   if (typeof _chatSendMessage !== 'function') return;
   const myName = (typeof supaUser !== 'undefined' && supaUser && (supaUser.user_metadata?.full_name || supaUser.email)) || 'alguém';
