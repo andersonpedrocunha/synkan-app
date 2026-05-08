@@ -5282,10 +5282,15 @@ body.density-compact .col{padding:7px;}
 .chat-extend-btn svg{width:15px;height:15px;flex-shrink:0;color:var(--tatami-hinomaru);}
 
 .tx-overlay{position:fixed;inset:0;z-index:9000;background:rgba(15,12,10,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;animation:txFadeIn .2s ease;padding:18px;}
-/* Modais do app (.ov) precisam ficar ACIMA do overlay do tatame quando este está ativo */
+/* Modais do app precisam ficar ACIMA do overlay do tatame quando este está ativo.
+ * Tatame está em z-index:9000. Subimos TODOS os modais conhecidos pra 9500+. */
 body.tx-active .ov{z-index:9500 !important;}
 body.tx-active .ov.open{z-index:9500 !important;}
-body.tx-active .app-dialog-overlay{z-index:9500 !important;}
+body.tx-active .app-dialog-overlay{z-index:10010 !important;}
+body.tx-active .reg-modal{z-index:9600 !important;}
+body.tx-active .reg-modal.open{z-index:9600 !important;}
+body.tx-active .chat-kan-ov{z-index:9700 !important;}
+body.tx-active .chat-members-ov{z-index:9700 !important;}
 @keyframes txFadeIn{from{opacity:0;}to{opacity:1;}}
 .tx-shell{width:96vw;height:94vh;max-width:1600px;background:var(--tatami-paper);border-radius:14px;border:1px solid var(--tatami-tan);box-shadow:0 30px 80px rgba(0,0,0,.4);display:flex;flex-direction:column;overflow:hidden;animation:txSlide .25s ease;}
 @keyframes txSlide{from{transform:translateY(20px);opacity:0;}to{transform:none;opacity:1;}}
@@ -16922,16 +16927,21 @@ function switchTab(tab) {
   if (tab==='chat') renderChat();
   // Limpa subscription realtime do chat ao sair da aba (pra não vazar conexões)
   if (tab !== 'chat' && typeof _chatUnsubscribeRealtime === 'function') _chatUnsubscribeRealtime();
-  // Tatame: ao sair do chat, minimiza pra não ocupar a tela; ao entrar, reativa monitor
-  if (tab !== 'chat') {
-    if (typeof _chatStopTatameMonitor === 'function') _chatStopTatameMonitor();
-    const _ext = (typeof _chatState !== 'undefined' && _chatState.extended) ? _chatState.extended : null;
-    if (_ext && _ext.open && !_ext.minimized && typeof _txMinimize === 'function') _txMinimize();
-  } else {
-    if (_chatState.currentChannelId && typeof _chatStartTatameMonitor === 'function') {
-      _chatStartTatameMonitor(_chatState.currentChannelId);
+  // Tatame: ao sair do chat, minimiza pra não ocupar a tela; ao entrar, reativa monitor.
+  // IMPORTANTE: defensivo com typeof — _chatState é `let` declarado mais abaixo no arquivo
+  // (TDZ se acessar antes da declaração executar, p.ex. durante bootstrap inicial).
+  try {
+    if (tab !== 'chat') {
+      if (typeof _chatStopTatameMonitor === 'function') _chatStopTatameMonitor();
+      const _ext = (typeof _chatState !== 'undefined' && _chatState && _chatState.extended) ? _chatState.extended : null;
+      if (_ext && _ext.open && !_ext.minimized && typeof _txMinimize === 'function') _txMinimize();
+    } else {
+      const _cs = (typeof _chatState !== 'undefined') ? _chatState : null;
+      if (_cs && _cs.currentChannelId && typeof _chatStartTatameMonitor === 'function') {
+        _chatStartTatameMonitor(_cs.currentChannelId);
+      }
     }
-  }
+  } catch(_){ /* TDZ ou outro durante boot — ignora */ }
   if (tab==='dojo') renderDojo();
   if (tab==='settings') renderSettings();
   if (tab==='table') renderTableView();
@@ -21517,13 +21527,14 @@ function _renderHelpRecursosTopic(id) {
       sub: 'Visão geral de tudo que o Synkan faz e onde encontrar.',
       body: `
         <h4 class="help-topic-h">O que é o Synkan</h4>
-        <p>Synkan é um <strong>dojo de produtividade</strong>: um Kanban com IA embarcada (Mestre Kan), CRM próprio (Synconnect), OKRs, Labs (canvas), tracker de tempo e integrações financeiras. A ideia é unificar o que normalmente exige 5 ferramentas — Trello, HubSpot, Miro, Toggl, planilha — num único lugar.</p>
+        <p>Synkan é um <strong>dojo de produtividade</strong>: um Kanban com IA embarcada (Mestre Kan), CRM próprio (Synconnect), OKRs, Labs (canvas), tracker de tempo, chat nativo (Tatami) e integrações financeiras. A ideia é unificar o que normalmente exige 6 ferramentas — Trello, HubSpot, Miro, Toggl, Slack/Zoom, planilha — num único lugar.</p>
 
-        <h4 class="help-topic-h">Os 4 módulos centrais</h4>
+        <h4 class="help-topic-h">Os 5 módulos centrais</h4>
         <p><strong>Boards (Kanban).</strong> Sua tela principal. Cards organizados por colunas, com tags, prioridade, deadline, responsável, custom fields, anexos e threads de comentários. Cada board tem 6 visões: Kanban, Tabela, Calendário, Gantt, Timeline e Dashboard. Você troca entre elas com <kbd>1</kbd>–<kbd>6</kbd> ou pelos botões no topo.</p>
         <p><strong>Synconnect (CRM).</strong> Catálogo de contatos com lead score, pipelines e Customer 360. Forma orgânica de transformar oportunidade em card no board.</p>
         <p><strong>Labs.</strong> 5 formatos de canvas livre (Mindmap, Documento, Tabela, Sheet, Plano) pra rascunhar antes de virar board. Tudo gerável por IA — descreve o que quer e o Mestre Kan monta o esqueleto.</p>
         <p><strong>OKRs.</strong> Objetivos e resultados-chave com vínculo direto pros cards que executam. Métricas atualizam sozinhas conforme cards fecham.</p>
+        <p><strong>Tatami (chat + voz).</strong> Chat nativo do Synkan com canais por workspace ou por board, DMs, threads, mensagens de voz e anexos. Botão <strong>"Subir no tatame"</strong> abre uma sessão ao vivo no canal: voz peer-to-peer (WebRTC) + workspace compartilhado em tempo real (Board, Lab ou OKRs sincronizados via drag-drop). Bom pra <em>daily standup</em> em 5 min, decisão rápida ou pair-work — apesar de daily ter caído em desuso em times assíncronos, quando precisa de encontro síncrono o tatame é o lugar.</p>
 
         <h4 class="help-topic-h">Recursos transversais</h4>
         <p><strong>Mestre Kan IA</strong> — botão de IA dentro de qualquer card pra quebrar em subtarefas, redigir email, resumir thread, extrair dados de NF/recibo. Limite por plano (100 / 300 / 1.000 chamadas/mês).</p>
@@ -42547,10 +42558,11 @@ function _txClearPanelRef() {
 
 function _txOpenBoardFull(boardId) {
   _txClose();
-  if (typeof allBoards !== 'undefined' && allBoards && allBoards[boardId]) {
-    currentBoardId = boardId;
-    if (typeof saveData === 'function') { try { saveData(); } catch(e){} }
-    if (typeof switchTab === 'function') switchTab('kanban');
+  // CRÍTICO: usa switchBoard (que sincroniza globais do board atual antes de trocar) —
+  // NUNCA setar currentBoardId direto + saveData (isso sobrescreveria cards do novo
+  // board com os globais ainda bound ao board anterior).
+  if (typeof allBoards !== 'undefined' && allBoards && allBoards[boardId] && typeof switchBoard === 'function') {
+    try { switchBoard(boardId, { goTo: 'kanban' }); } catch(e){ console.error('[tx] switchBoard fail', e); }
   }
 }
 
@@ -43228,6 +43240,19 @@ function _chatShowHowTo() {
         <div>
           <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">Threads</h4>
           <p style="margin:0;">Resposta em thread fica num painel lateral, pra discussão longa não poluir o canal principal. Clica em <strong>↳ N respostas</strong> embaixo da mensagem pra abrir.</p>
+        </div>
+
+        <div style="border-top:1px dashed var(--color-border-tertiary);padding-top:12px;">
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">🎴 Subir no tatame — sessão ao vivo</h4>
+          <p style="margin:0;">Quando texto não basta, clica em <strong>"Subir no tatame"</strong> no rodapé do canal. Abre uma sessão colaborativa ao vivo:</p>
+          <ul style="margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.65;">
+            <li><strong>Voz</strong> — chamada peer-to-peer (WebRTC), navegador pede permissão de microfone</li>
+            <li><strong>Workspace compartilhado</strong> no painel direito: Board, Lab ou OKRs em tempo real (drag-drop sincronizado)</li>
+            <li><strong>Chat-thread</strong> paralelo — tudo o que escreve fica salvo como thread no canal pra histórico</li>
+            <li>Quem chega depois vê banner <em>"Tem gente no tatame agora · X pessoas ao vivo"</em> e entra com 1 clique</li>
+            <li>Botão <strong>Minimizar</strong> esconde a tela mas mantém você na chamada (pílula flutuante volta com 1 clique)</li>
+          </ul>
+          <p style="margin:8px 0 0;font-size:12px;color:var(--color-text-tertiary);font-style:italic;"><strong>Daily standup:</strong> sobe no tatame, abre o board do time, cada um fala o que fez e o que vai fazer arrastando os cards. Encerra em 5 min. Vale lembrar que daily virou meio antiquado — em equipe assíncrona, a thread escrita no canal já dá o mesmo recado sem reunião — mas se precisar do encontro síncrono, o tatame é o lugar.</p>
         </div>
 
         <div>
