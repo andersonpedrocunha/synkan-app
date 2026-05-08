@@ -5797,11 +5797,109 @@ body.tx-active .belt-ring::after{
 .dojo-room-meta::before{content:'';width:7px;height:7px;border-radius:50%;background:#45b369;box-shadow:0 0 0 2px rgba(69,179,105,.18);animation:dojoOnlinePulse 2.4s ease-in-out infinite;}
 @keyframes dojoOnlinePulse{0%,100%{box-shadow:0 0 0 2px rgba(69,179,105,.18);}50%{box-shadow:0 0 0 4px rgba(69,179,105,.08);}}
 .dojo-room-quiet{font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;}
-.dojo-room-live{position:absolute;top:8px;right:8px;background:var(--tatami-hinomaru);color:#fff;font-size:9.5px;padding:2px 7px;border-radius:999px;font-style:italic;animation:txPulse 2s infinite;font-family:var(--tatami-mincho);}
-.dojo-room-live.is-others{background:#45b369;}
-/* Sala com sessão ao vivo: borda mais grossa + glow vermelho */
+
+/* ── Sticker de unread no canto sup. direito (meio dentro / meio fora) ── */
+.dojo-room{overflow:visible;}
+.dojo-room-unread{
+  position:absolute;
+  top:-9px;right:-9px;
+  background:var(--tatami-hinomaru);color:#fff;
+  font-size:11.5px;font-weight:700;
+  font-family:var(--font-sans);
+  letter-spacing:.01em;
+  min-width:24px;height:24px;padding:0 8px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:999px;
+  border:2.5px solid var(--tatami-paper);
+  box-shadow:0 4px 10px rgba(188,0,45,.45), 0 1px 0 rgba(255,255,255,.8) inset;
+  z-index:6;
+  animation:dojoStickerPulse 2.6s ease-in-out infinite;
+}
+@keyframes dojoStickerPulse {
+  0%,100% { transform:scale(1); box-shadow:0 4px 10px rgba(188,0,45,.45), 0 1px 0 rgba(255,255,255,.8) inset; }
+  50%     { transform:scale(1.08); box-shadow:0 6px 16px rgba(188,0,45,.55), 0 1px 0 rgba(255,255,255,.8) inset; }
+}
+
+/* ── Cards com sessão ao vivo (você OU outros) ── */
+.dojo-room.is-live-me{
+  border:1.5px solid var(--tatami-hinomaru);
+  background:linear-gradient(180deg, rgba(255,245,240,.94) 0%, rgba(255,228,215,.92) 100%);
+  animation:dojoLiveRedPulse 2.4s ease-in-out infinite;
+  padding-bottom:46px;
+}
+.dojo-room.is-live-me .dojo-room-name{color:var(--tatami-hinomaru);font-weight:700;}
+.dojo-room.is-live-me .dojo-room-unread{border-color:#FBF6E8;}
+.dojo-room.is-live-others{
+  border:1.5px solid #45b369;
+  background:linear-gradient(180deg, rgba(245,250,240,.94) 0%, rgba(225,245,225,.90) 100%);
+  animation:dojoLiveGreenPulse 2.6s ease-in-out infinite;
+  padding-bottom:46px;
+}
+.dojo-room.is-live-others .dojo-room-unread{border-color:#FBF6E8;}
+@keyframes dojoLiveRedPulse {
+  0%,100% { box-shadow:0 0 0 3px rgba(188,0,45,.16), 0 4px 14px rgba(188,0,45,.22); }
+  50%     { box-shadow:0 0 0 6px rgba(188,0,45,.10), 0 6px 22px rgba(188,0,45,.36); }
+}
+@keyframes dojoLiveGreenPulse {
+  0%,100% { box-shadow:0 0 0 3px rgba(58,107,44,.18), 0 0 8px rgba(58,107,44,.25); }
+  50%     { box-shadow:0 0 0 5px rgba(58,107,44,.08), 0 0 14px rgba(58,107,44,.40); }
+}
+
+/* ── Faixa de sessão ao vivo no rodapé do card ── */
+.dojo-room-live-strip{
+  position:absolute;
+  bottom:0;left:0;right:0;
+  padding:7px 12px 8px;
+  background:var(--tatami-hinomaru);
+  color:#FBF6E8;
+  font-family:var(--tatami-mincho);font-style:italic;font-weight:600;
+  font-size:11px;letter-spacing:.01em;
+  border-radius:0 0 9px 9px;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  box-shadow:0 -1px 4px rgba(0,0,0,.08);
+}
+.dojo-room.is-live-others .dojo-room-live-strip{background:#3A6B2C;}
+.dojo-room.is-live-others .dojo-room-live-strip::before{
+  content:'';width:6px;height:6px;border-radius:50%;background:#FFE680;
+  animation:dojoDotPulse 1.4s ease-in-out infinite;margin-right:1px;
+}
+@keyframes dojoDotPulse {
+  0%,100% { box-shadow:0 0 0 3px rgba(255,230,128,.45); }
+  50%     { box-shadow:0 0 0 5px rgba(255,230,128,.18); }
+}
+.dojo-room.is-live-me .dojo-room-mat,
+.dojo-room.is-live-others .dojo-room-mat{display:none;}
+
+/* ── Pill de presença "Você está no tatame de #X" — sticky no topo do mapa ── */
+.dojo-tatame-presence{
+  display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(90deg, #BC002D 0%, #9F0026 100%);
+  color:#FBF6E8;font-family:var(--tatami-mincho);font-size:12.5px;
+  padding:7px 14px 7px 12px;border-radius:999px;
+  box-shadow:0 4px 14px rgba(188,0,45,.35);
+  border:1px solid rgba(255,255,255,.18);
+  margin-bottom:18px;
+  animation:dojoLiveRedPulse 2.4s ease-in-out infinite;
+}
+.dojo-tatame-presence-dot{
+  width:8px;height:8px;border-radius:50%;background:#FFE680;
+  animation:dojoDotPulse 1.8s ease-in-out infinite;
+}
+.dojo-tatame-presence b{font-weight:600;letter-spacing:.01em;}
+.dojo-tatame-presence-leave{
+  background:rgba(255,255,255,.18);border:0;color:#FBF6E8;
+  font-family:inherit;font-size:11.5px;font-style:italic;
+  padding:3px 10px;border-radius:999px;cursor:pointer;
+  transition:background .12s;
+}
+.dojo-tatame-presence-leave:hover{background:rgba(255,255,255,.28);}
+
+/* Mantém regra antiga is-live como fallback no caso de algum lugar ainda usar */
 .dojo-room.is-live{border:1.5px solid var(--tatami-hinomaru);box-shadow:0 0 0 3px rgba(159,0,38,.12), 0 4px 14px rgba(159,0,38,.18);background:linear-gradient(180deg,var(--tatami-cream) 0%,#fff5f0 100%);}
 .dojo-room.is-live:hover{transform:translateY(-2px);box-shadow:0 0 0 3px rgba(159,0,38,.18), 0 8px 22px rgba(159,0,38,.25);}
+/* Live-badge flutuante antigo — ainda respeitado, mas o novo padrão é o strip */
+.dojo-room-live{position:absolute;top:8px;right:8px;background:var(--tatami-hinomaru);color:#fff;font-size:9.5px;padding:2px 7px;border-radius:999px;font-style:italic;animation:txPulse 2s infinite;font-family:var(--tatami-mincho);}
+.dojo-room-live.is-others{background:#45b369;}
 /* Botão de favoritar no canto superior direito do card */
 .dojo-room-fav{position:absolute;top:8px;right:8px;background:transparent;border:none;color:var(--tatami-ink-soft);width:24px;height:24px;border-radius:5px;cursor:pointer;opacity:0;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;padding:0;z-index:2;}
 .dojo-room:hover .dojo-room-fav{opacity:1;}
@@ -44511,33 +44609,32 @@ function _chatRenderDojoMap() {
     // Tatame ativo? (se EU tô no extended desse canal OU tem peers no presence)
     const ext = _chatState.extended;
     const iAmHere = (ext && ext.open && ext.channelId === ch.id);
-    // Verifica se há sessão ativa via monitor passivo (se o tatameMonitor está nesse canal)
     const monitor = _chatState.tatameMonitor;
     const sessionPeers = (monitor && monitor.channelId === ch.id) ? (monitor.count || 0) : 0;
-    const sessionActive = iAmHere || sessionPeers > 0;
-    const liveBadge = iAmHere
-      ? '<span class="dojo-room-live">🎴 você está aqui</span>'
-      : (sessionPeers > 0 ? `<span class="dojo-room-live is-others">🎴 ${sessionPeers} no tatame</span>` : '');
+    // Classes — separamos "eu estou" (vermelho) de "outros estão" (verde)
+    const liveClass = iAmHere ? 'is-live-me' : (sessionPeers > 0 ? 'is-live-others' : '');
+    // Faixa colorida no rodapé do card (substitui o badge flutuante antigo)
+    const liveStrip = iAmHere
+      ? '<div class="dojo-room-live-strip"><span>🎴</span>você está aqui · ao vivo</div>'
+      : (sessionPeers > 0 ? `<div class="dojo-room-live-strip"><span>🎴</span>${sessionPeers} no tatame · juntar</div>` : '');
     // Favorito
     const isFav = _chatState.favorites && _chatState.favorites.has(ch.id);
-    return `<div class="dojo-room ${unread?'has-unread':''} ${sessionActive?'is-live':''} ${isFav?'is-fav':''}" onclick="_chatEnterRoomFromMap('${ch.id}')" title="Entrar em ${_esc(ch.name)}">
+    return `<div class="dojo-room ${unread?'has-unread':''} ${liveClass} ${isFav?'is-fav':''}" onclick="_chatEnterRoomFromMap('${ch.id}')" title="Entrar em ${_esc(ch.name)}">
+      ${unread ? `<span class="dojo-room-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
       <button class="dojo-room-fav ${isFav?'is-fav':''}" onclick="event.stopPropagation();_chatToggleFavorite(event,'${ch.id}')" title="${isFav?'Remover de Atalho':'Adicionar a Atalho'}">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="${isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M10 1 L3 9 L7 9 L5.5 15 L13 7 L9 7 L10 1 Z"/></svg>
       </button>
       <div class="dojo-room-h">
         <span class="dojo-room-prefix">${prefix}</span>
         <span class="dojo-room-name">${_esc(ch.name)}</span>
-        ${unread ? `<span class="dojo-room-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
       </div>
       ${ch.description ? `<div class="dojo-room-desc">${_esc(ch.description)}</div>` : ''}
       <div class="dojo-room-foot">
         <div class="dojo-room-avs">${avatarsHTML || '<span class="dojo-room-quiet">silencioso</span>'}</div>
-        ${unread
-          ? `<span class="dojo-room-unread-foot">${unread} não lida${unread>1?'s':''}</span>`
-          : (onlineCount ? `<span class="dojo-room-meta" title="${onlineCount} online">${onlineCount}</span>` : '')}
+        ${onlineCount ? `<span class="dojo-room-meta" title="${onlineCount} online">${onlineCount}</span>` : ''}
       </div>
-      ${liveBadge}
-      <div class="dojo-room-mat"></div>
+      ${liveStrip}
+      ${liveStrip ? '' : '<div class="dojo-room-mat"></div>'}
     </div>`;
   };
 
@@ -44571,6 +44668,21 @@ function _chatRenderDojoMap() {
   // Carrega preferências salvas do fundo Hokusai
   const _bgPrefs = (typeof _chatGetMapBgPrefs === 'function') ? _chatGetMapBgPrefs() : {intensity:'strong', variant:'full'};
 
+  // Pill de presença — só aparece se EU estiver num tatame ativo
+  let _presencePill = '';
+  const _ext = _chatState.extended;
+  if (_ext && _ext.open && _ext.channelId) {
+    const _myCh = channels.find(c => c.id === _ext.channelId);
+    const _chName = _myCh ? _esc(_myCh.name) : 'tatame';
+    const _peerCount = (_chatState.tatameMonitor && _chatState.tatameMonitor.channelId === _ext.channelId) ? (_chatState.tatameMonitor.count || 0) : 0;
+    const _peerLabel = _peerCount > 0 ? ` · ${_peerCount + 1} pessoa${_peerCount + 1 > 1 ? 's' : ''} conectada${_peerCount + 1 > 1 ? 's' : ''}` : '';
+    _presencePill = `<div class="dojo-tatame-presence">
+      <span class="dojo-tatame-presence-dot"></span>
+      <span>🎴 Você está no tatame de <b>#${_chName}</b>${_peerLabel}</span>
+      <button class="dojo-tatame-presence-leave" onclick="event.stopPropagation();if(typeof _txClose==='function')_txClose();" title="Sair do tatame">sair do tatame</button>
+    </div>`;
+  }
+
   return `<div class="dojo-map" data-bg-intensity="${_bgPrefs.intensity}" data-bg-variant="${_bgPrefs.variant}">
     <div class="dojo-map-bg" aria-hidden="true"></div>
     <div class="dojo-map-veil" aria-hidden="true"></div>
@@ -44593,6 +44705,7 @@ function _chatRenderDojoMap() {
         </div>
       </div>
     </div>
+    ${_presencePill}
     <div class="dojo-map-zones">
       ${favs.length ? zone('⚡', 'Atalho', 'canais favoritados — acesso rápido', favs, null, null, '') : ''}
       ${zone('会', 'Praça', 'salas abertas do workspace', workspace,
