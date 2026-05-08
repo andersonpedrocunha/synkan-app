@@ -260,6 +260,62 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .cfg-member-del{background:transparent;border:none;cursor:pointer;color:var(--color-text-tertiary);padding:3px 6px;border-radius:4px;font-size:13px;line-height:1;}
 .cfg-member-del:hover{background:#FCEBEB;color:#A32D2D;}
 
+/* Botão de offboarding (pessoa saiu da empresa) */
+.cfg-member-offboard{background:transparent;border:none;cursor:pointer;color:var(--color-text-tertiary);padding:3px 6px;border-radius:4px;line-height:1;display:inline-flex;align-items:center;justify-content:center;}
+.cfg-member-offboard:hover{background:#FFE680;color:#5C3D1F;}
+.cfg-member-offboard svg{width:14px;height:14px;display:block;}
+
+/* Tag "ex-membro" inline ao lado do nome */
+.cfg-member-row.is-offboarded{opacity:.65;}
+.cfg-member-row.is-offboarded .sb-account-avatar{filter:grayscale(100%);}
+.cfg-member-row .cfg-member-exbadge{display:inline-flex;align-items:center;gap:4px;background:var(--color-background-tertiary,#eee);color:var(--color-text-tertiary);font-size:10.5px;font-style:italic;padding:1px 7px;border-radius:999px;margin-left:6px;font-family:'Hiragino Mincho ProN','Yu Mincho',serif;}
+
+/* Modal de offboarding */
+.offboard-pane{background:var(--tatami-paper,#FBF8F1);border:1px solid var(--tatami-tan,#C9BFA8);border-radius:14px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;padding:22px 24px;box-shadow:0 30px 70px rgba(0,0,0,.30);font-family:var(--font-sans);}
+.offboard-h{display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;border-bottom:1px solid var(--tatami-tan,#C9BFA8);padding-bottom:14px;}
+.offboard-h-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#FFE680,#E8C374);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;}
+.offboard-h-text{flex:1;min-width:0;}
+.offboard-h-title{margin:0 0 2px;font-family:var(--tatami-mincho,Georgia);font-size:17px;font-weight:600;color:var(--tatami-sumi,#1A1612);}
+.offboard-h-sub{margin:0;font-size:12px;color:var(--tatami-ink-soft,#685D54);font-style:italic;line-height:1.5;}
+.offboard-h-close{background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--tatami-ink-soft);width:32px;height:32px;border-radius:6px;line-height:1;}
+.offboard-h-close:hover{background:var(--tatami-cream,#F5EFE6);color:var(--tatami-sumi);}
+
+.offboard-summary{background:var(--tatami-cream,#F5EFE6);border:1px solid var(--tatami-tan,#C9BFA8);border-radius:9px;padding:12px 14px;margin-bottom:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-family:var(--tatami-mincho,Georgia);}
+.offboard-stat{text-align:center;}
+.offboard-stat-num{font-size:22px;font-weight:600;color:var(--tatami-hinomaru,#BC002D);line-height:1.1;}
+.offboard-stat-label{font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;margin-top:2px;}
+
+.offboard-section{margin-bottom:14px;}
+.offboard-section-h{font-family:var(--tatami-mincho);font-style:italic;font-size:12.5px;color:var(--tatami-ink-soft);margin-bottom:6px;font-weight:500;}
+.offboard-section input[type="text"],
+.offboard-section select{
+  width:100%;padding:9px 11px;border:1px solid var(--tatami-tan,#C9BFA8);border-radius:7px;background:var(--tatami-paper,#FBF8F1);color:var(--tatami-sumi,#1A1612);font-size:13.5px;font-family:var(--font-sans);
+}
+.offboard-section input[type="text"]:focus,
+.offboard-section select:focus{outline:none;border-color:var(--tatami-hinomaru,#BC002D);box-shadow:0 0 0 3px rgba(188,0,45,.12);}
+.offboard-radio-group{display:flex;flex-direction:column;gap:6px;}
+.offboard-radio{display:flex;align-items:flex-start;gap:9px;padding:8px 10px;border:1px solid var(--tatami-tan,#C9BFA8);border-radius:8px;cursor:pointer;background:var(--tatami-paper,#FBF8F1);transition:all .12s;}
+.offboard-radio:hover{border-color:var(--tatami-sumi,#1A1612);}
+.offboard-radio.is-selected{border-color:var(--tatami-hinomaru,#BC002D);background:rgba(188,0,45,.04);box-shadow:0 0 0 2px rgba(188,0,45,.10);}
+.offboard-radio input{margin-top:3px;flex-shrink:0;}
+.offboard-radio-label{font-size:13px;color:var(--tatami-sumi);font-weight:500;}
+.offboard-radio-meta{font-size:11.5px;color:var(--tatami-ink-soft);font-style:italic;margin-top:2px;line-height:1.4;}
+
+.offboard-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;border-top:1px solid var(--tatami-tan,#C9BFA8);padding-top:14px;}
+.offboard-btn{padding:9px 16px;border-radius:8px;font-family:var(--tatami-mincho);font-style:italic;font-size:13px;cursor:pointer;font-weight:500;transition:all .12s;border:1px solid;}
+.offboard-btn-cancel{background:transparent;border-color:var(--tatami-tan,#C9BFA8);color:var(--tatami-ink-soft);}
+.offboard-btn-cancel:hover{background:var(--tatami-cream,#F5EFE6);color:var(--tatami-sumi);}
+.offboard-btn-confirm{background:var(--tatami-hinomaru,#BC002D);border-color:var(--tatami-hinomaru,#BC002D);color:#fff;}
+.offboard-btn-confirm:hover{background:#9F0026;}
+.offboard-btn-confirm:disabled{opacity:.55;cursor:wait;}
+
+.offboard-warn{background:#FCEBEB;border:1px solid #E8B4B4;color:#7A1818;font-size:12px;padding:10px 12px;border-radius:7px;margin-bottom:12px;font-family:var(--font-sans);line-height:1.55;}
+.offboard-warn strong{font-weight:700;}
+
+/* Botão LGPD - destrutivo */
+.offboard-btn-lgpd{background:transparent;border:none;color:#A32D2D;font-size:11.5px;font-style:italic;cursor:pointer;padding:6px 0;text-decoration:underline;font-family:var(--font-sans);margin-top:6px;}
+.offboard-btn-lgpd:hover{color:#7A1818;}
+
 /* ── Status pill da sidebar (online/offline) ── */
 .sb-account{position:relative;border-top:0.5px solid var(--color-border-tertiary);}
 /* "Ajuda" no fim do sidebar — empurrado pro bottom e centralizado horizontalmente */
@@ -5192,6 +5248,19 @@ body.density-compact .col{padding:7px;}
 .chat-mem-row.is-online .chat-mem-name{color:var(--tatami-sumi);font-weight:600;}
 .chat-mem-row:not(.is-online) .chat-mem-name{color:var(--tatami-ink-soft);}
 .chat-mem-row:not(.is-online) .chat-mem-avatar{opacity:.55;}
+
+/* ── Tratamento visual de mensagens de ex-membros ── */
+.chat-msg.is-ex-member{opacity:.78;}
+.chat-msg.is-ex-member .chat-msg-avatar,
+.chat-msg.is-ex-member .chat-msg-avatar img{filter:grayscale(100%);}
+.chat-msg.is-ex-member .chat-msg-name{color:var(--tatami-ink-soft);font-style:italic;}
+.chat-msg-ex{
+  display:inline-flex;align-items:center;
+  font-family:var(--tatami-mincho);font-style:italic;font-size:10.5px;
+  color:var(--tatami-ink-soft);background:var(--tatami-cream);
+  padding:1px 8px;border-radius:999px;margin-left:4px;
+  border:0.5px solid var(--tatami-tan);
+}
 
 /* Avatar com bolinha de online no canto */
 .chat-mem-avatar-wrap{position:relative;display:inline-flex;flex-shrink:0;}
@@ -20875,7 +20944,7 @@ async function supaListMembers(boardId) {
   try {
     // Tenta query com embed (mais rápida quando FKs estão certas)
     const r1 = await withTimeout(
-      c.from('board_members').select('*, profiles:profiles!board_members_user_id_fkey(email, full_name)').eq('board_id', boardId),
+      c.from('board_members').select('*, profiles:profiles!board_members_user_id_fkey(email, full_name, status)').eq('board_id', boardId),
       5000, 'list members embed'
     );
     if (r1.error) throw r1.error;
@@ -20894,7 +20963,7 @@ async function supaListMembers(boardId) {
       let profilesMap = {};
       if (uids.length) {
         const r1c = await withTimeout(
-          c.from('profiles').select('id, email, full_name').in('id', uids),
+          c.from('profiles').select('id, email, full_name, status').in('id', uids),
           5000, 'list profiles'
         );
         if (!r1c.error) {
@@ -20929,8 +20998,8 @@ async function supaListMembers(boardId) {
     } catch(e2) { console.error('[members] owner fallback falhou:', e2?.message || e2); }
   }
   const list = [];
-  if (board) list.push({ user_id: board.owner_id, role: 'owner', email: board.profiles?.email || '', full_name: board.profiles?.full_name || '' });
-  (members||[]).forEach(m => list.push({ user_id: m.user_id, role: m.role, email: m.profiles?.email || '', full_name: m.profiles?.full_name || '' }));
+  if (board) list.push({ user_id: board.owner_id, role: 'owner', email: board.profiles?.email || '', full_name: board.profiles?.full_name || '', status: board.profiles?.status || 'active' });
+  (members||[]).forEach(m => list.push({ user_id: m.user_id, role: m.role, email: m.profiles?.email || '', full_name: m.profiles?.full_name || '', status: m.profiles?.status || 'active' }));
   return list;
 }
 
@@ -22249,11 +22318,23 @@ async function _renderMembersInto(targetElId, boardId) {
   let html = list.map(m=>{
     const name = m.full_name || m.email || 'Sem nome';
     const role = m.role==='owner' ? 'owner' : m.role;
-    return `<div class="cfg-member-row">
+    const isOffboarded = m.status === 'offboarded' || m.status === 'deleted';
+    const exBadge = isOffboarded ? '<span class="cfg-member-exbadge" title="Esta pessoa não faz mais parte do workspace">· ex-membro</span>' : '';
+    const rowCls = isOffboarded ? 'cfg-member-row is-offboarded' : 'cfg-member-row';
+    const showOffboardBtn = isOwner && m.role !== 'owner' && !isOffboarded;
+    const escName = (name+'').replace(/'/g, "\\'");
+    return `<div class="${rowCls}">
       <span class="sb-account-avatar" style="background:${avatarColor(name)};">${_esc(avatarInitials(name))}</span>
-      <span class="cfg-member-name">${_esc(name)} <span class="cfg-member-email">· ${_esc(m.email||'')}</span></span>
+      <span class="cfg-member-name">${_esc(name)}${exBadge} <span class="cfg-member-email">· ${_esc(m.email||'')}</span></span>
       <span class="cfg-member-role ${role==='owner'?'owner':''}">${role}</span>
-      ${isOwner && m.role!=='owner' ? `<button class="cfg-member-del" title="Remover" onclick="removeMember('${m.user_id}')">✕</button>` : ''}
+      ${showOffboardBtn ? `<button class="cfg-member-offboard" title="Pessoa saiu da empresa (remove de TODOS os boards e canais)" onclick="_offboardMemberFlow('${m.user_id}','${_esc(escName)}')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9.5 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h5.5"/>
+          <path d="M11 5l3 3-3 3"/>
+          <path d="M14 8H7"/>
+        </svg>
+      </button>` : ''}
+      ${isOwner && m.role!=='owner' && !isOffboarded ? `<button class="cfg-member-del" title="Remover só desse board" onclick="removeMember('${m.user_id}')">✕</button>` : ''}
     </div>`;
   }).join('');
   if (!list.length) {
@@ -22528,6 +22609,336 @@ async function removeMember(userId) {
     _renderMembersInto('share-members-area', currentBoardId);
   } else {
     refreshMembersConfig();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// OFFBOARDING — "Pessoa saiu da empresa"
+// ════════════════════════════════════════════════════════════════════
+// Remove um membro de TODOS os boards/canais do workspace, reassigna
+// cards e soft-disable do profile. Single source of truth no backend
+// via RPC public.offboard_member (ver MIGRATION_OFFBOARDING.sql).
+
+async function _offboardMemberFlow(userId, userName) {
+  if (!userId) return;
+  const c = (typeof _getOrCreateIsolatedClient === 'function')
+    ? await _getOrCreateIsolatedClient()
+    : (typeof _ensureSupaClient === 'function' ? _ensureSupaClient() : null);
+  if (!c) {
+    if (typeof appAlert === 'function') appAlert('Sem conexão', 'Não consegui conectar ao Supabase.', { icon: '⚠️' });
+    return;
+  }
+
+  // 1) Conta cards atribuídos pra mostrar no modal
+  let cardsCount = 0;
+  try {
+    const { data, error } = await c.rpc('count_assigned_cards', { p_user_id: userId });
+    if (!error && typeof data === 'number') cardsCount = data;
+  } catch(e) { /* tolera, segue com 0 */ }
+
+  // 2) Lista candidatos pra reassign (membros do workspace que não são a pessoa)
+  let candidates = [];
+  try {
+    // Junta union de profiles que aparecem em board_members dos boards que sou owner
+    const ownedBoardIds = Object.keys(allBoards||{}).filter(id =>
+      allBoards[id].owner_id === supaUser.id && id !== UNIFIED_BOARD_ID);
+    if (ownedBoardIds.length) {
+      const { data: bm } = await c.from('board_members')
+        .select('user_id, profiles:profiles!board_members_user_id_fkey(full_name, email, status)')
+        .in('board_id', ownedBoardIds);
+      const seen = new Set();
+      (bm || []).forEach(m => {
+        if (m.user_id === userId) return;
+        if (seen.has(m.user_id)) return;
+        if (m.profiles?.status && m.profiles.status !== 'active') return; // não inclui offboardados
+        seen.add(m.user_id);
+        candidates.push({
+          id: m.user_id,
+          name: m.profiles?.full_name || m.profiles?.email || 'Membro',
+          email: m.profiles?.email || ''
+        });
+      });
+      // Owner (eu) também pode ser destino
+      if (!seen.has(supaUser.id)) {
+        candidates.unshift({ id: supaUser.id, name: 'Você (' + (supaUser.email || '') + ')', email: supaUser.email || '' });
+      }
+    }
+  } catch(e) { console.warn('[offboard] candidates fetch falhou', e); }
+
+  _renderOffboardModal({ userId, userName, cardsCount, candidates });
+}
+
+function _renderOffboardModal({ userId, userName, cardsCount, candidates }) {
+  // Remove modal anterior se houver
+  document.getElementById('offboard-ov')?.remove();
+
+  const ov = document.createElement('div');
+  ov.id = 'offboard-ov';
+  ov.className = 'app-dialog-overlay is-open';
+  ov.style.zIndex = 10020;
+  ov.innerHTML = `
+    <div class="offboard-pane" role="dialog" aria-label="Pessoa saiu da empresa">
+      <div class="offboard-h">
+        <div class="offboard-h-icon" aria-hidden="true">🥋</div>
+        <div class="offboard-h-text">
+          <h3 class="offboard-h-title">${_esc(userName)} saiu da empresa</h3>
+          <p class="offboard-h-sub">Vai remover essa pessoa de TODOS os boards e canais do seu workspace, em uma transação só. O profile fica preservado pra manter a autoria de cards e mensagens antigas.</p>
+        </div>
+        <button class="offboard-h-close" type="button" aria-label="Fechar" id="offboard-close">×</button>
+      </div>
+
+      <div class="offboard-summary" id="offboard-summary">
+        <div class="offboard-stat">
+          <div class="offboard-stat-num" id="offboard-stat-boards">—</div>
+          <div class="offboard-stat-label">boards do workspace</div>
+        </div>
+        <div class="offboard-stat">
+          <div class="offboard-stat-num" id="offboard-stat-channels">—</div>
+          <div class="offboard-stat-label">canais Tatami</div>
+        </div>
+        <div class="offboard-stat">
+          <div class="offboard-stat-num">${cardsCount}</div>
+          <div class="offboard-stat-label">card${cardsCount===1?'':'s'} atribuído${cardsCount===1?'':'s'}</div>
+        </div>
+      </div>
+
+      ${cardsCount > 0 ? `
+        <div class="offboard-section">
+          <div class="offboard-section-h">O que fazer com os ${cardsCount} card${cardsCount===1?'':'s'} dela?</div>
+          <div class="offboard-radio-group" id="offboard-cards-action">
+            <label class="offboard-radio is-selected">
+              <input type="radio" name="cards_action" value="reassign" checked/>
+              <div>
+                <div class="offboard-radio-label">Reatribuir pra outra pessoa</div>
+                <div class="offboard-radio-meta">Os cards ficam com o novo responsável.</div>
+                <select id="offboard-reassign-to" style="margin-top:8px;">
+                  ${candidates.length === 0 ? '<option value="">— sem outras pessoas no workspace —</option>' :
+                    candidates.map(p => `<option value="${_esc(p.id)}">${_esc(p.name)}</option>`).join('')}
+                </select>
+              </div>
+            </label>
+            <label class="offboard-radio">
+              <input type="radio" name="cards_action" value="unassign"/>
+              <div>
+                <div class="offboard-radio-label">Deixar não atribuído</div>
+                <div class="offboard-radio-meta">Os cards ficam órfãos — visíveis pra todos mas sem dono.</div>
+              </div>
+            </label>
+            <label class="offboard-radio">
+              <input type="radio" name="cards_action" value="delete"/>
+              <div>
+                <div class="offboard-radio-label">Apagar todos os cards dela</div>
+                <div class="offboard-radio-meta" style="color:#A32D2D;">Destrutivo. Use com cuidado — não dá pra desfazer.</div>
+              </div>
+            </label>
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="offboard-section">
+        <div class="offboard-section-h">Motivo (opcional)</div>
+        <input type="text" id="offboard-reason" placeholder="Ex: foi pra outra empresa, demissão, contrato encerrado…" maxlength="200"/>
+      </div>
+
+      <div class="offboard-warn">
+        <strong>O que vai acontecer:</strong> a pessoa não vai mais conseguir entrar em nenhum board ou canal do workspace. O nome dela ainda aparece em mensagens e cards antigos com tag "ex-membro". Você economiza um seat do Stripe.
+      </div>
+
+      <div class="offboard-actions">
+        <button class="offboard-btn offboard-btn-cancel" type="button" id="offboard-cancel">Cancelar</button>
+        <button class="offboard-btn offboard-btn-confirm" type="button" id="offboard-confirm">Confirmar offboarding</button>
+      </div>
+
+      <button class="offboard-btn-lgpd" type="button" id="offboard-lgpd" title="Anonimiza permanentemente — pra atender pedido LGPD de exclusão">Pedido LGPD: excluir definitivamente os dados pessoais →</button>
+    </div>
+  `;
+  document.body.appendChild(ov);
+
+  // Carrega counts de boards/canais em background
+  (async () => {
+    const c = await _getOrCreateIsolatedClient?.() || _ensureSupaClient();
+    if (!c) return;
+    try {
+      const ownedBoardIds = Object.keys(allBoards||{}).filter(id =>
+        allBoards[id].owner_id === supaUser.id && id !== UNIFIED_BOARD_ID);
+      if (ownedBoardIds.length) {
+        const { count: bCount } = await c.from('board_members')
+          .select('*', { count: 'exact', head: true })
+          .in('board_id', ownedBoardIds)
+          .eq('user_id', userId);
+        const el = document.getElementById('offboard-stat-boards');
+        if (el) el.textContent = String(bCount || 0);
+      }
+      // Canais
+      const { data: myChannels } = await c.from('chat_channels').select('id').eq('workspace_owner', supaUser.id);
+      if (myChannels && myChannels.length) {
+        const ids = myChannels.map(x => x.id);
+        const { count: cCount } = await c.from('chat_channel_members')
+          .select('*', { count: 'exact', head: true })
+          .in('channel_id', ids)
+          .eq('user_id', userId);
+        const el = document.getElementById('offboard-stat-channels');
+        if (el) el.textContent = String(cCount || 0);
+      } else {
+        const el = document.getElementById('offboard-stat-channels');
+        if (el) el.textContent = '0';
+      }
+    } catch(e) { /* tolera */ }
+  })();
+
+  // Wire interactions
+  const close = () => ov.remove();
+  ov.querySelector('#offboard-close').addEventListener('click', close);
+  ov.querySelector('#offboard-cancel').addEventListener('click', close);
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+
+  // Radio selection visual
+  ov.querySelectorAll('.offboard-radio input[type="radio"]').forEach(r => {
+    r.addEventListener('change', () => {
+      ov.querySelectorAll('.offboard-radio').forEach(el => el.classList.remove('is-selected'));
+      r.closest('.offboard-radio').classList.add('is-selected');
+    });
+  });
+
+  // Confirm
+  ov.querySelector('#offboard-confirm').addEventListener('click', async () => {
+    const btn = ov.querySelector('#offboard-confirm');
+    btn.disabled = true;
+    btn.textContent = 'Processando…';
+
+    const action = (ov.querySelector('input[name="cards_action"]:checked')?.value) || 'unassign';
+    const reassignTo = action === 'reassign' ? (ov.querySelector('#offboard-reassign-to')?.value || null) : null;
+    const deleteCards = action === 'delete';
+    const reason = ov.querySelector('#offboard-reason')?.value?.trim() || null;
+
+    if (action === 'reassign' && !reassignTo) {
+      btn.disabled = false;
+      btn.textContent = 'Confirmar offboarding';
+      if (typeof appAlert === 'function') appAlert('Escolha alguém', 'Selecione pra quem os cards vão.', { icon: '⚠️' });
+      return;
+    }
+
+    try {
+      const c = await _getOrCreateIsolatedClient?.() || _ensureSupaClient();
+      const { data, error } = await c.rpc('offboard_member', {
+        p_target_user_id:    userId,
+        p_reassign_cards_to: reassignTo,
+        p_reason:            reason,
+        p_delete_cards:      deleteCards,
+      });
+      if (error) throw error;
+
+      close();
+
+      const summary = data && typeof data === 'object'
+        ? `Removida de <strong>${data.boards_removed || 0}</strong> boards e <strong>${data.channels_removed || 0}</strong> canais. ${
+            data.cards_deleted ? `<strong>${data.cards_affected}</strong> cards apagados.` :
+            (reassignTo ? `<strong>${data.cards_affected || 0}</strong> cards reatribuídos.` :
+            `<strong>${data.cards_affected || 0}</strong> cards ficaram não atribuídos.`)
+          }`
+        : 'Offboarding concluído.';
+
+      if (typeof appAlert === 'function') {
+        appAlert('Pessoa saiu', summary, { icon: '🥋', html: true });
+      }
+
+      // Atualiza Stripe seats
+      if (typeof _updateSeatsFromMembers === 'function') {
+        _updateSeatsFromMembers().catch(e => console.warn('[seats]', e));
+      }
+
+      // Re-renderiza members no contexto ativo
+      if (typeof refreshMembersConfig === 'function') refreshMembersConfig();
+      if (typeof _renderMembersInto === 'function' && document.getElementById('share-members-area')) {
+        _renderMembersInto('share-members-area', currentBoardId);
+      }
+    } catch(e) {
+      btn.disabled = false;
+      btn.textContent = 'Confirmar offboarding';
+      const msg = e?.message || String(e);
+      if (typeof appAlert === 'function') {
+        appAlert('Não consegui fazer offboarding', msg, { icon: '⚠️' });
+      } else {
+        console.error('[offboard]', e);
+      }
+    }
+  });
+
+  // LGPD button
+  ov.querySelector('#offboard-lgpd').addEventListener('click', () => {
+    close();
+    _deleteMemberPermanentlyFlow(userId, userName);
+  });
+}
+
+// ── LGPD: exclusão definitiva (anonimização) ────────────────────────
+async function _deleteMemberPermanentlyFlow(userId, userName) {
+  if (!userId) return;
+  if (typeof appConfirm !== 'function') return;
+
+  // Confirmação dupla — exige digitar o nome
+  const sure = await appConfirm(
+    'LGPD · Excluir dados de ' + userName,
+    `Esta ação <strong>anonimiza permanentemente</strong> os dados pessoais de ${_esc(userName)}:<br/><br/>
+     • Nome vira "Usuário removido"<br/>
+     • Email é apagado<br/>
+     • Avatar é removido<br/>
+     • Profile fica marcado como "deleted"<br/><br/>
+     A autoria em cards e mensagens é preservada (sem PII). Esta ação <strong>não pode ser desfeita</strong>.<br/><br/>
+     Para deletar a conta auth.users completamente, você precisa fazer manualmente pelo dashboard do Supabase depois.`,
+    { icon: '⚠️', html: true, danger: true, okLabel: 'Sim, anonimizar definitivamente', cancelLabel: 'Cancelar' }
+  );
+  if (!sure) return;
+
+  try {
+    const c = await _getOrCreateIsolatedClient?.() || _ensureSupaClient();
+    const { data, error } = await c.rpc('delete_member_permanently', { p_target_user_id: userId });
+    if (error) throw error;
+    if (typeof appAlert === 'function') {
+      appAlert(
+        'Dados anonimizados',
+        `${_esc(userName)} foi anonimizado(a). Autoria preservada como "Usuário removido".<br/><br/>
+         <strong>Ainda falta:</strong><br/>
+         • Deletar a conta <code>auth.users</code> no dashboard do Supabase<br/>
+         • Encerrar forwarding de email no Cloudflare (se aplicável)<br/>
+         • Revogar tokens de Calendar/WhatsApp/Granatum se ela tinha integrações`,
+        { icon: '🥋', html: true }
+      );
+    }
+    // Atualiza Stripe + UI
+    if (typeof _updateSeatsFromMembers === 'function') {
+      _updateSeatsFromMembers().catch(()=>{});
+    }
+    if (typeof refreshMembersConfig === 'function') refreshMembersConfig();
+  } catch(e) {
+    if (typeof appAlert === 'function') {
+      appAlert('Erro ao anonimizar', e?.message || String(e), { icon: '⚠️' });
+    } else {
+      console.error('[lgpd]', e);
+    }
+  }
+}
+
+// ── Restaurar pessoa (caso de offboarding feito por engano) ─────────
+async function _restoreMemberFlow(userId, userName) {
+  if (!userId) return;
+  if (typeof appConfirm !== 'function') return;
+  const ok = await appConfirm(
+    'Restaurar ' + userName + '?',
+    'Reativa o profile dessa pessoa. <strong>Você vai precisar reconvidar manualmente</strong> aos boards e canais — eles não voltam automaticamente, por segurança.',
+    { icon: '↺', html: true, okLabel: 'Sim, restaurar' }
+  );
+  if (!ok) return;
+  try {
+    const c = await _getOrCreateIsolatedClient?.() || _ensureSupaClient();
+    const { error } = await c.rpc('restore_member', { p_target_user_id: userId });
+    if (error) throw error;
+    if (typeof appAlert === 'function') {
+      appAlert('Pessoa restaurada', 'Profile reativado. Reconvide aos boards/canais que precisar.', { icon: '✓' });
+    }
+    if (typeof refreshMembersConfig === 'function') refreshMembersConfig();
+  } catch(e) {
+    if (typeof appAlert === 'function') appAlert('Erro ao restaurar', e?.message || String(e), { icon: '⚠️' });
   }
 }
 
@@ -39894,17 +40305,21 @@ async function _chatHydrateUsers(userIds) {
   if (!c) return;
   try {
     const { data } = await c.from('profiles')
-      .select('id,full_name,avatar_url,status_emoji,status_text,status_expires_at')
+      .select('id,full_name,avatar_url,status_emoji,status_text,status_expires_at,status')
       .in('id', missing);
     const now = Date.now();
     (data || []).forEach(p => {
       const expired = p.status_expires_at && new Date(p.status_expires_at).getTime() < now;
+      const isOffboarded = (p.status === 'offboarded' || p.status === 'deleted');
       _chatState.userMap[p.id] = {
         name: p.full_name || 'Usuário',
         avatar: p.avatar_url || null,
         status_emoji: expired ? null : (p.status_emoji || null),
         status_text:  expired ? null : (p.status_text  || null),
         status_expires_at: p.status_expires_at || null,
+        // Offboarding — usado pela UI pra grayscale e tag "ex-membro"
+        account_status: p.status || 'active',
+        is_offboarded: isOffboarded,
       };
     });
     // Garante que falta = pelo menos placeholder
@@ -40162,13 +40577,16 @@ function _chatRenderMessage(m, isThreadReply) {
   // Pin tag
   const pinTag = m.pinned_at ? '<span class="chat-msg-pin-tag" title="Mensagem fixada">📌 fixada</span>' : '';
 
+  const isExMember = !!u.is_offboarded;
+  const exTag = isExMember ? '<span class="chat-msg-ex" title="Esta pessoa não faz mais parte do workspace">· ex-membro</span>' : '';
   return `
-    <div class="chat-msg${m.pinned_at ? ' is-pinned' : ''}" data-msg-id="${m.id}">
+    <div class="chat-msg${m.pinned_at ? ' is-pinned' : ''}${isExMember ? ' is-ex-member' : ''}" data-msg-id="${m.id}">
       ${avatar}
       <div class="chat-msg-body">
         <div class="chat-msg-h">
           <span class="chat-msg-name" ondblclick="event.stopPropagation();_chatOpenDMWith('${_esc(m.user_id)}')" title="Duplo clique abre DM com ${_esc(u.name)}">${_esc(u.name)}</span>
-          ${(u.status_text) ? `<span class="chat-msg-status" onmouseenter="_chatShowStatusPop(event, '${_esc(u.status_emoji||'•')}', '${_esc(u.status_text).replace(/'/g, "\\'")}', '${u.status_expires_at?_esc(new Date(u.status_expires_at).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})):''}')" onmouseleave="_chatHideStatusPop()">${_esc(u.status_emoji||'•')} ${_esc(u.status_text)}</span>` : ''}
+          ${exTag}
+          ${(u.status_text && !isExMember) ? `<span class="chat-msg-status" onmouseenter="_chatShowStatusPop(event, '${_esc(u.status_emoji||'•')}', '${_esc(u.status_text).replace(/'/g, "\\'")}', '${u.status_expires_at?_esc(new Date(u.status_expires_at).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})):''}')" onmouseleave="_chatHideStatusPop()">${_esc(u.status_emoji||'•')} ${_esc(u.status_text)}</span>` : ''}
           <span class="chat-msg-time">${time}</span>
           ${editedTag}
           ${pinTag}
@@ -41554,10 +41972,16 @@ async function _chatChannelMembersModal(channelId) {
   const isBoardOwner = ch.type === 'board' && ch.board_id && allBoards[ch.board_id]?.owner_id === supaUser.id;
   const canEdit      = isWsOwner || isBoardOwner;
 
-  // Agrupa em online vs offline (presence em tempo real)
-  const onlineSet      = _chatState.onlineUsers || new Set();
-  const onlineMembers  = memberIds.filter(uid => onlineSet.has(uid));
-  const offlineMembers = memberIds.filter(uid => !onlineSet.has(uid));
+  // Agrupa em online vs offline vs ex-membros (offboardados)
+  const onlineSet     = _chatState.onlineUsers || new Set();
+  const isExMember    = uid => {
+    const u = _chatState.userMap[uid];
+    return u && u.is_offboarded;
+  };
+  const exMembers     = memberIds.filter(isExMember);
+  const liveIds       = memberIds.filter(uid => !isExMember(uid));
+  const onlineMembers = liveIds.filter(uid => onlineSet.has(uid));
+  const offlineMembers= liveIds.filter(uid => !onlineSet.has(uid));
 
   // Candidatos pra adicionar — só pra owner do workspace
   let candidateMap = {};
@@ -41631,6 +42055,25 @@ async function _chatChannelMembersModal(channelId) {
         <div class="chat-members-section-h">Ausentes · ${offlineMembers.length}</div>
         <div class="chat-members-list">
           ${offlineMembers.map(uid => renderMemberRow(uid, false)).join('')}
+        </div>
+      ` : ''}
+
+      ${exMembers.length > 0 ? `
+        <div class="chat-members-section-h" style="opacity:.75;">Ex-membros · ${exMembers.length}</div>
+        <div class="chat-members-list" style="opacity:.65;">
+          ${exMembers.map(uid => {
+            const u = _chatState.userMap[uid] || { name: 'Usuário removido', avatar: null };
+            const avatar = u.avatar
+              ? `<img src="${_esc(u.avatar)}" class="chat-mem-avatar" alt="" style="filter:grayscale(100%);"/>`
+              : `<span class="chat-mem-avatar" style="background:#999;filter:grayscale(50%);">${_esc(avatarInitials(u.name))}</span>`;
+            return `<div class="chat-mem-row" style="opacity:.85;">
+              <span class="chat-mem-avatar-wrap">${avatar}</span>
+              <div class="chat-mem-body">
+                <div class="chat-mem-name" style="color:var(--tatami-ink-soft);">${_esc(u.name)} <span class="chat-mem-meta" style="display:inline;font-size:10.5px;">· ex-membro</span></div>
+                <div class="chat-mem-meta">não faz mais parte do workspace</div>
+              </div>
+            </div>`;
+          }).join('')}
         </div>
       ` : ''}
 
