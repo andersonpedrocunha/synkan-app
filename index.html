@@ -33692,6 +33692,28 @@ function _settingsDojoSection() {
         </label>
       </div>
     </div>
+
+    <!-- ── Kudos (workspace-wide, só owner) ── -->
+    <div class="settings-card">
+      <div class="settings-card-title" style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;line-height:1;">🎁</span>
+        Tatami · Kudos
+        <span style="font-size:11px;font-weight:400;color:var(--color-text-tertiary);background:var(--color-background-secondary);padding:2px 8px;border-radius:999px;">Workspace</span>
+      </div>
+      <div class="settings-card-sub" style="margin-bottom:12px;">
+        <strong>Kudos</strong> é um elogio público entre membros do time, com XP de bônus pra reforçar comportamentos positivos. Sintaxe: <code style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;font-size:11.5px;">/kudos @pessoa motivo</code>. O receiver ganha <strong>10 XP</strong>, e cada pessoa pode dar no máximo <strong>5 kudos por mês</strong> (pra evitar farm). Vem <strong>desativado por padrão</strong> — ative só quando o time estiver pronto.
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Permitir /kudos no chat</div>
+          <div class="settings-row-hint">Quando desligado, o comando <code>/kudos</code> não funciona — qualquer tentativa retorna erro pro giver.</div>
+        </div>
+        <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+          <span id="ws-kudos-status" style="font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;color:var(--color-text-tertiary);min-width:60px;text-align:right;">carregando…</span>
+          <input type="checkbox" id="ws-kudos-toggle" style="width:18px;height:18px;cursor:pointer;"/>
+        </label>
+      </div>
+    </div>
     ` : ''}
 
     <div class="settings-card">
@@ -40301,6 +40323,8 @@ async function renderChat() {
       // Inicia presence + carrega menções não-lidas (idempotente)
       if (!_chatPresenceChannel) _chatStartPresence();
       _chatLoadMentions();
+      // Auto-claim XP de kudos recebidos (idempotente — RPC marca claimed_at)
+      try { _chatClaimMyKudos(); } catch(_){}
       // #5 Resumo do amanhecer (idempotente, 1x por dia)
       try { _chatDawnSummaryMaybe(); } catch(_){}
       // Default agora é MAPA — só vai pra lista se o user explicitamente escolheu
@@ -41298,6 +41322,12 @@ const _CHAT_COMMANDS = [
     icon: '⏳',
   },
   {
+    cmd:  '/kudos',
+    args: '@pessoa <motivo>',
+    desc: 'Elogio público — receiver ganha 10 XP. Cap de 5/mês por giver.',
+    icon: '🎁',
+  },
+  {
     cmd:  '/duelo',
     args: '',
     desc: 'Mestre Kan estrutura debate em pros/contras + experimento',
@@ -41495,6 +41525,11 @@ async function _chatSendFromComposer() {
       input.value = '';
       if (m) _chatSendEphemeral(m[1], m[2]);
       else _chatSendEphemeral(null, null); // mostra ajuda
+      return;
+    }
+    if (text.startsWith('/kudos')) {
+      input.value = '';
+      _chatSendKudos(text);
       return;
     }
     if (text === '/duelo' || text === '/debate') {
@@ -45885,51 +45920,205 @@ document.addEventListener('mouseout', (e) => {
   }, 200);
 });
 
-// ── Toggle do Selo de Honra (Configurações → Dojo, owner only) ─────────
-async function _wireHonorSealToggle() {
-  const checkbox = document.getElementById('ws-honor-seal-toggle');
-  const statusEl = document.getElementById('ws-honor-seal-status');
-  if (!checkbox) return; // não é owner ou não tá na aba
+// ════════════════════════════════════════════════════════════════════
+// KUDOS — sistema de elogio público com XP (anti-farm)
+// ════════════════════════════════════════════════════════════════════
+// Uso: /kudos @pessoa motivo do elogio
+// Receiver ganha 10 XP, giver tem cap de 5/mês. Toggle workspace-wide.
+// XP é creditado localmente na próxima vez que o receiver abrir o chat.
 
-  // Carrega estado atual
+async function _chatSendKudos(rawText) {
+  // Parse: /kudos @nome ou @uuid + motivo
+  // Aceita formato livre — extrai a primeira menção e usa o resto como motivo
+  const m = rawText.match(/^\/kudos\s+@?(\S+)\s*(.*)$/i);
+  if (!m) {
+    if (typeof appAlert === 'function') {
+      appAlert('Como usar /kudos', 'Sintaxe: <code>/kudos @pessoa motivo</code><br/><br/>Exemplo: <code>/kudos @marina pela excelente entrega da apresentação</code>', { icon:'🎁', html:true });
+    }
+    return;
+  }
+  const targetRef = m[1];
+  const reason = (m[2] || '').trim();
+
+  // Resolve o user pelo ref: pode ser nome, email, ou início do uuid
+  // Estratégia: procura nos members do canal atual + cache de userMap
+  let receiverId = null;
+  let receiverName = '';
+  const refLower = targetRef.toLowerCase();
+  // 1) Tenta no userMap (gente que já apareceu no chat)
+  for (const [uid, u] of Object.entries(_chatState.userMap || {})) {
+    if (uid === supaUser?.id) continue; // não permite self
+    const name = (u.name||'').toLowerCase();
+    if (name === refLower || name.startsWith(refLower) || uid.startsWith(refLower)) {
+      receiverId = uid; receiverName = u.name || refLower; break;
+    }
+  }
+  // 2) Não achou? procura nos members do board atual (best-effort)
+  if (!receiverId && Array.isArray(_boardMembersCache?.members)) {
+    for (const mem of _boardMembersCache.members) {
+      if (mem.user_id === supaUser?.id) continue;
+      const name = (mem.full_name || '').toLowerCase();
+      const email = (mem.email || '').toLowerCase();
+      if (name === refLower || name.startsWith(refLower) || email.startsWith(refLower) || mem.user_id.startsWith(refLower)) {
+        receiverId = mem.user_id;
+        receiverName = mem.full_name || mem.email || refLower;
+        break;
+      }
+    }
+  }
+
+  if (!receiverId) {
+    if (typeof appAlert === 'function') {
+      appAlert('Não achei essa pessoa', `Não encontrei ninguém chamado "${_esc(targetRef)}" no workspace. Use o nome ou início do email.`, { icon:'⚠️' });
+    }
+    return;
+  }
+
+  // Posta a mensagem no canal primeiro (assim aparece pra todos verem)
+  if (typeof _chatSendMessage !== 'function') return;
+  const reasonText = reason ? ` · ${reason}` : '';
+  const body = `🎁 **Kudos pra @${receiverName}**${reasonText} _+10 XP_`;
+  let msgId = null;
+  try {
+    const sent = await _chatSendMessage(body, null);
+    msgId = sent?.id || null;
+  } catch(e) {
+    if (typeof appAlert === 'function') appAlert('Erro ao enviar', e?.message || String(e), { icon:'⚠️' });
+    return;
+  }
+
+  // Chama RPC give_kudos pra registrar e validar regras
   try {
     const c = (typeof _getOrCreateIsolatedClient === 'function')
       ? await _getOrCreateIsolatedClient()
       : (typeof _ensureSupaClient === 'function' ? _ensureSupaClient() : null);
+    if (!c) throw new Error('Sem conexão Supabase');
+    const { data, error } = await c.rpc('give_kudos', {
+      p_receiver_id: receiverId,
+      p_reason:      reason || null,
+      p_channel_id:  _chatState.currentChannelId || null,
+      p_message_id:  msgId,
+    });
+    if (error) throw error;
+    if (data?.success) {
+      if (typeof appAlert === 'function') {
+        const remaining = data.remaining_month;
+        const remTxt = remaining > 0 ? ` Você ainda pode dar ${remaining} este mês.` : ' Você atingiu o cap mensal.';
+        appAlert('🎁 Kudos enviado', `<strong>${_esc(receiverName)}</strong> ganhou 10 XP.${remTxt}`, { icon:'🎁', html:true });
+      }
+    }
+  } catch(e) {
+    const msg = e?.message || String(e);
+    if (typeof appAlert === 'function') {
+      appAlert('Erro no kudos', msg, { icon:'⚠️' });
+    }
+    // Note: a mensagem já foi enviada — o user vê o "Kudos pra X" mas o XP não foi creditado.
+    // Pode ser por: kudos desativado no workspace, cap atingido, ou erro de DB.
+  }
+}
+
+// ── Auto-claim de XP de kudos recebidos ──────────────────────────────
+// Chamado quando o user abre o chat. Pega kudos não-claimados, soma XP e
+// aplica via awardXP local. Idempotente (claim_my_kudos marca claimed_at).
+async function _chatClaimMyKudos() {
+  if (typeof awardXP !== 'function') return; // gamificação desligada
+  if (typeof _gamifCfg === 'undefined' || !_gamifCfg?.enabled) return;
+  try {
+    const c = (typeof _getOrCreateIsolatedClient === 'function')
+      ? await _getOrCreateIsolatedClient()
+      : (typeof _ensureSupaClient === 'function' ? _ensureSupaClient() : null);
+    if (!c) return;
+    const { data, error } = await c.rpc('claim_my_kudos');
+    if (error) return; // tolera (RPC pode não existir ainda)
+    if (data?.count > 0 && data?.total_xp > 0) {
+      const label = data.count === 1
+        ? 'Kudos recebido pelo time'
+        : `${data.count} kudos recebidos pelo time`;
+      try { awardXP(data.total_xp, label, 'kudos'); } catch(_){}
+    }
+  } catch(_){}
+}
+
+// ── Toggles do Dojo (Configurações → Dojo, owner only) ────────────────
+// Wires up both Selo de Honra e Kudos. Mantém o nome legado por
+// compatibilidade com call sites antigos.
+async function _wireHonorSealToggle() { return _wireDojoToggles(); }
+
+async function _wireDojoToggles() {
+  const honorChk    = document.getElementById('ws-honor-seal-toggle');
+  const honorStatus = document.getElementById('ws-honor-seal-status');
+  const kudosChk    = document.getElementById('ws-kudos-toggle');
+  const kudosStatus = document.getElementById('ws-kudos-status');
+  if (!honorChk && !kudosChk) return; // não é owner ou não tá na aba
+
+  let c = null;
+  try {
+    c = (typeof _getOrCreateIsolatedClient === 'function')
+      ? await _getOrCreateIsolatedClient()
+      : (typeof _ensureSupaClient === 'function' ? _ensureSupaClient() : null);
     if (!c) {
-      if (statusEl) statusEl.textContent = 'sem conexão';
+      if (honorStatus) honorStatus.textContent = 'sem conexão';
+      if (kudosStatus) kudosStatus.textContent = 'sem conexão';
       return;
     }
     const { data, error } = await c.rpc('get_workspace_settings', { p_owner_id: supaUser.id });
     if (error) throw error;
-    const enabled = !!(data?.honor_seal_enabled);
-    checkbox.checked = enabled;
-    if (statusEl) statusEl.textContent = enabled ? 'ativado' : 'desativado';
 
-    // Listener
-    checkbox.onchange = async () => {
-      const newVal = !!checkbox.checked;
-      checkbox.disabled = true;
-      if (statusEl) statusEl.textContent = 'salvando…';
-      try {
-        const { error: setErr } = await c.rpc('set_my_workspace_setting', {
-          p_key: 'honor_seal_enabled', p_value: newVal
-        });
-        if (setErr) throw setErr;
-        if (statusEl) statusEl.textContent = newVal ? 'ativado' : 'desativado';
-        // Limpa cache do tatami profile pra refletir na próxima abertura
-        if (typeof _tpProfileCache !== 'undefined') _tpProfileCache.clear();
-      } catch(e) {
-        checkbox.checked = !newVal; // reverte
-        if (statusEl) statusEl.textContent = 'erro ao salvar';
-        if (typeof appAlert === 'function') appAlert('Erro', e?.message || String(e), { icon:'⚠️' });
-      } finally {
-        checkbox.disabled = false;
-      }
-    };
+    // ── Selo de Honra ──
+    if (honorChk) {
+      const enabled = !!(data?.honor_seal_enabled);
+      honorChk.checked = enabled;
+      if (honorStatus) honorStatus.textContent = enabled ? 'ativado' : 'desativado';
+      honorChk.onchange = async () => {
+        const newVal = !!honorChk.checked;
+        honorChk.disabled = true;
+        if (honorStatus) honorStatus.textContent = 'salvando…';
+        try {
+          const { error: setErr } = await c.rpc('set_my_workspace_setting', {
+            p_key: 'honor_seal_enabled', p_value: newVal
+          });
+          if (setErr) throw setErr;
+          if (honorStatus) honorStatus.textContent = newVal ? 'ativado' : 'desativado';
+          if (typeof _tpProfileCache !== 'undefined') _tpProfileCache.clear();
+        } catch(e) {
+          honorChk.checked = !newVal;
+          if (honorStatus) honorStatus.textContent = 'erro ao salvar';
+          if (typeof appAlert === 'function') appAlert('Erro', e?.message || String(e), { icon:'⚠️' });
+        } finally {
+          honorChk.disabled = false;
+        }
+      };
+    }
+
+    // ── Kudos ──
+    if (kudosChk) {
+      const enabled = !!(data?.kudos_enabled);
+      kudosChk.checked = enabled;
+      if (kudosStatus) kudosStatus.textContent = enabled ? 'ativado' : 'desativado';
+      kudosChk.onchange = async () => {
+        const newVal = !!kudosChk.checked;
+        kudosChk.disabled = true;
+        if (kudosStatus) kudosStatus.textContent = 'salvando…';
+        try {
+          const { error: setErr } = await c.rpc('set_my_workspace_setting', {
+            p_key: 'kudos_enabled', p_value: newVal
+          });
+          if (setErr) throw setErr;
+          if (kudosStatus) kudosStatus.textContent = newVal ? 'ativado' : 'desativado';
+          if (typeof _tpProfileCache !== 'undefined') _tpProfileCache.clear();
+        } catch(e) {
+          kudosChk.checked = !newVal;
+          if (kudosStatus) kudosStatus.textContent = 'erro ao salvar';
+          if (typeof appAlert === 'function') appAlert('Erro', e?.message || String(e), { icon:'⚠️' });
+        } finally {
+          kudosChk.disabled = false;
+        }
+      };
+    }
   } catch(e) {
-    console.warn('[honor-toggle]', e);
-    if (statusEl) statusEl.textContent = 'erro';
+    console.warn('[dojo-toggles]', e);
+    if (honorStatus) honorStatus.textContent = 'erro';
+    if (kudosStatus) kudosStatus.textContent = 'erro';
   }
 }
 
