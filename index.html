@@ -5651,7 +5651,7 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 /* #6 Mensagens efêmeras — visual de hourglass */
 .chat-msg-text:has(> .chat-eph-marker){background:#f4ecd8;border-left:2px solid #d4c4a8;padding-left:10px;}
 
-/* #7 Mapa do dojo */
+/* #7 Mapa do Tatami */
 .dojo-map{padding:28px;height:100%;overflow:auto;background:var(--tatami-paper);}
 .dojo-map-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--tatami-tan);gap:18px;}
 .dojo-map-zones{display:flex;flex-direction:column;gap:28px;}
@@ -39297,7 +39297,7 @@ function _chatRenderShell(channels) {
           <p>A sala de conversa do dojo. Tempo real, vira card num clique.</p>
           <div class="chat-view-switch">
             <button class="chat-view-btn ${!_isMapMode?'is-active':''}" onclick="_chatSetView('lista')" title="Vista clássica em lista">≡ Lista</button>
-            <button class="chat-view-btn ${_isMapMode?'is-active':''}" onclick="_chatSetView('mapa')" title="Vista em mapa do dojo">畳 Mapa</button>
+            <button class="chat-view-btn ${_isMapMode?'is-active':''}" onclick="_chatSetView('mapa')" title="Vista em mapa do Tatami">畳 Mapa</button>
           </div>
         </div>
         ${upgradeNudge}
@@ -39665,7 +39665,7 @@ function _chatOverrideOwnUserMap() {
 function _chatRenderMessagesView() {
   const pane = document.getElementById('chat-main-pane');
   if (!pane) return;
-  // #7 Mapa do dojo (vista alternativa)
+  // #7 Mapa do Tatami (vista alternativa)
   if (_chatState.dojoMapMode && typeof _chatRenderDojoMap === 'function') {
     pane.innerHTML = _chatRenderDojoMap();
     return;
@@ -39704,7 +39704,7 @@ function _chatRenderMessagesView() {
         ${ch.description ? `<span class="chat-channel-h-desc"> · ${_esc(ch.description)}</span>` : ''}
       </div>
       <div class="chat-channel-h-r">
-        <button class="chat-channel-h-help" onclick="_chatToggleDojoMap()" title="Ver workspace como mapa do dojo (cada canal = sala)">畳</button>
+        <button class="chat-channel-h-help" onclick="_chatToggleDojoMap()" title="Ver workspace como mapa do Tatami (cada canal = sala)">畳</button>
         <button class="chat-channel-h-help" onclick="_chatOpenSearch()" title="Buscar mensagens">🔍</button>
         <button class="chat-channel-h-help" onclick="_chatShowHowTo()" title="Como usar o Tatami">?</button>
         <button class="chat-channel-h-action" onclick="_chatMestreKanModal()" title="Mestre Kan analisa a conversa">
@@ -43875,7 +43875,7 @@ async function _txChatUploadAndSend(file) {
 // ────────────────────────────────────────────────────────────────────
 // #1 Compromisso detectado · #2 Modo Kata · #3 Selo de honra
 // #4 Ausência respeitada · #5 Resumo do amanhecer · #6 Mensagens efêmeras
-// #7 Mapa do dojo · #8 Mestre Kan duelo
+// #7 Mapa do Tatami · #8 Mestre Kan duelo
 // ════════════════════════════════════════════════════════════════════
 
 // ─── #1 Detecção de compromisso ─────────────────────────────────────
@@ -44246,7 +44246,7 @@ async function _chatSendEphemeral(durationStr, text) {
   }
 }
 
-// ─── #7 Mapa do dojo ───────────────────────────────────────────────
+// ─── #7 Mapa do Tatami ──────────────────────────────────────────────
 function _chatToggleDojoMap() {
   _chatState.dojoMapMode = !_chatState.dojoMapMode;
   // Re-render shell todo (sidebar muda de visibilidade)
@@ -44376,7 +44376,7 @@ function _chatRenderDojoMap() {
   return `<div class="dojo-map">
     <div class="dojo-map-h">
       <div>
-        <h2 style="font-family:var(--tatami-mincho);font-size:20px;color:var(--tatami-sumi);margin:0 0 3px;">畳 Mapa do dojo</h2>
+        <h2 style="font-family:var(--tatami-mincho);font-size:20px;color:var(--tatami-sumi);margin:0 0 3px;">畳 Mapa do Tatami</h2>
         <p style="font-size:12.5px;color:var(--tatami-ink-soft);font-style:italic;margin:0;font-family:var(--tatami-mincho);">Cada sala = um canal · click pra entrar</p>
       </div>
       <div class="dojo-map-h-r">
@@ -44504,7 +44504,7 @@ function _chatShowHowTo() {
         </div>
 
         <div>
-          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">畳 Mapa do dojo</h4>
+          <h4 style="margin:0 0 4px;font-size:13.5px;color:var(--color-text-primary);font-weight:600;">畳 Mapa do Tatami</h4>
           <p style="margin:0;">Botão <strong>畳</strong> no header de qualquer canal (ao lado do 🔍). Vista alternativa do workspace: cada canal = uma sala/dojo no grid visual. Click numa sala entra no canal.</p>
         </div>
 
