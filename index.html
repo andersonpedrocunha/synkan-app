@@ -5701,30 +5701,16 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 
 /* Status badge inline (nas mensagens, DMs, header) */
 .chat-user-status{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);padding:1px 7px;border-radius:999px;margin-left:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.chat-msg-status{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);padding:1px 7px;border-radius:999px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;cursor:help;position:relative;}
+.chat-msg-status{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;font-family:var(--tatami-mincho);background:var(--tatami-cream);border:0.5px solid var(--tatami-tan);padding:1px 7px;border-radius:999px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;cursor:default;}
+.chat-msg-status:hover{border-color:var(--tatami-ink-soft);color:var(--tatami-sumi);}
 .chat-fmt-status{font-family:var(--tatami-mincho);font-style:italic;font-size:12px;color:var(--tatami-ink-soft);}
 .chat-fmt-status:hover{color:var(--tatami-hinomaru);}
-/* Tooltip estilizado do status — aparece ao hover, não confia no title nativo */
-.chat-msg-status:hover::after{
-  content:attr(data-emoji) ' ' attr(data-text) '\A' attr(data-expires);
-  white-space:pre;
-  position:absolute;left:0;bottom:calc(100% + 6px);z-index:200;
-  min-width:200px;max-width:280px;padding:9px 12px;
-  background:var(--tatami-sumi);color:var(--tatami-paper);
-  border-radius:8px;font-family:var(--tatami-mincho);font-style:normal;font-size:12px;
-  line-height:1.5;box-shadow:0 6px 20px rgba(0,0,0,.25);text-align:left;
-  pointer-events:none;
-}
-.chat-msg-status:hover::before{
-  content:'';position:absolute;left:14px;bottom:calc(100% - 1px);
-  border:6px solid transparent;border-top-color:var(--tatami-sumi);
-  pointer-events:none;
-}
-.chat-msg-status[data-expires=""]:hover::after,
-.chat-msg-status:not([data-expires]):hover::after{
-  content:attr(data-emoji) ' ' attr(data-text);
-  white-space:nowrap;
-}
+/* Popover JS do status — fixo na viewport, sem clipping */
+.tx-status-popover{position:fixed;z-index:99999;background:var(--tatami-sumi);color:var(--tatami-paper);padding:10px 14px;border-radius:8px;font-family:var(--tatami-mincho);font-size:12.5px;line-height:1.55;box-shadow:0 6px 24px rgba(0,0,0,.32);max-width:280px;pointer-events:none;animation:txStatusPop .12s ease-out;}
+.tx-status-popover-text{font-weight:500;}
+.tx-status-popover-meta{font-size:11px;opacity:.7;font-style:italic;margin-top:3px;}
+.tx-status-popover::after{content:'';position:absolute;top:100%;left:14px;border:6px solid transparent;border-top-color:var(--tatami-sumi);}
+@keyframes txStatusPop{from{opacity:0;transform:translateY(-3px);}to{opacity:1;transform:none;}}
 
 /* Status picker (modal) */
 .sp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px;}
@@ -38968,6 +38954,32 @@ async function _chatSetMyStatus(emoji, text, hoursDuration) {
   return true;
 }
 
+// Popover do status (hover) — appendado ao body, sem clipping
+function _chatShowStatusPop(ev, emoji, text, expires) {
+  _chatHideStatusPop();
+  const el = document.createElement('div');
+  el.className = 'tx-status-popover';
+  el.id = 'tx-status-pop';
+  el.innerHTML = `<div class="tx-status-popover-text">${emoji||'•'} ${text||''}</div>${expires?`<div class="tx-status-popover-meta">expira em ${expires}</div>`:''}`;
+  document.body.appendChild(el);
+  // Posiciona logo acima do badge
+  const target = ev.currentTarget || ev.target;
+  if (target && target.getBoundingClientRect) {
+    const r = target.getBoundingClientRect();
+    el.style.left = Math.max(8, r.left) + 'px';
+    el.style.top  = Math.max(8, r.top - el.offsetHeight - 10) + 'px';
+    // Se ultrapassar a direita da viewport, alinha pela direita
+    const popRect = el.getBoundingClientRect();
+    if (popRect.right > window.innerWidth - 8) {
+      el.style.left = Math.max(8, window.innerWidth - popRect.width - 8) + 'px';
+    }
+  }
+}
+function _chatHideStatusPop() {
+  const el = document.getElementById('tx-status-pop');
+  if (el) el.remove();
+}
+
 // Picker visual — modal com presets + custom + limpar
 function _chatShowStatusPicker() {
   const myId = supaUser?.id;
@@ -39806,7 +39818,7 @@ function _chatRenderMessage(m, isThreadReply) {
       <div class="chat-msg-body">
         <div class="chat-msg-h">
           <span class="chat-msg-name" ondblclick="event.stopPropagation();_chatOpenDMWith('${_esc(m.user_id)}')" title="Duplo clique abre DM com ${_esc(u.name)}">${_esc(u.name)}</span>
-          ${(u.status_text) ? `<span class="chat-msg-status" data-emoji="${_esc(u.status_emoji||'•')}" data-text="${_esc(u.status_text)}"${u.status_expires_at?` data-expires="expira em ${_esc(new Date(u.status_expires_at).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}))}"`:''}>${_esc(u.status_emoji||'•')} ${_esc(u.status_text)}</span>` : ''}
+          ${(u.status_text) ? `<span class="chat-msg-status" onmouseenter="_chatShowStatusPop(event, '${_esc(u.status_emoji||'•')}', '${_esc(u.status_text).replace(/'/g, "\\'")}', '${u.status_expires_at?_esc(new Date(u.status_expires_at).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})):''}')" onmouseleave="_chatHideStatusPop()">${_esc(u.status_emoji||'•')} ${_esc(u.status_text)}</span>` : ''}
           <span class="chat-msg-time">${time}</span>
           ${editedTag}
           ${pinTag}
