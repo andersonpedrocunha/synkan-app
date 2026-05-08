@@ -11316,8 +11316,10 @@ function switchBoard(id, opts) {
       }
     }).catch(() => {});
   }
-  // Se "abriu" o board (default), navega para o Kanban automaticamente
-  const goTo = opts && opts.goTo ? opts.goTo : 'kanban';
+  // Se "abriu" o board (default), navega para o Kanban automaticamente.
+  // Quem passar { goTo: false } explicitamente NÃO troca de aba (ex: tatame
+  // que precisa carregar dados do board sem tirar o user do chat).
+  const goTo = (opts && 'goTo' in opts) ? opts.goTo : 'kanban';
   if (goTo) switchTab(goTo);
   else {
     if (currentTab === 'home') renderHome();
