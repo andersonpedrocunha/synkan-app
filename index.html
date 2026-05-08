@@ -5670,7 +5670,101 @@ body.tx-active .belt-ring::after{
 .chat-msg-text:has(> .chat-eph-marker){background:#f4ecd8;border-left:2px solid #d4c4a8;padding-left:10px;}
 
 /* #7 Mapa do Tatami */
-.dojo-map{padding:28px;height:100%;overflow:auto;background:var(--tatami-paper);}
+.dojo-map{padding:28px;height:100%;overflow:auto;background:var(--tatami-paper);position:relative;}
+
+/* ── Fundo Hokusai (imagem) + película de leitura ── */
+.dojo-map-bg{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  background-image:url('tatami_map_bg.jpg');
+  background-size:cover;background-position:center;background-repeat:no-repeat;
+  transition:opacity .25s ease, mask .25s ease;
+}
+.dojo-map-veil{
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse 95% 95% at 50% 50%, rgba(251,248,241,.18) 0%, rgba(251,248,241,.45) 100%);
+  transition:background .25s ease;
+}
+:root.dark .dojo-map-veil{
+  background:radial-gradient(ellipse 95% 95% at 50% 50%, rgba(31,26,20,.30) 0%, rgba(31,26,20,.65) 100%);
+}
+/* O conteúdo do mapa fica acima das camadas */
+.dojo-map > .dojo-map-h,
+.dojo-map > .dojo-map-zones{position:relative;z-index:2;}
+
+/* Intensidades */
+.dojo-map[data-bg-intensity="off"]    .dojo-map-bg{opacity:0;}
+.dojo-map[data-bg-intensity="subtle"] .dojo-map-bg{opacity:.25;}
+.dojo-map[data-bg-intensity="medium"] .dojo-map-bg{opacity:.55;}
+.dojo-map[data-bg-intensity="strong"] .dojo-map-bg{opacity:.92;}
+.dojo-map[data-bg-intensity="full"]   .dojo-map-bg{opacity:1;}
+/* Em intensidades altas a película fica mais clara pra deixar a arte vazar */
+.dojo-map[data-bg-intensity="strong"] .dojo-map-veil,
+.dojo-map[data-bg-intensity="full"]   .dojo-map-veil{
+  background:radial-gradient(ellipse 95% 95% at 50% 50%, rgba(251,248,241,.10) 0%, rgba(251,248,241,.30) 100%);
+}
+:root.dark .dojo-map[data-bg-intensity="strong"] .dojo-map-veil,
+:root.dark .dojo-map[data-bg-intensity="full"]   .dojo-map-veil{
+  background:radial-gradient(ellipse 95% 95% at 50% 50%, rgba(31,26,20,.20) 0%, rgba(31,26,20,.45) 100%);
+}
+
+/* Variantes de cobertura */
+.dojo-map[data-bg-variant="full"]      .dojo-map-bg{-webkit-mask:none;mask:none;}
+.dojo-map[data-bg-variant="watermark"] .dojo-map-bg{
+  -webkit-mask:radial-gradient(ellipse 78% 72% at 50% 56%, transparent 0%, transparent 32%, rgba(0,0,0,.55) 68%, #000 100%);
+          mask:radial-gradient(ellipse 78% 72% at 50% 56%, transparent 0%, transparent 32%, rgba(0,0,0,.55) 68%, #000 100%);
+}
+.dojo-map[data-bg-variant="hero"]      .dojo-map-bg{
+  -webkit-mask:linear-gradient(180deg,#000 0%,#000 28%,transparent 52%);
+          mask:linear-gradient(180deg,#000 0%,#000 28%,transparent 52%);
+}
+
+/* Quando o fundo está visível, cards ficam translúcidos com blur pra leitura limpa */
+.dojo-map[data-bg-intensity]:not([data-bg-intensity="off"]) .dojo-room{
+  background:rgba(245,239,230,.88);
+  -webkit-backdrop-filter:blur(10px) saturate(1.05);
+          backdrop-filter:blur(10px) saturate(1.05);
+}
+:root.dark .dojo-map[data-bg-intensity]:not([data-bg-intensity="off"]) .dojo-room{
+  background:rgba(26,22,18,.78);
+}
+.dojo-map[data-bg-intensity]:not([data-bg-intensity="off"]) .dojo-zone-empty{
+  background:rgba(245,239,230,.7);
+  -webkit-backdrop-filter:blur(8px);
+          backdrop-filter:blur(8px);
+}
+.dojo-map[data-bg-intensity]:not([data-bg-intensity="off"]) .dojo-zone-add{
+  background:rgba(251,248,241,.6);
+  -webkit-backdrop-filter:blur(6px);
+          backdrop-filter:blur(6px);
+}
+
+/* Botão de configurar fundo (gear) ao lado do switch */
+.dojo-map-bg-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:30px;height:30px;border-radius:8px;
+  background:rgba(245,239,230,.75);border:1px solid var(--tatami-tan);
+  color:var(--tatami-ink-soft);cursor:pointer;font-size:14px;
+  transition:all .12s;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+}
+.dojo-map-bg-btn:hover{
+  background:var(--tatami-paper);color:var(--tatami-sumi);border-color:var(--tatami-sumi);
+}
+
+/* Modal de configuração do fundo */
+.dojo-bg-ov{position:fixed;inset:0;background:rgba(15,15,30,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;}
+.dojo-bg-pane{background:var(--tatami-paper);border:1px solid var(--tatami-tan);border-radius:12px;width:480px;max-width:96vw;max-height:80vh;overflow-y:auto;padding:20px 22px;box-shadow:0 22px 60px rgba(0,0,0,.28);font-family:var(--font-sans);}
+.dojo-bg-h{display:flex;align-items:center;gap:10px;margin-bottom:18px;border-bottom:1px solid var(--tatami-tan);padding-bottom:12px;}
+.dojo-bg-h h3{margin:0;font-family:var(--tatami-mincho);font-size:17px;font-weight:500;color:var(--tatami-sumi);flex:1;}
+.dojo-bg-close{background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--tatami-ink-soft);width:32px;height:32px;border-radius:6px;}
+.dojo-bg-close:hover{background:var(--tatami-cream);color:var(--tatami-sumi);}
+.dojo-bg-section{margin-bottom:16px;}
+.dojo-bg-section:last-child{margin-bottom:0;}
+.dojo-bg-label{font-family:var(--tatami-mincho);font-style:italic;font-size:11.5px;color:var(--tatami-ink-soft);margin-bottom:7px;letter-spacing:.02em;text-transform:none;}
+.dojo-bg-seg{display:flex;background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:10px;padding:3px;gap:2px;}
+.dojo-bg-seg button{flex:1;background:transparent;border:0;padding:8px 10px;border-radius:8px;font-family:var(--tatami-mincho);font-size:12.5px;color:var(--tatami-ink-soft);cursor:pointer;transition:all .12s;}
+.dojo-bg-seg button:hover{color:var(--tatami-sumi);background:rgba(255,255,255,.4);}
+.dojo-bg-seg button.is-active{background:var(--tatami-hinomaru);color:#fff;font-weight:600;box-shadow:0 1px 3px rgba(188,0,45,.3);}
+.dojo-bg-hint{font-family:var(--tatami-mincho);font-style:italic;font-size:11px;color:var(--tatami-ink-soft);margin-top:14px;line-height:1.5;border-top:0.5px dashed var(--tatami-tan);padding-top:10px;}
 .dojo-map-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--tatami-tan);gap:18px;}
 .dojo-map-zones{display:flex;flex-direction:column;gap:28px;}
 
@@ -44461,13 +44555,24 @@ function _chatRenderDojoMap() {
     </section>`;
   };
 
-  return `<div class="dojo-map">
+  // Carrega preferências salvas do fundo Hokusai
+  const _bgPrefs = (typeof _chatGetMapBgPrefs === 'function') ? _chatGetMapBgPrefs() : {intensity:'medium', variant:'full'};
+
+  return `<div class="dojo-map" data-bg-intensity="${_bgPrefs.intensity}" data-bg-variant="${_bgPrefs.variant}">
+    <div class="dojo-map-bg" aria-hidden="true"></div>
+    <div class="dojo-map-veil" aria-hidden="true"></div>
     <div class="dojo-map-h">
       <div>
         <h2 style="font-family:var(--tatami-mincho);font-size:20px;color:var(--tatami-sumi);margin:0 0 3px;">畳 Mapa do Tatami</h2>
         <p style="font-size:12.5px;color:var(--tatami-ink-soft);font-style:italic;margin:0;font-family:var(--tatami-mincho);">Cada sala = um canal · click pra entrar</p>
       </div>
       <div class="dojo-map-h-r">
+        <button class="dojo-map-bg-btn" onclick="_chatOpenMapBgModal()" title="Customizar fundo do mapa" aria-label="Customizar fundo do mapa">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="8" r="2.4"/>
+            <path d="M13.4 9.4 12.6 9.6c-.1.4-.3.8-.5 1.1l.5.7c.2.3.2.7-.1 1l-.6.6c-.3.3-.7.3-1 .1l-.7-.5c-.3.2-.7.4-1.1.5l-.2.8c-.1.4-.4.6-.8.6h-.8c-.4 0-.7-.2-.8-.6l-.2-.8c-.4-.1-.8-.3-1.1-.5l-.7.5c-.3.2-.7.2-1-.1l-.6-.6c-.3-.3-.3-.7-.1-1l.5-.7c-.2-.3-.4-.7-.5-1.1l-.8-.2c-.4-.1-.6-.4-.6-.8v-.8c0-.4.2-.7.6-.8l.8-.2c.1-.4.3-.8.5-1.1l-.5-.7c-.2-.3-.2-.7.1-1l.6-.6c.3-.3.7-.3 1-.1l.7.5c.3-.2.7-.4 1.1-.5l.2-.8c.1-.4.4-.6.8-.6h.8c.4 0 .7.2.8.6l.2.8c.4.1.8.3 1.1.5l.7-.5c.3-.2.7-.2 1 .1l.6.6c.3.3.3.7.1 1l-.5.7c.2.3.4.7.5 1.1l.8.2c.4.1.6.4.6.8v.8c0 .4-.2.7-.6.8z"/>
+          </svg>
+        </button>
         <div class="chat-view-switch chat-view-switch-inline">
           <button class="chat-view-btn" onclick="_chatSetView('lista')" title="Voltar pra vista em lista">≡ Lista</button>
           <button class="chat-view-btn is-active" onclick="_chatSetView('mapa')" title="Você está na vista mapa">畳 Mapa</button>
@@ -44494,6 +44599,95 @@ function _chatRenderDojoMap() {
               'Inicie uma DM com alguém da sua equipe.')}
     </div>
   </div>`;
+}
+
+// ─── #7.b Fundo Hokusai do Mapa do Tatami ──────────────────────────
+const _DOJO_MAP_BG_KEY = 'synkan_dojo_map_bg_v1';
+function _chatGetMapBgPrefs(){
+  try {
+    const raw = localStorage.getItem(_DOJO_MAP_BG_KEY);
+    if (raw){
+      const p = JSON.parse(raw);
+      return {
+        intensity: p.intensity || 'medium',
+        variant:   p.variant   || 'full',
+      };
+    }
+  } catch(e){}
+  return { intensity:'medium', variant:'full' };
+}
+function _chatSaveMapBgPrefs(prefs){
+  try { localStorage.setItem(_DOJO_MAP_BG_KEY, JSON.stringify(prefs)); } catch(e){}
+}
+function _chatApplyMapBg(prefs){
+  document.querySelectorAll('.dojo-map').forEach(el => {
+    el.dataset.bgIntensity = prefs.intensity;
+    el.dataset.bgVariant   = prefs.variant;
+  });
+}
+function _chatOpenMapBgModal(){
+  // Fecha modal antigo se houver
+  document.querySelectorAll('.dojo-bg-ov').forEach(el => el.remove());
+
+  const cur = _chatGetMapBgPrefs();
+  const intensities = [
+    {v:'off',     l:'desligado'},
+    {v:'subtle',  l:'sutil'},
+    {v:'medium',  l:'médio'},
+    {v:'strong',  l:'forte'},
+    {v:'full',    l:'cheio'},
+  ];
+  const variants = [
+    {v:'full',      l:'cobertura'},
+    {v:'watermark', l:'watermark'},
+    {v:'hero',      l:'faixa topo'},
+  ];
+
+  const ov = document.createElement('div');
+  ov.className = 'dojo-bg-ov';
+  ov.innerHTML = `
+    <div class="dojo-bg-pane" role="dialog" aria-label="Configuração do fundo do mapa">
+      <div class="dojo-bg-h">
+        <h3>畳 Fundo do Mapa</h3>
+        <button class="dojo-bg-close" type="button" title="Fechar">×</button>
+      </div>
+      <div class="dojo-bg-section">
+        <div class="dojo-bg-label">Intensidade da arte</div>
+        <div class="dojo-bg-seg" data-key="intensity">
+          ${intensities.map(o => `<button type="button" data-val="${o.v}" class="${cur.intensity===o.v?'is-active':''}">${o.l}</button>`).join('')}
+        </div>
+      </div>
+      <div class="dojo-bg-section">
+        <div class="dojo-bg-label">Cobertura</div>
+        <div class="dojo-bg-seg" data-key="variant">
+          ${variants.map(o => `<button type="button" data-val="${o.v}" class="${cur.variant===o.v?'is-active':''}">${o.l}</button>`).join('')}
+        </div>
+      </div>
+      <div class="dojo-bg-hint">As mudanças aplicam na hora e ficam salvas no seu navegador. Cobertura "watermark" deixa só as bordas da arte aparecerem; "faixa topo" usa só na parte de cima do mapa.</div>
+    </div>`;
+
+  // Fechar ao clicar fora
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  // Botão fechar
+  ov.querySelector('.dojo-bg-close').addEventListener('click', () => ov.remove());
+  // ESC fecha
+  const onKey = e => { if (e.key === 'Escape'){ ov.remove(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
+
+  // Wire dos segmentos — mudança aplica live
+  ov.querySelectorAll('.dojo-bg-seg').forEach(seg => {
+    seg.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-val]');
+      if (!btn) return;
+      seg.querySelectorAll('button').forEach(b => b.classList.toggle('is-active', b===btn));
+      const prefs = _chatGetMapBgPrefs();
+      prefs[seg.dataset.key] = btn.dataset.val;
+      _chatSaveMapBgPrefs(prefs);
+      _chatApplyMapBg(prefs);
+    });
+  });
+
+  document.body.appendChild(ov);
 }
 
 // ─── #8 Mestre Kan duelo ───────────────────────────────────────────
