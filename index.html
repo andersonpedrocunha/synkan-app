@@ -5262,6 +5262,32 @@ body.density-compact .col{padding:7px;}
   border:0.5px solid var(--tatami-tan);
 }
 
+/* Banner em DM com ex-membro — leitura preservada */
+.chat-exmember-banner{
+  display:flex;align-items:flex-start;gap:11px;
+  background:linear-gradient(180deg,#FFF5DD 0%,#FBE9B6 100%);
+  border:1px solid #D9B96A;
+  border-left:3px solid #B89149;
+  padding:11px 16px 12px;margin:0;
+  font-family:var(--tatami-mincho);font-size:13px;
+  color:#5C3D1F;line-height:1.5;
+}
+.chat-exmember-banner-icon{
+  width:30px;height:30px;border-radius:8px;
+  background:rgba(255,255,255,.5);
+  display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:16px;
+}
+.chat-exmember-banner-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.chat-exmember-banner-text strong{font-weight:600;letter-spacing:.005em;}
+.chat-exmember-banner-text span{font-style:italic;font-size:12px;color:#7A5828;}
+:root.dark .chat-exmember-banner{
+  background:linear-gradient(180deg,#3A2E1A 0%,#2A2010 100%);
+  border-color:#5C4528;border-left-color:#B89149;
+  color:#FBE9B6;
+}
+:root.dark .chat-exmember-banner-text span{color:#D9B96A;}
+
 /* Avatar com bolinha de online no canto */
 .chat-mem-avatar-wrap{position:relative;display:inline-flex;flex-shrink:0;}
 .chat-mem-online-dot{
@@ -40432,9 +40458,14 @@ function _chatRenderMessagesView() {
     ? _chatState.messages.map(m => _chatRenderMessage(m, false)).join('')
     : `<div class="chat-msgs-empty">Nenhuma mensagem por aqui ainda. <strong>Manda a primeira</strong> aí embaixo.</div>`;
 
+  // Detecta DM com ex-membro pra mostrar banner + desabilitar composer
+  const _exBannerHTML = _chatRenderExMemberBanner(ch);
+  const _isExMemberDM = !!_exBannerHTML;
+
   pane.innerHTML = `
     ${headerHTML}
     <div id="chat-tatame-banner-slot">${_chatRenderTatameBanner(ch.id)}</div>
+    ${_exBannerHTML}
     <div class="chat-msgs-wrap" id="chat-msgs-wrap"
          ondragover="_chatDragOver(event)"
          ondragleave="_chatDragLeave(event)"
@@ -40514,10 +40545,10 @@ function _chatRenderMessagesView() {
       })()}
       </div>
       <div id="chat-pending-attachments" class="chat-pending-atts" style="display:none;"></div>
-      <textarea id="chat-composer-input" class="chat-composer-input" rows="2" placeholder="Mensagem em #${_esc(ch.name)}… (digite / pra ver comandos · arraste arquivos aqui)" oninput="_chatComposerInput(event)" onkeydown="_chatComposerKeydown(event)" onblur="setTimeout(_chatHideSlashPopup, 200)"></textarea>
+      <textarea id="chat-composer-input" class="chat-composer-input" rows="2" placeholder="${_isExMemberDM ? 'Esta pessoa não faz mais parte do workspace · só leitura' : ('Mensagem em #' + _esc(ch.name) + '… (digite / pra ver comandos · arraste arquivos aqui)')}" oninput="_chatComposerInput(event)" onkeydown="_chatComposerKeydown(event)" onblur="setTimeout(_chatHideSlashPopup, 200)" ${_isExMemberDM ? 'disabled aria-disabled="true"' : ''}></textarea>
       <div class="chat-composer-actions">
-        <span class="chat-composer-hint">Enter envia · Shift+Enter quebra linha · arraste arquivos pro chat</span>
-        <button class="chat-composer-send" onclick="_chatSendFromComposer()">Enviar →</button>
+        <span class="chat-composer-hint">${_isExMemberDM ? '🥋 chat em modo leitura · histórico preservado' : 'Enter envia · Shift+Enter quebra linha · arraste arquivos pro chat'}</span>
+        <button class="chat-composer-send" onclick="_chatSendFromComposer()" ${_isExMemberDM ? 'disabled aria-disabled="true" style="opacity:.4;cursor:not-allowed;"' : ''}>Enviar →</button>
       </div>
     </div>
   `;
@@ -44477,6 +44508,26 @@ function _chatRefreshTatameBanner(channelId) {
   if (!slot) return;
   if (_chatState.currentChannelId !== channelId) return;
   slot.innerHTML = _chatRenderTatameBanner(channelId);
+}
+
+// ── Banner "ex-membro" em DMs com pessoa que saiu da empresa ──────────
+// Detecta se a DM é com alguém offboardado e retorna banner amarelo
+// avisando que é leitura. Vazio se for canal/DM normal.
+function _chatRenderExMemberBanner(ch) {
+  if (!ch || ch.type !== 'dm') return '';
+  if (!supaUser || !supaUser.id) return '';
+  const otherId = (ch.dm_user_a === supaUser.id) ? ch.dm_user_b : ch.dm_user_a;
+  if (!otherId || otherId === supaUser.id) return ''; // self-DM não conta
+  const otherUser = _chatState.userMap[otherId];
+  if (!otherUser || !otherUser.is_offboarded) return '';
+  const name = _esc(otherUser.name || 'Esta pessoa');
+  return `<div class="chat-exmember-banner">
+    <div class="chat-exmember-banner-icon" aria-hidden="true">🥋</div>
+    <div class="chat-exmember-banner-text">
+      <strong>${name} não faz mais parte do workspace.</strong>
+      <span>Você ainda pode <strong>ler</strong> todo o histórico, mas mensagens novas não chegam pra ela.</span>
+    </div>
+  </div>`;
 }
 
 // ════════════════════════════════════════════════════════════════════
