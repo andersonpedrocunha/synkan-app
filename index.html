@@ -5679,7 +5679,19 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 .dojo-room-av.is-online::after{content:'';position:absolute;bottom:-2px;right:-2px;width:7px;height:7px;border-radius:50%;background:#45b369;border:1.5px solid var(--tatami-cream);}
 .dojo-room-meta{font-size:10.5px;color:#3a6b2c;font-style:italic;font-weight:500;}
 .dojo-room-quiet{font-size:10.5px;color:var(--tatami-ink-soft);font-style:italic;}
-.dojo-room-live{position:absolute;top:8px;right:8px;background:var(--tatami-hinomaru);color:#fff;font-size:9.5px;padding:2px 7px;border-radius:999px;font-style:italic;animation:txPulse 2s infinite;}
+.dojo-room-live{position:absolute;top:8px;right:8px;background:var(--tatami-hinomaru);color:#fff;font-size:9.5px;padding:2px 7px;border-radius:999px;font-style:italic;animation:txPulse 2s infinite;font-family:var(--tatami-mincho);}
+.dojo-room-live.is-others{background:#45b369;}
+/* Sala com sessão ao vivo: borda mais grossa + glow vermelho */
+.dojo-room.is-live{border:1.5px solid var(--tatami-hinomaru);box-shadow:0 0 0 3px rgba(159,0,38,.12), 0 4px 14px rgba(159,0,38,.18);background:linear-gradient(180deg,var(--tatami-cream) 0%,#fff5f0 100%);}
+.dojo-room.is-live:hover{transform:translateY(-2px);box-shadow:0 0 0 3px rgba(159,0,38,.18), 0 8px 22px rgba(159,0,38,.25);}
+/* Botão de favoritar no canto superior direito do card */
+.dojo-room-fav{position:absolute;top:8px;right:8px;background:transparent;border:none;color:var(--tatami-ink-soft);width:24px;height:24px;border-radius:5px;cursor:pointer;opacity:0;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;padding:0;z-index:2;}
+.dojo-room:hover .dojo-room-fav{opacity:1;}
+.dojo-room-fav.is-fav{opacity:1;color:#FBBF24;}
+.dojo-room-fav:hover{background:var(--tatami-paper);color:#FBBF24;transform:scale(1.15);}
+/* Quando tem live badge, esconde o star (live ocupa o canto) */
+.dojo-room.is-live .dojo-room-fav{display:none;}
+.dojo-room.is-fav .dojo-room-name::before{content:'⚡ ';color:#D97706;}
 .dojo-room-mat{position:absolute;bottom:5px;left:8px;right:8px;height:3px;background:repeating-linear-gradient(90deg,var(--tatami-tan) 0,var(--tatami-tan) 8px,transparent 8px,transparent 12px);opacity:.4;border-radius:2px;}
 
 /* Switcher de vista (lista | mapa) */
@@ -5688,9 +5700,10 @@ body.tx-active .chat-members-ov{z-index:9700 !important;}
 .chat-view-btn:hover{color:var(--tatami-sumi);}
 .chat-view-btn.is-active{background:var(--tatami-paper);color:var(--tatami-hinomaru);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06);}
 
-/* Mapa-mode: esconde a sidebar, expande o main */
-.chat-layout.is-map-mode .chat-sidebar{display:none;}
-.chat-layout.is-map-mode .chat-main{grid-column:1 / -1;width:100%;}
+/* Mapa-mode: esconde a sidebar, expande o main pra ocupar 100% */
+.chat-layout.is-map-mode{grid-template-columns:1fr !important;}
+.chat-layout.is-map-mode .chat-sidebar{display:none !important;}
+.chat-layout.is-map-mode .chat-main{grid-column:1 / -1 !important;width:100% !important;}
 
 /* Botão "+ criar" nas zonas do mapa */
 .dojo-zone-h{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;padding-bottom:6px;border-bottom:0.5px dashed var(--tatami-tan);flex-wrap:wrap;}
@@ -44302,10 +44315,22 @@ function _chatRenderDojoMap() {
         return `<div class="dojo-room-av is-online" title="${_esc(u.name||'')} · online">${av}</div>`;
       }).join('');
     }
-    // Tatame ativo? (se eu tô no extended desse canal)
+    // Tatame ativo? (se EU tô no extended desse canal OU tem peers no presence)
     const ext = _chatState.extended;
-    const sessionLive = (ext && ext.open && ext.channelId === ch.id) ? '<span class="dojo-room-live">🎴 você está aqui</span>' : '';
-    return `<div class="dojo-room ${unread?'has-unread':''}" onclick="_chatEnterRoomFromMap('${ch.id}')" title="Entrar em ${_esc(ch.name)}">
+    const iAmHere = (ext && ext.open && ext.channelId === ch.id);
+    // Verifica se há sessão ativa via monitor passivo (se o tatameMonitor está nesse canal)
+    const monitor = _chatState.tatameMonitor;
+    const sessionPeers = (monitor && monitor.channelId === ch.id) ? (monitor.count || 0) : 0;
+    const sessionActive = iAmHere || sessionPeers > 0;
+    const liveBadge = iAmHere
+      ? '<span class="dojo-room-live">🎴 você está aqui</span>'
+      : (sessionPeers > 0 ? `<span class="dojo-room-live is-others">🎴 ${sessionPeers} no tatame</span>` : '');
+    // Favorito
+    const isFav = _chatState.favorites && _chatState.favorites.has(ch.id);
+    return `<div class="dojo-room ${unread?'has-unread':''} ${sessionActive?'is-live':''} ${isFav?'is-fav':''}" onclick="_chatEnterRoomFromMap('${ch.id}')" title="Entrar em ${_esc(ch.name)}">
+      <button class="dojo-room-fav ${isFav?'is-fav':''}" onclick="event.stopPropagation();_chatToggleFavorite(event,'${ch.id}')" title="${isFav?'Remover de Atalho':'Adicionar a Atalho'}">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="${isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M10 1 L3 9 L7 9 L5.5 15 L13 7 L9 7 L10 1 Z"/></svg>
+      </button>
       <div class="dojo-room-h">
         <span class="dojo-room-prefix">${prefix}</span>
         <span class="dojo-room-name">${_esc(ch.name)}</span>
@@ -44316,7 +44341,7 @@ function _chatRenderDojoMap() {
         <div class="dojo-room-avs">${avatarsHTML || '<span class="dojo-room-quiet">silencioso</span>'}</div>
         ${onlineCount ? `<span class="dojo-room-meta">${onlineCount} online</span>` : ''}
       </div>
-      ${sessionLive}
+      ${liveBadge}
       <div class="dojo-room-mat"></div>
     </div>`;
   };
