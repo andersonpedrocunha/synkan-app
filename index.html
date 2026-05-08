@@ -38760,6 +38760,22 @@ async function _chatGetClient() {
   return _ensureSupaClient && _ensureSupaClient();
 }
 
+// Helper: gera slug amigável pra nomes de canal/DM.
+// Normaliza acentos primeiro (NFD + strip diacríticos), pra que "visão" vire
+// "visao" em vez de "vis-o" (regex anterior despejava o ã como caractere
+// inválido e jogava hífen no lugar).
+function _chatSlugify(str, fallback) {
+  // ̀-ͯ = bloco "Combining Diacritical Marks" do Unicode.
+  // NFD separa "ã" em "a" + acento; o regex remove o acento, sobra "a".
+  const stripDiacritics = new RegExp('[\\u0300-\\u036f]', 'g');
+  return (str || '')
+    .normalize('NFD').replace(stripDiacritics, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48) || (fallback || 'canal');
+}
+
 // Helper: identifica o tipo "fino" do canal pra decidir UX do tatame.
 //   'self'   = self-DM (notas-pessoais) → vira "Modo foco" (sem voz, sem convidar)
 //   'dm1on1' = DM entre 2 pessoas → tatame normal mas SEM botão Convidar
@@ -39101,7 +39117,7 @@ async function _chatEnsureBoardChannels() {
       const { data: existing } = await c.from('chat_channels')
         .select('id').eq('workspace_owner', supaUser.id).eq('board_id', board.id).maybeSingle();
       if (existing) continue;
-      const channelName = (board.name || 'board').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'board';
+      const channelName = _chatSlugify(board.name, 'board');
       await c.from('chat_channels').insert({
         workspace_owner: supaUser.id,
         type: 'board',
@@ -40913,7 +40929,7 @@ async function _chatAddBoardChannelFlow() {
 
   const board = available.find(b => b.id === boardId);
   if (!board) return;
-  const channelName = (board.name || 'board').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'board';
+  const channelName = _chatSlugify(board.name, 'board');
 
   try {
     // RPC SECURITY DEFINER (idempotente)
@@ -40984,7 +41000,7 @@ async function _chatCreateDMFlow() {
     const isSelfDM = targetId === supaUser.id;
     const targetName = isSelfDM
       ? 'notas-pessoais'
-      : ('dm-' + (_chatState.userMap[targetId]?.name || 'dm').slice(0,20).toLowerCase().replace(/\s+/g,'-'));
+      : ('dm-' + _chatSlugify(_chatState.userMap[targetId]?.name || 'dm', 'pessoa').slice(0, 20));
     // RPC SECURITY DEFINER (idempotente — retorna existente se já houver)
     const { data: newId, error } = await c.rpc('create_chat_channel', {
       p_type: 'dm',
