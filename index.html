@@ -5490,10 +5490,25 @@ body.tx-active .belt-ring::after{
 /* Embed real do view-kanban dentro do tatame */
 .tx-embed-live{padding:0;display:flex;flex-direction:column;}
 .tx-embed-live > .tx-embed-h{padding:12px 18px;margin-bottom:0;border-bottom:0.5px solid var(--tatami-tan);}
-.tx-embed-mount{flex:1;min-height:0;overflow:auto;background:var(--color-background-primary);position:relative;}
+/* Mount com scroll em ambas direções — board/lab/okrs podem ter conteúdo
+   maior que o painel do tatame (várias colunas, várias rows, etc). */
+.tx-embed-mount{
+  flex:1;min-height:0;
+  overflow:auto;            /* scrollbars vertical e horizontal quando precisar */
+  overscroll-behavior:contain; /* não deixa o scroll vazar pro overlay */
+  background:var(--color-background-primary);
+  position:relative;
+}
 .tx-embed-mount > #view-kanban,
 .tx-embed-mount > #view-canvas,
-.tx-embed-mount > #view-okrs{display:block !important;height:100%;width:100%;}
+.tx-embed-mount > #view-okrs{
+  display:block !important;
+  /* No mínimo preenche o painel; cresce livremente se o conteúdo for maior */
+  min-height:100%;
+  min-width:100%;
+  width:auto;
+  height:auto;
+}
 
 /* Lab preview inline (custom) */
 .tx-lab-content{flex:1;min-height:0;overflow:auto;padding:18px 22px;background:var(--tatami-paper);}
