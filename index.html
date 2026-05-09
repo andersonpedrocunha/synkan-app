@@ -44031,21 +44031,25 @@ async function _lkStart() {
     return;
   }
 
-  // 1) Cria/recupera sessão no banco
+  // 1) Cria/recupera sessão no banco (com timeout pra não pendurar)
   console.log('[lk] criando sessão no banco…');
   let session;
   try {
-    const { data, error } = await c.rpc('start_video_session', {
+    const rpcPromise = c.rpc('start_video_session', {
       p_channel_id: ext.channelId,
       p_with_kan: true,
     });
-    if (error) throw error;
-    session = data;
+    const timeoutPromise = new Promise((_, rej) =>
+      setTimeout(() => rej(new Error('RPC timeout (10s)')), 10000)
+    );
+    const result = await Promise.race([rpcPromise, timeoutPromise]);
+    if (result.error) throw result.error;
+    session = result.data;
     console.log('[lk] sessão criada:', session);
   } catch(e) {
     console.error('[lk] start session falhou:', e);
     appAlert('Erro ao iniciar sessão',
-      'Verifique se a MIGRATION_TATAME_VIDEO.sql foi executada no Supabase. Erro: ' + (e?.message || e),
+      `RPC start_video_session falhou: ${e?.message || e}. Verifique se a MIGRATION_TATAME_VIDEO.sql atualizada foi executada no Supabase.`,
       { icon:'⚠️' });
     return;
   }
