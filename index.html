@@ -13118,7 +13118,7 @@ const OB_STEPS = [
     target: '#sb-okrs',
     placement: 'right',
     title: '◎ OKRs + Synconnect',
-    body: '<strong>OKRs</strong> conecta objetivos a key-results e cards reais nos boards — sai do papel e vira execução.<br/><br/><strong>Synconnect</strong> (logo abaixo) é seu <strong>CRM leve</strong>: contatos, leads via formulário público, conversão direta em card. Ideal pra vendas e captação.',
+    body: '<strong>OKRs</strong> conecta objetivos a key-results e cards reais nos boards — sai do papel e vira execução.<br/><br/><strong>Synconnect</strong> (logo abaixo) é seu módulo de <strong>contatos &amp; leads</strong>: cadastra clientes, fornecedores, prospects, captura leads via formulário público, converte direto em card. Ideal pra vendas e captação.',
     primary: 'Próximo',
   },
   {
@@ -22516,7 +22516,7 @@ function _renderHelpRecursosTopic(id) {
 
         <h4 class="help-topic-h">Os 5 módulos centrais</h4>
         <p><strong>Boards (Kanban).</strong> Sua tela principal. Cards organizados por colunas, com tags, prioridade, deadline, responsável, custom fields, anexos e threads de comentários. Cada board tem 6 visões: Kanban, Tabela, Calendário, Gantt, Timeline e Dashboard. Você troca entre elas com <kbd>1</kbd>–<kbd>6</kbd> ou pelos botões no topo.</p>
-        <p><strong>Synconnect (CRM).</strong> Catálogo de contatos com lead score, pipelines e Customer 360. Forma orgânica de transformar oportunidade em card no board.</p>
+        <p><strong>Synconnect · contatos &amp; leads.</strong> Catálogo de contatos comerciais com lead score (Hot/Warm/Cold), pipelines simples e histórico vinculado a cards. Forma orgânica de transformar oportunidade em card no board.</p>
         <p><strong>Labs.</strong> 5 formatos de canvas livre (Mindmap, Documento, Tabela, Sheet, Plano) pra rascunhar antes de virar board. Tudo gerável por IA — descreve o que quer e o Mestre Kan monta o esqueleto.</p>
         <p><strong>OKRs.</strong> Objetivos e resultados-chave com vínculo direto pros cards que executam. Métricas atualizam sozinhas conforme cards fecham.</p>
         <p><strong>Tatami (chat + voz).</strong> Chat nativo do Synkan com canais por workspace ou por board, DMs, threads, mensagens de voz e anexos. Botão <strong>"Subir no tatame"</strong> abre uma sessão ao vivo no canal: voz peer-to-peer (WebRTC) + workspace compartilhado em tempo real (Board, Lab ou OKRs sincronizados via drag-drop). Bom pra <em>daily standup</em> em 5 min, decisão rápida ou pair-work — apesar de daily ter caído em desuso em times assíncronos, quando precisa de encontro síncrono o tatame é o lugar.</p>
@@ -33736,12 +33736,21 @@ function _settingsDojoSection() {
     <!-- ══ FEATURES DO WORKSPACE (TOPO — alta visibilidade) ══════════════ -->
     <div class="settings-card" style="border-left:3px solid var(--tatami-hinomaru,#C0392B);">
       <div class="settings-card-title" style="display:flex;align-items:center;gap:10px;">
-        <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg>
-        Tatami Profile · Selo de Honra
+        <span title="⚖ Selo de Honra — símbolo da balança/justiça. Mede prazos cumpridos." aria-label="Selo de Honra" style="display:inline-flex;width:22px;height:22px;cursor:help;flex-shrink:0;">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="3.5" x2="12" y2="20"/>
+            <line x1="5" y1="8" x2="19" y2="8"/>
+            <path d="M5 8 L 2.5 13.5 L 7.5 13.5 Z" fill="currentColor" fill-opacity=".15"/>
+            <path d="M19 8 L 16.5 13.5 L 21.5 13.5 Z" fill="currentColor" fill-opacity=".15"/>
+            <circle cx="12" cy="3.5" r="1.4" fill="currentColor"/>
+            <line x1="9" y1="20" x2="15" y2="20"/>
+          </svg>
+        </span>
+        Tatami · Selo de Honra
         <span style="font-size:11px;font-weight:400;color:var(--color-text-tertiary);background:var(--color-background-secondary);padding:2px 8px;border-radius:999px;">Workspace</span>
       </div>
       <div class="settings-card-sub" style="margin-bottom:12px;">
-        <strong>Selo de Honra</strong> mostra a porcentagem de prazos cumpridos em cada Tatami Profile (cards entregues no prazo / total dos últimos 30 dias). Pode incentivar entregas — mas também <strong>gera pressão indevida</strong> em times sensíveis ou em fases de transição. Vem <strong>desativado por padrão</strong>. Decida com critério.
+        <strong>Selo de Honra</strong> mostra a porcentagem de prazos cumpridos no perfil de cada pessoa (cards entregues no prazo / total dos últimos 30 dias). Pode incentivar entregas — mas também <strong>gera pressão indevida</strong> em times sensíveis ou em fases de transição. Vem <strong>desativado por padrão</strong>. Decida com critério.
       </div>
       <div class="settings-row">
         <div>
@@ -40395,26 +40404,32 @@ async function renderChat() {
   }
 
   // ── Refresh PROATIVO do JWT antes de qualquer chamada ──
-  // Evita o "Sessão expirada" depois de algum tempo idle. Se o access_token
-  // tá perto de expirar (<2min), renova ANTES da requisição. supaSDK tem
-  // autoRefreshToken mas pausa quando a aba fica em background — esse check
-  // cobre o cenário "voltei pra aba depois de 1h, JWT expirou".
+  // Evita o "Sessão expirada" depois de algum tempo idle. Race contra timeout
+  // pra não travar caso getSession() fique pendurado (issue Multiple GoTrueClient).
   try {
     if (supaClient?.auth?.getSession) {
-      const { data } = await supaClient.auth.getSession();
+      const sessionPromise = Promise.race([
+        supaClient.auth.getSession(),
+        new Promise(res => setTimeout(() => res({ data: { session: null } }), 1500)),
+      ]);
+      const { data } = await sessionPromise;
       const exp = data?.session?.expires_at;
       if (exp) {
         const msToExpiry = exp * 1000 - Date.now();
         if (msToExpiry < 2 * 60 * 1000) { // <2min ou já expirou
           console.log('[chat] JWT perto de expirar, refresh proativo…');
           try {
-            const { data: refreshed } = await supaClient.auth.refreshSession();
+            const refreshPromise = Promise.race([
+              supaClient.auth.refreshSession(),
+              new Promise((_, rej) => setTimeout(() => rej(new Error('refresh timeout')), 3000)),
+            ]);
+            const { data: refreshed } = await refreshPromise;
             if (refreshed?.user) supaUser = refreshed.user;
           } catch(refE) { console.warn('[chat] refresh proativo falhou:', refE?.message||refE); }
         }
       }
     }
-  } catch(e) { /* tolera — segue e deixa o catch do load lidar */ }
+  } catch(e) { console.warn('[chat] proactive session check skipped:', e?.message||e); }
 
   // Carrega lista de canais (RLS filtra os que o user pode ver)
   if (!_chatState.loading) {
