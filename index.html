@@ -12057,7 +12057,7 @@ const ICON_PICKER_OPTIONS = [
   '📢','📣','📺','📰','✉️','📧',
   '👥','🧑‍💻','🧑‍🎨','🤝','🎓','👨‍🏫',
   '☑️','📝','🗂','🗃','📂','🔖',
-  '🎯','⭐','★','🏆','🎉','🎁',
+  '🎯','⭐','★','🏆','🎉','💮',
   '🎨','🖌','🖼','🎭','🎬','🎵',
   '🛟','🆘','🛡','🔐','🔍','📞',
   '🏗','🏢','🏠','🌍','🌱','🌟',
@@ -22086,19 +22086,47 @@ async function bootSupabaseMode() {
     alert('Não consegui inicializar o Supabase. Verifique URL/anon key na engrenagem.');
     return false;
   }
-  // Listener
+  // Listener — fica ativo durante toda a sessão
   c.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
       await _onSignedIn(session);
     } else if (event === 'SIGNED_OUT') {
       await _onSignedOut();
+    } else if (event === 'TOKEN_REFRESHED' && session) {
+      // JWT renovado em background — atualiza cache mas não re-roda _onSignedIn
+      // (que dispararia user-change check + recarregamentos desnecessários)
+      try { _capInvalidateJWTCache && _capInvalidateJWTCache(); } catch(_){}
+      try { supaUser = session.user; } catch(_){}
     }
   });
-  // Estado inicial
-  const { data } = await c.auth.getSession();
-  if (data?.session) {
-    await _onSignedIn(data.session);
+  // ── Estado inicial — robusto contra token expirado ────────────────
+  let initialSession = null;
+  try {
+    const { data } = await c.auth.getSession();
+    initialSession = data?.session || null;
+    // Se tem sessão mas o access_token tá perto de expirar (<5min), refresh proativo
+    if (initialSession?.expires_at) {
+      const expiresInMs = initialSession.expires_at * 1000 - Date.now();
+      if (expiresInMs < 5 * 60 * 1000) {
+        try {
+          const { data: refreshed } = await c.auth.refreshSession();
+          if (refreshed?.session) initialSession = refreshed.session;
+        } catch(e) { console.warn('[auth] refresh proativo falhou:', e?.message || e); }
+      }
+    }
+  } catch(e) { console.warn('[auth] getSession inicial falhou:', e?.message || e); }
+
+  if (initialSession) {
+    await _onSignedIn(initialSession);
   } else {
+    // Última tentativa: força refresh (caso refresh_token exista mas access_token tenha expirado)
+    try {
+      const { data: refreshed } = await c.auth.refreshSession();
+      if (refreshed?.session) {
+        await _onSignedIn(refreshed.session);
+        return true;
+      }
+    } catch(_){}
     showAuthOverlay(true);
   }
   return true;
@@ -41367,7 +41395,7 @@ const _CHAT_COMMANDS = [
     cmd:  '/kudos',
     args: '@pessoa <motivo>',
     desc: 'Elogio público — receiver ganha 10 XP. Cap de 5/mês por giver.',
-    icon: '🎁',
+    icon: '💮',
   },
   {
     cmd:  '/duelo',
@@ -46032,7 +46060,7 @@ async function _chatSendKudos(rawText) {
   const m = rawText.match(/^\/kudos\s+@?(\S+)\s*(.*)$/i);
   if (!m) {
     if (typeof appAlert === 'function') {
-      appAlert('Como usar /kudos', 'Sintaxe: <code>/kudos @pessoa motivo</code><br/><br/>Exemplo: <code>/kudos @marina pela excelente entrega da apresentação</code>', { icon:'🎁', html:true });
+      appAlert('Como usar /kudos', 'Sintaxe: <code>/kudos @pessoa motivo</code><br/><br/>Exemplo: <code>/kudos @marina pela excelente entrega da apresentação</code>', { icon:'💮', html:true });
     }
     return;
   }
@@ -46103,7 +46131,7 @@ async function _chatSendKudos(rawText) {
       if (typeof appAlert === 'function') {
         const remaining = data.remaining_month;
         const remTxt = remaining > 0 ? ` Você ainda pode dar ${remaining} este mês.` : ' Você atingiu o cap mensal.';
-        appAlert('🎁 Kudos enviado', `<strong>${_esc(receiverName)}</strong> ganhou 10 XP.${remTxt}`, { icon:'🎁', html:true });
+        appAlert('🎁 Kudos enviado', `<strong>${_esc(receiverName)}</strong> ganhou 10 XP.${remTxt}`, { icon:'💮', html:true });
       }
     }
   } catch(e) {
