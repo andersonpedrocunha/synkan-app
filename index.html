@@ -40394,6 +40394,28 @@ async function renderChat() {
     return;
   }
 
+  // ── Refresh PROATIVO do JWT antes de qualquer chamada ──
+  // Evita o "Sessão expirada" depois de algum tempo idle. Se o access_token
+  // tá perto de expirar (<2min), renova ANTES da requisição. supaSDK tem
+  // autoRefreshToken mas pausa quando a aba fica em background — esse check
+  // cobre o cenário "voltei pra aba depois de 1h, JWT expirou".
+  try {
+    if (supaClient?.auth?.getSession) {
+      const { data } = await supaClient.auth.getSession();
+      const exp = data?.session?.expires_at;
+      if (exp) {
+        const msToExpiry = exp * 1000 - Date.now();
+        if (msToExpiry < 2 * 60 * 1000) { // <2min ou já expirou
+          console.log('[chat] JWT perto de expirar, refresh proativo…');
+          try {
+            const { data: refreshed } = await supaClient.auth.refreshSession();
+            if (refreshed?.user) supaUser = refreshed.user;
+          } catch(refE) { console.warn('[chat] refresh proativo falhou:', refE?.message||refE); }
+        }
+      }
+    }
+  } catch(e) { /* tolera — segue e deixa o catch do load lidar */ }
+
   // Carrega lista de canais (RLS filtra os que o user pode ver)
   if (!_chatState.loading) {
     _chatState.loading = true;
@@ -40432,8 +40454,17 @@ async function renderChat() {
       _chatState.loading = false;
 
       // ── JWT expired? Tenta refresh automático antes de mostrar erro ──
+      // Cobre múltiplos formatos: "JWT expired", "PGRST301" (Postgrest expired),
+      // "401", "Unauthorized", "Invalid token", "JWS"...
       const errMsg = (e?.message || String(e)).toLowerCase();
-      const isJwtExpired = errMsg.includes('jwt') && (errMsg.includes('expired') || errMsg.includes('expir'));
+      const errCode = (e?.code || '').toString().toLowerCase();
+      const isJwtExpired =
+        (errMsg.includes('jwt') && (errMsg.includes('expired') || errMsg.includes('expir'))) ||
+        errMsg.includes('pgrst301') || errCode === 'pgrst301' ||
+        errMsg.includes('unauthorized') ||
+        errMsg.includes('invalid token') || errMsg.includes('invalid jwt') ||
+        errMsg.includes('jws') ||
+        (e?.status === 401);
       if (isJwtExpired && !_chatState._jwtRefreshTried) {
         _chatState._jwtRefreshTried = true;  // evita loop infinito
         try {
