@@ -43993,52 +43993,74 @@ async function _lkFetchToken(channelId, identity, name) {
 
 // ── Inicia LiveKit (entra na sala) ───────────────────────────────────
 async function _lkStart() {
+  console.log('[lk] _lkStart() chamado');
   const ext = _chatState.extended;
-  if (!ext || !ext.open) return;
-  if (ext.lk && ext.lk.connected) return;
+  if (!ext || !ext.open) {
+    console.warn('[lk] tatame não está aberto — abrindo agora');
+    if (typeof _txOpen === 'function') _txOpen();
+    return;
+  }
+  if (ext.lk && ext.lk.connected) { console.log('[lk] já conectado'); return; }
 
+  // Plan check
+  const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+  console.log('[lk] plano atual:', planCode);
   if (!_lkCanUseVideo()) {
+    console.warn('[lk] plano não permite vídeo:', planCode);
     appAlert('Vídeo no Tatame requer Faixa Roxa+',
-      'Pra subir no tatame com vídeo + screen share você precisa estar na Faixa Roxa ou Preta. Faça upgrade em Configurações → Plano.',
+      `Plano atual: ${planCode}. Pra subir no tatame com vídeo + screen share você precisa estar na Faixa Roxa, Preta ou em Trial. Faça upgrade em Configurações → Plano.`,
       { icon:'🎥' });
     return;
   }
 
+  console.log('[lk] carregando SDK…');
   let LK;
   try {
     LK = await _lkLoadSDK();
+    console.log('[lk] SDK pronto, versão:', LK?.version || 'desconhecida');
   } catch(e) {
-    appAlert('Não consegui carregar o vídeo', 'Verifique sua conexão e tente novamente.', { icon:'⚠️' });
+    console.error('[lk] SDK load:', e);
+    appAlert('Não consegui carregar o vídeo', e?.message || 'Erro desconhecido.', { icon:'⚠️' });
     return;
   }
 
   const c = _ensureSupaClient();
-  if (!c || !supaUser) return;
+  if (!c || !supaUser) {
+    console.error('[lk] supabase ou user ausente:', { c: !!c, user: !!supaUser });
+    appAlert('Não logado', 'Faça login antes de subir no tatame.', { icon:'⚠️' });
+    return;
+  }
 
   // 1) Cria/recupera sessão no banco
+  console.log('[lk] criando sessão no banco…');
   let session;
   try {
     const { data, error } = await c.rpc('start_video_session', {
       p_channel_id: ext.channelId,
-      p_with_kan: true, // padrão: Mestre Kan presente
+      p_with_kan: true,
     });
     if (error) throw error;
     session = data;
+    console.log('[lk] sessão criada:', session);
   } catch(e) {
     console.error('[lk] start session falhou:', e);
-    appAlert('Erro', 'Não consegui iniciar a sessão de vídeo: ' + (e?.message || e), { icon:'⚠️' });
+    appAlert('Erro ao iniciar sessão',
+      'Verifique se a MIGRATION_TATAME_VIDEO.sql foi executada no Supabase. Erro: ' + (e?.message || e),
+      { icon:'⚠️' });
     return;
   }
 
   // 2) Pega token do endpoint
+  console.log('[lk] buscando token em', window.LIVEKIT_TOKEN_ENDPOINT);
   let token;
   try {
     const userName = (supaUser?.user_metadata?.full_name || supaUser?.email || 'usuário');
     token = await _lkFetchToken(ext.channelId, supaUser.id, userName);
+    console.log('[lk] token obtido (primeiros 20 chars):', token?.slice(0,20)+'…');
   } catch(e) {
     console.error('[lk] token fetch falhou:', e);
-    appAlert('Configuração ausente',
-      'Endpoint LiveKit não configurado. Verifique window.LIVEKIT_TOKEN_ENDPOINT e a Supabase Edge Function "livekit-token".',
+    appAlert('Erro no token endpoint',
+      `Edge Function 'livekit-token' falhou: ${e?.message || e}. Verifique se foi deployada e os secrets configurados.`,
       { icon:'⚙️' });
     return;
   }
@@ -44073,14 +44095,17 @@ async function _lkStart() {
   room.on(LK.RoomEvent.ActiveSpeakersChanged, _lkOnActiveSpeakersChanged);
   room.on(LK.RoomEvent.Disconnected, _lkOnDisconnected);
 
+  console.log('[lk] conectando em', window.LIVEKIT_WS_URL, '— sala:', session.livekit_room);
   try {
     await room.connect(window.LIVEKIT_WS_URL, token);
     ext.lk.connected = true;
-    // Registra entrada no banco
+    console.log('[lk] ✓ conectado!');
     await c.rpc('join_video_session', { p_session_id: session.session_id, p_with_camera: false });
   } catch(e) {
     console.error('[lk] connect falhou:', e);
-    appAlert('Erro de conexão', 'Não consegui entrar na sala. Verifique LIVEKIT_WS_URL.', { icon:'⚠️' });
+    appAlert('Erro de conexão LiveKit',
+      `Não consegui entrar na sala: ${e?.message || e}. Verifique LIVEKIT_WS_URL (${window.LIVEKIT_WS_URL}).`,
+      { icon:'⚠️' });
     return;
   }
 
