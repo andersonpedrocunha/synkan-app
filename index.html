@@ -13708,13 +13708,23 @@ function pickProfileAvatar() {
       // 2) Re-renderiza UI ANTES da chamada Supabase — usuário vê o avatar na hora
       if (typeof refreshAccountUI === 'function') refreshAccountUI();
       if (currentTab === 'settings') renderSettings();
-      // 3) Sync pro Supabase em background com timeout — não bloqueia a UI.
-      //    Se travar (Multiple GoTrueClient, rede), só loga warning. Local persiste.
+      // 3) Sync pro Supabase em background — atualiza nas DUAS tabelas:
+      //    • auth.user_metadata.avatar_url (read pela sidebar)
+      //    • public.profiles.avatar_url (read pelo Tatami, chat e DMs)
+      //    Sem isso, o Tatami fica com avatar "Convidado" enquanto Settings mostra a foto.
       if (getStorageMode()==='supabase' && supaClient && supaUser) {
         Promise.race([
           supaClient.auth.updateUser({ data: { avatar_url: dataURL } }),
           new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (5s) updateUser avatar')), 5000)),
-        ]).catch(err => console.warn('[avatar] sync supabase falhou (avatar permanece local):', err?.message || err));
+        ]).catch(err => console.warn('[avatar] auth metadata sync falhou:', err?.message || err));
+        // ── Sync pra public.profiles também (essencial pro Tatami/chat) ──
+        Promise.race([
+          supaClient.from('profiles').update({ avatar_url: dataURL }).eq('id', supaUser.id),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (5s) profiles update')), 5000)),
+        ]).then(() => {
+          // Invalida cache do Tatami Profile pra refletir avatar novo na próxima abertura
+          try { if (typeof _tpProfileCache !== 'undefined') _tpProfileCache.clear(); } catch(_){}
+        }).catch(err => console.warn('[avatar] profiles sync falhou (Tatami pode ficar com avatar antigo):', err?.message || err));
       }
     } catch(err) {
       alert('Não consegui processar essa imagem: ' + (err?.message || err));
@@ -13754,12 +13764,18 @@ async function clearProfileAvatar() {
   // Atualiza local + memória ANTES da chamada remota
   const local = getLocalProfile(); delete local.avatar; setLocalProfile(local);
   if (supaUser?.user_metadata) delete supaUser.user_metadata.avatar_url;
-  // Sync pro Supabase em background com timeout (não bloqueia UI)
+  // Sync pro Supabase em background — atualiza nas DUAS tabelas (auth + profiles)
   if (getStorageMode()==='supabase' && supaClient && supaUser) {
     Promise.race([
       supaClient.auth.updateUser({ data: { avatar_url: null } }),
       new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (5s) updateUser')), 5000)),
-    ]).catch(e => console.warn('[avatar] sync remoção falhou (local OK):', e?.message || e));
+    ]).catch(e => console.warn('[avatar] auth metadata remoção falhou:', e?.message || e));
+    Promise.race([
+      supaClient.from('profiles').update({ avatar_url: null }).eq('id', supaUser.id),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (5s) profiles update')), 5000)),
+    ]).then(() => {
+      try { if (typeof _tpProfileCache !== 'undefined') _tpProfileCache.clear(); } catch(_){}
+    }).catch(e => console.warn('[avatar] profiles remoção falhou:', e?.message || e));
   }
   audit('profile.avatar.removed', {});
   if (typeof refreshAccountUI === 'function') refreshAccountUI();
@@ -33741,7 +33757,9 @@ function _settingsDojoSection() {
 
     <div class="settings-card" style="border-left:3px solid var(--tatami-hinomaru,#C0392B);">
       <div class="settings-card-title" style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:18px;line-height:1;">🎁</span>
+        <span class="kudos-hanko-icon" title="賞 (shō) — kanji japonês de 'prêmio / reconhecimento'. É o carimbo de mérito usado em diplomas e prêmios oficiais no Japão." aria-label="Selo Kudos" style="display:inline-flex;width:22px;height:22px;cursor:help;">
+          <svg viewBox="0 0 64 64" width="22" height="22"><g transform="rotate(-3 32 32)"><rect x="14" y="14" width="36" height="36" rx="3.5" fill="#BC002D"/><rect x="17" y="17" width="30" height="30" rx="2" fill="none" stroke="#fff" stroke-width="1" opacity=".4"/><text x="32" y="43" font-family="'Noto Serif JP','Yu Mincho',serif" font-weight="700" font-size="22" text-anchor="middle" fill="#fff">賞</text></g></svg>
+        </span>
         Tatami · Kudos
         <span style="font-size:11px;font-weight:400;color:var(--color-text-tertiary);background:var(--color-background-secondary);padding:2px 8px;border-radius:999px;">Workspace</span>
       </div>
@@ -41113,7 +41131,7 @@ function _chatRenderMessagesView() {
       })()}
       </div>
       <div id="chat-pending-attachments" class="chat-pending-atts" style="display:none;"></div>
-      <textarea id="chat-composer-input" class="chat-composer-input" rows="2" placeholder="${_isExMemberDM ? 'Esta pessoa não faz mais parte do workspace · só leitura' : ('Mensagem em #' + _esc(ch.name) + '… (digite / pra ver comandos · arraste arquivos aqui)')}" oninput="_chatComposerInput(event)" onkeydown="_chatComposerKeydown(event)" onblur="setTimeout(_chatHideSlashPopup, 200)" ${_isExMemberDM ? 'disabled aria-disabled="true"' : ''}></textarea>
+      <textarea id="chat-composer-input" class="chat-composer-input" rows="2" placeholder="${_isExMemberDM ? 'Esta pessoa não faz mais parte do workspace · só leitura' : ('Mensagem em #' + _esc(ch.name) + '… (digite / pra ver comandos · @ pra mencionar)')}" oninput="_chatComposerInput(event)" onkeydown="_chatComposerKeydown(event)" onblur="setTimeout(()=>{_chatHideSlashPopup();_chatHideMentionPopup();}, 200)" ${_isExMemberDM ? 'disabled aria-disabled="true"' : ''}></textarea>
       <div class="chat-composer-actions">
         <span class="chat-composer-hint">${_isExMemberDM ? '🥋 chat em modo leitura · histórico preservado' : 'Enter envia · Shift+Enter quebra linha · arraste arquivos pro chat'}</span>
         <button class="chat-composer-send" onclick="_chatSendFromComposer()" ${_isExMemberDM ? 'disabled aria-disabled="true" style="opacity:.4;cursor:not-allowed;"' : ''}>Enviar →</button>
@@ -41418,13 +41436,132 @@ let _chatSlashPopupMatches = [];
 function _chatComposerInput(e) {
   const inp = e.target;
   const v = inp.value;
+  const cursor = inp.selectionStart;
   // Mostra popup quando o input começa com / seguido só de letras (sem espaço)
   const m = /^\/(\w*)$/.exec(v);
   if (m) {
     _chatShowSlashPopup(m[1].toLowerCase(), inp);
-  } else {
-    _chatHideSlashPopup();
+    _chatHideMentionPopup();
+    return;
   }
+  _chatHideSlashPopup();
+
+  // ── @ mention autocomplete ────────────────────────────────────────
+  // Detecta @ no cursor: olha caracteres antes do cursor até achar @ ou espaço.
+  // Aceita: início da string, depois de espaço/quebra de linha. Captura query até espaço.
+  const before = v.substring(0, cursor);
+  const mentionMatch = /(?:^|\s)@([A-Za-zÀ-ÖØ-öø-ÿ0-9._-]*)$/.exec(before);
+  if (mentionMatch) {
+    _chatShowMentionPopup(mentionMatch[1].toLowerCase(), inp, cursor - mentionMatch[1].length - 1);
+  } else {
+    _chatHideMentionPopup();
+  }
+}
+
+// ── @ mention popup state ────────────────────────────────────────────
+let _chatMentionPopupSelected = 0;
+let _chatMentionPopupMatches = [];
+let _chatMentionAnchorPos = -1; // posição do @ no textarea
+
+function _chatShowMentionPopup(query, inp, atPos) {
+  // Coleta usuários do cache + ordena alfabeticamente
+  const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+  const users = Object.values(_chatState.userMap || {})
+    .filter(u => u && u.id && u.id !== myId && !u.is_offboarded)
+    .map(u => ({
+      id: u.id,
+      name: u.name || u.full_name || (u.email||'').split('@')[0] || 'usuário',
+      email: u.email || '',
+      avatar: u.avatar || u.avatar_url || null,
+    }));
+
+  // Filtra pelo query (case-insensitive, normaliza acentos)
+  const norm = s => (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const q = norm(query);
+  const matches = users
+    .filter(u => !q || norm(u.name).includes(q) || norm(u.email).includes(q))
+    .sort((a,b) => a.name.localeCompare(b.name, 'pt-BR'))
+    .slice(0, 8);
+
+  if (matches.length === 0) { _chatHideMentionPopup(); return; }
+
+  let pop = document.getElementById('chat-mention-pop');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'chat-mention-pop';
+    pop.className = 'chat-slash-pop';
+    document.body.appendChild(pop);
+  }
+  _chatMentionPopupSelected = 0;
+  _chatMentionPopupMatches = matches;
+  _chatMentionAnchorPos = atPos;
+  _chatRenderMentionPopup();
+
+  const r = inp.getBoundingClientRect();
+  pop.style.left = r.left + 'px';
+  pop.style.width = Math.min(r.width, 380) + 'px';
+  requestAnimationFrame(() => {
+    const ph = pop.offsetHeight || 200;
+    pop.style.top = Math.max(8, r.top - ph - 8) + 'px';
+    pop.classList.add('is-open');
+  });
+}
+
+function _chatRenderMentionPopup() {
+  const pop = document.getElementById('chat-mention-pop');
+  if (!pop) return;
+  pop.innerHTML = _chatMentionPopupMatches.map((u, i) => {
+    const initials = (u.name || '?').slice(0,1).toUpperCase();
+    const avatarHTML = u.avatar
+      ? `<img src="${_esc(u.avatar)}" alt="" style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
+      : `<span style="width:22px;height:22px;border-radius:50%;background:#3C3489;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${_esc(initials)}</span>`;
+    return `
+      <button type="button" class="chat-slash-item${i === _chatMentionPopupSelected ? ' is-selected' : ''}"
+              onmouseover="_chatMentionHover(${i})"
+              onclick="_chatSelectMention('${_esc(u.id)}')">
+        <span class="chat-slash-ico">${avatarHTML}</span>
+        <div class="chat-slash-body">
+          <div class="chat-slash-cmd">@${_esc(u.name)}</div>
+          ${u.email ? `<div class="chat-slash-desc">${_esc(u.email)}</div>` : ''}
+        </div>
+        ${i === _chatMentionPopupSelected ? '<span class="chat-slash-enter">Enter</span>' : ''}
+      </button>`;
+  }).join('');
+}
+
+function _chatMentionHover(idx) {
+  if (_chatMentionPopupSelected !== idx) {
+    _chatMentionPopupSelected = idx;
+    _chatRenderMentionPopup();
+  }
+}
+
+function _chatSelectMention(userId) {
+  const inp = document.getElementById('chat-composer-input');
+  if (!inp) return;
+  const user = _chatMentionPopupMatches.find(u => u.id === userId);
+  if (!user) return;
+  // Remove o @query do textarea e insere @nome
+  const v = inp.value;
+  const cursor = inp.selectionStart;
+  const before = v.substring(0, _chatMentionAnchorPos);
+  const after  = v.substring(cursor);
+  // Nome com underline em espaços (pra parser saber onde termina): "@João Silva" → "@João_Silva"
+  // OU manter espaços e o parser usa o cache. Vou manter limpo com espaços (mais natural).
+  const insertion = '@' + user.name + ' ';
+  inp.value = before + insertion + after;
+  const newCursor = before.length + insertion.length;
+  inp.focus();
+  inp.setSelectionRange(newCursor, newCursor);
+  _chatHideMentionPopup();
+}
+
+function _chatHideMentionPopup() {
+  const pop = document.getElementById('chat-mention-pop');
+  if (pop) pop.classList.remove('is-open');
+  _chatMentionPopupSelected = 0;
+  _chatMentionPopupMatches = [];
+  _chatMentionAnchorPos = -1;
 }
 
 function _chatShowSlashPopup(query, inp) {
@@ -41504,10 +41641,38 @@ function _chatSelectSlashCmd(cmd) {
 }
 
 function _chatComposerKeydown(e) {
-  const popOpen = document.getElementById('chat-slash-pop')?.classList.contains('is-open');
+  const slashOpen = document.getElementById('chat-slash-pop')?.classList.contains('is-open');
+  const mentionOpen = document.getElementById('chat-mention-pop')?.classList.contains('is-open');
 
-  // Navegação no popup de autocomplete
-  if (popOpen && _chatSlashPopupMatches.length > 0) {
+  // Navegação no popup de @ mention
+  if (mentionOpen && _chatMentionPopupMatches.length > 0) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      _chatMentionPopupSelected = (_chatMentionPopupSelected + 1) % _chatMentionPopupMatches.length;
+      _chatRenderMentionPopup();
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      _chatMentionPopupSelected = (_chatMentionPopupSelected - 1 + _chatMentionPopupMatches.length) % _chatMentionPopupMatches.length;
+      _chatRenderMentionPopup();
+      return;
+    }
+    if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+      e.preventDefault();
+      const userId = _chatMentionPopupMatches[_chatMentionPopupSelected]?.id;
+      if (userId) _chatSelectMention(userId);
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      _chatHideMentionPopup();
+      return;
+    }
+  }
+
+  // Navegação no popup de slash command
+  if (slashOpen && _chatSlashPopupMatches.length > 0) {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       _chatSlashPopupSelected = (_chatSlashPopupSelected + 1) % _chatSlashPopupMatches.length;
@@ -45256,16 +45421,54 @@ async function _tpLoadProfile(userId, opts) {
   // Stats agregadas (best-effort)
   let stats = { cards_in_progress:0, cards_delivered_30d:0, msgs_30d:0, tatames_total:0, honor_kept:0, honor_total:0 };
   try {
-    const { data } = await c.rpc('tatami_profile_stats', { p_user_id: userId });
+    const { data, error } = await c.rpc('tatami_profile_stats', { p_user_id: userId });
+    if (error) console.warn('[tp] RPC tatami_profile_stats erro:', error.message);
     if (data) stats = Object.assign(stats, data);
-  } catch(e) { /* tolera — RPC pode não existir ainda */ }
+  } catch(e) { console.warn('[tp] tatami_profile_stats falhou:', e?.message||e); }
 
   // Cards em andamento (lista)
   let cards = [];
   try {
-    const { data } = await c.rpc('tatami_profile_cards', { p_user_id: userId, p_limit: 5 });
+    const { data, error } = await c.rpc('tatami_profile_cards', { p_user_id: userId, p_limit: 5 });
+    if (error) console.warn('[tp] RPC tatami_profile_cards erro:', error.message);
     cards = data || [];
-  } catch(e) { /* tolera */ }
+  } catch(e) { console.warn('[tp] tatami_profile_cards falhou:', e?.message||e); }
+
+  // ── Fallback: se RPC retornou 0 cards mas o user é próprio (auth.uid() === userId),
+  //    consulta direto a tabela cards. Cobre o caso da migration antiga (sem fix do
+  //    p_user_id = v_caller_id) ainda não ter sido aplicada no Supabase do user.
+  try {
+    const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
+    if (cards.length === 0 && userId === myId) {
+      const { data: directCards, error: directErr } = await c.from('cards')
+        .select('id, board_id, name, col, deadline, priority, tag_ids, boards!inner(name)')
+        .eq('assigned_user_id', userId)
+        .is('done_at', null)
+        .order('deadline', { ascending: true, nullsFirst: false })
+        .limit(5);
+      if (directErr) {
+        console.warn('[tp] fallback direct cards query erro:', directErr.message);
+      } else if (Array.isArray(directCards) && directCards.length) {
+        cards = directCards.map(c => ({
+          id: String(c.id),
+          board_id: String(c.board_id),
+          board_name: c.boards?.name || 'board',
+          name: c.name,
+          col: c.col,
+          deadline: c.deadline,
+          priority: c.priority,
+          tag_ids: c.tag_ids,
+        }));
+        // Atualiza count nas stats também
+        const { count: openCount } = await c.from('cards')
+          .select('id', { count: 'exact', head: true })
+          .eq('assigned_user_id', userId)
+          .is('done_at', null);
+        if (typeof openCount === 'number') stats.cards_in_progress = openCount;
+        console.info(`[tp] fallback aplicado · ${cards.length} cards via tabela direta. Rode MIGRATION_TATAMI_PROFILE.sql atualizada pra usar o RPC.`);
+      }
+    }
+  } catch(e) { console.warn('[tp] fallback cards falhou:', e?.message||e); }
 
   // Kudos — stats + últimos recebidos
   let kudos = { received_total:0, received_this_month:0, given_this_month:0, remaining_this_month:5, cap_per_month:5, is_self:false, recent:[] };
@@ -45511,8 +45714,10 @@ function _tpRenderPanel(data, userId) {
 
       ${(data.workspaceSettings?.kudos_enabled) ? `
       <div class="tp-section">
-        <div class="tp-section-h" title="Kudos recebidos do time. Cada kudos rende 10 XP. Owner pode ativar/desativar em Configurações → Dojo.">
-          🎁 Kudos · ${kudos.received_total||0} recebido${(kudos.received_total||0)===1?'':'s'}
+        <div class="tp-section-h" title="賞 (shō) — kanji japonês de 'prêmio/reconhecimento'. Cada kudos rende 10 XP. Owner pode ativar/desativar em Configurações → Dojo.">
+          <span class="tp-kudos-hanko" style="display:inline-flex;width:18px;height:18px;vertical-align:-3px;margin-right:5px;">
+            <svg viewBox="0 0 64 64" width="18" height="18"><g transform="rotate(-3 32 32)"><rect x="14" y="14" width="36" height="36" rx="3.5" fill="#BC002D"/><rect x="17" y="17" width="30" height="30" rx="2" fill="none" stroke="#fff" stroke-width="1" opacity=".4"/><text x="32" y="43" font-family="'Noto Serif JP','Yu Mincho',serif" font-weight="700" font-size="22" text-anchor="middle" fill="#fff">賞</text></g></svg>
+          </span>Kudos · ${kudos.received_total||0} recebido${(kudos.received_total||0)===1?'':'s'}
           ${kudos.received_this_month>0 ? `<span style="font-weight:400;color:var(--tatami-ink-soft);font-size:11.5px;margin-left:6px;">(${kudos.received_this_month} este mês)</span>` : ''}
         </div>
         ${(kudos.recent && kudos.recent.length>0) ? `
@@ -45523,7 +45728,7 @@ function _tpRenderPanel(data, userId) {
                 : (k.created_at ? new Date(k.created_at).toLocaleDateString('pt-BR') : '');
               const reason = k.reason ? `<span class="tp-kudos-reason">"${_esc(k.reason)}"</span>` : `<span class="tp-kudos-reason tp-kudos-reason-empty">— sem motivo registrado —</span>`;
               return `<div class="tp-kudos-item">
-                <span class="tp-kudos-icon">🎁</span>
+                <span class="tp-kudos-icon" title="賞 (shō) — selo de prêmio japonês"><svg viewBox="0 0 64 64" width="14" height="14"><g transform="rotate(-3 32 32)"><rect x="14" y="14" width="36" height="36" rx="3.5" fill="#BC002D"/><text x="32" y="43" font-family="'Noto Serif JP','Yu Mincho',serif" font-weight="700" font-size="22" text-anchor="middle" fill="#fff">賞</text></g></svg></span>
                 <div class="tp-kudos-body">
                   ${reason}
                   <div class="tp-kudos-meta"><strong>${_esc(k.giver_name||'alguém')}</strong> · ${_esc(when)}</div>
@@ -46104,7 +46309,7 @@ async function _chatSendKudos(rawText) {
   // Posta a mensagem no canal primeiro (assim aparece pra todos verem)
   if (typeof _chatSendMessage !== 'function') return;
   const reasonText = reason ? ` · ${reason}` : '';
-  const body = `🎁 **Kudos pra @${receiverName}**${reasonText} _+10 XP_`;
+  const body = `**賞 Kudos pra @${receiverName}**${reasonText} _+10 XP_`;
   let msgId = null;
   try {
     const sent = await _chatSendMessage(body, null);
@@ -46131,7 +46336,7 @@ async function _chatSendKudos(rawText) {
       if (typeof appAlert === 'function') {
         const remaining = data.remaining_month;
         const remTxt = remaining > 0 ? ` Você ainda pode dar ${remaining} este mês.` : ' Você atingiu o cap mensal.';
-        appAlert('🎁 Kudos enviado', `<strong>${_esc(receiverName)}</strong> ganhou 10 XP.${remTxt}`, { icon:'💮', html:true });
+        appAlert('賞 Kudos enviado', `<strong>${_esc(receiverName)}</strong> ganhou 10 XP.${remTxt}`, { icon:'💮', html:true });
       }
     }
   } catch(e) {
