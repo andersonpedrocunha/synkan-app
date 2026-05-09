@@ -44377,21 +44377,30 @@ function _lkPickerSwitchTab(btn, key) {
 }
 
 async function _lkPickerSelect(itemType, itemId, itemLabel) {
+  console.log('[lk] picker select:', { itemType, itemId, itemLabel });
   const ext = _chatState.extended; if (!ext?.lk) return;
-  const c = _ensureSupaClient(); if (!c) return;
+
+  // Fecha o modal IMEDIATAMENTE e atualiza UI otimisticamente
+  ext.lk.sharedItem = { type: itemType, id: itemId, label: itemLabel, by: supaUser.id };
+  _lkCloseSharePicker();
+  _lkRenderShareWrap();
+
+  // Sync com banco em background (cliente isolado pra evitar lock)
   try {
-    await c.rpc('present_synkan_item', {
+    const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+    if (!c) return;
+    const rpcPromise = c.rpc('present_synkan_item', {
       p_session_id: ext.lk.sessionId,
       p_item_type: itemType,
-      p_item_id: itemId,
+      p_item_id: String(itemId),
       p_item_label: itemLabel,
     });
-    ext.lk.sharedItem = { type: itemType, id: itemId, label: itemLabel, by: supaUser.id };
-    _lkCloseSharePicker();
-    _lkRenderShareWrap();
+    const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000));
+    await Promise.race([rpcPromise, timeoutPromise]);
+    console.log('[lk] sharing sincronizado');
   } catch(e) {
-    console.error('[lk] present:', e);
-    appAlert('Erro', 'Não consegui apresentar: ' + (e?.message || e), { icon:'⚠️' });
+    console.warn('[lk] present sync falhou (mas UI já atualizou):', e?.message||e);
+    // Não rollback — a apresentação local funciona, só não sincroniza pros outros
   }
 }
 
@@ -44461,17 +44470,26 @@ function _lkRenderShareWrap() {
   const item = ext.lk.sharedItem;
 
   if (!item) {
-    // Empty state — convida a apresentar
+    // Sem nada compartilhado — chamada normal só de vídeo/voz.
+    // Mostra estado discreto que não domina a tela; tiles ficam grandes.
     wrap.innerHTML = `<div class="lk-share-empty">
       <div class="lk-share-empty-icon">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M9 10 L 12 7 L 15 10"/><line x1="12" y1="7" x2="12" y2="14"/></svg>
       </div>
-      <h3>Compartilhe um item do Synkan</h3>
-      <p>Clique no botão abaixo pra apresentar um Board, OKR, Lab ou Zai pra todos no tatame ao vivo.</p>
-      <button type="button" class="lk-share-cta" onclick="_lkOpenSharePicker()">Compartilhar do Synkan →</button>
+      <h3>Conversando ao vivo</h3>
+      <p>Vocês estão na chamada de vídeo. Quando precisar mostrar algo do workspace, compartilhe um Board, OKR, Lab ou Zai aqui mesmo.</p>
+      <button type="button" class="lk-share-cta" onclick="_lkOpenSharePicker()">+ Compartilhar do Synkan</button>
     </div>`;
+    // Quando vazio, share-wrap fica menor e tiles ficam maiores
+    wrap.style.flex = '0.6';
+    const tilesRow = document.getElementById('lk-tiles-row');
+    if (tilesRow) tilesRow.style.height = '220px';
     return;
   }
+  // Quando há item compartilhado, share-wrap volta ao tamanho grande
+  wrap.style.flex = '1.7';
+  const tilesRow = document.getElementById('lk-tiles-row');
+  if (tilesRow) tilesRow.style.height = '130px';
 
   const isMine = item.by === supaUser?.id;
   const presenter = _chatState.userMap?.[item.by];
@@ -44780,10 +44798,50 @@ function _lkRenderControls() {
 }
 
 async function _lkToggleKan() {
-  // TODO: chamar Edge Function 'kan-transcribe' pra ligar/desligar IA
   const ext = _chatState.extended; if (!ext?.lk) return;
-  ext.lk.hasKan = !ext.lk.hasKan;
-  _lkRender();
+  const newVal = !ext.lk.hasKan;
+
+  // Atualiza UI imediatamente
+  ext.lk.hasKan = newVal;
+  _lkRenderTiles();
+  _lkRenderSidepanel();
+  _lkRenderControls();
+
+  if (newVal) {
+    // Convocou Mestre Kan — mostra toast confirmando
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Mestre Kan convocado',
+        'Em meditação · vai começar a capturar decisões e ações da conversa.', 'info');
+    }
+  } else {
+    // Dispensou — confirma com modal
+    const ok = await appConfirm('Dispensar Mestre Kan?',
+      'A IA vai parar de transcrever e capturar notas. Você pode convocar novamente a qualquer momento.',
+      { okLabel: 'Dispensar', cancelLabel: 'Cancelar' });
+    if (!ok) {
+      // Reverte
+      ext.lk.hasKan = true;
+      _lkRenderTiles();
+      _lkRenderSidepanel();
+      _lkRenderControls();
+      return;
+    }
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Mestre Kan dispensado',
+        'Notas capturadas até agora ficam salvas — basta convocar de novo pra continuar.', 'info');
+    }
+  }
+
+  // Sync com banco em background
+  try {
+    const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+    if (c && ext.lk.sessionId) {
+      await c.from('tatame_video_sessions')
+        .update({ has_kan_assist: newVal })
+        .eq('id', ext.lk.sessionId);
+      console.log('[lk] kan toggle sincronizado:', newVal);
+    }
+  } catch(e) { console.warn('[lk] kan toggle sync falhou:', e?.message||e); }
 }
 
 async function _lkToggleAction(actionId) {
