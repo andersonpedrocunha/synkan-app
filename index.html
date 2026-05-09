@@ -5389,6 +5389,123 @@ body.density-compact .col{padding:7px;}
 .chat-extend-btn svg{width:15px;height:15px;flex-shrink:0;color:var(--tatami-hinomaru);}
 
 .tx-overlay{position:fixed;inset:0;z-index:9000;background:rgba(15,12,10,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;animation:txFadeIn .2s ease;padding:18px;}
+
+/* ── LiveKit · vídeo + screen Synkan + Mestre Kan ───────────────────── */
+.lk-stage{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;}
+.lk-share-wrap{flex:1.7;min-height:280px;background:linear-gradient(135deg,#FFFCF5 0%,#EDE5D0 100%);color:var(--tatami-sumi,#1A1611);border-radius:14px;border:1px solid rgba(193,154,58,.40);position:relative;overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.4),0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;}
+.lk-share-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(0,0,0,.06);border-bottom:1px solid rgba(193,154,58,.30);font-family:var(--tatami-mincho,serif);font-style:italic;font-size:12px;flex-shrink:0;}
+.lk-share-bar strong{color:#BC002D;font-weight:600;font-style:normal;}
+.lk-share-bar .lk-share-pill{margin-left:auto;padding:3px 10px;background:#BC002D;color:#fff;font-style:normal;font-weight:600;font-size:10px;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;}
+.lk-share-bar .lk-share-stop{background:transparent;border:1px solid rgba(0,0,0,.2);color:var(--tatami-ink,#3A332C);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;}
+.lk-share-bar .lk-share-stop:hover{background:rgba(0,0,0,.05);border-color:#BC002D;color:#BC002D;}
+.lk-share-content{flex:1;overflow:auto;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,.4) 0%,transparent 30%),#F5EFE0;}
+.lk-share-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;color:var(--tatami-ink-soft,#5C4F3F);font-family:var(--tatami-mincho,serif);font-style:italic;gap:14px;}
+.lk-share-empty-icon{width:56px;height:56px;border-radius:50%;background:rgba(188,0,45,.08);display:flex;align-items:center;justify-content:center;}
+.lk-share-empty-icon svg{width:28px;height:28px;stroke:#BC002D;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;}
+.lk-share-empty h3{font-family:var(--tatami-mincho,serif);font-size:17px;font-weight:600;color:var(--tatami-sumi,#1A1611);font-style:normal;}
+.lk-share-empty p{font-size:13px;line-height:1.5;max-width:380px;}
+.lk-share-empty .lk-share-cta{padding:11px 22px;background:#BC002D;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;font-style:normal;}
+.lk-share-empty .lk-share-cta:hover{background:#8B0020;}
+
+/* Tiles de vídeo */
+.lk-tiles-row{display:flex;gap:10px;height:130px;flex-shrink:0;overflow-x:auto;padding-bottom:4px;}
+.lk-tiles-row::-webkit-scrollbar{height:5px;}
+.lk-tiles-row::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px;}
+.lk-tile{flex:0 0 175px;aspect-ratio:4/3;background:linear-gradient(135deg,#1F1812 0%,#0E0B07 100%);border-radius:11px;border:1px solid rgba(193,154,58,.20);position:relative;overflow:hidden;transition:all .2s ease;}
+.lk-tile.is-speaking{border-color:#BC002D;box-shadow:0 0 0 2px #BC002D,0 0 24px rgba(188,0,45,.5);}
+.lk-tile-video{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--tatami-mincho,serif);font-size:44px;font-weight:600;color:rgba(255,255,255,.85);}
+.lk-tile-video video{width:100%;height:100%;object-fit:cover;}
+.lk-tile.is-camera-off .lk-tile-video{background:linear-gradient(135deg,#2A2520 0%,#0E0B07 100%);}
+.lk-tile-video img{width:100%;height:100%;object-fit:cover;}
+.lk-tile-name-bar{position:absolute;bottom:6px;left:6px;right:6px;display:flex;align-items:center;gap:6px;background:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.85) 100%);padding:18px 8px 6px;margin:-16px -6px -6px;border-radius:0 0 10px 10px;}
+.lk-tile-name{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;}
+.lk-tile-mic{display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;background:rgba(0,0,0,.6);border-radius:50%;flex-shrink:0;position:relative;}
+.lk-tile-mic svg{width:9px;height:9px;stroke:#fff;stroke-width:2;fill:none;stroke-linecap:round;}
+.lk-tile-mic.is-muted{background:rgba(188,0,45,.85);}
+.lk-tile-mic.is-muted::after{content:'';position:absolute;width:12px;height:1.5px;background:#fff;transform:rotate(-40deg);}
+.lk-tile-host-stamp{position:absolute;top:6px;right:6px;width:18px;height:18px;display:flex;}
+
+/* Mestre Kan tile (sempre primeiro, gradiente violeta meditativo) */
+.lk-tile.lk-tile-kan{background:linear-gradient(135deg,#6B5DC8 0%,#322B5F 100%);border:1.5px solid rgba(181,168,255,.5);box-shadow:0 0 0 2px rgba(107,93,200,.25),0 0 24px rgba(107,93,200,.3);}
+.lk-tile-kan .lk-tile-video{background:transparent;flex-direction:column;}
+.lk-tile-kan-avatar{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+.lk-tile-kan-avatar::before{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(181,168,255,.5);animation:lkKanRing 2s ease infinite;}
+@keyframes lkKanRing{0%,100%{transform:scale(1);opacity:.7;}50%{transform:scale(1.08);opacity:.3;}}
+.lk-tile-kan-avatar img{width:44px;height:44px;border-radius:50%;}
+.lk-tile-kan-status{margin-top:6px;font-family:var(--tatami-mincho,serif);font-style:italic;font-size:10.5px;color:rgba(255,255,255,.85);}
+.lk-tile-kan-status::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:#B5A8FF;margin-right:4px;vertical-align:2px;animation:lkKanPulse 1.2s ease infinite;}
+@keyframes lkKanPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
+
+/* Sidepanel do Mestre Kan / participantes */
+.lk-sidepanel{width:300px;background:rgba(20,16,12,.92);backdrop-filter:blur(20px);border-left:1px solid rgba(193,154,58,.20);display:flex;flex-direction:column;flex-shrink:0;color:#fff;}
+.lk-sidepanel-tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0;}
+.lk-sidepanel-tab{flex:1;padding:11px 6px;background:transparent;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-family:var(--tatami-mincho,serif);font-style:italic;font-size:11px;transition:all .15s;}
+.lk-sidepanel-tab.is-active{color:#fff;background:rgba(255,255,255,.04);border-bottom:2px solid #BC002D;}
+.lk-sidepanel-tab .tab-badge{display:inline-block;min-width:14px;padding:0 4px;background:#6B5DC8;color:#fff;border-radius:999px;font-size:9px;font-weight:700;font-style:normal;font-family:-apple-system,sans-serif;margin-left:4px;vertical-align:1px;}
+.lk-sidepanel-content{flex:1;overflow-y:auto;padding:12px;}
+
+/* Notas do Mestre Kan */
+.lk-kan-h{display:flex;align-items:center;gap:10px;padding:12px 0 14px;border-bottom:1px dashed rgba(255,255,255,.10);margin-bottom:14px;}
+.lk-kan-h img{width:36px;height:36px;border-radius:50%;}
+.lk-kan-h-title{font-family:var(--tatami-mincho,serif);font-size:14px;font-weight:600;}
+.lk-kan-h-sub{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:10.5px;color:rgba(255,255,255,.55);}
+.lk-kan-section{font-family:var(--tatami-mincho,serif);font-size:10.5px;color:rgba(255,255,255,.55);letter-spacing:.08em;text-transform:uppercase;font-weight:600;margin:18px 0 8px;display:flex;align-items:center;gap:8px;}
+.lk-kan-section::before{content:'·';color:#BC002D;font-size:18px;}
+.lk-kan-decision{padding:10px 12px;background:rgba(255,255,255,.04);border-left:2px solid #C19A3A;border-radius:0 8px 8px 0;margin-bottom:8px;font-size:12px;line-height:1.5;color:rgba(255,255,255,.92);}
+.lk-kan-decision-time{font-family:var(--tatami-mincho,serif);font-size:9.5px;color:rgba(255,255,255,.4);margin-top:4px;}
+.lk-kan-action{display:flex;gap:10px;padding:10px 12px;background:rgba(188,0,45,.10);border-left:2px solid #BC002D;border-radius:0 8px 8px 0;margin-bottom:8px;font-size:12px;line-height:1.4;}
+.lk-kan-action-check{width:16px;height:16px;border-radius:4px;border:1.5px solid rgba(255,255,255,.5);flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.lk-kan-action.is-done .lk-kan-action-check{background:#3a6b2c;border-color:#3a6b2c;}
+.lk-kan-action.is-done .lk-kan-action-check::after{content:'✓';color:#fff;font-size:11px;font-weight:700;}
+.lk-kan-action-body{flex:1;}
+.lk-kan-action.is-done .lk-kan-action-text{text-decoration:line-through;opacity:.6;}
+.lk-kan-action-meta{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:10.5px;color:rgba(255,255,255,.5);margin-top:3px;}
+.lk-kan-action-meta a{color:#BC002D;text-decoration:none;cursor:pointer;}
+.lk-kan-empty{padding:30px 16px;text-align:center;color:rgba(255,255,255,.5);font-family:var(--tatami-mincho,serif);font-style:italic;font-size:12px;line-height:1.5;}
+.lk-kan-empty-icon{width:48px;height:48px;border-radius:50%;background:rgba(107,93,200,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;}
+.lk-kan-empty-icon img{width:32px;height:32px;border-radius:50%;}
+
+/* Botões de control bar (LiveKit-specific) */
+.lk-ctrl{width:42px;height:42px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;transition:all .15s;position:relative;font-family:inherit;}
+.lk-ctrl:hover{background:rgba(255,255,255,.12);}
+.lk-ctrl svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+.lk-ctrl.is-active{background:#BC002D;border-color:#BC002D;color:#fff;box-shadow:0 0 16px rgba(188,0,45,.5);}
+.lk-ctrl.is-muted{background:#5C0015;border-color:#8B0020;}
+.lk-ctrl.is-muted::after{content:'';position:absolute;width:22px;height:2px;background:#fff;transform:rotate(-45deg);border-radius:1px;}
+.lk-ctrl.is-disabled{opacity:.4;cursor:not-allowed;}
+.lk-ctrl-share-synkan{width:auto;padding:0 14px 0 10px;gap:8px;background:linear-gradient(135deg,rgba(188,0,45,.18) 0%,rgba(188,0,45,.08) 100%);border:1px solid rgba(188,0,45,.40);font-family:var(--tatami-mincho,serif);font-size:12px;font-style:italic;}
+.lk-ctrl-share-synkan:hover{background:linear-gradient(135deg,rgba(188,0,45,.30) 0%,rgba(188,0,45,.15) 100%);}
+.lk-ctrl-share-synkan.is-active{background:#BC002D;border-color:#BC002D;font-style:normal;font-weight:600;}
+.lk-ctrl-kan{width:auto;padding:0 12px 0 6px;gap:7px;background:linear-gradient(135deg,rgba(107,93,200,.20) 0%,rgba(107,93,200,.08) 100%);border:1px solid rgba(107,93,200,.45);font-family:var(--tatami-mincho,serif);font-size:11.5px;font-style:italic;}
+.lk-ctrl-kan img{width:22px;height:22px;border-radius:50%;}
+.lk-ctrl-kan:hover{background:linear-gradient(135deg,rgba(107,93,200,.32) 0%,rgba(107,93,200,.18) 100%);}
+.lk-ctrl-kan.is-active{background:#6B5DC8;border-color:rgba(181,168,255,.6);font-style:normal;font-weight:600;}
+
+/* Picker modal de items Synkan pra apresentar */
+.lk-share-modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:10001;}
+.lk-share-modal-ov.is-open{display:flex;}
+.lk-share-modal{background:linear-gradient(135deg,#FFFCF5 0%,#EDE5D0 100%);color:var(--tatami-ink,#3A332C);border-radius:16px;padding:28px;width:90%;max-width:720px;border:1px solid #B8A878;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.4);}
+.lk-share-modal-h{font-family:var(--tatami-mincho,serif);font-size:22px;font-weight:600;margin-bottom:4px;color:var(--tatami-sumi,#1A1611);}
+.lk-share-modal-sub{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:13px;color:var(--tatami-ink-soft,#5C4F3F);margin-bottom:20px;}
+.lk-share-modal-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid #D9CDA8;padding-bottom:8px;}
+.lk-share-modal-tab{background:transparent;border:none;padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:500;color:var(--tatami-ink-soft,#5C4F3F);cursor:pointer;font-family:inherit;}
+.lk-share-modal-tab.is-active{background:#BC002D;color:#fff;}
+.lk-share-modal-tab .count{margin-left:5px;opacity:.75;font-size:10px;background:rgba(0,0,0,.15);padding:1px 5px;border-radius:999px;}
+.lk-share-modal-tab.is-active .count{background:rgba(255,255,255,.2);}
+.lk-share-modal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-height:340px;overflow-y:auto;}
+@media(max-width:640px){.lk-share-modal-grid{grid-template-columns:1fr 1fr;}}
+.lk-share-item{background:#FFFCF5;border:1px solid #D9CDA8;border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:6px;text-align:left;}
+.lk-share-item:hover{border-color:#BC002D;transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08);}
+.lk-share-item-icon{width:32px;height:32px;border-radius:8px;background:#EDE5D0;border:1px solid #D9CDA8;display:flex;align-items:center;justify-content:center;margin-bottom:4px;}
+.lk-share-item-icon svg{width:18px;height:18px;stroke:#BC002D;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;}
+.lk-share-item-name{font-weight:600;font-size:13px;}
+.lk-share-item-meta{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:11px;color:var(--tatami-ink-soft,#5C4F3F);}
+
+/* Body LiveKit container — substitui as 2 colunas (left/main) quando vídeo ativo */
+.tx-overlay.tx-livekit-mode .tx-panel-left,
+.tx-overlay.tx-livekit-mode .tx-panel-main{display:none !important;}
+.lk-body{flex:1;display:flex;min-height:0;width:100%;}
+.lk-stage-wrap{flex:1;display:flex;flex-direction:column;padding:18px 20px;gap:14px;min-height:0;min-width:0;}
 /* Modais do app precisam ficar ACIMA do overlay do tatame quando este está ativo.
  * Tatame está em z-index:9000. Subimos TODOS os modais conhecidos pra 9500+. */
 body.tx-active .ov{z-index:9500 !important;}
@@ -43762,6 +43879,867 @@ async function _chatChannelAuditModal(channelId) {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// LiveKit · Vídeo + Screen Synkan + Mestre Kan
+// ────────────────────────────────────────────────────────────────────
+// Camada acima do Tatame estendido. Adiciona vídeo, compartilhamento
+// de items Synkan (board/OKR/Lab/Zai/card) e Mestre Kan IA.
+//
+// Setup: precisa de Supabase Edge Function 'livekit-token' rodando
+// que retorne JWT pra LiveKit Cloud (config: LIVEKIT_API_KEY+SECRET).
+// URL do LiveKit configurada em window.LIVEKIT_WS_URL.
+//
+// Estado em _chatState.extended.lk:
+//   { sessionId, room (LiveKit Room obj), connected, localTracks:{},
+//     participants:Map<sid, p>, sharedItem:{type,id,label,by},
+//     decisions:[], actions:[], rtSubscription, sidepanelTab }
+// ════════════════════════════════════════════════════════════════════
+
+// Config (deve ser setada antes do app boot — geralmente em config.js)
+window.LIVEKIT_WS_URL = window.LIVEKIT_WS_URL || 'wss://your-project.livekit.cloud';
+window.LIVEKIT_TOKEN_ENDPOINT = window.LIVEKIT_TOKEN_ENDPOINT || (function(){
+  // Default: Supabase Edge Function. Override via window.LIVEKIT_TOKEN_ENDPOINT
+  try {
+    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+    if (cfg?.url) return `${cfg.url}/functions/v1/livekit-token`;
+  } catch(_){}
+  return null;
+})();
+
+const _LK_KAN_AVATAR = 'mestre_kan_avatar.png?v=6';
+
+// Lazy-load do LiveKit Client SDK (CDN)
+let _lkSdkLoading = null;
+function _lkLoadSDK() {
+  if (window.LivekitClient) return Promise.resolve(window.LivekitClient);
+  if (_lkSdkLoading) return _lkSdkLoading;
+  _lkSdkLoading = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/livekit-client@2.5.10/dist/livekit-client.umd.min.js';
+    s.async = true;
+    s.onload = () => resolve(window.LivekitClient);
+    s.onerror = () => reject(new Error('Falha ao carregar LiveKit SDK'));
+    document.head.appendChild(s);
+  });
+  return _lkSdkLoading;
+}
+
+// Verifica se o user pode usar vídeo/screen share (Faixa Roxa+) ou recording (Preta)
+function _lkCanUseVideo() {
+  try {
+    const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+    const code = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+    return ['trial','faixa_roxa','faixa_preta'].includes(code);
+  } catch(_) { return true; /* dev mode */ }
+}
+function _lkCanRecord() {
+  try {
+    const code = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+    return code === 'faixa_preta';
+  } catch(_) { return false; }
+}
+
+// Pede token ao endpoint
+async function _lkFetchToken(channelId, identity, name) {
+  const ep = window.LIVEKIT_TOKEN_ENDPOINT;
+  if (!ep) throw new Error('Configure window.LIVEKIT_TOKEN_ENDPOINT');
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  let jwt = null;
+  if (c) {
+    try {
+      const { data } = await c.auth.getSession();
+      jwt = data?.session?.access_token;
+    } catch(_){}
+  }
+  const r = await fetch(ep, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(jwt ? { 'Authorization': 'Bearer ' + jwt } : {}),
+    },
+    body: JSON.stringify({ channel_id: channelId, identity, name }),
+  });
+  if (!r.ok) throw new Error(`Token endpoint ${r.status}`);
+  const j = await r.json();
+  if (!j.token) throw new Error('Token vazio');
+  return j.token;
+}
+
+// ── Inicia LiveKit (entra na sala) ───────────────────────────────────
+async function _lkStart() {
+  const ext = _chatState.extended;
+  if (!ext || !ext.open) return;
+  if (ext.lk && ext.lk.connected) return;
+
+  if (!_lkCanUseVideo()) {
+    appAlert('Vídeo no Tatame requer Faixa Roxa+',
+      'Pra subir no tatame com vídeo + screen share você precisa estar na Faixa Roxa ou Preta. Faça upgrade em Configurações → Plano.',
+      { icon:'🎥' });
+    return;
+  }
+
+  let LK;
+  try {
+    LK = await _lkLoadSDK();
+  } catch(e) {
+    appAlert('Não consegui carregar o vídeo', 'Verifique sua conexão e tente novamente.', { icon:'⚠️' });
+    return;
+  }
+
+  const c = _ensureSupaClient();
+  if (!c || !supaUser) return;
+
+  // 1) Cria/recupera sessão no banco
+  let session;
+  try {
+    const { data, error } = await c.rpc('start_video_session', {
+      p_channel_id: ext.channelId,
+      p_with_kan: true, // padrão: Mestre Kan presente
+    });
+    if (error) throw error;
+    session = data;
+  } catch(e) {
+    console.error('[lk] start session falhou:', e);
+    appAlert('Erro', 'Não consegui iniciar a sessão de vídeo: ' + (e?.message || e), { icon:'⚠️' });
+    return;
+  }
+
+  // 2) Pega token do endpoint
+  let token;
+  try {
+    const userName = (supaUser?.user_metadata?.full_name || supaUser?.email || 'usuário');
+    token = await _lkFetchToken(ext.channelId, supaUser.id, userName);
+  } catch(e) {
+    console.error('[lk] token fetch falhou:', e);
+    appAlert('Configuração ausente',
+      'Endpoint LiveKit não configurado. Verifique window.LIVEKIT_TOKEN_ENDPOINT e a Supabase Edge Function "livekit-token".',
+      { icon:'⚙️' });
+    return;
+  }
+
+  // 3) Conecta na sala LiveKit
+  const room = new LK.Room({
+    adaptiveStream: true,
+    dynacast: true,
+    publishDefaults: { videoSimulcastLayers: [LK.VideoPresets.h180, LK.VideoPresets.h540] },
+  });
+
+  ext.lk = {
+    connected: false,
+    sessionId: session.session_id,
+    livekitRoom: session.livekit_room,
+    hasKan: !!session.has_kan_assist,
+    room,
+    participants: new Map(),
+    localTracks: {},
+    sharedItem: null,
+    decisions: [],
+    actions: [],
+    sidepanelTab: 'notas',
+    rtSub: null,
+  };
+
+  // Listeners do LiveKit
+  room.on(LK.RoomEvent.ParticipantConnected, _lkOnParticipantConnected);
+  room.on(LK.RoomEvent.ParticipantDisconnected, _lkOnParticipantDisconnected);
+  room.on(LK.RoomEvent.TrackSubscribed, _lkOnTrackSubscribed);
+  room.on(LK.RoomEvent.TrackUnsubscribed, _lkOnTrackUnsubscribed);
+  room.on(LK.RoomEvent.ActiveSpeakersChanged, _lkOnActiveSpeakersChanged);
+  room.on(LK.RoomEvent.Disconnected, _lkOnDisconnected);
+
+  try {
+    await room.connect(window.LIVEKIT_WS_URL, token);
+    ext.lk.connected = true;
+    // Registra entrada no banco
+    await c.rpc('join_video_session', { p_session_id: session.session_id, p_with_camera: false });
+  } catch(e) {
+    console.error('[lk] connect falhou:', e);
+    appAlert('Erro de conexão', 'Não consegui entrar na sala. Verifique LIVEKIT_WS_URL.', { icon:'⚠️' });
+    return;
+  }
+
+  // Subscribe Realtime pra sync de shared_item + decisões + ações
+  _lkSubscribeRealtime();
+
+  // Carrega estado atual da sessão (caso já exista shared_item / decisões)
+  try {
+    const { data } = await c.rpc('get_active_session', { p_channel_id: ext.channelId });
+    if (data?.active) {
+      ext.lk.decisions = data.decisions || [];
+      ext.lk.actions = data.actions || [];
+      const items = data.shared_items || [];
+      if (items.length > 0) {
+        ext.lk.sharedItem = {
+          type: items[0].item_type,
+          id:   items[0].item_id,
+          label: items[0].item_label,
+          by:   items[0].presented_by,
+        };
+      }
+    }
+  } catch(_){}
+
+  _lkRender();
+}
+
+function _lkSubscribeRealtime() {
+  const ext = _chatState.extended;
+  const c = _ensureSupaClient();
+  if (!ext?.lk?.sessionId || !c) return;
+
+  const ch = c.channel(`lk-session-${ext.lk.sessionId}`)
+    .on('postgres_changes', {
+      event: '*', schema: 'public',
+      table: 'tatame_session_shared_items',
+      filter: `session_id=eq.${ext.lk.sessionId}`,
+    }, payload => _lkOnSharedItemChange(payload))
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public',
+      table: 'tatame_session_decisions',
+      filter: `session_id=eq.${ext.lk.sessionId}`,
+    }, payload => {
+      ext.lk.decisions.push(payload.new);
+      _lkRenderSidepanel();
+    })
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public',
+      table: 'tatame_session_actions',
+      filter: `session_id=eq.${ext.lk.sessionId}`,
+    }, payload => {
+      ext.lk.actions.push(payload.new);
+      _lkRenderSidepanel();
+    })
+    .on('postgres_changes', {
+      event: 'UPDATE', schema: 'public',
+      table: 'tatame_session_actions',
+      filter: `session_id=eq.${ext.lk.sessionId}`,
+    }, payload => {
+      const idx = ext.lk.actions.findIndex(a => a.id === payload.new.id);
+      if (idx >= 0) ext.lk.actions[idx] = payload.new;
+      _lkRenderSidepanel();
+    })
+    .subscribe();
+  ext.lk.rtSub = ch;
+}
+
+function _lkOnSharedItemChange(payload) {
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  const newRow = payload.new;
+  if (newRow && !newRow.ended_at) {
+    ext.lk.sharedItem = {
+      type: newRow.item_type, id: newRow.item_id,
+      label: newRow.item_label, by: newRow.presented_by,
+    };
+  } else {
+    ext.lk.sharedItem = null;
+  }
+  _lkRenderShareWrap();
+}
+
+function _lkOnParticipantConnected(p) {
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  ext.lk.participants.set(p.sid, p);
+  _lkRenderTiles();
+}
+function _lkOnParticipantDisconnected(p) {
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  ext.lk.participants.delete(p.sid);
+  _lkRenderTiles();
+}
+function _lkOnTrackSubscribed(track, pub, participant) {
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  _lkRenderTiles();
+}
+function _lkOnTrackUnsubscribed(track) { _lkRenderTiles(); }
+function _lkOnActiveSpeakersChanged(speakers) {
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  ext.lk.activeSpeakerIds = new Set(speakers.map(p => p.sid));
+  document.querySelectorAll('.lk-tile[data-sid]').forEach(el => {
+    el.classList.toggle('is-speaking', ext.lk.activeSpeakerIds.has(el.dataset.sid));
+  });
+}
+function _lkOnDisconnected() {
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  ext.lk.connected = false;
+  _lkRender();
+}
+
+// ── Toggle local tracks ────────────────────────────────────────────
+async function _lkToggleCamera() {
+  const ext = _chatState.extended; if (!ext?.lk?.room) return;
+  const enabled = ext.lk.room.localParticipant.isCameraEnabled;
+  try {
+    await ext.lk.room.localParticipant.setCameraEnabled(!enabled);
+    _lkRender();
+  } catch(e) { console.warn('[lk] camera toggle:', e); }
+}
+async function _lkToggleMic() {
+  const ext = _chatState.extended; if (!ext?.lk?.room) return;
+  const enabled = ext.lk.room.localParticipant.isMicrophoneEnabled;
+  try {
+    await ext.lk.room.localParticipant.setMicrophoneEnabled(!enabled);
+    _lkRender();
+  } catch(e) { console.warn('[lk] mic toggle:', e); }
+}
+async function _lkToggleScreenShare() {
+  const ext = _chatState.extended; if (!ext?.lk?.room) return;
+  const enabled = ext.lk.room.localParticipant.isScreenShareEnabled;
+  try {
+    await ext.lk.room.localParticipant.setScreenShareEnabled(!enabled, { audio: true });
+    _lkRender();
+  } catch(e) { console.warn('[lk] screen toggle:', e); }
+}
+
+// ── Apresentar item Synkan ─────────────────────────────────────────
+function _lkOpenSharePicker() {
+  const ext = _chatState.extended;
+  if (!ext?.lk?.connected) return;
+  let modal = document.getElementById('lk-share-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'lk-share-modal';
+    modal.className = 'lk-share-modal-ov';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = _lkSharePickerHTML();
+  modal.classList.add('is-open');
+  modal.onclick = e => { if (e.target === modal) _lkCloseSharePicker(); };
+}
+function _lkCloseSharePicker() {
+  const m = document.getElementById('lk-share-modal');
+  if (m) m.classList.remove('is-open');
+}
+
+function _lkSharePickerHTML() {
+  const boards = (typeof allBoards !== 'undefined') ? Object.values(allBoards||{}).filter(b => b && b.id !== '__unified__') : [];
+  // Categorias: Boards / OKRs / Lab / Zai
+  const tabs = [
+    { key:'board', label:'Boards', items: boards.map(b => ({
+      id: b.id, name: b.name || 'Board', meta: `${(b.cards||[]).length} cards`
+    })) },
+  ];
+  // OKRs
+  try {
+    if (typeof _okrsList === 'function') {
+      const okrs = _okrsList() || [];
+      tabs.push({ key:'okr', label:'OKRs', items: okrs.map(o => ({
+        id: o.id, name: o.title || 'OKR', meta: `${(o.krs||[]).length} KRs`
+      })) });
+    }
+  } catch(_){}
+  // Lab
+  try {
+    if (typeof _canvasesList === 'function') {
+      const labs = _canvasesList() || [];
+      tabs.push({ key:'lab', label:'Lab', items: labs.map(l => ({
+        id: l.id, name: l.title || 'Lab', meta: l.kind || 'canvas'
+      })) });
+    }
+  } catch(_){}
+  // Zai (boards com kind=zai)
+  const zais = boards.filter(b => b.kind === 'zai' || b.isZai);
+  if (zais.length) {
+    tabs.push({ key:'zai', label:'Zai', items: zais.map(z => ({
+      id: z.id, name: z.name || 'Zai', meta: 'finanças'
+    })) });
+  }
+
+  const ICO = {
+    board: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="5" height="13" rx="1"/></svg>',
+    okr:   '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>',
+    lab:   '<svg viewBox="0 0 24 24"><path d="M9 3 L 15 3 L 18 8 L 18 21 L 6 21 L 6 8 Z"/><path d="M9 3 L 9 8 L 18 8"/></svg>',
+    zai:   '<svg viewBox="0 0 24 24"><path d="M3 17 L 9 11 L 13 15 L 21 7"/><polyline points="17 7 21 7 21 11"/></svg>',
+  };
+
+  return `<div class="lk-share-modal">
+    <div class="lk-share-modal-h">Compartilhar do Synkan</div>
+    <div class="lk-share-modal-sub">Mostre algo do seu workspace pra todos no tatame. Alta resolução, todos navegam juntos.</div>
+    <div class="lk-share-modal-tabs">
+      ${tabs.map((t,i) => `<button type="button" class="lk-share-modal-tab${i===0?' is-active':''}" onclick="_lkPickerSwitchTab(this,'${t.key}')">${_esc(t.label)}<span class="count">${t.items.length}</span></button>`).join('')}
+    </div>
+    ${tabs.map((t,i) => `<div class="lk-share-modal-grid" data-tab="${t.key}" style="display:${i===0?'grid':'none'};">
+      ${t.items.length === 0
+        ? `<div style="grid-column:1/-1;padding:24px;text-align:center;font-style:italic;color:var(--tatami-ink-soft,#5C4F3F);">Nenhum item disponível ainda.</div>`
+        : t.items.map(it => `
+          <button type="button" class="lk-share-item" onclick="_lkPickerSelect('${t.key}','${_esc(it.id)}','${_esc(it.name)}')">
+            <span class="lk-share-item-icon">${ICO[t.key]||ICO.board}</span>
+            <div class="lk-share-item-name">${_esc(it.name)}</div>
+            <div class="lk-share-item-meta">${_esc(it.meta||'')}</div>
+          </button>`).join('')}
+    </div>`).join('')}
+    <div style="margin-top:18px;padding:12px 14px;background:rgba(188,0,45,.06);border-left:3px solid #BC002D;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.5;color:var(--tatami-ink,#3A332C);">
+      <strong style="color:#BC002D;">⚡ Por que isso é melhor que screen share?</strong><br/>
+      Alta resolução nativa (sem compressão), todos navegam individualmente, e edições aparecem em tempo real pra todo mundo.
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
+      <button type="button" style="background:transparent;border:1px solid #B8A878;padding:9px 18px;border-radius:8px;cursor:pointer;color:var(--tatami-ink,#3A332C);font-size:12.5px;" onclick="_lkCloseSharePicker()">Cancelar</button>
+    </div>
+  </div>`;
+}
+
+function _lkPickerSwitchTab(btn, key) {
+  btn.parentElement.querySelectorAll('.lk-share-modal-tab').forEach(b => b.classList.remove('is-active'));
+  btn.classList.add('is-active');
+  btn.parentElement.parentElement.querySelectorAll('.lk-share-modal-grid').forEach(g => {
+    g.style.display = (g.dataset.tab === key) ? 'grid' : 'none';
+  });
+}
+
+async function _lkPickerSelect(itemType, itemId, itemLabel) {
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  const c = _ensureSupaClient(); if (!c) return;
+  try {
+    await c.rpc('present_synkan_item', {
+      p_session_id: ext.lk.sessionId,
+      p_item_type: itemType,
+      p_item_id: itemId,
+      p_item_label: itemLabel,
+    });
+    ext.lk.sharedItem = { type: itemType, id: itemId, label: itemLabel, by: supaUser.id };
+    _lkCloseSharePicker();
+    _lkRenderShareWrap();
+  } catch(e) {
+    console.error('[lk] present:', e);
+    appAlert('Erro', 'Não consegui apresentar: ' + (e?.message || e), { icon:'⚠️' });
+  }
+}
+
+async function _lkStopPresenting() {
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  const c = _ensureSupaClient(); if (!c) return;
+  try {
+    await c.rpc('stop_presenting', { p_session_id: ext.lk.sessionId });
+    ext.lk.sharedItem = null;
+    _lkRenderShareWrap();
+  } catch(_){}
+}
+
+// ── Render funções ───────────────────────────────────────────────────
+function _lkRender() {
+  const ext = _chatState.extended;
+  if (!ext?.lk) return;
+  const ov = document.getElementById('tx-overlay');
+  if (!ov) return;
+
+  // Remove overlays voice-only existentes e ativa modo livekit
+  ov.classList.add('tx-livekit-mode');
+
+  // Substitui conteúdo principal
+  let body = ov.querySelector('.lk-body');
+  if (!body) {
+    body = document.createElement('div');
+    body.className = 'lk-body';
+    body.innerHTML = `
+      <div class="lk-stage-wrap">
+        <div class="lk-share-wrap" id="lk-share-wrap"></div>
+        <div class="lk-tiles-row" id="lk-tiles-row"></div>
+      </div>
+      <div class="lk-sidepanel">
+        <div class="lk-sidepanel-tabs" id="lk-sidepanel-tabs"></div>
+        <div class="lk-sidepanel-content" id="lk-sidepanel-content"></div>
+      </div>`;
+    // Insere antes da barra de controles
+    const controls = ov.querySelector('.tx-controls');
+    if (controls) ov.insertBefore(body, controls);
+    else ov.appendChild(body);
+  }
+
+  _lkRenderShareWrap();
+  _lkRenderTiles();
+  _lkRenderSidepanel();
+  _lkRenderControls();
+}
+
+function _lkRenderShareWrap() {
+  const ext = _chatState.extended;
+  const wrap = document.getElementById('lk-share-wrap');
+  if (!wrap || !ext?.lk) return;
+  const item = ext.lk.sharedItem;
+
+  if (!item) {
+    // Empty state — convida a apresentar
+    wrap.innerHTML = `<div class="lk-share-empty">
+      <div class="lk-share-empty-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M9 10 L 12 7 L 15 10"/><line x1="12" y1="7" x2="12" y2="14"/></svg>
+      </div>
+      <h3>Compartilhe um item do Synkan</h3>
+      <p>Clique no botão abaixo pra apresentar um Board, OKR, Lab ou Zai pra todos no tatame ao vivo.</p>
+      <button type="button" class="lk-share-cta" onclick="_lkOpenSharePicker()">Compartilhar do Synkan →</button>
+    </div>`;
+    return;
+  }
+
+  const isMine = item.by === supaUser?.id;
+  const presenter = _chatState.userMap?.[item.by];
+  const presenterName = presenter?.name || (isMine ? 'você' : 'alguém');
+  wrap.innerHTML = `
+    <div class="lk-share-bar">
+      <span style="display:inline-flex;width:18px;height:18px;flex-shrink:0;">
+        <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2" fill="#BC002D"/><text x="12" y="17" font-family="'Noto Serif JP',serif" font-weight="700" font-size="14" text-anchor="middle" fill="#fff">主</text></svg>
+      </span>
+      <span><strong>${_esc(presenterName)}</strong> está apresentando · ${_esc(item.type)} <strong>${_esc(item.label||'')}</strong></span>
+      ${isMine ? `<button type="button" class="lk-share-stop" onclick="_lkStopPresenting()">parar</button>` : ''}
+      <span class="lk-share-pill">↗ ao vivo</span>
+    </div>
+    <div class="lk-share-content" id="lk-share-content">
+      <div style="text-align:center;padding:30px;font-family:var(--tatami-mincho,serif);font-style:italic;color:var(--tatami-ink-soft,#5C4F3F);">
+        Carregando ${_esc(item.label||item.type)}…
+      </div>
+    </div>`;
+  // TODO: lazy-render do item no painel — embed do board/lab/okr/zai inline
+  // Reusa _txRenderEmbed se existir; senão deixa placeholder
+  setTimeout(() => {
+    try {
+      if (item.type === 'board' && typeof switchBoard === 'function') {
+        // Embed do board no painel — usa o mesmo mecanismo do _txRenderEmbed se houver
+        if (typeof _txEmbedBoardInElement === 'function') {
+          _txEmbedBoardInElement(item.id, document.getElementById('lk-share-content'));
+        }
+      }
+    } catch(_){}
+  }, 100);
+}
+
+function _lkRenderTiles() {
+  const ext = _chatState.extended;
+  const row = document.getElementById('lk-tiles-row');
+  if (!row || !ext?.lk) return;
+
+  const tiles = [];
+
+  // Mestre Kan tile (sempre primeiro se ativo)
+  if (ext.lk.hasKan) {
+    tiles.push(`<div class="lk-tile lk-tile-kan">
+      <div class="lk-tile-video">
+        <div class="lk-tile-kan-avatar"><img src="${_LK_KAN_AVATAR}" alt="Mestre Kan"/></div>
+        <div class="lk-tile-kan-status">${ext.lk.connected ? 'transcrevendo · ouvindo' : 'em meditação'}</div>
+      </div>
+      <div class="lk-tile-name-bar"><span class="lk-tile-name" style="color:#C9C2F0;">Mestre Kan · IA</span></div>
+    </div>`);
+  }
+
+  // Local participant
+  const local = ext.lk.room?.localParticipant;
+  if (local) {
+    tiles.push(_lkTileHTML(local, true));
+  }
+
+  // Remote participants
+  if (ext.lk.room) {
+    ext.lk.room.remoteParticipants.forEach(p => {
+      tiles.push(_lkTileHTML(p, false));
+    });
+  }
+
+  row.innerHTML = tiles.join('');
+
+  // Mount video tracks dinamicamente após render
+  ext.lk.room?.remoteParticipants.forEach(p => _lkAttachTracks(p));
+  if (local) _lkAttachTracks(local);
+}
+
+function _lkTileHTML(p, isLocal) {
+  const ext = _chatState.extended;
+  const userId = p.identity || (isLocal ? supaUser?.id : '');
+  const u = userId ? _chatState.userMap?.[userId] : null;
+  const name = u?.name || p.name || (isLocal ? 'você' : 'usuário');
+  const initials = (name || '?').slice(0,1).toUpperCase();
+  const isHost = ext.lk.room?.metadata && JSON.parse(ext.lk.room.metadata||'{}').host === userId;
+  const speaking = ext.lk.activeSpeakerIds?.has(p.sid);
+
+  // Detecta câmera/mic
+  const cameraPub = p.getTrackPublication ? p.getTrackPublication(window.LivekitClient?.Track?.Source?.Camera) : null;
+  const micPub = p.getTrackPublication ? p.getTrackPublication(window.LivekitClient?.Track?.Source?.Microphone) : null;
+  const hasCamera = cameraPub && !cameraPub.isMuted;
+  const isMuted = !micPub || micPub.isMuted;
+
+  return `<div class="lk-tile ${hasCamera?'':'is-camera-off'}${speaking?' is-speaking':''}" data-sid="${_esc(p.sid)}" data-uid="${_esc(userId||'')}">
+    <div class="lk-tile-video" data-track-mount="${_esc(p.sid)}">
+      ${hasCamera ? '' : (u?.avatar ? `<img src="${_esc(u.avatar)}" alt=""/>` : _esc(initials))}
+    </div>
+    ${isLocal ? '' : ''}
+    <div class="lk-tile-name-bar">
+      <span class="lk-tile-name">${_esc(name)}${isLocal ? ' <em style="opacity:.6;">(você)</em>' : ''}</span>
+      <span class="lk-tile-mic ${isMuted?'is-muted':''}">
+        <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 12 a7 7 0 0 0 14 0"/></svg>
+      </span>
+    </div>
+  </div>`;
+}
+
+function _lkAttachTracks(p) {
+  if (!p || !p.videoTrackPublications) return;
+  const sid = p.sid;
+  const mount = document.querySelector(`[data-track-mount="${sid}"]`);
+  if (!mount) return;
+  p.videoTrackPublications.forEach(pub => {
+    if (pub.track && !pub.isMuted) {
+      const existing = mount.querySelector('video');
+      if (existing) existing.remove();
+      const el = pub.track.attach();
+      el.style.width = '100%';
+      el.style.height = '100%';
+      el.style.objectFit = 'cover';
+      mount.innerHTML = '';
+      mount.appendChild(el);
+    }
+  });
+}
+
+function _lkRenderSidepanel() {
+  const ext = _chatState.extended;
+  const tabs = document.getElementById('lk-sidepanel-tabs');
+  const content = document.getElementById('lk-sidepanel-content');
+  if (!tabs || !content || !ext?.lk) return;
+
+  const decisionsCount = ext.lk.decisions.length;
+  const actionsCount = ext.lk.actions.length;
+  const totalNotes = decisionsCount + actionsCount;
+  const tab = ext.lk.sidepanelTab || 'notas';
+  const peopleCount = (ext.lk.hasKan ? 1 : 0) + 1 + (ext.lk.room?.remoteParticipants.size || 0);
+
+  tabs.innerHTML = `
+    <button type="button" class="lk-sidepanel-tab${tab==='notas'?' is-active':''}" onclick="_lkSwitchTab('notas')">📝 Notas${totalNotes>0?` <span class="tab-badge">${totalNotes}</span>`:''}</button>
+    <button type="button" class="lk-sidepanel-tab${tab==='pessoas'?' is-active':''}" onclick="_lkSwitchTab('pessoas')">道場 · ${peopleCount}</button>`;
+
+  if (tab === 'notas') {
+    content.innerHTML = _lkNotasHTML();
+  } else {
+    content.innerHTML = _lkPessoasHTML();
+  }
+}
+
+function _lkSwitchTab(t) {
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  ext.lk.sidepanelTab = t;
+  _lkRenderSidepanel();
+}
+
+function _lkNotasHTML() {
+  const ext = _chatState.extended;
+  const decisions = ext.lk.decisions || [];
+  const actions = ext.lk.actions || [];
+  const noNotes = decisions.length === 0 && actions.length === 0;
+
+  if (noNotes) {
+    return `<div class="lk-kan-h">
+      <img src="${_LK_KAN_AVATAR}" alt=""/>
+      <div>
+        <div class="lk-kan-h-title">Mestre Kan · Notas</div>
+        <div class="lk-kan-h-sub">${ext.lk.hasKan ? 'em meditação · pronto pra capturar' : 'desativado'}</div>
+      </div>
+    </div>
+    <div class="lk-kan-empty">
+      <div class="lk-kan-empty-icon"><img src="${_LK_KAN_AVATAR}" alt=""/></div>
+      <div>Mestre Kan está em <em>zazen</em>.<br/>Vai começar a capturar decisões e ações conforme o time fala.</div>
+    </div>`;
+  }
+
+  let html = `<div class="lk-kan-h">
+    <img src="${_LK_KAN_AVATAR}" alt=""/>
+    <div>
+      <div class="lk-kan-h-title">Mestre Kan · Notas</div>
+      <div class="lk-kan-h-sub">capturando decisões e ações em tempo real</div>
+    </div>
+  </div>`;
+
+  if (decisions.length > 0) {
+    html += `<div class="lk-kan-section">decisões tomadas</div>`;
+    decisions.forEach(d => {
+      const u = d.attributed_to ? _chatState.userMap?.[d.attributed_to] : null;
+      const ago = _lkTimeAgo(d.captured_at);
+      html += `<div class="lk-kan-decision">
+        <div>${_esc(d.content)}</div>
+        <div class="lk-kan-decision-time">${_esc(ago)}${u ? ' · ' + _esc(u.name) : ''}</div>
+      </div>`;
+    });
+  }
+
+  if (actions.length > 0) {
+    html += `<div class="lk-kan-section">ações criadas <span style="opacity:.5;font-weight:400;">· vira card</span></div>`;
+    actions.forEach(a => {
+      const assignee = a.assignee_user_id ? _chatState.userMap?.[a.assignee_user_id] : null;
+      const dl = a.deadline ? new Date(a.deadline).toLocaleDateString('pt-BR') : null;
+      html += `<div class="lk-kan-action${a.done?' is-done':''}">
+        <div class="lk-kan-action-check" onclick="_lkToggleAction('${_esc(a.id)}')"></div>
+        <div class="lk-kan-action-body">
+          <div class="lk-kan-action-text">${_esc(a.content)}${dl ? ` <strong>até ${_esc(dl)}</strong>` : ''}</div>
+          ${a.card_id ? `<div class="lk-kan-action-meta">→ <a onclick="_lkOpenCard('${_esc(a.card_board_id)}',${a.card_id})">card #${a.card_id}</a></div>` : (assignee ? `<div class="lk-kan-action-meta">→ ${_esc(assignee.name)}</div>` : '')}
+        </div>
+      </div>`;
+    });
+  }
+
+  return html;
+}
+
+function _lkPessoasHTML() {
+  const ext = _chatState.extended;
+  let rows = '';
+  if (ext.lk.hasKan) {
+    rows += `<div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-radius:8px;background:rgba(107,93,200,.1);">
+      <img src="${_LK_KAN_AVATAR}" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;"/>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12.5px;color:#fff;">Mestre Kan · IA</div>
+        <div style="font-size:10.5px;color:rgba(255,255,255,.5);font-style:italic;font-family:var(--tatami-mincho,serif);">transcrevendo</div>
+      </div>
+    </div>`;
+  }
+
+  // Local
+  const local = ext.lk.room?.localParticipant;
+  if (local) {
+    const u = _chatState.userMap?.[supaUser?.id];
+    const name = u?.name || 'você';
+    rows += _lkParticipantRowHTML(name, '(você)', local.isMicrophoneEnabled, local.isCameraEnabled, u?.avatar);
+  }
+
+  // Remotos
+  if (ext.lk.room) {
+    ext.lk.room.remoteParticipants.forEach(p => {
+      const u = _chatState.userMap?.[p.identity];
+      const name = u?.name || p.name || 'usuário';
+      const micPub = p.getTrackPublication?.(window.LivekitClient?.Track?.Source?.Microphone);
+      const camPub = p.getTrackPublication?.(window.LivekitClient?.Track?.Source?.Camera);
+      const micOn = micPub && !micPub.isMuted;
+      const camOn = camPub && !camPub.isMuted;
+      rows += _lkParticipantRowHTML(name, '', micOn, camOn, u?.avatar);
+    });
+  }
+
+  return rows || `<div class="lk-kan-empty">Sem participantes ainda.</div>`;
+}
+
+function _lkParticipantRowHTML(name, suffix, micOn, camOn, avatar) {
+  const initials = (name||'?').slice(0,1).toUpperCase();
+  return `<div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-radius:8px;">
+    ${avatar ? `<img src="${_esc(avatar)}" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;object-fit:cover;"/>` : `<span style="width:32px;height:32px;border-radius:50%;background:#3C3489;color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--tatami-mincho,serif);font-weight:600;font-size:13px;flex-shrink:0;">${_esc(initials)}</span>`}
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:12.5px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(name)} ${suffix?`<em style="opacity:.5;">${suffix}</em>`:''}</div>
+      <div style="font-size:10.5px;color:rgba(255,255,255,.5);font-style:italic;font-family:var(--tatami-mincho,serif);">${camOn?'câmera + ':''}${micOn?'mic on':'muted'}</div>
+    </div>
+  </div>`;
+}
+
+function _lkTimeAgo(iso) {
+  if (!iso) return '';
+  const d = new Date(iso).getTime();
+  const diff = Math.round((Date.now() - d) / 60000);
+  if (diff < 1) return 'agora';
+  if (diff < 60) return `há ${diff} min`;
+  const h = Math.round(diff/60);
+  if (h < 24) return `há ${h}h`;
+  return new Date(iso).toLocaleDateString('pt-BR');
+}
+
+function _lkRenderControls() {
+  const ext = _chatState.extended;
+  if (!ext?.lk?.room) return;
+  // Insere botões na barra de controles do tx-overlay (se já houver) ou cria nova
+  const ov = document.getElementById('tx-overlay');
+  let bar = ov?.querySelector('.tx-controls');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.className = 'tx-controls';
+    bar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:14px 22px;background:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.5) 100%);border-top:1px solid rgba(255,255,255,.07);position:relative;z-index:2;';
+    ov?.appendChild(bar);
+  }
+
+  const local = ext.lk.room.localParticipant;
+  const micOn = local.isMicrophoneEnabled;
+  const camOn = local.isCameraEnabled;
+  const screenOn = local.isScreenShareEnabled;
+
+  bar.innerHTML = `
+    <button type="button" class="lk-ctrl ${micOn?'is-active':'is-muted'}" onclick="_lkToggleMic()" title="${micOn?'Mute':'Unmute'}">
+      <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 12 a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+    </button>
+    <button type="button" class="lk-ctrl ${camOn?'is-active':''}" onclick="_lkToggleCamera()" title="Câmera">
+      <svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 11 L 22 7 L 22 17 L 16 13 Z"/></svg>
+    </button>
+    <div style="width:1px;height:22px;background:rgba(255,255,255,.12);"></div>
+    <button type="button" class="lk-ctrl lk-ctrl-share-synkan ${ext.lk.sharedItem && ext.lk.sharedItem.by===supaUser?.id?'is-active':''}" onclick="_lkOpenSharePicker()">
+      <svg viewBox="0 0 24 24"><path d="M3 7h18v10H3z"/><line x1="8" y1="11" x2="8" y2="13"/><line x1="12" y1="11" x2="12" y2="13"/><line x1="16" y1="11" x2="16" y2="13"/><path d="M3 7 L 7 3 L 21 3 L 21 7"/></svg>
+      <span>compartilhar Synkan</span>
+    </button>
+    <button type="button" class="lk-ctrl lk-ctrl-kan ${ext.lk.hasKan?'is-active':''}" onclick="_lkToggleKan()" title="Mestre Kan">
+      <img src="${_LK_KAN_AVATAR}" alt=""/>
+      <span>Mestre Kan</span>
+    </button>
+    <button type="button" class="lk-ctrl ${screenOn?'is-active':''}" onclick="_lkToggleScreenShare()" title="Compartilhar tela do navegador">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="17" x2="12" y2="20"/></svg>
+    </button>
+    <button type="button" class="lk-ctrl" style="margin-left:auto;background:#BC002D;border-color:#BC002D;width:auto;padding:0 16px;gap:7px;font-family:var(--tatami-mincho,serif);font-size:12.5px;font-weight:600;" onclick="_lkLeave()">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5 a2 2 0 0 1 -2 -2V5 a2 2 0 0 1 2 -2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span>sair do tatame</span>
+    </button>`;
+}
+
+async function _lkToggleKan() {
+  // TODO: chamar Edge Function 'kan-transcribe' pra ligar/desligar IA
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  ext.lk.hasKan = !ext.lk.hasKan;
+  _lkRender();
+}
+
+async function _lkToggleAction(actionId) {
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  const c = _ensureSupaClient(); if (!c) return;
+  const a = ext.lk.actions.find(x => x.id === actionId);
+  if (!a) return;
+  const newDone = !a.done;
+  try {
+    await c.from('tatame_session_actions').update({
+      done: newDone, done_at: newDone ? new Date().toISOString() : null,
+    }).eq('id', actionId);
+    a.done = newDone;
+    _lkRenderSidepanel();
+  } catch(e) { console.warn('[lk] toggle action:', e); }
+}
+
+function _lkOpenCard(boardId, cardId) {
+  if (typeof switchBoard === 'function' && boardId) {
+    switchBoard(boardId, { goTo: 'kanban' });
+  }
+  if (typeof editCard === 'function' && cardId) {
+    setTimeout(() => editCard(cardId), 300);
+  }
+}
+
+async function _lkLeave() {
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  try {
+    if (ext.lk.room) await ext.lk.room.disconnect();
+  } catch(_){}
+  try {
+    if (ext.lk.rtSub) {
+      const c = _ensureSupaClient();
+      if (c) c.removeChannel(ext.lk.rtSub);
+    }
+  } catch(_){}
+  // Encerra sessão no banco se foi o último
+  try {
+    const c = _ensureSupaClient();
+    if (c && ext.lk.sessionId) {
+      // Endpoint inteligente: se eu era o último, encerra; senão só registra saída
+      const remaining = ext.lk.room?.remoteParticipants.size || 0;
+      if (remaining === 0) {
+        await c.rpc('end_video_session', { p_session_id: ext.lk.sessionId, p_reason: 'last_left' });
+      }
+    }
+  } catch(_){}
+
+  ext.lk = null;
+  const ov = document.getElementById('tx-overlay');
+  if (ov) {
+    ov.classList.remove('tx-livekit-mode');
+    const body = ov.querySelector('.lk-body');
+    if (body) body.remove();
+  }
+  // Mantém o tx-overlay aberto em modo voice-only ou fecha
+  if (typeof _txClose === 'function') _txClose();
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Tatame Estendido — sessão colaborativa em tempo real
 // ────────────────────────────────────────────────────────────────────
 // Conceito: extender o tatame do canal pra uma sala de trabalho
@@ -43944,6 +44922,11 @@ function _txRenderOverlay() {
           </div>
         </div>
         <div class="tx-top-r">
+          ${ext.channelKind !== 'self' ? `
+          <button class="tx-top-btn" onclick="_lkStart()" title="Subir com vídeo + screen Synkan + Mestre Kan IA (Faixa Roxa+)" style="background:linear-gradient(135deg, rgba(188,0,45,.10) 0%, rgba(107,93,200,.10) 100%); border-color: rgba(188,0,45,.40); color: var(--tatami-sumi);">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 11 L 22 7 L 22 17 L 16 13 Z"/></svg>
+            <span>Vídeo + Mestre Kan</span>
+          </button>` : ''}
           ${ext.channelKind === 'multi' ? `
           <button class="tx-top-btn" onclick="_txInviteFlow()" title="Avisar o canal que tem sessão rolando">
             ${_TX_ICO.invite}<span>Convidar</span>
