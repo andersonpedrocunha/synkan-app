@@ -5501,19 +5501,34 @@ body.density-compact .col{padding:7px;}
 .lk-share-item-name{font-weight:600;font-size:13px;}
 .lk-share-item-meta{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:11px;color:var(--tatami-ink-soft,#5C4F3F);}
 
-/* Modo LiveKit ativo — esconde a estrutura original do tatame ao vivo,
-   só deixa visível o header (tx-top) + o lk-body novo + controles. */
+/* Modo LiveKit ativo — esconde a estrutura original do tatame ao vivo */
 .tx-overlay.tx-livekit-mode .tx-body,
 .tx-overlay.tx-livekit-mode .tx-side,
 .tx-overlay.tx-livekit-mode .tx-main { display: none !important; }
-.tx-overlay.tx-livekit-mode .tx-card { background: rgba(15,12,10,.95) !important; border-color: rgba(193,154,58,.30) !important; display:flex; flex-direction:column; max-width:100%; max-height:100%; width:100%; height:100%; }
+.tx-overlay.tx-livekit-mode .tx-shell {
+  background: rgba(15,12,10,.97) !important;
+  border-color: rgba(193,154,58,.30) !important;
+  display:flex !important; flex-direction:column !important;
+  max-width:100% !important; max-height:100% !important;
+  width:100% !important; height:100% !important;
+  padding: 0 !important;
+}
 .tx-overlay.tx-livekit-mode { padding: 0 !important; background: var(--tatami-sumi,#1A1611) !important; }
-.tx-overlay.tx-livekit-mode .tx-top { background: linear-gradient(180deg, rgba(0,0,0,.4) 0%, transparent 100%) !important; border-bottom: 1px solid rgba(255,255,255,.07); }
+.tx-overlay.tx-livekit-mode .tx-top { background: linear-gradient(180deg, rgba(0,0,0,.4) 0%, transparent 100%) !important; border-bottom: 1px solid rgba(255,255,255,.07); flex-shrink:0; }
 .tx-overlay.tx-livekit-mode .tx-top-title,
 .tx-overlay.tx-livekit-mode .tx-top-sub { color: #fff !important; }
 .tx-overlay.tx-livekit-mode .tx-top-btn { background: rgba(255,255,255,.08) !important; border-color: rgba(255,255,255,.15) !important; color: #fff !important; }
-.lk-body { flex:1; display:flex; min-height:0; width:100%; overflow:hidden; }
+.lk-body { flex:1 !important; display:flex !important; min-height:0; width:100%; overflow:hidden; }
 .lk-stage-wrap { flex:1; display:flex; flex-direction:column; padding:18px 20px; gap:14px; min-height:0; min-width:0; overflow:hidden; }
+/* tx-controls do LiveKit (botões mic/cam/share/sair) — barra horizontal embaixo */
+.tx-overlay.tx-livekit-mode .tx-controls {
+  display:flex !important; flex-direction:row !important;
+  align-items:center; gap:8px;
+  padding:14px 22px !important;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,.5) 100%) !important;
+  border-top: 1px solid rgba(255,255,255,.07);
+  flex-shrink: 0; width:100%;
+}
 /* Modais do app precisam ficar ACIMA do overlay do tatame quando este está ativo.
  * Tatame está em z-index:9000. Subimos TODOS os modais conhecidos pra 9500+. */
 body.tx-active .ov{z-index:9500 !important;}
@@ -44423,12 +44438,11 @@ function _lkRender() {
 
   ov.classList.add('tx-livekit-mode');
 
-  // Encontra o card do tatame (estrutura original) — vamos injetar o lk-body
-  // dentro dele, como irmão do tx-body original (que vai estar escondido via CSS).
-  const card = ov.querySelector('.tx-card') || ov;
-  const txBody = card.querySelector('.tx-body');
+  // Container do tatame — a classe correta é .tx-shell
+  const shell = ov.querySelector('.tx-shell') || ov;
+  const txBody = shell.querySelector('.tx-body');
 
-  let body = card.querySelector('.lk-body');
+  let body = shell.querySelector('.lk-body');
   if (!body) {
     body = document.createElement('div');
     body.className = 'lk-body';
@@ -44441,20 +44455,20 @@ function _lkRender() {
         <div class="lk-sidepanel-tabs" id="lk-sidepanel-tabs"></div>
         <div class="lk-sidepanel-content" id="lk-sidepanel-content"></div>
       </div>`;
-    // Insere onde o tx-body estava (depois do tx-top)
+    // Insere onde o tx-body estava (depois do tx-top, antes dos controls)
     if (txBody) {
       txBody.parentNode.insertBefore(body, txBody.nextSibling);
     } else {
-      card.appendChild(body);
+      shell.appendChild(body);
     }
   }
 
-  // Cria/atualiza barra de controles dentro do card também
-  let controls = card.querySelector('.tx-controls');
+  // Cria barra de controles (apenas uma vez, no shell, no final)
+  let controls = shell.querySelector('.tx-controls');
   if (!controls) {
     controls = document.createElement('div');
     controls.className = 'tx-controls';
-    card.appendChild(controls);
+    shell.appendChild(controls);
   }
 
   _lkRenderShareWrap();
@@ -44757,14 +44771,14 @@ function _lkTimeAgo(iso) {
 function _lkRenderControls() {
   const ext = _chatState.extended;
   if (!ext?.lk?.room) return;
-  // Insere botões na barra de controles do tx-overlay (se já houver) ou cria nova
+  // A barra de controles já foi criada por _lkRender dentro do .tx-shell
   const ov = document.getElementById('tx-overlay');
-  let bar = ov?.querySelector('.tx-controls');
+  const shell = ov?.querySelector('.tx-shell') || ov;
+  let bar = shell?.querySelector('.tx-controls');
   if (!bar) {
     bar = document.createElement('div');
     bar.className = 'tx-controls';
-    bar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:14px 22px;background:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.5) 100%);border-top:1px solid rgba(255,255,255,.07);position:relative;z-index:2;';
-    ov?.appendChild(bar);
+    shell?.appendChild(bar);
   }
 
   const local = ext.lk.room.localParticipant;
