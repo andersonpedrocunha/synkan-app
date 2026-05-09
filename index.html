@@ -6366,6 +6366,20 @@ body.tx-active .belt-ring::after{
 .tp-card-deadline.is-overdue{color:var(--tatami-hinomaru);font-weight:600;}
 .tp-cards-empty{padding:12px;text-align:center;font-family:var(--tatami-mincho);font-style:italic;color:var(--tatami-ink-soft);font-size:12px;background:var(--tatami-cream);border:0.5px dashed var(--tatami-tan);border-radius:7px;}
 
+/* Kudos */
+.tp-kudos-list{display:flex;flex-direction:column;gap:7px;}
+.tp-kudos-item{display:flex;gap:9px;padding:9px 11px;background:linear-gradient(135deg, #FFF8E7 0%, var(--tatami-cream) 100%);border:1px solid var(--tatami-tan);border-radius:8px;align-items:flex-start;}
+.tp-kudos-icon{font-size:14px;line-height:1;flex-shrink:0;margin-top:1px;}
+.tp-kudos-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.tp-kudos-reason{font-family:var(--tatami-mincho);font-style:italic;font-size:12.5px;color:var(--tatami-sumi);line-height:1.35;}
+.tp-kudos-reason-empty{color:var(--tatami-ink-soft);font-size:11.5px;}
+.tp-kudos-meta{font-size:10.5px;color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);}
+.tp-kudos-meta strong{color:var(--tatami-sumi);font-weight:600;font-style:normal;}
+.tp-kudos-cap{display:flex;align-items:center;gap:8px;margin-top:9px;padding:8px 11px;background:var(--tatami-cream);border:0.5px dashed var(--tatami-tan);border-radius:7px;}
+.tp-kudos-cap-num{font-family:var(--tatami-mincho);font-size:18px;font-weight:600;color:var(--tatami-hinomaru);line-height:1;}
+.tp-kudos-cap-label{font-size:11px;color:var(--tatami-ink-soft);font-family:var(--tatami-mincho);font-style:italic;line-height:1.3;}
+.tp-kudos-cap-label em{color:var(--tatami-sumi);font-style:italic;}
+
 /* Katas */
 .tp-katas{display:flex;flex-wrap:wrap;gap:6px;}
 .tp-kata{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:var(--tatami-cream);border:1px solid var(--tatami-tan);border-radius:8px;font-family:var(--tatami-mincho);font-size:11.5px;color:var(--tatami-sumi);cursor:pointer;}
@@ -45122,6 +45136,23 @@ function _tpFormatJoined(d) {
   const years = Math.floor(months/12);
   return `${years} ${years===1?'ano':'anos'} no dojo`;
 }
+function _tpFormatRelative(d) {
+  if (!d) return '';
+  const t = new Date(d).getTime();
+  if (isNaN(t)) return '';
+  const diffSec = Math.round((Date.now() - t) / 1000);
+  if (diffSec < 60) return 'agora há pouco';
+  const diffMin = Math.round(diffSec / 60);
+  if (diffMin < 60) return `há ${diffMin} min`;
+  const diffH = Math.round(diffMin / 60);
+  if (diffH < 24) return `há ${diffH}h`;
+  const diffD = Math.round(diffH / 24);
+  if (diffD === 1) return 'ontem';
+  if (diffD < 7) return `há ${diffD} dias`;
+  if (diffD < 30) return `há ${Math.round(diffD/7)} sem`;
+  if (diffD < 365) return `há ${Math.round(diffD/30)} ${Math.round(diffD/30)===1?'mês':'meses'}`;
+  return new Date(t).toLocaleDateString('pt-BR');
+}
 function _tpFormatDeadline(d) {
   if (!d) return '';
   const target = new Date(d);
@@ -45180,8 +45211,15 @@ async function _tpLoadProfile(userId, opts) {
     cards = data || [];
   } catch(e) { /* tolera */ }
 
+  // Kudos — stats + últimos recebidos
+  let kudos = { received_total:0, received_this_month:0, given_this_month:0, remaining_this_month:5, cap_per_month:5, is_self:false, recent:[] };
+  try {
+    const { data } = await c.rpc('tatami_profile_kudos', { p_user_id: userId, p_limit: 5 });
+    if (data) kudos = Object.assign(kudos, data);
+  } catch(e) { /* tolera — RPC pode não existir ainda */ }
+
   // Workspace settings — descobre o owner relevante (caller é o foco) e lê flags
-  let workspaceSettings = { honor_seal_enabled: false };
+  let workspaceSettings = { honor_seal_enabled: false, kudos_enabled: false };
   try {
     const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
     let ownerId = null;
@@ -45201,7 +45239,7 @@ async function _tpLoadProfile(userId, opts) {
     }
   } catch(e) { /* tolera — segue com default desabilitado */ }
 
-  const result = { profile, stats, cards, workspaceSettings };
+  const result = { profile, stats, cards, kudos, workspaceSettings };
   _tpProfileCache.set(userId, result);
   return result;
 }
@@ -45275,6 +45313,7 @@ function _tpRenderPanel(data, userId) {
   const p = data.profile;
   const stats = data.stats || {};
   const cards = data.cards || [];
+  const kudos = data.kudos || { received_total:0, received_this_month:0, given_this_month:0, remaining_this_month:5, recent:[] };
   const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
   const isMe = userId === myId;
   const onlineSet = _chatState?.onlineUsers || new Set();
@@ -45411,6 +45450,38 @@ function _tpRenderPanel(data, userId) {
             <div class="tp-honor-marks">${honorMarks}</div>
           </div>
         </div>
+      </div>
+      ` : ''}
+
+      ${(data.workspaceSettings?.kudos_enabled) ? `
+      <div class="tp-section">
+        <div class="tp-section-h" title="Kudos recebidos do time. Cada kudos rende 10 XP. Owner pode ativar/desativar em Configurações → Dojo.">
+          🎁 Kudos · ${kudos.received_total||0} recebido${(kudos.received_total||0)===1?'':'s'}
+          ${kudos.received_this_month>0 ? `<span style="font-weight:400;color:var(--tatami-ink-soft);font-size:11.5px;margin-left:6px;">(${kudos.received_this_month} este mês)</span>` : ''}
+        </div>
+        ${(kudos.recent && kudos.recent.length>0) ? `
+          <div class="tp-kudos-list">
+            ${kudos.recent.map(k => {
+              const when = (typeof _tpFormatRelative === 'function')
+                ? _tpFormatRelative(k.created_at)
+                : (k.created_at ? new Date(k.created_at).toLocaleDateString('pt-BR') : '');
+              const reason = k.reason ? `<span class="tp-kudos-reason">"${_esc(k.reason)}"</span>` : `<span class="tp-kudos-reason tp-kudos-reason-empty">— sem motivo registrado —</span>`;
+              return `<div class="tp-kudos-item">
+                <span class="tp-kudos-icon">🎁</span>
+                <div class="tp-kudos-body">
+                  ${reason}
+                  <div class="tp-kudos-meta"><strong>${_esc(k.giver_name||'alguém')}</strong> · ${_esc(when)}</div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        ` : `<div class="tp-cards-empty">Nenhum kudos recebido ainda.</div>`}
+        ${isMe ? `
+          <div class="tp-kudos-cap">
+            <span class="tp-kudos-cap-num">${kudos.remaining_this_month||0}</span>
+            <span class="tp-kudos-cap-label">kudos restantes pra você dar este mês <em>(cap ${kudos.cap_per_month||5}/mês)</em></span>
+          </div>
+        ` : ''}
       </div>
       ` : ''}
 
