@@ -43907,19 +43907,46 @@ window.LIVEKIT_TOKEN_ENDPOINT = window.LIVEKIT_TOKEN_ENDPOINT || (function(){
 
 const _LK_KAN_AVATAR = 'mestre_kan_avatar.png?v=6';
 
-// Lazy-load do LiveKit Client SDK (CDN)
+// Lazy-load do LiveKit Client SDK (CDN com fallback)
 let _lkSdkLoading = null;
 function _lkLoadSDK() {
   if (window.LivekitClient) return Promise.resolve(window.LivekitClient);
   if (_lkSdkLoading) return _lkSdkLoading;
-  _lkSdkLoading = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/livekit-client@2.5.10/dist/livekit-client.umd.min.js';
-    s.async = true;
-    s.onload = () => resolve(window.LivekitClient);
-    s.onerror = () => reject(new Error('Falha ao carregar LiveKit SDK'));
-    document.head.appendChild(s);
-  });
+
+  // Tenta múltiplas URLs em sequência — se uma falhar, próxima.
+  const urls = [
+    'https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js',
+    'https://unpkg.com/livekit-client/dist/livekit-client.umd.min.js',
+    'https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js',
+  ];
+
+  _lkSdkLoading = (async () => {
+    let lastErr = null;
+    for (const url of urls) {
+      try {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = url;
+          s.async = true;
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error('script onerror'));
+          document.head.appendChild(s);
+        });
+        // Espera 100ms pro UMD inicializar window.LivekitClient
+        await new Promise(r => setTimeout(r, 100));
+        if (window.LivekitClient) {
+          console.log('[lk] SDK carregado de:', url);
+          return window.LivekitClient;
+        }
+        lastErr = new Error(`SDK carregado mas window.LivekitClient não definido (${url})`);
+      } catch(e) {
+        lastErr = e;
+        console.warn('[lk] falha em', url, '— tentando próxima');
+      }
+    }
+    throw lastErr || new Error('Todas as CDNs do LiveKit falharam');
+  })();
+
   return _lkSdkLoading;
 }
 
