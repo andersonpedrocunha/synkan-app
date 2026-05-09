@@ -7322,18 +7322,27 @@ function setSupabaseConfig(cfg) {
 // em modo local (sem auth), usa "trial" (acesso completo, lembretes ocasionais).
 // Em modo Supabase, lê o plan_code da tabela subscriptions.
 const PLAN_LIMITS = {
-  trial:        { ai: 30,   boards: -1, canvas: -1, okrs: -1, unified: -1,
+  trial:        { ai: 30,   boards: -1, canvas: -1, okrs: -1, unified: -1, zai: -1,
                   seats: 1, editors: 0, viewers: 1,
+                  chat_history_days: -1, integrations: true, shared_boards: false, synconnect: true,
                   name: 'Trial 5 dias',                price: 0     },
-  faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: -1,
+  faixa_branca: { ai: 10,   boards: 1,  canvas: 1,  okrs: 1,  unified: 1,  zai: 1,
+                  seats: 1, editors: 0, viewers: 0,
+                  chat_history_days: 30, integrations: false, shared_boards: false, synconnect: false,
+                  boards_with_zai: 2, // bônus: 1 Zai ativo libera 2º board
+                  name: 'Faixa Branca · Grátis',       price: 0     },
+  faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: -1, zai: 3,
                   seats: -1, editors: 3, viewers: 5,
+                  chat_history_days: 90, integrations: true, shared_boards: true, synconnect: true,
                   name: 'Faixa Azul · Pessoal',        price: 14.90 },
-  faixa_roxa:   { ai: 300,  boards: 10, canvas: 10, okrs: -1, unified: -1,
+  faixa_roxa:   { ai: 300,  boards: 10, canvas: 10, okrs: 5,  unified: -1, zai: 10,
                   seats: -1, editors: 3, viewers: 5,
-                  name: 'Faixa Roxa · Profissional',   price: 29.90 },
-  faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1,
+                  chat_history_days: -1, integrations: true, shared_boards: true, synconnect: true,
+                  name: 'Faixa Roxa · Profissional',   price: 27.90 },
+  faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1, zai: -1,
                   seats: -1, editors: 5, viewers: 10,
-                  name: 'Faixa Preta · Empresarial',   price: 79.90 },
+                  chat_history_days: -1, integrations: true, shared_boards: true, synconnect: true,
+                  name: 'Faixa Preta · Empresarial',   price: 62.90 },
 };
 // seats   = ADMINS pagos (mesmo valor do plano; -1 = ilimitado).
 //           Trial = 1 (só o owner, não pode adicionar admin pago).
@@ -7561,9 +7570,10 @@ function _checkTrialOrBlock(action) {
   if (typeof appAlert === 'function') {
     appAlert('Seu Trial acabou',
       `Pra <strong>${what}</strong>, escolha um plano. Você continua com acesso aos boards e cards que já criou — só não dá pra criar novos.<br/><br/>` +
-      `<strong>Faixa Azul · R$ 14,90/mês</strong> — pessoal, 5 boards.<br/>` +
-      `<strong>Faixa Roxa · R$ 29,90/mês</strong> — profissional, 10 boards + admins ilimitados.<br/>` +
-      `<strong>Faixa Preta · R$ 79,90/mês</strong> — empresarial, ilimitado.`,
+      `<strong>Faixa Branca · Grátis</strong> — 1 board, 1 OKR, 1 Zai, Tatami 30d.<br/>` +
+      `<strong>Faixa Azul · R$ 14,90/mês</strong> — pessoal, 5 boards, Tatami 90d.<br/>` +
+      `<strong>Faixa Roxa · R$ 27,90/mês</strong> — profissional, 10 boards + 5 OKRs + 10 Zais + admins ilimitados.<br/>` +
+      `<strong>Faixa Preta · R$ 62,90/mês</strong> — empresarial, ilimitado.`,
       { icon:'⏰', html:true, okLabel:'Ver planos', cancelLabel:'Agora não',
         onOk: () => { if (typeof _goToPlanTab === 'function') _goToPlanTab(); else window.open(getUpgradeURL(), '_blank'); } });
   }
@@ -7673,10 +7683,19 @@ function canCreate(resource) {
   // Mapeia resource (singular, como usado nos gates) pra a chave correta em PLAN_LIMITS
   const _LIMIT_KEY = {
     board: 'boards', canvas: 'canvas', okr: 'okrs', ai: 'ai', unified: 'unified',
-    seat: 'seats', viewer: 'viewers', convidado: 'convidados',
+    seat: 'seats', viewer: 'viewers', convidado: 'convidados', zai: 'zai',
   };
   const key = _LIMIT_KEY[resource] || resource;
-  const max = limits[key];
+  let max = limits[key];
+  // Bônus Zai (Faixa Branca): 1 Zai ativo libera o 2º board.
+  if (resource === 'board' && typeof limits.boards_with_zai === 'number') {
+    try {
+      const zaiCount = (typeof _countZais === 'function')
+        ? _countZais()
+        : Object.values(allBoards||{}).filter(b => b && (b.kind === 'zai' || b.isZai)).length;
+      if (zaiCount > 0) max = limits.boards_with_zai;
+    } catch(_){}
+  }
   if (max === -1 || max === undefined) return { ok: true, used: 0, max: -1 };
   const used = getResourceUsage(resource);
   // Pra IA: se usou tudo do plano, créditos extras (add-on) liberam mais
@@ -7697,7 +7716,7 @@ const _RESOURCE_LABELS = {
   okr:       { what: 'OKRs',                              upgrade: 'Faixa Roxa (ilimitado)' },
   unified:   { what: 'boards no Board Unificado',         upgrade: 'Faixa Roxa (ilimitado)' },
   ai:        { what: 'chamadas Mestre Kan IA este mês',   upgrade: 'Faixa Roxa (300/mês)' },
-  seat:      { what: 'usuários pagos (editores/admins)',  upgrade: 'Faixa Roxa (sem limite, R$ 29,90/seat)' },
+  seat:      { what: 'usuários pagos (editores/admins)',  upgrade: 'Faixa Roxa (sem limite, R$ 27,90/seat)' },
   viewer:    { what: 'viewers (só leitura)',              upgrade: 'Faixa Roxa (5) ou Preta (20)' },
   convidado: { what: 'convidados externos',               upgrade: 'Faixa Preta (10 convidados, 3 boards cada)' },
 };
@@ -16971,17 +16990,25 @@ function _settingsPlanoSection() {
 
       ${(() => {
         const plans = [
+          { code:'faixa_branca',label:'Faixa Branca', sub:'Grátis',     price:'R$ 0',
+            ai:'10',     boards:'1 (2 c/ Zai)', canvas:'1', okrs:'1', unified:'1', tatami:'30d',
+            zai:'1', integ:'—', shared:'—',
+            admin:'só você', editor:'—',         viewer:'—' },
           { code:'trial',       label:'Trial',        sub:'5 dias',     price:'Grátis',
             ai:'30',     boards:'∞',     canvas:'∞',  okrs:'∞',  unified:'∞', tatami:'liberado',
+            zai:'∞', integ:'✓', shared:'✓',
             admin:'só você', editor:'—',         viewer:'1 board' },
           { code:'faixa_azul',  label:'Faixa Azul',   sub:'Pessoal',    price:'R$ 14,90/mês',
-            ai:'100',    boards:'5',     canvas:'5',  okrs:'3',  unified:'∞', tatami:'—',
+            ai:'100',    boards:'5',     canvas:'5',  okrs:'3',  unified:'∞', tatami:'90d',
+            zai:'3', integ:'✓', shared:'✓',
             admin:'só você', editor:'3 boards',  viewer:'5 boards' },
-          { code:'faixa_roxa',  label:'Faixa Roxa',   sub:'Profissional', price:'R$ 29,90/mês',
-            ai:'300',    boards:'10',    canvas:'10', okrs:'∞',  unified:'∞', tatami:'incluso',
+          { code:'faixa_roxa',  label:'Faixa Roxa',   sub:'Profissional', price:'R$ 27,90/mês',
+            ai:'300',    boards:'10',    canvas:'10', okrs:'5',  unified:'∞', tatami:'∞',
+            zai:'10', integ:'✓', shared:'✓',
             admin:'∞',       editor:'3 boards',  viewer:'5 boards' },
-          { code:'faixa_preta', label:'Faixa Preta',  sub:'Empresarial', price:'R$ 79,90/mês',
-            ai:'1000',   boards:'∞',     canvas:'∞',  okrs:'∞',  unified:'∞', tatami:'incluso',
+          { code:'faixa_preta', label:'Faixa Preta',  sub:'Empresarial', price:'R$ 62,90/mês',
+            ai:'1000',   boards:'∞',     canvas:'∞',  okrs:'∞',  unified:'∞', tatami:'∞',
+            zai:'∞', integ:'✓', shared:'✓',
             admin:'∞',       editor:'5 boards',  viewer:'10 boards' },
         ];
         const cell = (txt, isCur) => `<td style="padding:9px 12px;font-size:12.5px;color:${isCur?'var(--color-text-primary)':'var(--color-text-secondary)'};border-bottom:1px solid var(--color-border-tertiary);text-align:center;${isCur?'font-weight:600;background:rgba(60,52,137,.05);':''}">${txt}</td>`;
@@ -16998,7 +17025,7 @@ function _settingsPlanoSection() {
         const sectionRow = (label) => `<tr><td colspan="5" style="padding:12px 12px 6px;font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;font-weight:700;background:var(--color-background-secondary);">${label}</td></tr>`;
         return `
         <div style="overflow-x:auto;margin-top:6px;border:1px solid var(--color-border-tertiary);border-radius:10px;">
-          <table style="width:100%;border-collapse:collapse;min-width:560px;">
+          <table style="width:100%;border-collapse:collapse;min-width:680px;">
             <thead><tr><th style="padding:14px 12px 10px;text-align:left;font-size:11px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid var(--color-border-secondary);background:var(--color-background-secondary);">Recurso</th>${plans.map(headerCell).join('')}</tr></thead>
             <tbody>
               ${sectionRow('Recursos')}
@@ -17006,8 +17033,11 @@ function _settingsPlanoSection() {
               <tr>${labelCell('Boards','quantidade ativa')}${plans.map(p => cell(p.boards, p.code===code)).join('')}</tr>
               <tr>${labelCell('Lab / Canvas','mindmaps, fluxos, OKR canvas')}${plans.map(p => cell(p.canvas, p.code===code)).join('')}</tr>
               <tr>${labelCell('OKRs','objetivos ativos')}${plans.map(p => cell(p.okrs, p.code===code)).join('')}</tr>
+              <tr>${labelCell('Zai','finanças/runway/burn')}${plans.map(p => cell(p.zai||'—', p.code===code)).join('')}</tr>
               <tr>${labelCell('Board Unificado','vista agregada')}${plans.map(p => cell(p.unified, p.code===code)).join('')}</tr>
-              <tr>${labelCell('Tatami','chat + voz no tatame')}${plans.map(p => cell(p.tatami, p.code===code)).join('')}</tr>
+              <tr>${labelCell('Tatami','chat · histórico')}${plans.map(p => cell(p.tatami, p.code===code)).join('')}</tr>
+              <tr>${labelCell('Boards compartilhados','convidar terceiros')}${plans.map(p => cell(p.shared||'—', p.code===code)).join('')}</tr>
+              <tr>${labelCell('Integrações','WhatsApp, Calendar, etc')}${plans.map(p => cell(p.integ||'—', p.code===code)).join('')}</tr>
               ${sectionRow('Membros')}
               <tr>${labelCell('Admin','acesso total · seat pago')}${plans.map(p => cell(p.admin, p.code===code)).join('')}</tr>
               <tr>${labelCell('Editor (externo)','grátis · só boards compartilhados')}${plans.map(p => cell(p.editor, p.code===code)).join('')}</tr>
@@ -20731,7 +20761,7 @@ function _updateAuthPlanBanner() {
   const validPlans = ['faixa_azul','faixa_roxa','faixa_preta'];
   if (!validPlans.includes(plan)) { banner.style.display = 'none'; return; }
   const planNames = { faixa_azul:'Faixa Azul', faixa_roxa:'Faixa Roxa', faixa_preta:'Faixa Preta' };
-  const prices    = { faixa_azul:'R$ 14,90/mês', faixa_roxa:'R$ 29,90/usuário/mês', faixa_preta:'R$ 79,90/usuário/mês' };
+  const prices    = { faixa_branca:'Grátis', faixa_azul:'R$ 14,90/mês', faixa_roxa:'R$ 27,90/usuário/mês', faixa_preta:'R$ 62,90/usuário/mês' };
   const annualP   = { faixa_azul:'R$ 161/ano (10% off)', faixa_roxa:'R$ 323/usuário/ano (10% off)', faixa_preta:'R$ 863/usuário/ano (10% off)' };
   const priceLabel = cycle === 'annual' ? annualP[plan] : prices[plan];
   banner.style.display = 'block';
@@ -22591,7 +22621,7 @@ function _renderHelpRecursosTopic(id) {
         <p><strong>Lab / Canvas no comparativo de planos.</strong> A linha que era "Canvas" virou "Lab / Canvas" — alinhado com o nome usado no resto do app.</p>
         <p><strong>Zai com escolha de seed.</strong> Ao criar um board Zai novo, agora pergunta se você quer <em>vazio</em> ou <em>com dados de exemplo</em>. Antes vinha sempre com cards de demonstração.</p>
         <p><strong>Trial real com soft block.</strong> Os 5 dias do trial agora são contados de verdade. Após expirar, você ainda pode editar tudo que já tem, mas só pra criar novo board/OKR/Lab é preciso assinar.</p>
-        <p><strong>Plano Faixa Branca removido.</strong> Não havia mais sentido com o Trial cobrindo o "experimente grátis". Quem tinha foi migrado pra Faixa Azul (R$ 14,90).</p>
+        <p><strong>Faixa Branca de volta como tier grátis.</strong> Limites: 1 board, 1 OKR, 1 Zai (Zai ativo libera 2º board), 10 chamadas IA/mês, Tatami com histórico de 30 dias, sem Synconnect nem integrações. Faixa Azul agora inclui Tatami com 90d. Faixa Roxa: 5 OKRs e 10 Zais por R$ 27,90/mês. Faixa Preta: tudo ilimitado por R$ 62,90/usuário/mês.</p>
         <p><strong>Time tracking colaborativo.</strong> Tracker dentro do card mostra quem trabalhou quanto. Auto-tracking opcional por coluna (entra na coluna "Doing" → cronômetro liga). Relatório agregado com export PDF/CSV no menu Tracker.</p>
         <p><strong>Atribuído a (assigned).</strong> Campo separado de "Responsável manual". Atribuído puxa de membros reais do board (com avatar). Aparece no card e em filtros.</p>
         <p><strong>Granatum: histórico/pago_hoje contam como done.</strong> Cards puxados pela integração Granatum que estão em "histórico" ou "pago hoje" agora não mostram alerta de atraso — o sistema reconhece que já foram concluídos.</p>
