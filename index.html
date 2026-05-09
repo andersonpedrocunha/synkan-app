@@ -5501,11 +5501,19 @@ body.density-compact .col{padding:7px;}
 .lk-share-item-name{font-weight:600;font-size:13px;}
 .lk-share-item-meta{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:11px;color:var(--tatami-ink-soft,#5C4F3F);}
 
-/* Body LiveKit container — substitui as 2 colunas (left/main) quando vídeo ativo */
-.tx-overlay.tx-livekit-mode .tx-panel-left,
-.tx-overlay.tx-livekit-mode .tx-panel-main{display:none !important;}
-.lk-body{flex:1;display:flex;min-height:0;width:100%;}
-.lk-stage-wrap{flex:1;display:flex;flex-direction:column;padding:18px 20px;gap:14px;min-height:0;min-width:0;}
+/* Modo LiveKit ativo — esconde a estrutura original do tatame ao vivo,
+   só deixa visível o header (tx-top) + o lk-body novo + controles. */
+.tx-overlay.tx-livekit-mode .tx-body,
+.tx-overlay.tx-livekit-mode .tx-side,
+.tx-overlay.tx-livekit-mode .tx-main { display: none !important; }
+.tx-overlay.tx-livekit-mode .tx-card { background: rgba(15,12,10,.95) !important; border-color: rgba(193,154,58,.30) !important; display:flex; flex-direction:column; max-width:100%; max-height:100%; width:100%; height:100%; }
+.tx-overlay.tx-livekit-mode { padding: 0 !important; background: var(--tatami-sumi,#1A1611) !important; }
+.tx-overlay.tx-livekit-mode .tx-top { background: linear-gradient(180deg, rgba(0,0,0,.4) 0%, transparent 100%) !important; border-bottom: 1px solid rgba(255,255,255,.07); }
+.tx-overlay.tx-livekit-mode .tx-top-title,
+.tx-overlay.tx-livekit-mode .tx-top-sub { color: #fff !important; }
+.tx-overlay.tx-livekit-mode .tx-top-btn { background: rgba(255,255,255,.08) !important; border-color: rgba(255,255,255,.15) !important; color: #fff !important; }
+.lk-body { flex:1; display:flex; min-height:0; width:100%; overflow:hidden; }
+.lk-stage-wrap { flex:1; display:flex; flex-direction:column; padding:18px 20px; gap:14px; min-height:0; min-width:0; overflow:hidden; }
 /* Modais do app precisam ficar ACIMA do overlay do tatame quando este está ativo.
  * Tatame está em z-index:9000. Subimos TODOS os modais conhecidos pra 9500+. */
 body.tx-active .ov{z-index:9500 !important;}
@@ -44404,11 +44412,14 @@ function _lkRender() {
   const ov = document.getElementById('tx-overlay');
   if (!ov) return;
 
-  // Remove overlays voice-only existentes e ativa modo livekit
   ov.classList.add('tx-livekit-mode');
 
-  // Substitui conteúdo principal
-  let body = ov.querySelector('.lk-body');
+  // Encontra o card do tatame (estrutura original) — vamos injetar o lk-body
+  // dentro dele, como irmão do tx-body original (que vai estar escondido via CSS).
+  const card = ov.querySelector('.tx-card') || ov;
+  const txBody = card.querySelector('.tx-body');
+
+  let body = card.querySelector('.lk-body');
   if (!body) {
     body = document.createElement('div');
     body.className = 'lk-body';
@@ -44421,10 +44432,20 @@ function _lkRender() {
         <div class="lk-sidepanel-tabs" id="lk-sidepanel-tabs"></div>
         <div class="lk-sidepanel-content" id="lk-sidepanel-content"></div>
       </div>`;
-    // Insere antes da barra de controles
-    const controls = ov.querySelector('.tx-controls');
-    if (controls) ov.insertBefore(body, controls);
-    else ov.appendChild(body);
+    // Insere onde o tx-body estava (depois do tx-top)
+    if (txBody) {
+      txBody.parentNode.insertBefore(body, txBody.nextSibling);
+    } else {
+      card.appendChild(body);
+    }
+  }
+
+  // Cria/atualiza barra de controles dentro do card também
+  let controls = card.querySelector('.tx-controls');
+  if (!controls) {
+    controls = document.createElement('div');
+    controls.className = 'tx-controls';
+    card.appendChild(controls);
   }
 
   _lkRenderShareWrap();
