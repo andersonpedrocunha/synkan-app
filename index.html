@@ -45344,7 +45344,7 @@ function _tpRenderPanel(data, userId) {
           ${dl ? `<span class="tp-card-deadline ${dl.overdue?'is-overdue':''}">${_esc(dl.text)}</span>` : ''}
         </div>`;
       }).join('')
-    : '<div class="tp-cards-empty">Nenhum card em andamento.</div>';
+    : '<div class="tp-cards-empty">Nenhum card atribuído em aberto.</div>';
 
   // Katas
   const katas = Array.isArray(p.katas) ? p.katas : [];
@@ -45415,7 +45415,7 @@ function _tpRenderPanel(data, userId) {
       ` : ''}
 
       <div class="tp-section">
-        <div class="tp-section-h">📋 Hoje em andamento · ${stats.cards_in_progress||cards.length} card${(stats.cards_in_progress||cards.length)===1?'':'s'}</div>
+        <div class="tp-section-h">📋 Cards atribuídos · ${stats.cards_in_progress||cards.length} card${(stats.cards_in_progress||cards.length)===1?'':'s'} em aberto</div>
         <div class="tp-cards">${cardsHTML}</div>
       </div>
 
