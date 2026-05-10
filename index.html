@@ -20799,9 +20799,55 @@ function saveCard() {
       }
     } catch(e) { console.warn('[granatum] push new falhou:', e?.message); }
   }
+  const _editIdSnapshot = editId;
   closeModal();renderFilterBar();render();saveData();
   if(currentTab==='checklist') renderChecklist();
   if(currentTab==='gantt') renderGantt();
+
+  // Save direto e imediato do assigned_user_id (bypassa debounce + upsert
+  // de full board que pode falhar silenciosamente). Garante que a atribuição
+  // persiste no refresh, mesmo se o upsert maior falhar.
+  if (_editIdSnapshot !== null && getStorageMode() === 'supabase' && supaUser) {
+    (async () => {
+      try {
+        const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+        if (!c) return;
+        const card = cards.find(x => x.id === _editIdSnapshot);
+        if (!card) return;
+        const supaId = card._supaId;
+        let updateQuery = c.from('cards').update({
+          assigned_user_id: card.assignedUserId || null,
+          responsavel: card.responsavel || null,
+          name: card.name,
+          col: card.col,
+        });
+        if (supaId) {
+          updateQuery = updateQuery.eq('id', supaId);
+        } else {
+          updateQuery = updateQuery.eq('board_id', currentBoardId).eq('local_id', card.id);
+        }
+        const { error } = await updateQuery;
+        if (error) {
+          console.error('[saveCard] update direto falhou:', error);
+          if (error.message && /assigned_user_id|column|schema/i.test(error.message)) {
+            if (typeof appAlert === 'function') {
+              appAlert('Migration faltando',
+                'A coluna <code>assigned_user_id</code> não existe no banco. Rode a migration <code>MIGRATION_ADD_ASSIGNED_USER.sql</code> no Supabase pra atribuições persistirem.',
+                { icon:'⚠️' });
+            }
+          } else if (typeof appAlert === 'function') {
+            appAlert('Erro ao salvar atribuição',
+              'Não consegui salvar a atribuição no banco: ' + (error.message || error),
+              { icon:'⚠️' });
+          }
+        } else {
+          console.log('[saveCard] ✓ atribuição salva: assigned=' + (card.assignedUserId||'null'));
+        }
+      } catch(e) {
+        console.warn('[saveCard] update direto exception:', e);
+      }
+    })();
+  }
 }
 
 function deleteCard() {
@@ -44652,6 +44698,11 @@ function _lkRenderShareWrap() {
   if (!item) {
     // Sem nada compartilhado — esconde a área de share. Tiles em modo galeria.
     wrap.style.display = 'none';
+    // CRÍTICO: desmonta embeds (devolve view-kanban/canvas/okrs ao parent original)
+    // — sem isso, ao sair da call os views somem do app principal.
+    try {
+      if (typeof _txUnmountEmbed === 'function') _txUnmountEmbed();
+    } catch(e) { console.warn('[lk] unmount embed:', e); }
     const tilesRow = document.getElementById('lk-tiles-row');
     if (tilesRow) {
       tilesRow.classList.add('is-gallery');
@@ -44834,7 +44885,7 @@ function _lkRenderSidepanel() {
   tabs.innerHTML = `
     <button type="button" class="lk-sidepanel-tab${tab==='notas'?' is-active':''}" onclick="_lkSwitchTab('notas')">📝 Notas${totalNotes>0?` <span class="tab-badge">${totalNotes}</span>`:''}</button>
     <button type="button" class="lk-sidepanel-tab${tab==='chat'?' is-active':''}" onclick="_lkSwitchTab('chat')">💬 Chat${chatCount>0?` <span class="tab-badge">${chatCount}</span>`:''}</button>
-    <button type="button" class="lk-sidepanel-tab${tab==='pessoas'?' is-active':''}" onclick="_lkSwitchTab('pessoas')">👥 Dojo · ${peopleCount}</button>`;
+    <button type="button" class="lk-sidepanel-tab${tab==='pessoas'?' is-active':''}" onclick="_lkSwitchTab('pessoas')">👥 Tatame · ${peopleCount}</button>`;
 
   if (tab === 'notas') content.innerHTML = _lkNotasHTML();
   else if (tab === 'chat') {
@@ -44950,17 +45001,17 @@ function _lkAnimateReaction(emoji, userId) {
 // kind:'image' → VirtualBackground (substitui fundo por SVG Synkan)
 // kind:'none' → remove processador
 const _LK_BG_IMAGES = {
-  // SVGs gerados como data-URLs — identidade Synkan
-  sakura:  'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="g" cx="0.7" cy="0.3" r="1"><stop offset="0" stop-color="#FFE3EE"/><stop offset="0.6" stop-color="#FFC9DC"/><stop offset="1" stop-color="#E89BB6"/></radialGradient><pattern id="p" x="0" y="0" width="220" height="220" patternUnits="userSpaceOnUse"><g opacity="0.55"><circle cx="40" cy="60" r="3.5" fill="#fff"/><circle cx="120" cy="100" r="2.5" fill="#fff"/><circle cx="180" cy="40" r="4" fill="#fff"/><path d="M70 150 q4 -8 8 0 q-4 -3 -8 0" fill="#FF8AB0" opacity="0.7"/><path d="M150 180 q4 -8 8 0 q-4 -3 -8 0" fill="#FF8AB0" opacity="0.7"/></g></pattern></defs><rect width="1280" height="720" fill="url(#g)"/><rect width="1280" height="720" fill="url(#p)"/><g opacity="0.4"><path d="M0 720 Q 320 600 640 660 T 1280 620 L 1280 720 Z" fill="#C26B8C"/></g></svg>`),
-  hokusai: 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F4E5C2"/><stop offset="0.4" stop-color="#E8C994"/><stop offset="1" stop-color="#1E3A5F"/></linearGradient><linearGradient id="wave" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1E5A8E"/><stop offset="0.7" stop-color="#0E3160"/><stop offset="1" stop-color="#0A1E3D"/></linearGradient></defs><rect width="1280" height="720" fill="url(#sky)"/><g><path d="M0 500 Q 200 380 400 440 Q 600 500 800 410 Q 1000 320 1280 400 L 1280 720 L 0 720 Z" fill="url(#wave)"/><path d="M0 580 Q 250 520 500 560 Q 750 600 1000 540 Q 1150 500 1280 540 L 1280 720 L 0 720 Z" fill="#0A1E3D" opacity="0.7"/><g fill="#fff" opacity="0.92"><path d="M120 480 Q 180 420 240 470 Q 220 460 200 480 Q 180 470 160 490 Q 140 480 120 480 Z"/><path d="M520 430 Q 580 360 660 410 Q 620 380 580 410 Q 540 380 520 430 Z"/><path d="M960 410 Q 1020 340 1100 400 Q 1060 360 1020 400 Q 980 380 960 410 Z"/><circle cx="200" cy="450" r="3"/><circle cx="600" cy="380" r="3"/><circle cx="1040" cy="370" r="3"/></g></g><circle cx="1100" cy="180" r="55" fill="#F8F1DC" opacity="0.85"/></svg>`),
-  sumie:   'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F5F1E8"/><stop offset="0.6" stop-color="#E8E1CD"/><stop offset="1" stop-color="#C7BFA8"/></linearGradient></defs><rect width="1280" height="720" fill="url(#g)"/><g fill="#1A1611" opacity="0.85"><path d="M0 520 Q 180 380 360 460 Q 540 540 720 440 Q 900 340 1080 460 Q 1180 520 1280 480 L 1280 720 L 0 720 Z"/><path d="M200 540 Q 380 420 580 510 Q 780 600 980 480 Q 1100 410 1280 470 L 1280 720 L 200 720 Z" opacity="0.6"/></g><g stroke="#1A1611" stroke-width="2" fill="none" opacity="0.6"><path d="M180 290 Q 220 240 260 270"/><path d="M260 270 Q 280 250 310 280"/></g><g fill="#1A1611" opacity="0.45"><path d="M820 200 q15 -30 30 -10 q-5 -8 -15 0 q-12 -5 -15 10 z"/></g><circle cx="1140" cy="120" r="42" fill="#9C0029" opacity="0.7"/></svg>`),
-  dojo:    'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F5E8C8"/><stop offset="1" stop-color="#D4B888"/></linearGradient><linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9C7142"/><stop offset="1" stop-color="#6B4825"/></linearGradient><pattern id="shoji" x="0" y="0" width="120" height="180" patternUnits="userSpaceOnUse"><rect width="120" height="180" fill="url(#wall)"/><rect x="0" y="0" width="120" height="180" fill="none" stroke="#3A2818" stroke-width="3"/><line x1="60" y1="0" x2="60" y2="180" stroke="#3A2818" stroke-width="1.5"/><line x1="0" y1="60" x2="120" y2="60" stroke="#3A2818" stroke-width="1.5"/><line x1="0" y1="120" x2="120" y2="120" stroke="#3A2818" stroke-width="1.5"/></pattern><pattern id="tatami" x="0" y="0" width="240" height="80" patternUnits="userSpaceOnUse"><rect width="240" height="80" fill="url(#floor)"/><rect width="240" height="80" fill="none" stroke="#1A1206" stroke-width="3"/><line x1="120" y1="0" x2="120" y2="80" stroke="#1A1206" stroke-width="2"/></pattern></defs><rect width="1280" height="540" fill="url(#shoji)"/><rect y="540" width="1280" height="180" fill="url(#tatami)"/><rect width="1280" height="540" fill="#3A2818" opacity="0.06"/><rect y="0" width="1280" height="40" fill="#3A2818"/><circle cx="180" cy="220" r="60" fill="#9C0029" opacity="0.18"/></svg>`),
-  hanko:   'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="g" cx="0.5" cy="0.5" r="1"><stop offset="0" stop-color="#D11838"/><stop offset="0.7" stop-color="#9C0029"/><stop offset="1" stop-color="#5C0015"/></radialGradient><pattern id="paper" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="none"/><circle cx="20" cy="20" r="0.6" fill="#fff" opacity="0.10"/></pattern></defs><rect width="1280" height="720" fill="url(#g)"/><rect width="1280" height="720" fill="url(#paper)"/><circle cx="1080" cy="180" r="120" fill="none" stroke="#fff" stroke-width="6" opacity="0.18"/><text x="1080" y="220" font-family="serif" font-size="120" font-weight="700" text-anchor="middle" fill="#fff" opacity="0.18">賞</text></svg>`),
+  // SVGs sofisticados — multi-layer, atmospheric, identidade Synkan
+  sakura:  'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF4F0"/><stop offset="0.35" stop-color="#FFD9E0"/><stop offset="0.75" stop-color="#F4A8B8"/><stop offset="1" stop-color="#C26890"/></linearGradient><radialGradient id="bokeh1" cx="0.7" cy="0.25" r="0.5"><stop offset="0" stop-color="#FFF0F5" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF0F5" stop-opacity="0"/></radialGradient><radialGradient id="bokeh2" cx="0.15" cy="0.7" r="0.4"><stop offset="0" stop-color="#FFE8F0" stop-opacity="0.45"/><stop offset="1" stop-color="#FFE8F0" stop-opacity="0"/></radialGradient><filter id="sb1" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3"/></filter><filter id="sb2" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="10"/></filter></defs><rect width="1280" height="720" fill="url(#sky)"/><rect width="1280" height="720" fill="url(#bokeh1)"/><rect width="1280" height="720" fill="url(#bokeh2)"/><g opacity="0.18" filter="url(#sb2)"><path d="M-50 720 L-50 460 Q120 360 260 430 Q380 350 510 410 Q620 350 760 410 Q900 350 1040 420 Q1180 360 1330 410 L1330 720 Z" fill="#6B2842"/></g><g filter="url(#sb1)"><path d="M-30 230 Q 140 220 260 260 Q 350 290 380 340 Q 350 360 290 350" stroke="#3D1F2A" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.95"/><path d="M260 260 Q 320 290 380 285" stroke="#3D1F2A" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.85"/><g fill="#FFCAD8"><circle cx="40" cy="225" r="18"/><circle cx="75" cy="245" r="14"/><circle cx="120" cy="232" r="20"/><circle cx="170" cy="250" r="15"/><circle cx="220" cy="265" r="18"/><circle cx="280" cy="275" r="16"/><circle cx="340" cy="305" r="18"/></g><g fill="#FF9DB8"><circle cx="50" cy="232" r="9"/><circle cx="125" cy="240" r="10"/><circle cx="225" cy="270" r="9"/><circle cx="345" cy="312" r="9"/></g><g fill="#FFE5EE" opacity="0.85"><circle cx="48" cy="222" r="5"/><circle cx="125" cy="232" r="5"/><circle cx="222" cy="262" r="5"/><circle cx="342" cy="302" r="5"/></g></g><g fill="#FFD5E0" opacity="0.85"><ellipse cx="450" cy="180" rx="7" ry="3.5" transform="rotate(20 450 180)"/><ellipse cx="700" cy="350" rx="6" ry="3" transform="rotate(-15 700 350)"/><ellipse cx="900" cy="200" rx="7" ry="3.5" transform="rotate(45 900 200)"/><ellipse cx="1050" cy="450" rx="6" ry="3" transform="rotate(-30 1050 450)"/><ellipse cx="350" cy="500" rx="7" ry="3.5" transform="rotate(15 350 500)"/><ellipse cx="800" cy="600" rx="5" ry="2.5" transform="rotate(60 800 600)"/></g></svg>`),
+  hokusai: 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="hsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F8E5BC"/><stop offset="0.25" stop-color="#E8B888"/><stop offset="0.55" stop-color="#7088B8"/><stop offset="0.85" stop-color="#2A4870"/><stop offset="1" stop-color="#162E55"/></linearGradient><linearGradient id="hwave1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A88C0"/><stop offset="0.5" stop-color="#1A4D7A"/><stop offset="1" stop-color="#0A2845"/></linearGradient><linearGradient id="hwave2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1A4D7A"/><stop offset="1" stop-color="#0A1F3A"/></linearGradient><radialGradient id="sun" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFE8C0"/><stop offset="0.55" stop-color="#F8D098" stop-opacity="0.85"/><stop offset="1" stop-color="#F8D098" stop-opacity="0"/></radialGradient></defs><rect width="1280" height="720" fill="url(#hsky)"/><circle cx="1080" cy="220" r="160" fill="url(#sun)"/><circle cx="1080" cy="220" r="68" fill="#FCE5B0" opacity="0.95"/><g opacity="0.55"><path d="M770 480 Q 900 200 1030 480 L 1030 500 Q 900 430 770 500 Z" fill="#1A2D4A"/><path d="M870 320 Q 905 280 935 305 Q 920 295 905 305 Q 890 290 870 320 Z" fill="#fff" opacity="0.95"/><path d="M880 340 Q 920 320 945 335" stroke="#fff" stroke-width="2" fill="none" opacity="0.6"/></g><g><path d="M-50 460 Q 80 360 240 420 Q 320 450 360 380 Q 400 280 480 230 Q 560 180 620 250 Q 680 320 720 290 Q 770 240 730 170 Q 670 90 580 100 Q 460 110 360 200 Q 250 290 130 350 Q 30 390 -50 380 Z" fill="url(#hwave1)"/><g fill="#fff"><path d="M510 110 Q 535 100 560 115 Q 545 105 535 110 Q 525 102 510 110 Z" opacity="0.95"/><path d="M555 130 Q 585 115 615 130 Q 600 122 590 126 Q 575 118 555 130 Z" opacity="0.95"/><path d="M610 150 Q 640 135 670 150 Q 655 140 640 145 Q 625 138 610 150 Z" opacity="0.95"/><circle cx="540" cy="125" r="3.5"/><circle cx="600" cy="143" r="3.5"/><circle cx="660" cy="158" r="3"/><path d="M460 180 Q 480 168 500 180 Q 488 172 480 175 Q 472 168 460 180 Z" opacity="0.85"/><path d="M380 240 Q 400 230 420 240 Q 408 232 400 236 Q 388 230 380 240 Z" opacity="0.8"/></g></g><g opacity="0.85"><path d="M0 580 Q 200 480 400 530 Q 600 560 800 510 Q 1000 460 1280 510 L 1280 720 L 0 720 Z" fill="url(#hwave2)"/></g><path d="M0 620 Q 200 580 400 600 Q 600 620 800 590 Q 1000 560 1280 590 L 1280 720 L 0 720 Z" fill="#0A1F3A"/></svg>`),
+  sumie:   'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F8F2E0"/><stop offset="0.5" stop-color="#F0E8C8"/><stop offset="1" stop-color="#D8C8A0"/></linearGradient><pattern id="ptex" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse"><circle cx="15" cy="25" r="0.6" fill="#3A2818" opacity="0.07"/><circle cx="55" cy="40" r="0.5" fill="#3A2818" opacity="0.06"/><circle cx="65" cy="65" r="0.7" fill="#3A2818" opacity="0.08"/><circle cx="25" cy="55" r="0.4" fill="#3A2818" opacity="0.05"/></pattern><filter id="inkblur"><feGaussianBlur stdDeviation="0.5"/></filter><filter id="inkblur2"><feGaussianBlur stdDeviation="3"/></filter></defs><rect width="1280" height="720" fill="url(#paper)"/><rect width="1280" height="720" fill="url(#ptex)"/><g opacity="0.28" filter="url(#inkblur2)"><path d="M0 380 Q 200 300 400 350 Q 600 390 800 330 Q 1000 290 1280 350 L 1280 430 L 0 430 Z" fill="#1A1611"/></g><g opacity="0.6" filter="url(#inkblur)"><path d="M0 480 Q 150 390 280 425 Q 400 460 500 410 Q 600 370 700 415 Q 820 470 940 415 Q 1060 360 1180 415 Q 1240 440 1280 425 L 1280 540 L 0 540 Z" fill="#1A1611"/></g><g><path d="M0 540 Q 100 490 200 515 Q 280 540 360 480 Q 420 425 480 470 Q 540 515 620 470 Q 680 430 740 475 Q 820 535 920 475 Q 1020 420 1100 470 Q 1180 515 1280 480 L 1280 720 L 0 720 Z" fill="#1A1611"/></g><g><path d="M180 200 L 180 410" stroke="#1A1611" stroke-width="7" stroke-linecap="round"/><path d="M180 220 L 180 245" stroke="#1A1611" stroke-width="16" stroke-linecap="round" opacity="0.55"/><ellipse cx="180" cy="252" rx="9" ry="3.5" fill="#1A1611"/><path d="M180 285 Q 200 280 230 282" stroke="#1A1611" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M230 282 Q 250 285 268 295" stroke="#1A1611" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M180 340 Q 162 348 145 355" stroke="#1A1611" stroke-width="3.5" stroke-linecap="round" fill="none"/><path d="M180 380 L 180 408" stroke="#1A1611" stroke-width="6" stroke-linecap="round"/></g><g transform="translate(1140 580) rotate(-4)"><rect x="-32" y="-32" width="64" height="64" rx="2.5" fill="#9C0029"/><text font-family="serif" font-size="42" font-weight="700" text-anchor="middle" y="14" fill="#fff">禅</text></g></svg>`),
+  dojo:    'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="dwall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F5E5BC"/><stop offset="0.5" stop-color="#E8D29A"/><stop offset="1" stop-color="#D4B878"/></linearGradient><linearGradient id="dfloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A88150"/><stop offset="0.5" stop-color="#876334"/><stop offset="1" stop-color="#5A3A1C"/></linearGradient><pattern id="dshoji" x="0" y="0" width="170" height="200" patternUnits="userSpaceOnUse"><rect width="170" height="200" fill="url(#dwall)"/><rect x="2" y="2" width="166" height="196" fill="none" stroke="#3A2818" stroke-width="3"/><line x1="85" y1="0" x2="85" y2="200" stroke="#3A2818" stroke-width="1.5"/><line x1="0" y1="50" x2="170" y2="50" stroke="#3A2818" stroke-width="1.5"/><line x1="0" y1="100" x2="170" y2="100" stroke="#3A2818" stroke-width="1.5"/><line x1="0" y1="150" x2="170" y2="150" stroke="#3A2818" stroke-width="1.5"/></pattern><pattern id="dtatami" x="0" y="0" width="320" height="100" patternUnits="userSpaceOnUse"><rect width="320" height="100" fill="url(#dfloor)"/><rect x="0" y="0" width="320" height="100" fill="none" stroke="#1A1206" stroke-width="3.5"/><line x1="160" y1="0" x2="160" y2="100" stroke="#1A1206" stroke-width="2"/><line x1="0" y1="20" x2="320" y2="20" stroke="#5A3818" stroke-width="0.5" opacity="0.4"/><line x1="0" y1="50" x2="320" y2="50" stroke="#5A3818" stroke-width="0.5" opacity="0.4"/><line x1="0" y1="80" x2="320" y2="80" stroke="#5A3818" stroke-width="0.5" opacity="0.4"/></pattern><radialGradient id="lampGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFE5C0" stop-opacity="0.55"/><stop offset="0.5" stop-color="#FFE5C0" stop-opacity="0.2"/><stop offset="1" stop-color="#FFE5C0" stop-opacity="0"/></radialGradient><radialGradient id="vig" cx="0.5" cy="0.5" r="0.7"><stop offset="0.55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.3"/></radialGradient></defs><rect width="1280" height="500" fill="url(#dshoji)"/><rect y="500" width="1280" height="220" fill="url(#dtatami)"/><rect x="0" y="0" width="1280" height="38" fill="#2A1808"/><rect x="0" y="495" width="1280" height="12" fill="#3A2410"/><circle cx="200" cy="200" r="220" fill="url(#lampGlow)"/><g><line x1="200" y1="38" x2="200" y2="115" stroke="#3A2410" stroke-width="2.5"/><ellipse cx="200" cy="158" rx="48" ry="58" fill="#9C0029"/><ellipse cx="200" cy="158" rx="48" ry="58" fill="none" stroke="#2A0810" stroke-width="2"/><line x1="160" y1="158" x2="240" y2="158" stroke="#2A0810" stroke-width="1.5" opacity="0.7"/><line x1="170" y1="128" x2="230" y2="128" stroke="#2A0810" stroke-width="1.2" opacity="0.6"/><line x1="170" y1="188" x2="230" y2="188" stroke="#2A0810" stroke-width="1.2" opacity="0.6"/><text x="200" y="170" font-family="serif" font-size="22" font-weight="700" text-anchor="middle" fill="#fff" opacity="0.85">武</text></g><rect width="1280" height="720" fill="url(#vig)"/></svg>`),
+  hanko:   'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="hg" cx="0.4" cy="0.35" r="0.95"><stop offset="0" stop-color="#E54058"/><stop offset="0.45" stop-color="#B11838"/><stop offset="0.85" stop-color="#7A0820"/><stop offset="1" stop-color="#4A000F"/></radialGradient><pattern id="hgrain" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="20" cy="20" r="0.5" fill="#fff" opacity="0.1"/><circle cx="60" cy="40" r="0.6" fill="#fff" opacity="0.12"/><circle cx="80" cy="80" r="0.4" fill="#fff" opacity="0.08"/><circle cx="40" cy="70" r="0.7" fill="#fff" opacity="0.14"/><circle cx="10" cy="55" r="0.4" fill="#fff" opacity="0.09"/></pattern><linearGradient id="hwash" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A0010" stop-opacity="0"/><stop offset="1" stop-color="#3A0010" stop-opacity="0.55"/></linearGradient></defs><rect width="1280" height="720" fill="url(#hg)"/><rect width="1280" height="720" fill="url(#hgrain)"/><rect x="0" y="500" width="1280" height="220" fill="url(#hwash)"/><g transform="translate(1080 220) rotate(-5)"><rect x="-110" y="-110" width="220" height="220" rx="6" fill="#FFE0E0" opacity="0.06"/><text font-family="serif" font-size="220" font-weight="800" text-anchor="middle" y="78" fill="#FFD8D8" opacity="0.22">賞</text></g><g transform="translate(180 580) rotate(-8)"><rect x="-40" y="-40" width="80" height="80" rx="3" fill="#FFE0E0" opacity="0.18"/><text font-family="serif" font-size="78" font-weight="800" text-anchor="middle" y="28" fill="#FFE0E0" opacity="0.85">朱</text></g></svg>`),
 };
 const _LK_EFFECTS = [
   { id:'none',     name:'Original',          tag:'sem efeito',                  preview:'plain',   kind:'none' },
-  { id:'blur',     name:'Borrar fundo',      tag:'só o fundo · você fica nítido', preview:'blur', kind:'blur', radius:30 },
-  { id:'blur-soft',name:'Borrar suave',      tag:'desfoque mais leve',          preview:'blur',    kind:'blur', radius:15 },
+  { id:'blur',     name:'Borrar fundo',      tag:'só o fundo · você fica nítido', preview:'blur', kind:'blur', radius:50 },
+  { id:'blur-soft',name:'Borrar suave',      tag:'desfoque mais leve',          preview:'blur',    kind:'blur', radius:25 },
   { id:'sakura',   name:'🌸 Sakura',         tag:'cerejeira em flor',           preview:'sakura',  kind:'image', image:'sakura' },
   { id:'hokusai',  name:'🌊 Onda Hokusai',   tag:'mar ukiyo-e azul',            preview:'hokusai', kind:'image', image:'hokusai' },
   { id:'sumie',    name:'墨 Sumi-e',         tag:'tinta zen monocromática',     preview:'sumie',   kind:'image', image:'sumie'   },
@@ -45685,8 +45736,8 @@ function _lkRenderControls() {
     <button type="button" class="lk-ctrl" onclick="_lkOpenReactions(this)" title="Reagir com emoji">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="0.8" fill="currentColor"/><circle cx="15" cy="10" r="0.8" fill="currentColor"/><path d="M8 14 q 4 4 8 0"/></svg>
     </button>
-    <button type="button" class="lk-ctrl ${_lkGetCurrentEffect()!=='none'?'is-active':''}" onclick="_lkOpenEffectsModal()" title="Efeitos de câmera (espada mágica)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19.2 4.8 L 9.5 14.5" stroke-width="2"/><path d="M19.2 4.8 L 21 3 L 22 4 L 20.2 5.8 Z" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1.4" stroke-width="1.4"/><path d="M7.5 16.5 L 4 20" stroke-width="2"/><path d="M3 21 L 4 20 L 5 21 L 4 22 Z" fill="currentColor" stroke="none"/><path d="M16 3 L 16.5 4.2 L 17.7 4.7 L 16.5 5.2 L 16 6.4 L 15.5 5.2 L 14.3 4.7 L 15.5 4.2 Z" fill="currentColor" stroke="none" opacity="0.85"/><path d="M21.5 8.5 L 21.8 9.4 L 22.7 9.7 L 21.8 10 L 21.5 10.9 L 21.2 10 L 20.3 9.7 L 21.2 9.4 Z" fill="currentColor" stroke="none" opacity="0.7"/><circle cx="13" cy="9" r="0.7" fill="currentColor" stroke="none" opacity="0.8"/></svg>
+    <button type="button" class="lk-ctrl ${_lkGetCurrentEffect()!=='none'?'is-active':''}" onclick="_lkOpenEffectsModal()" title="Efeitos de câmera">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 3.5 L 11 13" stroke-width="2"/><path d="M11 13 L 9.5 14.5 M 11 13 L 12.5 14.5" stroke-width="1.4"/><circle cx="9" cy="15" r="1.6" fill="currentColor" stroke="none" opacity="0.95"/><path d="M7.5 16.5 L 3.5 20.5" stroke-width="2.2"/><path d="M3 21 L 4 20.5 L 4.5 21.5 L 3.5 22 Z" fill="currentColor" stroke="none"/><path d="M21.2 2.8 L 22 2 L 22.5 2.5 L 21.7 3.3 Z" fill="currentColor" stroke="none"/><g opacity="0.85"><path d="M17.5 2.5 L 17.8 3.4 L 18.7 3.7 L 17.8 4 L 17.5 4.9 L 17.2 4 L 16.3 3.7 L 17.2 3.4 Z" fill="currentColor" stroke="none"/><path d="M21 9.5 L 21.2 10.2 L 21.9 10.4 L 21.2 10.6 L 21 11.3 L 20.8 10.6 L 20.1 10.4 L 20.8 10.2 Z" fill="currentColor" stroke="none"/><circle cx="14" cy="6" r="0.6" fill="currentColor" stroke="none"/></g></svg>
     </button>
     <button type="button" class="lk-ctrl ${ext.lk.recording?'is-active':''}" onclick="_lkToggleRecording()" title="Gravar a chamada (Faixa Preta)" style="${ext.lk.recording?'background:#BC002D !important;':''}">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
@@ -45775,37 +45826,49 @@ function _kanStartTranscription() {
   try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
 }
 
-function _kanWaitForAudioTrack() {
+// Stream separado pro Kan (getUserMedia direto) — não compartilha com LiveKit
+let _kanMicStream = null;
+
+async function _kanWaitForAudioTrack() {
   if (!_kanWantRunning) return;
-  const ext = _chatState.extended;
-  const room = ext?.lk?.room;
-  const LK = window.LivekitClient;
-  if (!room || !LK) {
-    _kanWaitForTrackTries++;
-    if (_kanWaitForTrackTries < 30) {
-      setTimeout(_kanWaitForAudioTrack, 500);
+  // Se já temos um stream ativo, usa
+  if (_kanMicStream && _kanMicStream.active) {
+    const mst = _kanMicStream.getAudioTracks()[0];
+    if (mst && mst.readyState === 'live') {
+      _kanRecordChunk(mst);
+      return;
     }
-    return;
   }
-  const micPub = room.localParticipant.getTrackPublication(LK.Track?.Source?.Microphone);
-  const audioTrack = micPub?.audioTrack || micPub?.track;
-  const mst = audioTrack?.mediaStreamTrack;
-  if (!mst) {
+  // Pede um getUserMedia separado pra Mestre Kan (não interfere com LiveKit)
+  try {
+    console.log('[kan] solicitando mic separado via getUserMedia...');
+    _kanMicStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+      video: false,
+    });
+    const mst = _kanMicStream.getAudioTracks()[0];
+    if (!mst) throw new Error('sem audio track no stream');
+    console.log('[kan] ✓ mic obtido:', mst.label);
+    _kanRecordChunk(mst);
+  } catch(e) {
+    console.warn('[kan] getUserMedia falhou:', e?.message);
     _kanWaitForTrackTries++;
-    if (_kanWaitForTrackTries < 30) {
-      setTimeout(_kanWaitForAudioTrack, 500);
+    if (_kanWaitForTrackTries < 5) {
+      setTimeout(_kanWaitForAudioTrack, 2000);
     } else {
-      console.warn('[kan] timeout esperando audio track');
       if (typeof _showKanWarning === 'function') {
-        _showKanWarning('Mestre Kan sem áudio',
-          'Não consegui acessar o microfone — verifique se ele tá ativo no tatame (não-mutado).',
-          'warning');
+        const msg = (e?.name === 'NotAllowedError' || e?.name === 'PermissionDeniedError')
+          ? 'Você precisa permitir acesso ao microfone pra IA transcrever. Clique no cadeado da URL e libere.'
+          : 'Não consegui acessar o microfone — talvez outro app esteja usando.';
+        _showKanWarning('Mestre Kan sem áudio', msg, 'warning');
       }
+      _kanWantRunning = false;
     }
-    return;
   }
-  // Tem track — começa a gravar
-  _kanRecordChunk(mst);
 }
 
 function _kanRecordChunk(mst) {
@@ -45935,6 +45998,11 @@ function _kanStopTranscription() {
     } catch(_){}
     _kanRecorder = null;
   }
+  // Libera mic stream dedicado pro Kan (apaga LED se LiveKit também já desligou)
+  if (_kanMicStream) {
+    try { _kanMicStream.getTracks().forEach(t => t.stop()); } catch(_){}
+    _kanMicStream = null;
+  }
   console.log('[kan] transcrição parada');
   try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
 }
@@ -45999,18 +46067,46 @@ async function _lkLeave() {
     } catch(_){}
   }
 
-  // 3) Stop track processor antes de disconnect (evita memory leak MediaPipe)
+  // 3) Para track processor + DESLIGA câmera/mic e libera devices (CRÍTICO — sem
+  //    isso o LED da webcam fica aceso, navegador acha que ainda tá em call)
   try {
     const LK = window.LivekitClient;
-    const camPub = room?.localParticipant?.getTrackPublication?.(LK?.Track?.Source?.Camera);
+    const lp = room?.localParticipant;
+
+    const camPub = lp?.getTrackPublication?.(LK?.Track?.Source?.Camera);
     const camTrack = camPub?.videoTrack || camPub?.track;
     if (camTrack && typeof camTrack.stopProcessor === 'function') {
       await Promise.race([
         camTrack.stopProcessor(),
-        new Promise(r => setTimeout(r, 1500))
+        new Promise(r => setTimeout(r, 1000))
       ]);
     }
-  } catch(e){ console.warn('[lk-leave] processor:', e); }
+
+    // Desliga publishing (avisa servidor)
+    if (lp?.setCameraEnabled) {
+      await Promise.race([lp.setCameraEnabled(false), new Promise(r => setTimeout(r, 800))]);
+    }
+    if (lp?.setMicrophoneEnabled) {
+      await Promise.race([lp.setMicrophoneEnabled(false), new Promise(r => setTimeout(r, 800))]);
+    }
+    if (lp?.setScreenShareEnabled) {
+      try { await lp.setScreenShareEnabled(false); } catch(_){}
+    }
+
+    // Para tracks brutas (libera o MediaStream do browser → apaga LED)
+    const stopTrack = (track) => {
+      try {
+        const mst = track?.mediaStreamTrack;
+        if (mst && mst.readyState !== 'ended') mst.stop();
+        if (typeof track?.stop === 'function') track.stop();
+      } catch(_){}
+    };
+    if (lp?.tracks) {
+      lp.tracks.forEach(pub => stopTrack(pub.track || pub.videoTrack || pub.audioTrack));
+    }
+    if (lp?.audioTrackPublications) lp.audioTrackPublications.forEach(p => stopTrack(p.track || p.audioTrack));
+    if (lp?.videoTrackPublications) lp.videoTrackPublications.forEach(p => stopTrack(p.track || p.videoTrack));
+  } catch(e){ console.warn('[lk-leave] tracks:', e); }
 
   // 4) Disconnect do LiveKit (com timeout)
   try {
@@ -46043,7 +46139,12 @@ async function _lkLeave() {
     }
   } catch(e){ console.warn('[lk-leave] end session:', e); }
 
-  // 7) Limpa state e DOM (sempre — mesmo se algo acima travou)
+  // 7) Desmonta embeds ANTES de remover lk-body (senão views são destruídos)
+  try {
+    if (typeof _txUnmountEmbed === 'function') _txUnmountEmbed();
+  } catch(e) { console.warn('[lk-leave] unmount embed:', e); }
+
+  // 8) Limpa state e DOM (sempre — mesmo se algo acima travou)
   if (_chatState.extended) _chatState.extended.lk = null;
   const ov = document.getElementById('tx-overlay');
   if (ov) {
