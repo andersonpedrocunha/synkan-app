@@ -5527,8 +5527,12 @@ body.density-compact .col{padding:7px;}
 .lk-fx-h{font-family:var(--tatami-mincho,serif);font-size:24px;font-weight:600;margin-bottom:6px;}
 .lk-fx-h em{color:#BC002D;font-style:italic;}
 .lk-fx-sub{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:13.5px;color:rgba(255,255,255,.6);margin-bottom:24px;}
-.lk-fx-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.lk-fx-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:6px;}
 @media(max-width:760px){.lk-fx-grid{grid-template-columns:repeat(2,1fr);}}
+.lk-fx-section-h{display:flex;align-items:baseline;justify-content:space-between;margin:18px 0 10px;padding-bottom:6px;border-bottom:1px dashed rgba(255,255,255,.10);}
+.lk-fx-section-h:first-of-type{margin-top:0;}
+.lk-fx-section-label{font-family:var(--tatami-mincho,serif);font-size:13px;font-weight:600;color:#FBE7A4;letter-spacing:.04em;}
+.lk-fx-section-sub{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:11px;color:rgba(255,255,255,.45);}
 .lk-fx-item{background:rgba(255,255,255,.04);border:2px solid rgba(255,255,255,.08);border-radius:12px;padding:10px;cursor:pointer;transition:all .18s;text-align:left;display:flex;flex-direction:column;gap:8px;}
 .lk-fx-item:hover{border-color:rgba(193,154,58,.40);transform:translateY(-2px);background:rgba(255,255,255,.06);}
 .lk-fx-item.is-active{border-color:#BC002D;background:rgba(188,0,45,.12);box-shadow:0 0 0 1px #BC002D,0 8px 20px rgba(188,0,45,.25);}
@@ -45000,23 +45004,42 @@ function _lkAnimateReaction(emoji, userId) {
 // kind:'blur' → BackgroundBlur (só borra o fundo, pessoa fica nítida)
 // kind:'image' → VirtualBackground (substitui fundo por SVG Synkan)
 // kind:'none' → remove processador
+// Backgrounds reais (PNG fotográfico) — gerados via IA, em bg-effects/
+// Browser cache (localStorage caching disabled em artifacts mas aqui é app real, dá pra usar HTTP cache)
 const _LK_BG_IMAGES = {
-  // SVGs sofisticados — multi-layer, atmospheric, identidade Synkan
-  sakura:  'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF4F0"/><stop offset="0.35" stop-color="#FFD9E0"/><stop offset="0.75" stop-color="#F4A8B8"/><stop offset="1" stop-color="#C26890"/></linearGradient><radialGradient id="bokeh1" cx="0.7" cy="0.25" r="0.5"><stop offset="0" stop-color="#FFF0F5" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF0F5" stop-opacity="0"/></radialGradient><radialGradient id="bokeh2" cx="0.15" cy="0.7" r="0.4"><stop offset="0" stop-color="#FFE8F0" stop-opacity="0.45"/><stop offset="1" stop-color="#FFE8F0" stop-opacity="0"/></radialGradient><filter id="sb1" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3"/></filter><filter id="sb2" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="10"/></filter></defs><rect width="1280" height="720" fill="url(#sky)"/><rect width="1280" height="720" fill="url(#bokeh1)"/><rect width="1280" height="720" fill="url(#bokeh2)"/><g opacity="0.18" filter="url(#sb2)"><path d="M-50 720 L-50 460 Q120 360 260 430 Q380 350 510 410 Q620 350 760 410 Q900 350 1040 420 Q1180 360 1330 410 L1330 720 Z" fill="#6B2842"/></g><g filter="url(#sb1)"><path d="M-30 230 Q 140 220 260 260 Q 350 290 380 340 Q 350 360 290 350" stroke="#3D1F2A" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.95"/><path d="M260 260 Q 320 290 380 285" stroke="#3D1F2A" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.85"/><g fill="#FFCAD8"><circle cx="40" cy="225" r="18"/><circle cx="75" cy="245" r="14"/><circle cx="120" cy="232" r="20"/><circle cx="170" cy="250" r="15"/><circle cx="220" cy="265" r="18"/><circle cx="280" cy="275" r="16"/><circle cx="340" cy="305" r="18"/></g><g fill="#FF9DB8"><circle cx="50" cy="232" r="9"/><circle cx="125" cy="240" r="10"/><circle cx="225" cy="270" r="9"/><circle cx="345" cy="312" r="9"/></g><g fill="#FFE5EE" opacity="0.85"><circle cx="48" cy="222" r="5"/><circle cx="125" cy="232" r="5"/><circle cx="222" cy="262" r="5"/><circle cx="342" cy="302" r="5"/></g></g><g fill="#FFD5E0" opacity="0.85"><ellipse cx="450" cy="180" rx="7" ry="3.5" transform="rotate(20 450 180)"/><ellipse cx="700" cy="350" rx="6" ry="3" transform="rotate(-15 700 350)"/><ellipse cx="900" cy="200" rx="7" ry="3.5" transform="rotate(45 900 200)"/><ellipse cx="1050" cy="450" rx="6" ry="3" transform="rotate(-30 1050 450)"/><ellipse cx="350" cy="500" rx="7" ry="3.5" transform="rotate(15 350 500)"/><ellipse cx="800" cy="600" rx="5" ry="2.5" transform="rotate(60 800 600)"/></g></svg>`),
-  hokusai: 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="hsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F8E5BC"/><stop offset="0.25" stop-color="#E8B888"/><stop offset="0.55" stop-color="#7088B8"/><stop offset="0.85" stop-color="#2A4870"/><stop offset="1" stop-color="#162E55"/></linearGradient><linearGradient id="hwave1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A88C0"/><stop offset="0.5" stop-color="#1A4D7A"/><stop offset="1" stop-color="#0A2845"/></linearGradient><linearGradient id="hwave2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1A4D7A"/><stop offset="1" stop-color="#0A1F3A"/></linearGradient><radialGradient id="sun" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFE8C0"/><stop offset="0.55" stop-color="#F8D098" stop-opacity="0.85"/><stop offset="1" stop-color="#F8D098" stop-opacity="0"/></radialGradient></defs><rect width="1280" height="720" fill="url(#hsky)"/><circle cx="1080" cy="220" r="160" fill="url(#sun)"/><circle cx="1080" cy="220" r="68" fill="#FCE5B0" opacity="0.95"/><g opacity="0.55"><path d="M770 480 Q 900 200 1030 480 L 1030 500 Q 900 430 770 500 Z" fill="#1A2D4A"/><path d="M870 320 Q 905 280 935 305 Q 920 295 905 305 Q 890 290 870 320 Z" fill="#fff" opacity="0.95"/><path d="M880 340 Q 920 320 945 335" stroke="#fff" stroke-width="2" fill="none" opacity="0.6"/></g><g><path d="M-50 460 Q 80 360 240 420 Q 320 450 360 380 Q 400 280 480 230 Q 560 180 620 250 Q 680 320 720 290 Q 770 240 730 170 Q 670 90 580 100 Q 460 110 360 200 Q 250 290 130 350 Q 30 390 -50 380 Z" fill="url(#hwave1)"/><g fill="#fff"><path d="M510 110 Q 535 100 560 115 Q 545 105 535 110 Q 525 102 510 110 Z" opacity="0.95"/><path d="M555 130 Q 585 115 615 130 Q 600 122 590 126 Q 575 118 555 130 Z" opacity="0.95"/><path d="M610 150 Q 640 135 670 150 Q 655 140 640 145 Q 625 138 610 150 Z" opacity="0.95"/><circle cx="540" cy="125" r="3.5"/><circle cx="600" cy="143" r="3.5"/><circle cx="660" cy="158" r="3"/><path d="M460 180 Q 480 168 500 180 Q 488 172 480 175 Q 472 168 460 180 Z" opacity="0.85"/><path d="M380 240 Q 400 230 420 240 Q 408 232 400 236 Q 388 230 380 240 Z" opacity="0.8"/></g></g><g opacity="0.85"><path d="M0 580 Q 200 480 400 530 Q 600 560 800 510 Q 1000 460 1280 510 L 1280 720 L 0 720 Z" fill="url(#hwave2)"/></g><path d="M0 620 Q 200 580 400 600 Q 600 620 800 590 Q 1000 560 1280 590 L 1280 720 L 0 720 Z" fill="#0A1F3A"/></svg>`),
-  sumie:   'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F8F2E0"/><stop offset="0.5" stop-color="#F0E8C8"/><stop offset="1" stop-color="#D8C8A0"/></linearGradient><pattern id="ptex" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse"><circle cx="15" cy="25" r="0.6" fill="#3A2818" opacity="0.07"/><circle cx="55" cy="40" r="0.5" fill="#3A2818" opacity="0.06"/><circle cx="65" cy="65" r="0.7" fill="#3A2818" opacity="0.08"/><circle cx="25" cy="55" r="0.4" fill="#3A2818" opacity="0.05"/></pattern><filter id="inkblur"><feGaussianBlur stdDeviation="0.5"/></filter><filter id="inkblur2"><feGaussianBlur stdDeviation="3"/></filter></defs><rect width="1280" height="720" fill="url(#paper)"/><rect width="1280" height="720" fill="url(#ptex)"/><g opacity="0.28" filter="url(#inkblur2)"><path d="M0 380 Q 200 300 400 350 Q 600 390 800 330 Q 1000 290 1280 350 L 1280 430 L 0 430 Z" fill="#1A1611"/></g><g opacity="0.6" filter="url(#inkblur)"><path d="M0 480 Q 150 390 280 425 Q 400 460 500 410 Q 600 370 700 415 Q 820 470 940 415 Q 1060 360 1180 415 Q 1240 440 1280 425 L 1280 540 L 0 540 Z" fill="#1A1611"/></g><g><path d="M0 540 Q 100 490 200 515 Q 280 540 360 480 Q 420 425 480 470 Q 540 515 620 470 Q 680 430 740 475 Q 820 535 920 475 Q 1020 420 1100 470 Q 1180 515 1280 480 L 1280 720 L 0 720 Z" fill="#1A1611"/></g><g><path d="M180 200 L 180 410" stroke="#1A1611" stroke-width="7" stroke-linecap="round"/><path d="M180 220 L 180 245" stroke="#1A1611" stroke-width="16" stroke-linecap="round" opacity="0.55"/><ellipse cx="180" cy="252" rx="9" ry="3.5" fill="#1A1611"/><path d="M180 285 Q 200 280 230 282" stroke="#1A1611" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M230 282 Q 250 285 268 295" stroke="#1A1611" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M180 340 Q 162 348 145 355" stroke="#1A1611" stroke-width="3.5" stroke-linecap="round" fill="none"/><path d="M180 380 L 180 408" stroke="#1A1611" stroke-width="6" stroke-linecap="round"/></g><g transform="translate(1140 580) rotate(-4)"><rect x="-32" y="-32" width="64" height="64" rx="2.5" fill="#9C0029"/><text font-family="serif" font-size="42" font-weight="700" text-anchor="middle" y="14" fill="#fff">禅</text></g></svg>`),
-  dojo:    'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="dwall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F5E5BC"/><stop offset="0.5" stop-color="#E8D29A"/><stop offset="1" stop-color="#D4B878"/></linearGradient><linearGradient id="dfloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A88150"/><stop offset="0.5" stop-color="#876334"/><stop offset="1" stop-color="#5A3A1C"/></linearGradient><pattern id="dshoji" x="0" y="0" width="170" height="200" patternUnits="userSpaceOnUse"><rect width="170" height="200" fill="url(#dwall)"/><rect x="2" y="2" width="166" height="196" fill="none" stroke="#3A2818" stroke-width="3"/><line x1="85" y1="0" x2="85" y2="200" stroke="#3A2818" stroke-width="1.5"/><line x1="0" y1="50" x2="170" y2="50" stroke="#3A2818" stroke-width="1.5"/><line x1="0" y1="100" x2="170" y2="100" stroke="#3A2818" stroke-width="1.5"/><line x1="0" y1="150" x2="170" y2="150" stroke="#3A2818" stroke-width="1.5"/></pattern><pattern id="dtatami" x="0" y="0" width="320" height="100" patternUnits="userSpaceOnUse"><rect width="320" height="100" fill="url(#dfloor)"/><rect x="0" y="0" width="320" height="100" fill="none" stroke="#1A1206" stroke-width="3.5"/><line x1="160" y1="0" x2="160" y2="100" stroke="#1A1206" stroke-width="2"/><line x1="0" y1="20" x2="320" y2="20" stroke="#5A3818" stroke-width="0.5" opacity="0.4"/><line x1="0" y1="50" x2="320" y2="50" stroke="#5A3818" stroke-width="0.5" opacity="0.4"/><line x1="0" y1="80" x2="320" y2="80" stroke="#5A3818" stroke-width="0.5" opacity="0.4"/></pattern><radialGradient id="lampGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFE5C0" stop-opacity="0.55"/><stop offset="0.5" stop-color="#FFE5C0" stop-opacity="0.2"/><stop offset="1" stop-color="#FFE5C0" stop-opacity="0"/></radialGradient><radialGradient id="vig" cx="0.5" cy="0.5" r="0.7"><stop offset="0.55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.3"/></radialGradient></defs><rect width="1280" height="500" fill="url(#dshoji)"/><rect y="500" width="1280" height="220" fill="url(#dtatami)"/><rect x="0" y="0" width="1280" height="38" fill="#2A1808"/><rect x="0" y="495" width="1280" height="12" fill="#3A2410"/><circle cx="200" cy="200" r="220" fill="url(#lampGlow)"/><g><line x1="200" y1="38" x2="200" y2="115" stroke="#3A2410" stroke-width="2.5"/><ellipse cx="200" cy="158" rx="48" ry="58" fill="#9C0029"/><ellipse cx="200" cy="158" rx="48" ry="58" fill="none" stroke="#2A0810" stroke-width="2"/><line x1="160" y1="158" x2="240" y2="158" stroke="#2A0810" stroke-width="1.5" opacity="0.7"/><line x1="170" y1="128" x2="230" y2="128" stroke="#2A0810" stroke-width="1.2" opacity="0.6"/><line x1="170" y1="188" x2="230" y2="188" stroke="#2A0810" stroke-width="1.2" opacity="0.6"/><text x="200" y="170" font-family="serif" font-size="22" font-weight="700" text-anchor="middle" fill="#fff" opacity="0.85">武</text></g><rect width="1280" height="720" fill="url(#vig)"/></svg>`),
-  hanko:   'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="hg" cx="0.4" cy="0.35" r="0.95"><stop offset="0" stop-color="#E54058"/><stop offset="0.45" stop-color="#B11838"/><stop offset="0.85" stop-color="#7A0820"/><stop offset="1" stop-color="#4A000F"/></radialGradient><pattern id="hgrain" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="20" cy="20" r="0.5" fill="#fff" opacity="0.1"/><circle cx="60" cy="40" r="0.6" fill="#fff" opacity="0.12"/><circle cx="80" cy="80" r="0.4" fill="#fff" opacity="0.08"/><circle cx="40" cy="70" r="0.7" fill="#fff" opacity="0.14"/><circle cx="10" cy="55" r="0.4" fill="#fff" opacity="0.09"/></pattern><linearGradient id="hwash" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A0010" stop-opacity="0"/><stop offset="1" stop-color="#3A0010" stop-opacity="0.55"/></linearGradient></defs><rect width="1280" height="720" fill="url(#hg)"/><rect width="1280" height="720" fill="url(#hgrain)"/><rect x="0" y="500" width="1280" height="220" fill="url(#hwash)"/><g transform="translate(1080 220) rotate(-5)"><rect x="-110" y="-110" width="220" height="220" rx="6" fill="#FFE0E0" opacity="0.06"/><text font-family="serif" font-size="220" font-weight="800" text-anchor="middle" y="78" fill="#FFD8D8" opacity="0.22">賞</text></g><g transform="translate(180 580) rotate(-8)"><rect x="-40" y="-40" width="80" height="80" rx="3" fill="#FFE0E0" opacity="0.18"/><text font-family="serif" font-size="78" font-weight="800" text-anchor="middle" y="28" fill="#FFE0E0" opacity="0.85">朱</text></g></svg>`),
+  // Synkan / japonês
+  sakura:     'bg-effects/sakura.png',
+  hokusai:    'bg-effects/hokusai.png',
+  sumie:      'bg-effects/sumie.png',
+  dojo:       'bg-effects/dojo.png',
+  hanko:      'bg-effects/hanko.png',
+  // Tradicionais
+  biblioteca: 'bg-effects/biblioteca.png',
+  escritorio: 'bg-effects/escritorio.png',
+  estufa:     'bg-effects/estufa.png',
+  cafe:       'bg-effects/cafe.png',
+  kanban:     'bg-effects/kanban.png',
+  // Sci-fi
+  artemis:    'bg-effects/artemis.png',
 };
 const _LK_EFFECTS = [
-  { id:'none',     name:'Original',          tag:'sem efeito',                  preview:'plain',   kind:'none' },
-  { id:'blur',     name:'Borrar fundo',      tag:'só o fundo · você fica nítido', preview:'blur', kind:'blur', radius:50 },
-  { id:'blur-soft',name:'Borrar suave',      tag:'desfoque mais leve',          preview:'blur',    kind:'blur', radius:25 },
-  { id:'sakura',   name:'🌸 Sakura',         tag:'cerejeira em flor',           preview:'sakura',  kind:'image', image:'sakura' },
-  { id:'hokusai',  name:'🌊 Onda Hokusai',   tag:'mar ukiyo-e azul',            preview:'hokusai', kind:'image', image:'hokusai' },
-  { id:'sumie',    name:'墨 Sumi-e',         tag:'tinta zen monocromática',     preview:'sumie',   kind:'image', image:'sumie'   },
-  { id:'dojo',     name:'道場 Dojo',         tag:'shoji + tatami',              preview:'dojo',    kind:'image', image:'dojo'    },
-  { id:'hanko',    name:'🎴 Hanko',          tag:'selo vermelho · papel washi', preview:'hanko',   kind:'image', image:'hanko'   },
+  { id:'none',     name:'Original',          tag:'sem efeito',                    preview:null,        kind:'none' },
+  { id:'blur',     name:'Borrar fundo',      tag:'só o fundo · você fica nítido', preview:null,        kind:'blur', radius:60 },
+  { id:'blur-soft',name:'Borrar suave',      tag:'desfoque mais leve',            preview:null,        kind:'blur', radius:30 },
+  // Synkan / japonês
+  { id:'sakura',   name:'🌸 Sakura',         tag:'cerejeira em flor',             preview:'sakura',    kind:'image', image:'sakura'    , group:'synkan' },
+  { id:'hokusai',  name:'🌊 Onda Hokusai',   tag:'mar ukiyo-e',                   preview:'hokusai',   kind:'image', image:'hokusai'   , group:'synkan' },
+  { id:'sumie',    name:'墨 Sumi-e',         tag:'sala de chá zen',               preview:'sumie',     kind:'image', image:'sumie'     , group:'synkan' },
+  { id:'dojo',     name:'道場 Dojo',         tag:'shoji + tatami',                preview:'dojo',      kind:'image', image:'dojo'      , group:'synkan' },
+  { id:'hanko',    name:'🎴 Hanko',          tag:'corredor torii vermelho',       preview:'hanko',     kind:'image', image:'hanko'     , group:'synkan' },
+  // Tradicionais
+  { id:'biblioteca',name:'📚 Biblioteca',    tag:'estantes clássicas',            preview:'biblioteca',kind:'image', image:'biblioteca', group:'work' },
+  { id:'escritorio',name:'🪑 Home office',   tag:'mesa elegante',                 preview:'escritorio',kind:'image', image:'escritorio', group:'work' },
+  { id:'estufa',   name:'🌿 Estufa',         tag:'jardim botânico',               preview:'estufa',    kind:'image', image:'estufa'    , group:'work' },
+  { id:'cafe',     name:'☕ Café',           tag:'cafeteria especialty',          preview:'cafe',      kind:'image', image:'cafe'      , group:'work' },
+  { id:'kanban',   name:'📋 Kanban',         tag:'parede de post-its',            preview:'kanban',    kind:'image', image:'kanban'    , group:'work' },
+  // Sci-fi
+  { id:'artemis',  name:'🚀 Artemis',        tag:'base lunar · vista da Terra',   preview:'artemis',   kind:'image', image:'artemis'   , group:'space' },
 ];
 
 function _lkOpenEffectsModal() {
@@ -45031,6 +45054,10 @@ function _lkOpenEffectsModal() {
   ov.innerHTML = _lkEffectsModalHTML();
   ov.classList.add('is-open');
   ov.onclick = e => { if (e.target === ov) _lkCloseEffectsModal(); };
+  // Pre-carrega backgrounds em background — primeira escolha será instantânea
+  try { _lkPreloadAllBgs(); } catch(_){}
+  // Pre-carrega track-processors também (MediaPipe wasm)
+  try { _lkLoadProcessors().catch(()=>{}); } catch(_){}
 }
 function _lkCloseEffectsModal() {
   const ov = document.getElementById('lk-fx-ov');
@@ -45042,24 +45069,56 @@ function _lkGetCurrentEffect() {
   catch(_){ return 'none'; }
 }
 
-// Cache de PNGs rasterizados (MediaPipe não aceita SVG diretamente — converte primeiro)
+// Cache de versões otimizadas (PNG 8MB → JPEG 1280x720 ~200KB)
+// Faz cover-fit pra preencher 16:9 sem distorcer e com JPEG quality 0.9.
 const _lkBgPngCache = {};
-async function _lkRasterizeBg(svgDataUrl, w=1280, h=720) {
-  if (_lkBgPngCache[svgDataUrl]) return _lkBgPngCache[svgDataUrl];
+async function _lkRasterizeBg(srcUrl, w=1280, h=720) {
+  if (_lkBgPngCache[srcUrl]) return _lkBgPngCache[srcUrl];
   const img = new Image();
   img.crossOrigin = 'anonymous';
   await new Promise((resolve, reject) => {
     img.onload = resolve;
-    img.onerror = () => reject(new Error('falha ao carregar SVG'));
-    img.src = svgDataUrl;
+    img.onerror = () => reject(new Error('falha ao carregar bg: ' + srcUrl));
+    img.src = srcUrl;
   });
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, w, h);
-  const pngUrl = canvas.toDataURL('image/png');
-  _lkBgPngCache[svgDataUrl] = pngUrl;
-  return pngUrl;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  // Cover-fit: preserva aspect ratio cobrindo toda a área (estilo background-size:cover)
+  const imgRatio = img.width / img.height;
+  const targetRatio = w / h;
+  let dx, dy, dw, dh;
+  if (imgRatio > targetRatio) {
+    dh = h; dw = h * imgRatio;
+    dx = (w - dw) / 2; dy = 0;
+  } else {
+    dw = w; dh = w / imgRatio;
+    dx = 0; dy = (h - dh) / 2;
+  }
+  ctx.drawImage(img, dx, dy, dw, dh);
+  // JPEG 0.9 — bom balance qualidade/tamanho. PNG seria 8MB, JPEG fica ~250-400KB
+  const out = canvas.toDataURL('image/jpeg', 0.9);
+  _lkBgPngCache[srcUrl] = out;
+  console.log('[lk-fx] cached bg:', srcUrl, '→', Math.round(out.length/1024), 'KB');
+  return out;
+}
+
+// Preload todos backgrounds em background (idle) pra primeira escolha ser instantânea
+let _lkPreloadStarted = false;
+function _lkPreloadAllBgs() {
+  if (_lkPreloadStarted) return;
+  _lkPreloadStarted = true;
+  const urls = Object.values(_LK_BG_IMAGES);
+  const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 100));
+  urls.forEach((url, i) => {
+    idle(() => {
+      setTimeout(() => {
+        _lkRasterizeBg(url).catch(e => console.warn('[lk-fx] preload', url, e?.message));
+      }, i * 600);  // Stagger pra não saturar rede/CPU
+    });
+  });
 }
 
 async function _lkSetEffect(fxId) {
@@ -45105,28 +45164,37 @@ async function _lkSetEffect(fxId) {
       try { await track.stopProcessor(); } catch(_){}
     }
 
+    // Opções de segmentação pra estabilidade:
+    // - delegate GPU = aceleração via WebGL, menos jitter, mais FPS
+    // - runningMode VIDEO = MediaPipe usa temporal smoothing entre frames
+    const segmenterOptions = {
+      baseOptions: { delegate: 'GPU' },
+      runningMode: 'VIDEO',
+      outputCategoryMask: true,
+      outputConfidenceMasks: false,
+    };
+
     if (fx.kind === 'blur') {
       const Bb = processors.BackgroundBlur;
       if (typeof Bb === 'function') {
-        // Radius mais alto = blur mais forte e mais visível
-        const proc = Bb(fx.radius || 25);
+        // Radius alto = blur forte, mascara qualquer jitter de borda
+        const proc = Bb(fx.radius || 30, segmenterOptions);
         await track.setProcessor(proc);
         console.log('[lk-fx] BackgroundBlur aplicado, radius =', fx.radius);
       }
     } else if (fx.kind === 'image') {
       const Vb = processors.VirtualBackground;
       if (typeof Vb === 'function') {
-        const svgUrl = _LK_BG_IMAGES[fx.image];
-        // MediaPipe espera raster (PNG) — rasterizar SVG via canvas primeiro
-        let pngUrl;
+        const srcUrl = _LK_BG_IMAGES[fx.image];
+        // Otimiza imagem (8MB PNG → ~300KB JPEG 1280x720) pra MediaPipe processar rápido
+        let bgUrl;
         try {
-          pngUrl = await _lkRasterizeBg(svgUrl);
-          console.log('[lk-fx] SVG rasterizado pra PNG (', pngUrl.length, 'bytes)');
+          bgUrl = await _lkRasterizeBg(srcUrl);
         } catch(rasterErr) {
-          console.warn('[lk-fx] rasterizar falhou, usando SVG direto:', rasterErr);
-          pngUrl = svgUrl;
+          console.warn('[lk-fx] rasterizar falhou, usando original:', rasterErr);
+          bgUrl = srcUrl;
         }
-        const proc = Vb(pngUrl);
+        const proc = Vb(bgUrl, segmenterOptions);
         await track.setProcessor(proc);
         console.log('[lk-fx] VirtualBackground aplicado:', fx.image);
       }
@@ -45154,10 +45222,11 @@ async function _lkApplyStoredEffect() {
 async function _lkPickEffect(fxId) {
   const fx = _LK_EFFECTS.find(f => f.id === fxId);
   _lkCloseEffectsModal();
-  // Toast inicial — vai mostrar "aplicando" enquanto MediaPipe carrega na primeira vez
-  if (typeof _showKanWarning === 'function' && fx && fxId !== 'none') {
+  // Já tá em cache? aplicação é instantânea
+  const inCache = fx?.kind === 'image' && _lkBgPngCache[_LK_BG_IMAGES[fx.image]];
+  if (typeof _showKanWarning === 'function' && fx && fxId !== 'none' && !inCache) {
     _showKanWarning('Aplicando efeito',
-      `<strong>${_esc(fx.name)}</strong> · carregando MediaPipe… (primeira vez pode demorar 2-3s)`,
+      `<strong>${_esc(fx.name)}</strong> · carregando ${fx.kind === 'image' ? 'imagem + segmentação' : 'segmentação'}…`,
       'info');
   }
   await _lkSetEffect(fxId);
@@ -45166,7 +45235,7 @@ async function _lkPickEffect(fxId) {
       _showKanWarning('Efeito removido', 'Voltou pra câmera original.', 'info');
     } else {
       _showKanWarning('Efeito ativo',
-        `<strong>${_esc(fx.name)}</strong> · visível pra você e pros outros (segmentação real).`,
+        `<strong>${_esc(fx.name)}</strong> · ${fx.kind === 'image' ? 'fundo trocado de verdade' : 'fundo borrado'} (segmentação real via MediaPipe).`,
         'info');
     }
   }
@@ -45174,20 +45243,31 @@ async function _lkPickEffect(fxId) {
 
 function _lkEffectsModalHTML() {
   const current = _lkGetCurrentEffect();
+  const initial = supaUser?.user_metadata?.full_name?supaUser.user_metadata.full_name[0].toUpperCase():'A';
+  const renderItem = (fx) => `
+    <button type="button" class="lk-fx-item ${fx.id===current?'is-active':''}" onclick="_lkPickEffect('${fx.id}')">
+      <div class="lk-fx-preview">${_lkPreviewSVG(fx.preview)}<div class="lk-fx-preview-avatar">${initial}</div></div>
+      <div class="lk-fx-name">${_esc(fx.name)} ${fx.id===current?'<span class="lk-fx-status-pill">ativo</span>':''}</div>
+      <div class="lk-fx-tag">${_esc(fx.tag)}</div>
+    </button>`;
+  const basics = _LK_EFFECTS.filter(f => !f.group);
+  const synkan = _LK_EFFECTS.filter(f => f.group === 'synkan');
+  const work   = _LK_EFFECTS.filter(f => f.group === 'work');
+  const space  = _LK_EFFECTS.filter(f => f.group === 'space');
+  const sectionH = (label, sub) => `<div class="lk-fx-section-h"><span class="lk-fx-section-label">${_esc(label)}</span><span class="lk-fx-section-sub">${_esc(sub)}</span></div>`;
   return `<div class="lk-fx-modal">
     <div class="lk-fx-h">Efeitos de <em>câmera</em></div>
-    <div class="lk-fx-sub">Segmentação real via MediaPipe — só o fundo muda, você fica nítido. Identidade Synkan, sem fundo genérico.</div>
-    <div class="lk-fx-grid">
-      ${_LK_EFFECTS.map(fx => `
-        <button type="button" class="lk-fx-item ${fx.id===current?'is-active':''}" onclick="_lkPickEffect('${fx.id}')">
-          <div class="lk-fx-preview">${_lkPreviewSVG(fx.preview)}<div class="lk-fx-preview-avatar">${supaUser?.user_metadata?.full_name?supaUser.user_metadata.full_name[0].toUpperCase():'A'}</div></div>
-          <div class="lk-fx-name">${_esc(fx.name)} ${fx.id===current?'<span class="lk-fx-status-pill">ativo</span>':''}</div>
-          <div class="lk-fx-tag">${_esc(fx.tag)}</div>
-        </button>
-      `).join('')}
-    </div>
+    <div class="lk-fx-sub">Segmentação real via MediaPipe — só o fundo muda, você fica nítido. 12 fundos curados.</div>
+    ${sectionH('Básico','original ou blur')}
+    <div class="lk-fx-grid">${basics.map(renderItem).join('')}</div>
+    ${sectionH('Synkan','identidade japonesa')}
+    <div class="lk-fx-grid">${synkan.map(renderItem).join('')}</div>
+    ${sectionH('Trabalho','ambientes profissionais')}
+    <div class="lk-fx-grid">${work.map(renderItem).join('')}</div>
+    ${sectionH('Espaço','sci-fi')}
+    <div class="lk-fx-grid">${space.map(renderItem).join('')}</div>
     <div class="lk-fx-footer">
-      ✦ Primeira vez carrega ~2 MB do MediaPipe (uma vez só, depois fica em cache). Funciona em Chrome, Edge, Safari recente. Em câmeras fracas pode usar mais CPU — se travar, volte pra "Original".
+      ✦ Primeira vez carrega ~2 MB do MediaPipe + 11 backgrounds (1.5 MB cada otimizado). Depois fica em cache. Funciona melhor em Chrome/Edge com GPU. Em câmeras fracas pode usar mais CPU — se travar, volte pra "Original".
     </div>
     <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
       <button type="button" onclick="_lkCloseEffectsModal()" style="background:transparent;border:1px solid rgba(255,255,255,.15);color:#fff;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:12.5px;font-family:inherit;">Fechar</button>
@@ -45195,19 +45275,19 @@ function _lkEffectsModalHTML() {
   </div>`;
 }
 
-// SVG previews — cada um com identidade visual Synkan
+// Preview do efeito — fotos reais (lazy-loaded) ou SVG simples pra Original/Blur
 function _lkPreviewSVG(kind) {
-  const w = '100%', h = '100%';
-  const svgs = {
-    plain: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="pl-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3D362F"/><stop offset="1" stop-color="#1A1611"/></linearGradient></defs><rect width="200" height="150" fill="url(#pl-g)"/></svg>`,
-    blur: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="bl-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5C7A9D"/><stop offset=".5" stop-color="#3D5470"/><stop offset="1" stop-color="#1F2933"/></linearGradient><filter id="bl-f"><feGaussianBlur stdDeviation="6"/></filter></defs><rect width="200" height="150" fill="url(#bl-g)" filter="url(#bl-f)"/><circle cx="60" cy="50" r="20" fill="#7A9D52" opacity=".5" filter="url(#bl-f)"/><circle cx="150" cy="100" r="25" fill="#A86F3F" opacity=".5" filter="url(#bl-f)"/></svg>`,
-    dojo: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><pattern id="dj-tatami" x="0" y="0" width="40" height="20" patternUnits="userSpaceOnUse"><rect width="40" height="20" fill="#E8DFCB"/><line x1="0" y1="10" x2="40" y2="10" stroke="#1A1611" stroke-width=".4" opacity=".25"/><line x1="20" y1="0" x2="20" y2="20" stroke="#1A1611" stroke-width=".4" opacity=".25"/></pattern><pattern id="dj-spots" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse"><circle cx="15" cy="15" r="1" fill="#8F6E1F" opacity=".35"/><circle cx="45" cy="35" r=".8" fill="#8F6E1F" opacity=".30"/></pattern></defs><rect width="200" height="150" fill="url(#dj-tatami)"/><rect width="200" height="150" fill="url(#dj-spots)"/><line x1="0" y1="100" x2="200" y2="100" stroke="#1A1611" stroke-width="1" opacity=".18"/></svg>`,
-    hokusai: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="hk-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8DFCB"/><stop offset=".4" stop-color="#D5CBA6"/><stop offset="1" stop-color="#9DB0CC"/></linearGradient><linearGradient id="hk-wave" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1F3A5F"/><stop offset="1" stop-color="#0E1F33"/></linearGradient></defs><rect width="200" height="150" fill="url(#hk-sky)"/><circle cx="160" cy="40" r="18" fill="#FAFAF8" opacity=".75"/><path d="M0 90 C 30 75, 50 80, 80 70 C 110 60, 130 65, 160 75 C 180 80, 195 78, 200 80 L 200 150 L 0 150 Z" fill="url(#hk-wave)"/><path d="M40 88 C 50 78, 60 78, 70 88 M40 88 C 30 92, 35 100, 45 102" stroke="#FAFAF8" stroke-width="1.4" fill="none" opacity=".85"/><path d="M80 80 C 95 65, 110 65, 125 78" stroke="#FAFAF8" stroke-width="1.4" fill="none" opacity=".85"/></svg>`,
-    sakura: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sk-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9F0"/><stop offset="1" stop-color="#F5C7D5"/></linearGradient><g id="sk-petal"><path d="M0 -5 C -3 -2, -3 2, 0 5 C 3 2, 3 -2, 0 -5 Z" fill="#E8657F"/></g></defs><rect width="200" height="150" fill="url(#sk-bg)"/><path d="M180 20 C 165 25, 155 35, 150 50 M150 50 C 140 55, 135 70, 138 85" stroke="#5C2A1A" stroke-width="1.5" fill="none"/><use href="#sk-petal" x="160" y="35"/><use href="#sk-petal" x="148" y="55" transform="rotate(20 148 55)"/><use href="#sk-petal" x="140" y="78" transform="rotate(45 140 78)"/><use href="#sk-petal" x="40" y="40" transform="rotate(60 40 40)"/><use href="#sk-petal" x="80" y="100" transform="rotate(100 80 100)"/><use href="#sk-petal" x="20" y="115" transform="rotate(140 20 115)"/><use href="#sk-petal" x="120" y="25" transform="rotate(180 120 25)"/></svg>`,
-    sumie: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sm-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F5EFE0"/><stop offset="1" stop-color="#D9CDA8"/></linearGradient></defs><rect width="200" height="150" fill="url(#sm-bg)"/><path d="M30 100 C 50 70, 80 60, 100 70 C 120 80, 140 75, 170 60" stroke="#1A1611" stroke-width="6" fill="none" stroke-linecap="round" opacity=".85"/><path d="M40 110 C 55 95, 75 95, 90 110" stroke="#1A1611" stroke-width="2" fill="none" opacity=".5" stroke-linecap="round"/><circle cx="155" cy="55" r="1.5" fill="#1A1611" opacity=".4"/><circle cx="160" cy="65" r="1" fill="#1A1611" opacity=".3"/></svg>`,
-    hanko: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="hk-bg" cx=".5" cy=".5" r=".7"><stop offset="0" stop-color="#FFFCF5"/><stop offset="1" stop-color="#EDE5D0"/></radialGradient></defs><rect width="200" height="150" fill="url(#hk-bg)"/><g transform="translate(100 75) rotate(-6)"><rect x="-40" y="-40" width="80" height="80" rx="6" fill="#BC002D" opacity=".92"/><rect x="-34" y="-34" width="68" height="68" rx="3" fill="none" stroke="#fff" stroke-width="1" opacity=".4"/><text x="0" y="13" font-family="'Noto Serif JP',serif" font-weight="700" font-size="48" text-anchor="middle" fill="#fff">賞</text></g></svg>`,
-  };
-  return svgs[kind] || svgs.plain;
+  // Original e Blur usam SVG simples (não tem foto)
+  if (!kind || kind === 'plain' || kind === 'blur') {
+    if (kind === 'blur') {
+      return `<svg width="100%" height="100%" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="bl-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5C7A9D"/><stop offset=".5" stop-color="#3D5470"/><stop offset="1" stop-color="#1F2933"/></linearGradient><filter id="bl-f"><feGaussianBlur stdDeviation="8"/></filter></defs><rect width="200" height="150" fill="url(#bl-g)" filter="url(#bl-f)"/><circle cx="60" cy="50" r="22" fill="#7A9D52" opacity=".55" filter="url(#bl-f)"/><circle cx="150" cy="100" r="28" fill="#A86F3F" opacity=".55" filter="url(#bl-f)"/></svg>`;
+    }
+    return `<svg width="100%" height="100%" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="pl-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3D362F"/><stop offset="1" stop-color="#1A1611"/></linearGradient></defs><rect width="200" height="150" fill="url(#pl-g)"/></svg>`;
+  }
+  // Outros usam a foto real (lazy loading do navegador)
+  const path = _LK_BG_IMAGES[kind];
+  if (!path) return _lkPreviewSVG('plain');
+  return `<img src="${_esc(path)}" alt="" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover;display:block;"/>`;
 }
 
 // ── Gravação de chamada ──────────────────────────────────────────────
