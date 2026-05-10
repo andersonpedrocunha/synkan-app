@@ -44111,37 +44111,231 @@ function _lkLoadSDK() {
   return _lkSdkLoading;
 }
 
-// ── Track Processors (background blur real via MediaPipe) ───────────
-// @livekit/track-processors usa MediaPipe Selfie Segmentation pra
-// segmentar pessoa do fundo — diferente de CSS filter que borra tudo.
-let _lkProcessorsLoading = null;
-async function _lkLoadProcessors() {
-  if (window._lkProcessors) return window._lkProcessors;
-  if (_lkProcessorsLoading) return _lkProcessorsLoading;
-  // jsdelivr +esm rewrita pra ESM resolvendo dependências (MediaPipe wasm)
+// ── Custom Track Processor (MediaPipe direto + composição opaca) ─────
+// Antes usava @livekit/track-processors, mas a composição da lib deixava
+// a pessoa semi-transparente (fundo aparecia através do corpo). Esse
+// processor custom usa MediaPipe Tasks Vision direto e compõe via
+// globalCompositeOperation (source-in / destination-over) garantindo
+// que a pessoa fica 100% opaca sobre o fundo. Resultado tipo Meet.
+let _lkMediaPipeLoading = null;
+async function _lkLoadMediaPipe() {
+  if (window._lkMP) return window._lkMP;
+  if (_lkMediaPipeLoading) return _lkMediaPipeLoading;
   const urls = [
-    'https://cdn.jsdelivr.net/npm/@livekit/track-processors@0.5/+esm',
-    'https://cdn.jsdelivr.net/npm/@livekit/track-processors/+esm',
-    'https://esm.sh/@livekit/track-processors',
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs',
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.mjs',
+    'https://esm.sh/@mediapipe/tasks-vision@0.10.18',
   ];
-  _lkProcessorsLoading = (async () => {
+  _lkMediaPipeLoading = (async () => {
     let lastErr = null;
     for (const url of urls) {
       try {
         const mod = await import(/* @vite-ignore */ url);
-        if (mod && (mod.BackgroundBlur || mod.default?.BackgroundBlur)) {
-          console.log('[lk] processors carregados de:', url);
-          window._lkProcessors = mod.BackgroundBlur ? mod : mod.default;
-          return window._lkProcessors;
+        if (mod && (mod.ImageSegmenter || mod.default?.ImageSegmenter)) {
+          const lib = mod.ImageSegmenter ? mod : mod.default;
+          console.log('[lk-fx] MediaPipe carregado de:', url);
+          window._lkMP = lib;
+          return lib;
         }
       } catch(e) {
         lastErr = e;
-        console.warn('[lk] processors falha em', url, '—', e?.message);
+        console.warn('[lk-fx] MediaPipe falha em', url, '—', e?.message);
       }
     }
-    throw lastErr || new Error('Todas as CDNs de track-processors falharam');
+    throw lastErr || new Error('Todas as CDNs do MediaPipe falharam');
   })();
-  return _lkProcessorsLoading;
+  return _lkMediaPipeLoading;
+}
+
+// Custom Track Processor compatível com LiveKit.
+// API: { name, init({track}), processedTrack, destroy(), restart({track}) }
+class _SynkanBgProcessor {
+  constructor(opts) {
+    this.name = 'synkan-bg';
+    this.kind = opts.kind || 'blur';   // 'blur' | 'image'
+    this.blurRadius = opts.blurRadius || 25;
+    this.bgImage = opts.bgImage || null; // HTMLImageElement
+    this.processedTrack = null;
+    this._segmenter = null;
+    this._video = null;
+    this._canvas = null;
+    this._ctx = null;
+    this._maskCanvas = null;
+    this._maskCtx = null;
+    this._running = false;
+    this._stream = null;
+    this._lastFrameTs = 0;
+  }
+
+  async init({ track }) {
+    const mp = await _lkLoadMediaPipe();
+    const FilesetResolver = mp.FilesetResolver;
+    const ImageSegmenter = mp.ImageSegmenter;
+
+    const vision = await FilesetResolver.forVisionTasks(
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm'
+    );
+
+    // Modelo "landscape" é otimizado pra vídeo (16:9) — melhor pra webcam
+    this._segmenter = await ImageSegmenter.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter_landscape/float16/latest/selfie_segmenter_landscape.tflite',
+        delegate: 'GPU',
+      },
+      runningMode: 'VIDEO',
+      outputCategoryMask: true,
+      outputConfidenceMasks: false,
+    });
+
+    // Video element conectado à track de entrada
+    const mst = track.mediaStreamTrack;
+    const settings = mst.getSettings();
+    const w = settings.width || 960;
+    const h = settings.height || 540;
+
+    this._video = document.createElement('video');
+    this._video.srcObject = new MediaStream([mst]);
+    this._video.muted = true;
+    this._video.playsInline = true;
+    this._video.autoplay = true;
+    await this._video.play().catch(()=>{});
+
+    // Canvas de saída (alpha:false = mais rápido + sem sangrar)
+    this._canvas = document.createElement('canvas');
+    this._canvas.width = w;
+    this._canvas.height = h;
+    this._ctx = this._canvas.getContext('2d', { alpha: false, desynchronized: true });
+
+    // Canvas auxiliar pro mask (em resolução do MediaPipe)
+    this._maskCanvas = document.createElement('canvas');
+    this._maskCtx = this._maskCanvas.getContext('2d');
+
+    // Captura stream do canvas → essa é a "track processada"
+    this._stream = this._canvas.captureStream(30);
+    this.processedTrack = this._stream.getVideoTracks()[0];
+    if (this.processedTrack && mst.label) {
+      // Tenta nomear pra debug
+      try { Object.defineProperty(this.processedTrack, 'label', { value: mst.label + ' (synkan)' }); } catch(_){}
+    }
+
+    this._running = true;
+    this._loop = this._loop.bind(this);
+    requestAnimationFrame(this._loop);
+  }
+
+  _loop() {
+    if (!this._running) return;
+    const v = this._video;
+    if (!v || v.readyState < 2 || !this._segmenter) {
+      requestAnimationFrame(this._loop);
+      return;
+    }
+    try {
+      const w = this._canvas.width;
+      const h = this._canvas.height;
+      const ctx = this._ctx;
+
+      // Roda segmentação no frame atual
+      const ts = performance.now();
+      // Skip se mesmo timestamp (evita warning do MediaPipe)
+      if (ts <= this._lastFrameTs) {
+        requestAnimationFrame(this._loop);
+        return;
+      }
+      this._lastFrameTs = ts;
+      const res = this._segmenter.segmentForVideo(v, ts);
+      if (!res || !res.categoryMask) {
+        requestAnimationFrame(this._loop);
+        return;
+      }
+
+      const mw = res.categoryMask.width;
+      const mh = res.categoryMask.height;
+      const maskU8 = res.categoryMask.getAsUint8Array();
+
+      // Constrói canvas de máscara: branco onde é pessoa, transparente onde é fundo
+      if (this._maskCanvas.width !== mw || this._maskCanvas.height !== mh) {
+        this._maskCanvas.width = mw;
+        this._maskCanvas.height = mh;
+      }
+      const maskImg = this._maskCtx.createImageData(mw, mh);
+      const px = maskImg.data;
+      for (let i = 0; i < maskU8.length; i++) {
+        const o = i * 4;
+        // selfie_segmenter_landscape: 0 = bg, 1 = pessoa
+        const isPerson = maskU8[i] !== 0;
+        if (isPerson) { px[o] = 255; px[o+1] = 255; px[o+2] = 255; px[o+3] = 255; }
+        else          { px[o] = 0;   px[o+1] = 0;   px[o+2] = 0;   px[o+3] = 0;   }
+      }
+      this._maskCtx.putImageData(maskImg, 0, 0);
+
+      // Composição em 3 passos:
+      // 1) Limpa
+      ctx.clearRect(0, 0, w, h);
+      // 2) Desenha máscara (escala bilinear suaviza bordas naturalmente)
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(this._maskCanvas, 0, 0, w, h);
+      // 3) Usa máscara como alpha → desenha video só onde a pessoa está
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.drawImage(v, 0, 0, w, h);
+      // 4) Desenha fundo ATRÁS da pessoa (destination-over preserva pessoa)
+      ctx.globalCompositeOperation = 'destination-over';
+      if (this.kind === 'image' && this.bgImage) {
+        // Cover-fit pra preservar aspect ratio do bg
+        const ir = this.bgImage.width / this.bgImage.height;
+        const tr = w / h;
+        let dx, dy, dw, dh;
+        if (ir > tr) { dh = h; dw = h * ir; dx = (w - dw) / 2; dy = 0; }
+        else         { dw = w; dh = w / ir; dx = 0; dy = (h - dh) / 2; }
+        ctx.drawImage(this.bgImage, dx, dy, dw, dh);
+      } else if (this.kind === 'blur') {
+        ctx.filter = `blur(${this.blurRadius}px)`;
+        // Escala 1.05 pra esconder bordas borradas
+        const oW = w * 1.06, oH = h * 1.06;
+        ctx.drawImage(v, -(oW - w) / 2, -(oH - h) / 2, oW, oH);
+        ctx.filter = 'none';
+      } else {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, w, h);
+      }
+      // 5) Reseta operação
+      ctx.globalCompositeOperation = 'source-over';
+    } catch(e) {
+      // Não loga toda hora pra não floodar — só primeira vez
+      if (!this._loggedErr) {
+        console.warn('[lk-fx] frame loop error (continua tentando):', e?.message);
+        this._loggedErr = true;
+      }
+    }
+    requestAnimationFrame(this._loop);
+  }
+
+  async destroy() {
+    this._running = false;
+    try { if (this._segmenter) this._segmenter.close(); } catch(_){}
+    this._segmenter = null;
+    try { if (this._stream) this._stream.getTracks().forEach(t => t.stop()); } catch(_){}
+    this._stream = null;
+    if (this._video) {
+      try { this._video.srcObject = null; } catch(_){}
+      this._video = null;
+    }
+    this.processedTrack = null;
+  }
+
+  async restart({ track }) {
+    await this.destroy();
+    await this.init({ track });
+  }
+}
+
+// Mantém compatibilidade com chamadas antigas — retorna stub
+async function _lkLoadProcessors() {
+  // Não usa mais @livekit/track-processors (qualidade ruim de borda).
+  // Carrega MediaPipe direto via _lkLoadMediaPipe quando _lkSetEffect é chamado.
+  await _lkLoadMediaPipe();
+  return { _custom: true };
 }
 
 // Verifica se o user pode usar vídeo/screen share (Faixa Roxa+) ou recording (Preta)
@@ -45227,62 +45421,55 @@ async function _lkSetEffect(fxId) {
 
   const fx = _LK_EFFECTS.find(f => f.id === fxId) || _LK_EFFECTS[0];
 
-  // Tenta carregar processors (MediaPipe). Se falhar, vai informar.
-  let processors;
-  try {
-    processors = await _lkLoadProcessors();
-  } catch(e) {
-    console.warn('[lk-fx] track-processors indisponível:', e?.message);
-    if (fx.kind !== 'none' && typeof _showKanWarning === 'function') {
-      _showKanWarning('Efeito não disponível',
-        'Não consegui carregar o módulo de segmentação (MediaPipe). Verifique sua conexão e tente de novo.',
-        'warning');
-    }
-    return;
-  }
-
   try {
     // Remove processador anterior antes de aplicar novo (ou pra desligar)
     if (typeof track.stopProcessor === 'function') {
       try { await track.stopProcessor(); } catch(_){}
     }
 
-    // Opções de segmentação pra estabilidade:
-    // - delegate GPU = aceleração via WebGL, menos jitter, mais FPS
-    // - runningMode VIDEO = MediaPipe usa temporal smoothing entre frames
-    const segmenterOptions = {
-      baseOptions: { delegate: 'GPU' },
-      runningMode: 'VIDEO',
-      outputCategoryMask: true,
-      outputConfidenceMasks: false,
-    };
+    if (fx.kind === 'none') return;
 
-    if (fx.kind === 'blur') {
-      const Bb = processors.BackgroundBlur;
-      if (typeof Bb === 'function') {
-        // Radius alto = blur forte, mascara qualquer jitter de borda
-        const proc = Bb(fx.radius || 30, segmenterOptions);
-        await track.setProcessor(proc);
-        console.log('[lk-fx] BackgroundBlur aplicado, radius =', fx.radius);
+    // Carrega MediaPipe (lazy)
+    try {
+      await _lkLoadMediaPipe();
+    } catch(e) {
+      console.warn('[lk-fx] MediaPipe indisponível:', e?.message);
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning('Efeito não disponível',
+          'Não consegui carregar MediaPipe. Verifique sua conexão.',
+          'warning');
       }
-    } else if (fx.kind === 'image') {
-      const Vb = processors.VirtualBackground;
-      if (typeof Vb === 'function') {
-        const srcUrl = _LK_BG_IMAGES[fx.image];
-        // Otimiza imagem (8MB PNG → ~300KB JPEG 1280x720) pra MediaPipe processar rápido
-        let bgUrl;
-        try {
-          bgUrl = await _lkRasterizeBg(srcUrl);
-        } catch(rasterErr) {
-          console.warn('[lk-fx] rasterizar falhou, usando original:', rasterErr);
-          bgUrl = srcUrl;
-        }
-        const proc = Vb(bgUrl, segmenterOptions);
-        await track.setProcessor(proc);
-        console.log('[lk-fx] VirtualBackground aplicado:', fx.image);
+      return;
+    }
+
+    // Prepara HTMLImageElement pro bg (se for image)
+    let bgImage = null;
+    if (fx.kind === 'image') {
+      const srcUrl = _LK_BG_IMAGES[fx.image];
+      try {
+        // Rasteriza pra JPEG menor (mais rápido pro canvas processar)
+        const optimized = await _lkRasterizeBg(srcUrl);
+        bgImage = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = optimized;
+        });
+      } catch(e) {
+        console.warn('[lk-fx] erro carregando bg:', e?.message);
       }
     }
-    // 'none' = só stopProcessor (já feito acima)
+
+    // Cria processor custom
+    const proc = new _SynkanBgProcessor({
+      kind: fx.kind,
+      blurRadius: fx.radius || 25,
+      bgImage,
+    });
+
+    await track.setProcessor(proc);
+    console.log(`[lk-fx] ✓ processor custom aplicado: ${fx.id} (${fx.kind})`);
   } catch(e) {
     console.warn('[lk-fx] erro ao aplicar:', e);
     if (typeof _showKanWarning === 'function') {
@@ -46246,24 +46433,41 @@ async function _kanSendAudioChunk(blob, mimeType) {
       const t = await r.text().catch(()=>'');
       console.warn(`[kan] ❌ kan-transcribe HTTP ${r.status}:`, t.slice(0, 300));
       _kanFailureCount++;
-      // Mostra warning IMEDIATAMENTE (antes era só após 3 falhas)
-      // Mas só uma vez por sessão pra não floodar
+      // Tenta extrair message limpa do JSON (sem HTML escape)
+      let cleanMsg = t.slice(0, 200);
+      try {
+        const parsed = JSON.parse(t);
+        if (parsed?.error) cleanMsg = String(parsed.error).slice(0, 200);
+      } catch(_){}
+      // Mostra warning IMEDIATAMENTE (uma vez por sessão pra não floodar)
       if (!ext.lk._kanErrorShown) {
         ext.lk._kanErrorShown = true;
         let title = `Mestre Kan: erro ${r.status}`;
         let hint = '';
-        if (r.status === 401) {
-          hint = 'Edge Function rejeitando JWT. Re-deploy com <code>--no-verify-jwt</code>.';
-        } else if (/OPENAI_API_KEY/i.test(t)) {
+        const isWhisper401 = /Whisper 401|401.*Whisper|invalid_api_key|incorrect API key/i.test(cleanMsg);
+        const isOpenAINoCredit = /insufficient_quota|exceeded your current quota|billing/i.test(cleanMsg);
+        if (isWhisper401) {
+          title = '🔑 OpenAI API key inválida';
+          hint = `A OpenAI rejeitou sua key (401). Causas comuns:<br/>
+            • Key copiada errada (espaço a mais, truncada)<br/>
+            • Conta OpenAI sem billing/crédito<br/>
+            • Key foi revogada<br/><br/>
+            <strong>Teste:</strong> <code>curl https://api.openai.com/v1/models -H "Authorization: Bearer SUA_KEY"</code><br/><br/>
+            Se der erro, recria a key em <strong>platform.openai.com/api-keys</strong>, confirma billing em <strong>platform.openai.com/settings/organization/billing</strong>, e atualiza:<br/>
+            <code style="font-size:11px;">supabase secrets set OPENAI_API_KEY=sk-... --project-ref iycojmhbqfjnupxrrofa</code>`;
+        } else if (isOpenAINoCredit) {
+          title = '💳 OpenAI sem crédito';
+          hint = 'Sua conta OpenAI ficou sem créditos. Adicione saldo em <strong>platform.openai.com/settings/organization/billing</strong>.';
+        } else if (/OPENAI_API_KEY/i.test(t) && /ausente/i.test(t)) {
           title = '🔑 OPENAI_API_KEY ausente';
-          hint = 'Configure no Supabase:<br/><code style="font-size:11px;">supabase secrets set OPENAI_API_KEY=sk-... --project-ref iycojmhbqfjnupxrrofa</code><br/><br/>Pegue sua key em <strong>platform.openai.com/api-keys</strong> (precisa de US$5 de crédito mínimo).';
-        } else if (/ANTHROPIC_API_KEY/i.test(t)) {
+          hint = `Configure no Supabase:<br/><code style="font-size:11px;">supabase secrets set OPENAI_API_KEY=sk-... --project-ref iycojmhbqfjnupxrrofa</code><br/><br/>Pegue sua key em <strong>platform.openai.com/api-keys</strong> (precisa de US$5 de crédito mínimo).`;
+        } else if (/ANTHROPIC_API_KEY/i.test(t) && /ausente/i.test(t)) {
           title = '🔑 ANTHROPIC_API_KEY ausente';
-          hint = 'Configure no Supabase:<br/><code style="font-size:11px;">supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref iycojmhbqfjnupxrrofa</code><br/><br/>Pegue em <strong>console.anthropic.com</strong>.';
-        } else if (r.status === 500) {
-          hint = `Erro do servidor. Detalhe: <code>${_esc(t.slice(0,200))}</code>. Veja logs em Supabase Dashboard → Edge Functions → kan-transcribe → Logs.`;
+          hint = `Configure no Supabase:<br/><code style="font-size:11px;">supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref iycojmhbqfjnupxrrofa</code>`;
+        } else if (r.status === 401) {
+          hint = 'Edge Function rejeitando JWT. Re-deploy com <code>--no-verify-jwt</code>.';
         } else {
-          hint = `Detalhe: ${_esc(t.slice(0,200))}`;
+          hint = `Detalhe: <code>${_esc(cleanMsg)}</code><br/><br/>Veja logs em <strong>Supabase Dashboard → Edge Functions → kan-transcribe → Logs</strong>.`;
         }
         if (typeof appAlert === 'function') {
           appAlert(title, hint, { icon:'⚠️' });
