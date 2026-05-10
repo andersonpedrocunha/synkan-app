@@ -5540,13 +5540,10 @@ body.density-compact .col{padding:7px;}
 .lk-fx-status-pill{display:inline-block;font-size:9px;background:rgba(193,154,58,.20);color:#FBE7A4;padding:2px 7px;border-radius:999px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;font-family:-apple-system,sans-serif;font-style:normal;margin-left:5px;}
 .lk-fx-footer{margin-top:18px;padding:12px 14px;background:rgba(193,154,58,.08);border-left:3px solid #C19A3A;border-radius:0 8px 8px 0;font-family:var(--tatami-mincho,serif);font-style:italic;font-size:12px;color:rgba(255,255,255,.85);line-height:1.5;}
 
-/* CSS filters aplicados ao tile local quando efeito ativo (preview real) */
-.lk-tile[data-fx="blur"] video{filter:blur(14px);transform:scale(1.05);}
-.lk-tile[data-fx="dojo"] video{filter:sepia(.55) saturate(1.2) brightness(1.02) contrast(1.08);}
-.lk-tile[data-fx="hokusai"] video{filter:hue-rotate(195deg) saturate(1.4) brightness(.95) contrast(1.1);}
-.lk-tile[data-fx="sakura"] video{filter:hue-rotate(330deg) saturate(1.5) brightness(1.08) contrast(1.05);}
-.lk-tile[data-fx="sumie"] video{filter:grayscale(1) contrast(1.4) brightness(1) saturate(0);}
-.lk-tile[data-fx="hanko"] video{filter:hue-rotate(-12deg) saturate(1.7) contrast(1.15) brightness(1);}
+/* (Antes: data-fx aplicava CSS filter no <video> — borrava tudo, inclusive
+   o rosto. Agora os efeitos passam pelo @livekit/track-processors com
+   MediaPipe Selfie Segmentation, que só altera o fundo. CSS filter
+   removido pra não duplicar nem brigar com o canvas processado.) */
 
 /* ── REC indicator (pulsando) ───────────────────────────────────────── */
 .lk-rec-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 7px;background:linear-gradient(135deg,#BC002D 0%,#5C0015 100%);border-radius:999px;font-family:var(--tatami-mincho,serif);font-size:11px;font-weight:700;color:#fff;letter-spacing:.10em;text-transform:uppercase;font-style:normal;border:1px solid rgba(255,255,255,.15);}
@@ -44064,6 +44061,39 @@ function _lkLoadSDK() {
   return _lkSdkLoading;
 }
 
+// ── Track Processors (background blur real via MediaPipe) ───────────
+// @livekit/track-processors usa MediaPipe Selfie Segmentation pra
+// segmentar pessoa do fundo — diferente de CSS filter que borra tudo.
+let _lkProcessorsLoading = null;
+async function _lkLoadProcessors() {
+  if (window._lkProcessors) return window._lkProcessors;
+  if (_lkProcessorsLoading) return _lkProcessorsLoading;
+  // jsdelivr +esm rewrita pra ESM resolvendo dependências (MediaPipe wasm)
+  const urls = [
+    'https://cdn.jsdelivr.net/npm/@livekit/track-processors@0.5/+esm',
+    'https://cdn.jsdelivr.net/npm/@livekit/track-processors/+esm',
+    'https://esm.sh/@livekit/track-processors',
+  ];
+  _lkProcessorsLoading = (async () => {
+    let lastErr = null;
+    for (const url of urls) {
+      try {
+        const mod = await import(/* @vite-ignore */ url);
+        if (mod && (mod.BackgroundBlur || mod.default?.BackgroundBlur)) {
+          console.log('[lk] processors carregados de:', url);
+          window._lkProcessors = mod.BackgroundBlur ? mod : mod.default;
+          return window._lkProcessors;
+        }
+      } catch(e) {
+        lastErr = e;
+        console.warn('[lk] processors falha em', url, '—', e?.message);
+      }
+    }
+    throw lastErr || new Error('Todas as CDNs de track-processors falharam');
+  })();
+  return _lkProcessorsLoading;
+}
+
 // Verifica se o user pode usar vídeo/screen share (Faixa Roxa+) ou recording (Preta)
 function _lkCanUseVideo() {
   try {
@@ -44254,6 +44284,8 @@ async function _lkStart() {
       await room.localParticipant.setMicrophoneEnabled(true);
       await room.localParticipant.setCameraEnabled(true);
       console.log('[lk] mic + camera ativados automaticamente');
+      // Re-aplica efeito de câmera salvo (em background — não bloqueia)
+      try { _lkApplyStoredEffect(); } catch(_){}
     } catch(permErr) {
       console.warn('[lk] permissão de câmera/mic negada — user pode ativar manualmente:', permErr?.message);
     }
@@ -44407,6 +44439,10 @@ async function _lkToggleCamera() {
   try {
     await ext.lk.room.localParticipant.setCameraEnabled(!enabled);
     _lkRender();
+    // Quando reativa câmera, re-aplica efeito salvo (track novo perde processor)
+    if (!enabled) {
+      try { _lkApplyStoredEffect(); } catch(_){}
+    }
   } catch(e) { console.warn('[lk] camera toggle:', e); }
 }
 async function _lkToggleMic() {
@@ -44909,18 +44945,27 @@ function _lkAnimateReaction(emoji, userId) {
   setTimeout(() => el.remove(), 2500);
 }
 
-// ── Efeitos de câmera ────────────────────────────────────────────────
-// Etapa 1: só efeitos que funcionam de verdade via CSS filter.
-// Backgrounds virtuais reais exigem MediaPipe (em breve).
+// ── Efeitos de câmera (MediaPipe real via @livekit/track-processors) ─
+// kind:'blur' → BackgroundBlur (só borra o fundo, pessoa fica nítida)
+// kind:'image' → VirtualBackground (substitui fundo por SVG Synkan)
+// kind:'none' → remove processador
+const _LK_BG_IMAGES = {
+  // SVGs gerados como data-URLs — identidade Synkan
+  sakura:  'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="g" cx="0.7" cy="0.3" r="1"><stop offset="0" stop-color="#FFE3EE"/><stop offset="0.6" stop-color="#FFC9DC"/><stop offset="1" stop-color="#E89BB6"/></radialGradient><pattern id="p" x="0" y="0" width="220" height="220" patternUnits="userSpaceOnUse"><g opacity="0.55"><circle cx="40" cy="60" r="3.5" fill="#fff"/><circle cx="120" cy="100" r="2.5" fill="#fff"/><circle cx="180" cy="40" r="4" fill="#fff"/><path d="M70 150 q4 -8 8 0 q-4 -3 -8 0" fill="#FF8AB0" opacity="0.7"/><path d="M150 180 q4 -8 8 0 q-4 -3 -8 0" fill="#FF8AB0" opacity="0.7"/></g></pattern></defs><rect width="1280" height="720" fill="url(#g)"/><rect width="1280" height="720" fill="url(#p)"/><g opacity="0.4"><path d="M0 720 Q 320 600 640 660 T 1280 620 L 1280 720 Z" fill="#C26B8C"/></g></svg>`),
+  hokusai: 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F4E5C2"/><stop offset="0.4" stop-color="#E8C994"/><stop offset="1" stop-color="#1E3A5F"/></linearGradient><linearGradient id="wave" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1E5A8E"/><stop offset="0.7" stop-color="#0E3160"/><stop offset="1" stop-color="#0A1E3D"/></linearGradient></defs><rect width="1280" height="720" fill="url(#sky)"/><g><path d="M0 500 Q 200 380 400 440 Q 600 500 800 410 Q 1000 320 1280 400 L 1280 720 L 0 720 Z" fill="url(#wave)"/><path d="M0 580 Q 250 520 500 560 Q 750 600 1000 540 Q 1150 500 1280 540 L 1280 720 L 0 720 Z" fill="#0A1E3D" opacity="0.7"/><g fill="#fff" opacity="0.92"><path d="M120 480 Q 180 420 240 470 Q 220 460 200 480 Q 180 470 160 490 Q 140 480 120 480 Z"/><path d="M520 430 Q 580 360 660 410 Q 620 380 580 410 Q 540 380 520 430 Z"/><path d="M960 410 Q 1020 340 1100 400 Q 1060 360 1020 400 Q 980 380 960 410 Z"/><circle cx="200" cy="450" r="3"/><circle cx="600" cy="380" r="3"/><circle cx="1040" cy="370" r="3"/></g></g><circle cx="1100" cy="180" r="55" fill="#F8F1DC" opacity="0.85"/></svg>`),
+  sumie:   'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F5F1E8"/><stop offset="0.6" stop-color="#E8E1CD"/><stop offset="1" stop-color="#C7BFA8"/></linearGradient></defs><rect width="1280" height="720" fill="url(#g)"/><g fill="#1A1611" opacity="0.85"><path d="M0 520 Q 180 380 360 460 Q 540 540 720 440 Q 900 340 1080 460 Q 1180 520 1280 480 L 1280 720 L 0 720 Z"/><path d="M200 540 Q 380 420 580 510 Q 780 600 980 480 Q 1100 410 1280 470 L 1280 720 L 200 720 Z" opacity="0.6"/></g><g stroke="#1A1611" stroke-width="2" fill="none" opacity="0.6"><path d="M180 290 Q 220 240 260 270"/><path d="M260 270 Q 280 250 310 280"/></g><g fill="#1A1611" opacity="0.45"><path d="M820 200 q15 -30 30 -10 q-5 -8 -15 0 q-12 -5 -15 10 z"/></g><circle cx="1140" cy="120" r="42" fill="#9C0029" opacity="0.7"/></svg>`),
+  dojo:    'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F5E8C8"/><stop offset="1" stop-color="#D4B888"/></linearGradient><linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9C7142"/><stop offset="1" stop-color="#6B4825"/></linearGradient><pattern id="shoji" x="0" y="0" width="120" height="180" patternUnits="userSpaceOnUse"><rect width="120" height="180" fill="url(#wall)"/><rect x="0" y="0" width="120" height="180" fill="none" stroke="#3A2818" stroke-width="3"/><line x1="60" y1="0" x2="60" y2="180" stroke="#3A2818" stroke-width="1.5"/><line x1="0" y1="60" x2="120" y2="60" stroke="#3A2818" stroke-width="1.5"/><line x1="0" y1="120" x2="120" y2="120" stroke="#3A2818" stroke-width="1.5"/></pattern><pattern id="tatami" x="0" y="0" width="240" height="80" patternUnits="userSpaceOnUse"><rect width="240" height="80" fill="url(#floor)"/><rect width="240" height="80" fill="none" stroke="#1A1206" stroke-width="3"/><line x1="120" y1="0" x2="120" y2="80" stroke="#1A1206" stroke-width="2"/></pattern></defs><rect width="1280" height="540" fill="url(#shoji)"/><rect y="540" width="1280" height="180" fill="url(#tatami)"/><rect width="1280" height="540" fill="#3A2818" opacity="0.06"/><rect y="0" width="1280" height="40" fill="#3A2818"/><circle cx="180" cy="220" r="60" fill="#9C0029" opacity="0.18"/></svg>`),
+  hanko:   'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="g" cx="0.5" cy="0.5" r="1"><stop offset="0" stop-color="#D11838"/><stop offset="0.7" stop-color="#9C0029"/><stop offset="1" stop-color="#5C0015"/></radialGradient><pattern id="paper" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="none"/><circle cx="20" cy="20" r="0.6" fill="#fff" opacity="0.10"/></pattern></defs><rect width="1280" height="720" fill="url(#g)"/><rect width="1280" height="720" fill="url(#paper)"/><circle cx="1080" cy="180" r="120" fill="none" stroke="#fff" stroke-width="6" opacity="0.18"/><text x="1080" y="220" font-family="serif" font-size="120" font-weight="700" text-anchor="middle" fill="#fff" opacity="0.18">賞</text></svg>`),
+};
 const _LK_EFFECTS = [
-  { id:'none',    name:'Original',          tag:'sem efeito',                preview:'plain',   ready:true  },
-  { id:'blur',    name:'Borrar fundo',      tag:'desfoca tudo · foco em você', preview:'blur',  ready:true  },
-  { id:'sumie',   name:'墨 Sumi-e',         tag:'preto e branco · alto contraste', preview:'sumie', ready:true },
-  { id:'sakura',  name:'🌸 Sakura',         tag:'tom rosado quente',         preview:'sakura',  ready:true  },
-  { id:'hokusai', name:'🌊 Hokusai',        tag:'tom azul ukiyo-e',          preview:'hokusai', ready:true  },
-  { id:'dojo',    name:'道場 Dojo',         tag:'papel washi · sépia',       preview:'dojo',    ready:true  },
-  { id:'hanko-bg',name:'🎴 Hanko (fundo)',  tag:'fundo vermelho selo',       preview:'hanko',   ready:false },
-  { id:'dojo-bg', name:'道場 Sala (fundo)', tag:'shoji + tatami real',       preview:'dojo',    ready:false },
+  { id:'none',     name:'Original',          tag:'sem efeito',                  preview:'plain',   kind:'none' },
+  { id:'blur',     name:'Borrar fundo',      tag:'só o fundo · você fica nítido', preview:'blur', kind:'blur', radius:15 },
+  { id:'blur-soft',name:'Borrar suave',      tag:'desfoque mais leve',          preview:'blur',    kind:'blur', radius:8  },
+  { id:'sakura',   name:'🌸 Sakura',         tag:'cerejeira em flor',           preview:'sakura',  kind:'image', image:'sakura' },
+  { id:'hokusai',  name:'🌊 Onda Hokusai',   tag:'mar ukiyo-e azul',            preview:'hokusai', kind:'image', image:'hokusai' },
+  { id:'sumie',    name:'墨 Sumi-e',         tag:'tinta zen monocromática',     preview:'sumie',   kind:'image', image:'sumie'   },
+  { id:'dojo',     name:'道場 Dojo',         tag:'shoji + tatami',              preview:'dojo',    kind:'image', image:'dojo'    },
+  { id:'hanko',    name:'🎴 Hanko',          tag:'selo vermelho · papel washi', preview:'hanko',   kind:'image', image:'hanko'   },
 ];
 
 function _lkOpenEffectsModal() {
@@ -44945,41 +44990,101 @@ function _lkGetCurrentEffect() {
   catch(_){ return 'none'; }
 }
 
-function _lkSetEffect(fxId) {
+async function _lkSetEffect(fxId) {
   try { localStorage.setItem('synkan_lk_effect', fxId); } catch(_){}
-  // Aplica CSS filter no tile local — SÓ atualiza atributo, não re-renderiza
-  // (re-render perderia o video stream attached ao DOM)
-  const localUid = supaUser?.id;
-  const tile = document.querySelector(`.lk-tile[data-uid="${localUid}"]`);
-  if (tile) {
-    if (fxId === 'none') tile.removeAttribute('data-fx');
-    else tile.setAttribute('data-fx', fxId);
-  }
-  // Atualiza só o modal (se aberto) pra mostrar nova seleção
+
+  // Atualiza modal (preview)
   const ov = document.getElementById('lk-fx-ov');
   if (ov && ov.classList.contains('is-open')) {
     ov.innerHTML = _lkEffectsModalHTML();
   }
-}
 
-function _lkPickEffect(fxId) {
-  const fx = _LK_EFFECTS.find(f => f.id === fxId);
-  if (fx && fx.ready === false) {
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('Em breve',
-        `<strong>${_esc(fx.name)}</strong> precisa de MediaPipe pra trocar o fundo de verdade — ainda em desenvolvimento. Por enquanto use os filtros que funcionam (Borrar, Sumi-e, Sakura, Hokusai, Dojo).`,
-        'info');
+  // Acha track de câmera local
+  const ext = _chatState.extended;
+  const room = ext?.lk?.room;
+  if (!room) return;
+  const LK = window.LivekitClient;
+  const localPub = room.localParticipant.getTrackPublication(LK?.Track?.Source?.Camera);
+  const track = localPub?.videoTrack || localPub?.track;
+  if (!track) {
+    console.log('[lk-fx] sem track de câmera ainda — efeito será aplicado quando a câmera ligar');
+    return;
+  }
+
+  const fx = _LK_EFFECTS.find(f => f.id === fxId) || _LK_EFFECTS[0];
+
+  // Tenta carregar processors (MediaPipe). Se falhar, vai informar.
+  let processors;
+  try {
+    processors = await _lkLoadProcessors();
+  } catch(e) {
+    console.warn('[lk-fx] track-processors indisponível:', e?.message);
+    if (fx.kind !== 'none' && typeof _showKanWarning === 'function') {
+      _showKanWarning('Efeito não disponível',
+        'Não consegui carregar o módulo de segmentação (MediaPipe). Verifique sua conexão e tente de novo.',
+        'warning');
     }
     return;
   }
-  _lkSetEffect(fxId);
+
+  try {
+    // Remove processador anterior antes de aplicar novo (ou pra desligar)
+    if (typeof track.stopProcessor === 'function') {
+      try { await track.stopProcessor(); } catch(_){}
+    }
+
+    if (fx.kind === 'blur') {
+      const Bb = processors.BackgroundBlur;
+      if (typeof Bb === 'function') {
+        const proc = Bb(fx.radius || 12);
+        await track.setProcessor(proc);
+        console.log('[lk-fx] BackgroundBlur aplicado, radius =', fx.radius);
+      }
+    } else if (fx.kind === 'image') {
+      const Vb = processors.VirtualBackground;
+      if (typeof Vb === 'function') {
+        const url = _LK_BG_IMAGES[fx.image];
+        const proc = Vb(url);
+        await track.setProcessor(proc);
+        console.log('[lk-fx] VirtualBackground aplicado:', fx.image);
+      }
+    }
+    // 'none' = só stopProcessor (já feito acima)
+  } catch(e) {
+    console.warn('[lk-fx] erro ao aplicar:', e);
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Efeito falhou',
+        `Não consegui aplicar <strong>${_esc(fx.name)}</strong>: ${_esc(e?.message||String(e))}`,
+        'warning');
+    }
+  }
+}
+
+// Aplica o efeito salvo no localStorage assim que a câmera local fica disponível.
+// Chamado de _lkStart depois do setCameraEnabled.
+async function _lkApplyStoredEffect() {
+  const fxId = _lkGetCurrentEffect();
+  if (fxId && fxId !== 'none') {
+    try { await _lkSetEffect(fxId); } catch(e) { console.warn('[lk-fx] auto-apply:', e); }
+  }
+}
+
+async function _lkPickEffect(fxId) {
+  const fx = _LK_EFFECTS.find(f => f.id === fxId);
   _lkCloseEffectsModal();
+  // Toast inicial — vai mostrar "aplicando" enquanto MediaPipe carrega na primeira vez
+  if (typeof _showKanWarning === 'function' && fx && fxId !== 'none') {
+    _showKanWarning('Aplicando efeito',
+      `<strong>${_esc(fx.name)}</strong> · carregando MediaPipe… (primeira vez pode demorar 2-3s)`,
+      'info');
+  }
+  await _lkSetEffect(fxId);
   if (typeof _showKanWarning === 'function' && fx) {
     if (fxId === 'none') {
       _showKanWarning('Efeito removido', 'Voltou pra câmera original.', 'info');
     } else {
-      _showKanWarning('Efeito aplicado',
-        `<strong>${_esc(fx.name)}</strong> · visível pra você e pros outros (filtro CSS).`,
+      _showKanWarning('Efeito ativo',
+        `<strong>${_esc(fx.name)}</strong> · visível pra você e pros outros (segmentação real).`,
         'info');
     }
   }
@@ -44989,20 +45094,18 @@ function _lkEffectsModalHTML() {
   const current = _lkGetCurrentEffect();
   return `<div class="lk-fx-modal">
     <div class="lk-fx-h">Efeitos de <em>câmera</em></div>
-    <div class="lk-fx-sub">Filtros que funcionam de verdade. Identidade Synkan, sem fundo genérico.</div>
+    <div class="lk-fx-sub">Segmentação real via MediaPipe — só o fundo muda, você fica nítido. Identidade Synkan, sem fundo genérico.</div>
     <div class="lk-fx-grid">
-      ${_LK_EFFECTS.map(fx => {
-        const disabled = fx.ready === false;
-        return `
-        <button type="button" class="lk-fx-item ${fx.id===current?'is-active':''} ${disabled?'is-disabled':''}" onclick="_lkPickEffect('${fx.id}')" ${disabled?'style="opacity:.5;cursor:not-allowed;"':''}>
+      ${_LK_EFFECTS.map(fx => `
+        <button type="button" class="lk-fx-item ${fx.id===current?'is-active':''}" onclick="_lkPickEffect('${fx.id}')">
           <div class="lk-fx-preview">${_lkPreviewSVG(fx.preview)}<div class="lk-fx-preview-avatar">${supaUser?.user_metadata?.full_name?supaUser.user_metadata.full_name[0].toUpperCase():'A'}</div></div>
-          <div class="lk-fx-name">${_esc(fx.name)} ${fx.id===current?'<span class="lk-fx-status-pill">ativo</span>':''}${disabled?'<span class="lk-fx-status-pill" style="background:rgba(193,154,58,.20);color:#FBE7A4;">em breve</span>':''}</div>
+          <div class="lk-fx-name">${_esc(fx.name)} ${fx.id===current?'<span class="lk-fx-status-pill">ativo</span>':''}</div>
           <div class="lk-fx-tag">${_esc(fx.tag)}</div>
-        </button>`;
-      }).join('')}
+        </button>
+      `).join('')}
     </div>
     <div class="lk-fx-footer">
-      ✦ Os filtros (Borrar, Sumi-e, Sakura, Hokusai, Dojo) usam CSS — funcionam pra todos os participantes na sua webcam. <strong style="color:#FBE7A4;font-style:normal;">Trocar o fundo de verdade</strong> (com você recortado) precisa de MediaPipe e está em desenvolvimento.
+      ✦ Primeira vez carrega ~2 MB do MediaPipe (uma vez só, depois fica em cache). Funciona em Chrome, Edge, Safari recente. Em câmeras fracas pode usar mais CPU — se travar, volte pra "Original".
     </div>
     <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
       <button type="button" onclick="_lkCloseEffectsModal()" style="background:transparent;border:1px solid rgba(255,255,255,.15);color:#fff;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:12.5px;font-family:inherit;">Fechar</button>
@@ -45531,8 +45634,8 @@ function _lkRenderControls() {
     <button type="button" class="lk-ctrl" onclick="_lkOpenReactions(this)" title="Reagir com emoji">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="0.8" fill="currentColor"/><circle cx="15" cy="10" r="0.8" fill="currentColor"/><path d="M8 14 q 4 4 8 0"/></svg>
     </button>
-    <button type="button" class="lk-ctrl ${_lkGetCurrentEffect()!=='none'?'is-active':''}" onclick="_lkOpenEffectsModal()" title="Efeitos de câmera (fundos Synkan)">
-      <svg viewBox="0 0 24 24"><line x1="14" y1="10" x2="4.5" y2="19.5"/><path d="M14 10 L 16.5 7.5 L 16.5 7.5 L 19 5"/><path d="M19 5 L 18 4 L 19 3 L 20 4 Z" fill="currentColor"/><path d="M16 2 L 16.6 3.4 L 18 4 L 16.6 4.6 L 16 6 L 15.4 4.6 L 14 4 L 15.4 3.4 Z" fill="currentColor" stroke="none"/><path d="M21 9 L 21.5 10 L 22.5 10.5 L 21.5 11 L 21 12 L 20.5 11 L 19.5 10.5 L 20.5 10 Z" fill="currentColor" stroke="none"/><path d="M11 4 L 11.4 4.8 L 12.2 5.2 L 11.4 5.6 L 11 6.4 L 10.6 5.6 L 9.8 5.2 L 10.6 4.8 Z" fill="currentColor" stroke="none"/></svg>
+    <button type="button" class="lk-ctrl ${_lkGetCurrentEffect()!=='none'?'is-active':''}" onclick="_lkOpenEffectsModal()" title="Efeitos de câmera (espada mágica)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19.2 4.8 L 9.5 14.5" stroke-width="2"/><path d="M19.2 4.8 L 21 3 L 22 4 L 20.2 5.8 Z" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1.4" stroke-width="1.4"/><path d="M7.5 16.5 L 4 20" stroke-width="2"/><path d="M3 21 L 4 20 L 5 21 L 4 22 Z" fill="currentColor" stroke="none"/><path d="M16 3 L 16.5 4.2 L 17.7 4.7 L 16.5 5.2 L 16 6.4 L 15.5 5.2 L 14.3 4.7 L 15.5 4.2 Z" fill="currentColor" stroke="none" opacity="0.85"/><path d="M21.5 8.5 L 21.8 9.4 L 22.7 9.7 L 21.8 10 L 21.5 10.9 L 21.2 10 L 20.3 9.7 L 21.2 9.4 Z" fill="currentColor" stroke="none" opacity="0.7"/><circle cx="13" cy="9" r="0.7" fill="currentColor" stroke="none" opacity="0.8"/></svg>
     </button>
     <button type="button" class="lk-ctrl ${ext.lk.recording?'is-active':''}" onclick="_lkToggleRecording()" title="Gravar a chamada (Faixa Preta)" style="${ext.lk.recording?'background:#BC002D !important;':''}">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
