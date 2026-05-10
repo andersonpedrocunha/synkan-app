@@ -6828,7 +6828,7 @@ body.tx-active .belt-ring::after{
     <button class="sb-item" id="sb-chat" onclick="switchTab('chat')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1 -1.5 1.5h-6L4 14v-2H3a1.5 1.5 0 0 1 -1.5 -1.5v-5.5A1.5 1.5 0 0 1 3 3.5z"/><line x1="5" y1="6.4" x2="11" y2="6.4"/><line x1="5" y1="8.7" x2="9" y2="8.7"/></svg></span><span>Tatami</span><span class="sb-chat-badge" id="sb-chat-badge" style="display:none;"></span></button>
     <button class="sb-item" id="sb-acervo" onclick="switchTab('acervo')">
-      <span class="sb-icon" style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:-.04em;color:#BC002D;">録</span><span>Acervo</span></button>
+      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><rect x="2" y="3" width="12" height="10" rx="1.4"/><path d="M7 7l3 1.5l-3 1.5z" fill="currentColor"/><line x1="2" y1="6" x2="14" y2="6" opacity=".4"/><circle cx="3.5" cy="4.5" r=".4" fill="currentColor" opacity=".5"/><circle cx="12.5" cy="4.5" r=".4" fill="currentColor" opacity=".5"/></svg></span><span>Replay</span></button>
     <button class="sb-item" id="sb-okrs" onclick="switchTab('okrs')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></span><span>OKRs</span></button>
     <button class="sb-item" id="sb-registry" onclick="switchTab('registry')">
@@ -44947,7 +44947,7 @@ function _lkOpenRecordingConsent() {
       <ul class="lk-rec-checklist">
         <li>Vídeo + áudio + tela compartilhada gravados juntos (MP4)</li>
         <li>Transcrição automática via Mestre Kan IA (opcional)</li>
-        <li>Vídeo fica salvo em <strong>巻物 · Acervo de Gravações</strong> (módulo separado)</li>
+        <li>Vídeo fica salvo em <strong>Replay de Gravações</strong> (módulo separado)</li>
         <li>Só você e workspace owner podem deletar depois</li>
       </ul>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -45030,7 +45030,7 @@ async function _lkStartRecording() {
 async function _lkStopRecording() {
   const ext = _chatState.extended; if (!ext?.lk?.recording) return;
   const ok = await appConfirm('Parar gravação?',
-    'A gravação será processada (1-2 min) e aparecerá em <strong>巻物 · Acervo</strong>.',
+    'A gravação será processada (1-2 min) e aparecerá em <strong>Replay</strong>.',
     { okLabel: 'Parar gravação', cancelLabel: 'Continuar gravando' });
   if (!ok) return;
 
@@ -45052,12 +45052,12 @@ async function _lkStopRecording() {
   _lkRender();
   if (typeof _showKanWarning === 'function') {
     _showKanWarning('Gravação parada',
-      'Processando o vídeo… vai aparecer em <strong>巻物 · Acervo</strong> em ~2 min.', 'info');
+      'Processando o vídeo… vai aparecer em <strong>Replay</strong> em ~2 min.', 'info');
   }
 }
 
 // ════════════════════════════════════════════════════════════════════
-// 巻物 · Acervo de Gravações — módulo separado (não fica no Tatami)
+// Replay de Gravações — módulo separado (não fica no Tatami)
 // ════════════════════════════════════════════════════════════════════
 async function renderAcervo() {
   const root = document.getElementById('acervo-root');
@@ -45074,20 +45074,27 @@ async function renderAcervo() {
   }
 
   // Loading inicial
-  root.innerHTML = `<div style="padding:60px 24px;text-align:center;font-family:var(--tatami-mincho,serif);font-style:italic;color:var(--color-text-tertiary);">Carregando 巻物…</div>`;
+  root.innerHTML = `<div style="padding:60px 24px;text-align:center;font-family:var(--tatami-mincho,serif);font-style:italic;color:var(--color-text-tertiary);">Carregando suas gravações…</div>`;
 
-  // Busca gravações
+  // Busca gravações com timeout
   let recordings = [];
   try {
     const c = _ensureSupaClient(); if (!c) throw new Error('sem cliente');
-    const { data, error } = await c.rpc('list_recordings', { p_channel_id: null, p_limit: 100, p_offset: 0 });
-    if (error) throw error;
-    recordings = data || [];
+    const rpcPromise = c.rpc('list_recordings', { p_channel_id: null, p_limit: 100, p_offset: 0 });
+    const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (8s)')), 8000));
+    const result = await Promise.race([rpcPromise, timeoutPromise]);
+    if (result.error) throw result.error;
+    recordings = result.data || [];
   } catch(e) {
-    console.warn('[acervo] list:', e);
+    console.warn('[replay] list:', e);
     root.innerHTML = `<div style="padding:48px 24px;text-align:center;color:var(--color-text-secondary);">
-      <h2 style="margin:0 0 8px;font-size:18px;">Acervo não disponível</h2>
-      <p style="font-size:13px;">Verifique se a migration <code>MIGRATION_TATAME_RECORDINGS.sql</code> foi executada.</p>
+      <div style="font-size:36px;margin-bottom:14px;">📼</div>
+      <h2 style="margin:0 0 8px;font-size:18px;color:var(--color-text-primary);">Replay não disponível</h2>
+      <p style="font-size:13px;line-height:1.5;max-width:420px;margin:0 auto 14px;">
+        Pode ser que a migration <code style="background:var(--color-background-secondary);padding:2px 6px;border-radius:4px;">MIGRATION_TATAME_RECORDINGS.sql</code> ainda não tenha sido executada, ou a sessão do Supabase expirou.
+      </p>
+      <p style="font-size:11.5px;color:var(--color-text-tertiary);">Erro: ${_esc(e?.message||String(e))}</p>
+      <button class="btn-c" style="margin-top:14px;" onclick="renderAcervo()">↻ Tentar de novo</button>
     </div>`;
     return;
   }
@@ -45108,16 +45115,20 @@ async function renderAcervo() {
   const dt = (iso) => new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
 
   const empty = recordings.length === 0 ? `<div style="padding:60px 24px;text-align:center;font-family:var(--tatami-mincho,serif);font-style:italic;color:var(--tatami-ink-soft,#5C4F3F);">
-    <div style="font-size:48px;margin-bottom:14px;color:var(--tatami-hinomaru,#BC002D);">録</div>
+    <div style="width:72px;height:72px;border-radius:50%;background:rgba(188,0,45,.08);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;border:1px solid rgba(188,0,45,.15);">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#BC002D" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M10 11l4 2l-4 2z" fill="#BC002D"/><line x1="3" y1="9.5" x2="21" y2="9.5" opacity=".3"/><circle cx="5" cy="7.5" r=".5" fill="#BC002D" opacity=".4"/><circle cx="19" cy="7.5" r=".5" fill="#BC002D" opacity=".4"/></svg>
+    </div>
     <h2 style="font-family:var(--tatami-mincho,serif);font-size:22px;font-style:normal;font-weight:600;color:var(--tatami-sumi,#1A1611);margin-bottom:8px;">Nenhuma gravação ainda</h2>
-    <p style="max-width:420px;margin:0 auto;line-height:1.55;font-size:13.5px;">As gravações das suas chamadas no Tatami aparecem aqui. Pra gravar, abra um tatame ao vivo, clique em vídeo + Mestre Kan e depois no botão <strong style="font-style:normal;">REC</strong> (disponível na Faixa Preta).</p>
+    <p style="max-width:420px;margin:0 auto;line-height:1.55;font-size:13.5px;">As gravações das suas chamadas do Tatami aparecem aqui. Pra gravar, abra um tatame ao vivo, ative <strong style="font-style:normal;">Vídeo + Mestre Kan</strong> e clique no botão <strong style="font-style:normal;">REC</strong> ● na barra de controles.</p>
   </div>` : '';
 
   root.innerHTML = `
     <style>
       .acervo-wrap { padding: 32px 32px 60px; max-width: 1200px; margin: 0 auto; }
       .acervo-h { font-family: var(--tatami-mincho); font-size: 32px; font-weight: 600; margin-bottom: 6px; display:flex; align-items:center; gap:14px; color: var(--tatami-sumi); }
-      .acervo-h .kanji { color: var(--tatami-hinomaru); font-size:36px; }
+      .acervo-h .ic { width: 38px; height: 38px; border-radius: 9px; background: linear-gradient(135deg, #FFFCF5 0%, #FFE9D9 100%); border: 1px solid rgba(188,0,45,.18); display:inline-flex; align-items:center; justify-content:center; }
+      .acervo-h .ic svg { width: 22px; height: 22px; stroke: var(--tatami-hinomaru); fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+      .acervo-h .ic svg .play { fill: var(--tatami-hinomaru); stroke: none; }
       .acervo-sub { font-family: var(--tatami-mincho); font-style:italic; font-size: 14px; color: var(--tatami-ink-soft); margin-bottom: 36px; max-width: 620px; line-height:1.55; }
       .acervo-folder { margin-bottom: 36px; }
       .acervo-folder-h {
@@ -45144,8 +45155,11 @@ async function renderAcervo() {
       .acervo-card-tag.is-decisions { background: rgba(193,154,58,.18); color: #8F6E1F; }
     </style>
     <div class="acervo-wrap">
-      <div class="acervo-h"><span class="kanji">巻物</span> Acervo de Gravações</div>
-      <div class="acervo-sub">Cada chamada gravada no Tatami fica aqui — organizadas por canal, com transcrição e ações capturadas pelo Mestre Kan. Click no card pra assistir.</div>
+      <div class="acervo-h">
+        <span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path class="play" d="M10 11l4 2l-4 2z"/><line x1="3" y1="9.5" x2="21" y2="9.5" opacity=".3"/></svg></span>
+        Replay
+      </div>
+      <div class="acervo-sub">Cada chamada gravada no Tatami fica aqui — organizadas por canal, com transcrição e ações capturadas pelo Mestre Kan. Click no card pra rever.</div>
       ${empty}
       ${Object.entries(byChannel).map(([channelName, recs]) => `
         <div class="acervo-folder">
