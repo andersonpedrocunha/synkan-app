@@ -46246,17 +46246,30 @@ async function _kanSendAudioChunk(blob, mimeType) {
       const t = await r.text().catch(()=>'');
       console.warn(`[kan] ❌ kan-transcribe HTTP ${r.status}:`, t.slice(0, 300));
       _kanFailureCount++;
-      // Após 3 falhas seguidas, alerta o user
-      if (_kanFailureCount === 3 && typeof _showKanWarning === 'function') {
+      // Mostra warning IMEDIATAMENTE (antes era só após 3 falhas)
+      // Mas só uma vez por sessão pra não floodar
+      if (!ext.lk._kanErrorShown) {
+        ext.lk._kanErrorShown = true;
+        let title = `Mestre Kan: erro ${r.status}`;
         let hint = '';
-        if (r.status === 401) hint = ' Verifique se a Edge Function foi deployada com --no-verify-jwt.';
-        else if (r.status === 500) {
-          if (/OPENAI_API_KEY/i.test(t)) hint = ' Configure OPENAI_API_KEY nos secrets do Supabase.';
-          else if (/ANTHROPIC_API_KEY/i.test(t)) hint = ' Configure ANTHROPIC_API_KEY nos secrets do Supabase.';
-          else hint = ' Veja os logs em Supabase Dashboard → Edge Functions → kan-transcribe → Logs.';
+        if (r.status === 401) {
+          hint = 'Edge Function rejeitando JWT. Re-deploy com <code>--no-verify-jwt</code>.';
+        } else if (/OPENAI_API_KEY/i.test(t)) {
+          title = '🔑 OPENAI_API_KEY ausente';
+          hint = 'Configure no Supabase:<br/><code style="font-size:11px;">supabase secrets set OPENAI_API_KEY=sk-... --project-ref iycojmhbqfjnupxrrofa</code><br/><br/>Pegue sua key em <strong>platform.openai.com/api-keys</strong> (precisa de US$5 de crédito mínimo).';
+        } else if (/ANTHROPIC_API_KEY/i.test(t)) {
+          title = '🔑 ANTHROPIC_API_KEY ausente';
+          hint = 'Configure no Supabase:<br/><code style="font-size:11px;">supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref iycojmhbqfjnupxrrofa</code><br/><br/>Pegue em <strong>console.anthropic.com</strong>.';
+        } else if (r.status === 500) {
+          hint = `Erro do servidor. Detalhe: <code>${_esc(t.slice(0,200))}</code>. Veja logs em Supabase Dashboard → Edge Functions → kan-transcribe → Logs.`;
+        } else {
+          hint = `Detalhe: ${_esc(t.slice(0,200))}`;
         }
-        _showKanWarning('Mestre Kan com erro',
-          `Whisper retornou erro ${r.status}.${hint}`, 'warning');
+        if (typeof appAlert === 'function') {
+          appAlert(title, hint, { icon:'⚠️' });
+        } else if (typeof _showKanWarning === 'function') {
+          _showKanWarning(title, hint, 'warning');
+        }
       }
       return;
     }
