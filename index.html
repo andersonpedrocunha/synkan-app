@@ -44210,7 +44210,15 @@ async function _lkStart() {
     await room.connect(window.LIVEKIT_WS_URL, token);
     ext.lk.connected = true;
     console.log('[lk] ✓ conectado!');
-    await c.rpc('join_video_session', { p_session_id: session.session_id, p_with_camera: false });
+    // Auto-enable câmera + microfone (browser pede permissão na primeira vez)
+    try {
+      await room.localParticipant.setMicrophoneEnabled(true);
+      await room.localParticipant.setCameraEnabled(true);
+      console.log('[lk] mic + camera ativados automaticamente');
+    } catch(permErr) {
+      console.warn('[lk] permissão de câmera/mic negada — user pode ativar manualmente:', permErr?.message);
+    }
+    await c.rpc('join_video_session', { p_session_id: session.session_id, p_with_camera: true });
   } catch(e) {
     console.error('[lk] connect falhou:', e);
     appAlert('Erro de conexão LiveKit',
@@ -44221,6 +44229,11 @@ async function _lkStart() {
 
   // Subscribe Realtime pra sync de shared_item + decisões + ações
   _lkSubscribeRealtime();
+
+  // Auto-inicia transcrição do Mestre Kan se foi convocado
+  if (ext.lk.hasKan) {
+    try { _kanStartTranscription(); } catch(e) { console.warn('[kan] auto-start:', e); }
+  }
 
   // Carrega estado atual da sessão (caso já exista shared_item / decisões)
   try {
@@ -44555,26 +44568,45 @@ function _lkRenderShareWrap() {
   const item = ext.lk.sharedItem;
 
   if (!item) {
-    // Sem nada compartilhado — chamada normal só de vídeo/voz.
-    // Mostra estado discreto que não domina a tela; tiles ficam grandes.
-    wrap.innerHTML = `<div class="lk-share-empty">
-      <div class="lk-share-empty-icon">
-        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M9 10 L 12 7 L 15 10"/><line x1="12" y1="7" x2="12" y2="14"/></svg>
-      </div>
-      <h3>Conversando ao vivo</h3>
-      <p>Vocês estão na chamada de vídeo. Quando precisar mostrar algo do workspace, compartilhe um Board, OKR, Lab ou Zai aqui mesmo.</p>
-      <button type="button" class="lk-share-cta" onclick="_lkOpenSharePicker()">+ Compartilhar do Synkan</button>
-    </div>`;
-    // Quando vazio, share-wrap fica menor e tiles ficam maiores
-    wrap.style.flex = '0.6';
+    // Sem nada compartilhado — esconde a área de share completamente.
+    // Tiles tomam a tela toda. CTA de compartilhar fica na control bar.
+    wrap.style.display = 'none';
     const tilesRow = document.getElementById('lk-tiles-row');
-    if (tilesRow) tilesRow.style.height = '220px';
+    if (tilesRow) {
+      tilesRow.style.flex = '1';
+      tilesRow.style.height = 'auto';
+      tilesRow.style.alignItems = 'stretch';
+      tilesRow.style.flexWrap = 'wrap';
+      tilesRow.style.justifyContent = 'center';
+      tilesRow.style.gap = '14px';
+      // Tiles grandes em modo galeria
+      tilesRow.querySelectorAll('.lk-tile').forEach(t => {
+        t.style.flex = '0 1 calc(50% - 14px)';
+        t.style.aspectRatio = '16/9';
+        t.style.maxWidth = '720px';
+        t.style.minHeight = '280px';
+      });
+    }
     return;
   }
-  // Quando há item compartilhado, share-wrap volta ao tamanho grande
+  // Quando há item compartilhado, share-wrap volta ao layout normal (linha de tiles embaixo)
+  wrap.style.display = '';
   wrap.style.flex = '1.7';
   const tilesRow = document.getElementById('lk-tiles-row');
-  if (tilesRow) tilesRow.style.height = '130px';
+  if (tilesRow) {
+    tilesRow.style.flex = '';
+    tilesRow.style.height = '130px';
+    tilesRow.style.alignItems = '';
+    tilesRow.style.flexWrap = '';
+    tilesRow.style.justifyContent = '';
+    tilesRow.style.gap = '10px';
+    tilesRow.querySelectorAll('.lk-tile').forEach(t => {
+      t.style.flex = '0 0 175px';
+      t.style.aspectRatio = '4/3';
+      t.style.maxWidth = '';
+      t.style.minHeight = '';
+    });
+  }
 
   const isMine = item.by === supaUser?.id;
   const presenter = _chatState.userMap?.[item.by];
@@ -44863,11 +44895,19 @@ function _lkGetCurrentEffect() {
 
 function _lkSetEffect(fxId) {
   try { localStorage.setItem('synkan_lk_effect', fxId); } catch(_){}
-  // Aplica CSS filter no tile local imediatamente (preview)
+  // Aplica CSS filter no tile local — SÓ atualiza atributo, não re-renderiza
+  // (re-render perderia o video stream attached ao DOM)
   const localUid = supaUser?.id;
   const tile = document.querySelector(`.lk-tile[data-uid="${localUid}"]`);
-  if (tile) tile.setAttribute('data-fx', fxId === 'none' ? '' : fxId);
-  _lkRender(); // re-render pra atualizar modal selection
+  if (tile) {
+    if (fxId === 'none') tile.removeAttribute('data-fx');
+    else tile.setAttribute('data-fx', fxId);
+  }
+  // Atualiza só o modal (se aberto) pra mostrar nova seleção
+  const ov = document.getElementById('lk-fx-ov');
+  if (ov && ov.classList.contains('is-open')) {
+    ov.innerHTML = _lkEffectsModalHTML();
+  }
 }
 
 function _lkPickEffect(fxId) {
@@ -45441,12 +45481,14 @@ async function _lkToggleKan() {
   _lkRenderControls();
 
   if (newVal) {
-    // Convocou Mestre Kan — mostra toast confirmando
+    // Convocou Mestre Kan — inicia transcrição via Web Speech API
+    _kanStartTranscription();
     if (typeof _showKanWarning === 'function') {
       _showKanWarning('Mestre Kan convocado',
         'Em meditação · vai começar a capturar decisões e ações da conversa.', 'info');
     }
   } else {
+    _kanStopTranscription();
     // Dispensou — confirma com modal
     const ok = await appConfirm('Dispensar Mestre Kan?',
       'A IA vai parar de transcrever e capturar notas. Você pode convocar novamente a qualquer momento.',
@@ -45477,6 +45519,132 @@ async function _lkToggleKan() {
   } catch(e) { console.warn('[lk] kan toggle sync falhou:', e?.message||e); }
 }
 
+// ── Mestre Kan · transcrição via Web Speech API ──────────────────────
+// Cada participante transcreve o próprio áudio localmente (zero custo,
+// instantâneo, funciona em pt-BR). Os trechos vão pra Edge Function
+// 'kan-transcribe' que classifica em decisão/ação/skip via Claude.
+let _kanRecognition = null;
+let _kanBuffer = '';
+let _kanBufferFlushTimer = null;
+
+function _kanStartTranscription() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    console.warn('[kan] SpeechRecognition não disponível neste navegador');
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Mestre Kan limitado',
+        'Seu navegador não suporta Web Speech API. Use Chrome ou Edge pra transcrição funcionar.',
+        'warning');
+    }
+    return;
+  }
+  if (_kanRecognition) return;
+
+  _kanRecognition = new SR();
+  _kanRecognition.continuous = true;
+  _kanRecognition.interimResults = false;
+  _kanRecognition.lang = 'pt-BR';
+  _kanBuffer = '';
+
+  _kanRecognition.onresult = (event) => {
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        const text = event.results[i][0].transcript.trim();
+        if (text.length > 5) {
+          _kanBuffer += text + '. ';
+          // Debounce: agrupa 30s de fala antes de mandar pra IA
+          if (_kanBufferFlushTimer) clearTimeout(_kanBufferFlushTimer);
+          _kanBufferFlushTimer = setTimeout(() => _kanFlushBuffer(), 30000);
+          // Mas força flush se acumulou muito (~500 chars)
+          if (_kanBuffer.length > 500) _kanFlushBuffer();
+        }
+      }
+    }
+  };
+
+  _kanRecognition.onerror = (e) => {
+    console.warn('[kan] recognition error:', e.error);
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning('Mic bloqueado pra Mestre Kan',
+          'Pra IA transcrever, libere acesso ao microfone nas permissões do navegador.', 'warning');
+      }
+    }
+    // Auto-restart em erros transitórios
+    if (e.error === 'no-speech' || e.error === 'audio-capture' || e.error === 'network') {
+      setTimeout(() => { if (_kanRecognition) try { _kanRecognition.start(); } catch(_){} }, 1000);
+    }
+  };
+
+  _kanRecognition.onend = () => {
+    // Auto-restart enquanto Mestre Kan tá ativo
+    const ext = _chatState.extended;
+    if (ext?.lk?.hasKan && _kanRecognition) {
+      try { _kanRecognition.start(); } catch(_){}
+    }
+  };
+
+  try {
+    _kanRecognition.start();
+    console.log('[kan] transcrição iniciada (pt-BR)');
+  } catch(e) { console.warn('[kan] start falhou:', e); }
+}
+
+function _kanStopTranscription() {
+  if (_kanRecognition) {
+    try { _kanRecognition.stop(); } catch(_){}
+    _kanRecognition = null;
+  }
+  if (_kanBufferFlushTimer) {
+    clearTimeout(_kanBufferFlushTimer);
+    _kanBufferFlushTimer = null;
+  }
+  if (_kanBuffer.trim().length > 0) _kanFlushBuffer();
+}
+
+async function _kanFlushBuffer() {
+  if (_kanBufferFlushTimer) {
+    clearTimeout(_kanBufferFlushTimer);
+    _kanBufferFlushTimer = null;
+  }
+  const text = _kanBuffer.trim();
+  _kanBuffer = '';
+  if (!text || text.length < 10) return;
+  const ext = _chatState.extended;
+  if (!ext?.lk?.sessionId) return;
+
+  console.log('[kan] flush →', text.slice(0,80) + (text.length>80?'…':''));
+
+  // Envia pra Edge Function classificar (sem áudio — só texto que já transcrevemos)
+  try {
+    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+    if (!cfg?.url) return;
+    const c = _ensureSupaClient();
+    const { data: session } = await c.auth.getSession();
+    const jwt = session?.session?.access_token;
+    const r = await fetch(`${cfg.url}/functions/v1/kan-transcribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({
+        session_id: ext.lk.sessionId,
+        transcript: text,
+        speaker_user_id: supaUser?.id,
+      }),
+    });
+    if (!r.ok) {
+      const errText = await r.text().catch(()=>'');
+      console.warn('[kan] classify falhou:', r.status, errText.slice(0,200));
+      return;
+    }
+    const result = await r.json();
+    console.log('[kan] classified:', result);
+    // Se IA capturou algo, decisões/ações vêm via Realtime sub
+    // que já tá rodando — _lkRenderSidepanel atualiza sozinho
+  } catch(e) {
+    console.warn('[kan] classify error:', e?.message||e);
+  }
+}
+
 async function _lkToggleAction(actionId) {
   const ext = _chatState.extended; if (!ext?.lk) return;
   const c = _ensureSupaClient(); if (!c) return;
@@ -45503,6 +45671,8 @@ function _lkOpenCard(boardId, cardId) {
 
 async function _lkLeave() {
   const ext = _chatState.extended; if (!ext?.lk) return;
+  // Para transcrição do Mestre Kan
+  try { _kanStopTranscription(); } catch(_){}
   try {
     if (ext.lk.room) await ext.lk.room.disconnect();
   } catch(_){}
