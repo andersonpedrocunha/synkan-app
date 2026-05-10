@@ -44834,7 +44834,7 @@ function _lkRenderSidepanel() {
   tabs.innerHTML = `
     <button type="button" class="lk-sidepanel-tab${tab==='notas'?' is-active':''}" onclick="_lkSwitchTab('notas')">📝 Notas${totalNotes>0?` <span class="tab-badge">${totalNotes}</span>`:''}</button>
     <button type="button" class="lk-sidepanel-tab${tab==='chat'?' is-active':''}" onclick="_lkSwitchTab('chat')">💬 Chat${chatCount>0?` <span class="tab-badge">${chatCount}</span>`:''}</button>
-    <button type="button" class="lk-sidepanel-tab${tab==='pessoas'?' is-active':''}" onclick="_lkSwitchTab('pessoas')">道場 · ${peopleCount}</button>`;
+    <button type="button" class="lk-sidepanel-tab${tab==='pessoas'?' is-active':''}" onclick="_lkSwitchTab('pessoas')">👥 Dojo · ${peopleCount}</button>`;
 
   if (tab === 'notas') content.innerHTML = _lkNotasHTML();
   else if (tab === 'chat') {
@@ -44893,7 +44893,7 @@ async function _lkSendChatMessage() {
 
 // ── Reações com emojis (animação flutuante) ──────────────────────
 const _LK_REACTIONS = [
-  '👍','❤️','🎉','🔥','🙌','😂','🤔','👏','💯','🎴','賞','🌸',
+  '👍','❤️','🎉','🔥','🙌','😂','🤔','👏','💯','🙇','🥋','⛩️',
 ];
 
 function _lkOpenReactions(anchor) {
@@ -44959,8 +44959,8 @@ const _LK_BG_IMAGES = {
 };
 const _LK_EFFECTS = [
   { id:'none',     name:'Original',          tag:'sem efeito',                  preview:'plain',   kind:'none' },
-  { id:'blur',     name:'Borrar fundo',      tag:'só o fundo · você fica nítido', preview:'blur', kind:'blur', radius:15 },
-  { id:'blur-soft',name:'Borrar suave',      tag:'desfoque mais leve',          preview:'blur',    kind:'blur', radius:8  },
+  { id:'blur',     name:'Borrar fundo',      tag:'só o fundo · você fica nítido', preview:'blur', kind:'blur', radius:30 },
+  { id:'blur-soft',name:'Borrar suave',      tag:'desfoque mais leve',          preview:'blur',    kind:'blur', radius:15 },
   { id:'sakura',   name:'🌸 Sakura',         tag:'cerejeira em flor',           preview:'sakura',  kind:'image', image:'sakura' },
   { id:'hokusai',  name:'🌊 Onda Hokusai',   tag:'mar ukiyo-e azul',            preview:'hokusai', kind:'image', image:'hokusai' },
   { id:'sumie',    name:'墨 Sumi-e',         tag:'tinta zen monocromática',     preview:'sumie',   kind:'image', image:'sumie'   },
@@ -44976,6 +44976,7 @@ function _lkOpenEffectsModal() {
     ov.className = 'lk-fx-ov';
     document.body.appendChild(ov);
   }
+  ov.style.zIndex = '99999';
   ov.innerHTML = _lkEffectsModalHTML();
   ov.classList.add('is-open');
   ov.onclick = e => { if (e.target === ov) _lkCloseEffectsModal(); };
@@ -44988,6 +44989,26 @@ function _lkCloseEffectsModal() {
 function _lkGetCurrentEffect() {
   try { return localStorage.getItem('synkan_lk_effect') || 'none'; }
   catch(_){ return 'none'; }
+}
+
+// Cache de PNGs rasterizados (MediaPipe não aceita SVG diretamente — converte primeiro)
+const _lkBgPngCache = {};
+async function _lkRasterizeBg(svgDataUrl, w=1280, h=720) {
+  if (_lkBgPngCache[svgDataUrl]) return _lkBgPngCache[svgDataUrl];
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = () => reject(new Error('falha ao carregar SVG'));
+    img.src = svgDataUrl;
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  const pngUrl = canvas.toDataURL('image/png');
+  _lkBgPngCache[svgDataUrl] = pngUrl;
+  return pngUrl;
 }
 
 async function _lkSetEffect(fxId) {
@@ -45036,15 +45057,25 @@ async function _lkSetEffect(fxId) {
     if (fx.kind === 'blur') {
       const Bb = processors.BackgroundBlur;
       if (typeof Bb === 'function') {
-        const proc = Bb(fx.radius || 12);
+        // Radius mais alto = blur mais forte e mais visível
+        const proc = Bb(fx.radius || 25);
         await track.setProcessor(proc);
         console.log('[lk-fx] BackgroundBlur aplicado, radius =', fx.radius);
       }
     } else if (fx.kind === 'image') {
       const Vb = processors.VirtualBackground;
       if (typeof Vb === 'function') {
-        const url = _LK_BG_IMAGES[fx.image];
-        const proc = Vb(url);
+        const svgUrl = _LK_BG_IMAGES[fx.image];
+        // MediaPipe espera raster (PNG) — rasterizar SVG via canvas primeiro
+        let pngUrl;
+        try {
+          pngUrl = await _lkRasterizeBg(svgUrl);
+          console.log('[lk-fx] SVG rasterizado pra PNG (', pngUrl.length, 'bytes)');
+        } catch(rasterErr) {
+          console.warn('[lk-fx] rasterizar falhou, usando SVG direto:', rasterErr);
+          pngUrl = svgUrl;
+        }
+        const proc = Vb(pngUrl);
         await track.setProcessor(proc);
         console.log('[lk-fx] VirtualBackground aplicado:', fx.image);
       }
@@ -45130,22 +45161,42 @@ function _lkPreviewSVG(kind) {
 
 // ── Gravação de chamada ──────────────────────────────────────────────
 async function _lkToggleRecording() {
-  const ext = _chatState.extended; if (!ext?.lk?.connected) return;
+  const ext = _chatState.extended;
+  console.log('[lk-rec] toggle clicked, lk:', !!ext?.lk, 'connected:', ext?.lk?.connected);
+  if (!ext?.lk) {
+    appAlert('Não conectado', 'Volte pro tatame ao vivo primeiro.', { icon:'⚠️' });
+    return;
+  }
+  if (!ext.lk.connected) {
+    appAlert('Aguarde conectar', 'A chamada ainda está conectando — tente em alguns segundos.', { icon:'⏳' });
+    return;
+  }
   if (ext.lk.recording) {
     return _lkStopRecording();
+  }
+  // Verifica plano antes de abrir modal (feedback imediato)
+  if (!_lkCanRecord()) {
+    appAlert('Gravação requer Faixa Preta',
+      'A gravação de chamadas é feature do plano Faixa Preta. Faça upgrade em Configurações → Plano.',
+      { icon:'🎬' });
+    return;
   }
   // LGPD consent modal
   _lkOpenRecordingConsent();
 }
 
 function _lkOpenRecordingConsent() {
+  console.log('[lk-rec] abrindo consent modal');
   let ov = document.getElementById('lk-rec-ov');
   if (!ov) {
     ov = document.createElement('div');
     ov.id = 'lk-rec-ov';
     ov.className = 'lk-fx-ov';
+    // Garante z-index acima do tatame overlay (que pode ter z-index alto)
+    ov.style.zIndex = '99999';
     document.body.appendChild(ov);
   }
+  ov.style.zIndex = '99999';
   ov.innerHTML = `
     <div class="lk-rec-modal">
       <div class="lk-rec-stamp">
@@ -45699,194 +45750,197 @@ async function _lkToggleKan() {
 // Cada participante transcreve o próprio áudio localmente (zero custo,
 // instantâneo, funciona em pt-BR). Os trechos vão pra Edge Function
 // 'kan-transcribe' que classifica em decisão/ação/skip via Claude.
-let _kanRecognition = null;
-let _kanBuffer = '';
-let _kanBufferFlushTimer = null;
-let _kanNoSpeechCount = 0;       // contador de erros consecutivos de no-speech
-let _kanRestartLock = false;     // evita restart duplicado (race onend × onerror)
-let _kanWantRunning = false;     // flag de "quer rodar" — desliga via _kanStop
+// ── Mestre Kan: transcrição via Whisper (mic do LiveKit → MediaRecorder → Edge) ──
+// Antes usava Web Speech API mas conflitava com a captura de mic do LiveKit
+// (Web Speech precisa do mic default, LiveKit já tomou). Agora pega
+// direto a track de áudio do LiveKit, grava em chunks de 12s, envia
+// pra kan-transcribe (Whisper transcreve, Claude classifica).
+let _kanRecorder = null;
+let _kanRecorderTimer = null;
+let _kanWantRunning = false;
+let _kanRecognition = null;       // mantém referência pra mini-widget detectar
+let _kanChunkSeq = 0;
+let _kanWaitForTrackTries = 0;
+const _KAN_CHUNK_MS = 12000;     // chunks de 12 segundos
+const _KAN_MIN_BYTES = 8000;     // ignora chunks < 8KB (silêncio)
 
 function _kanStartTranscription() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    console.warn('[kan] SpeechRecognition não disponível neste navegador');
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('Mestre Kan limitado',
-        'Seu navegador não suporta transcrição automática. Use Chrome ou Edge.',
-        'warning');
-    }
-    return;
-  }
-  if (_kanRecognition) return;
-  // Tem que rodar em HTTPS (ou localhost) — Speech API exige
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-    console.warn('[kan] Speech API exige HTTPS');
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('Mestre Kan precisa de HTTPS',
-        'A transcrição automática só funciona em conexão segura (https). Em desenvolvimento local, use https ou localhost.',
-        'warning');
-    }
-    return;
-  }
-
-  _kanRecognition = new SR();
-  _kanRecognition.continuous = true;
-  _kanRecognition.interimResults = false;
-  _kanRecognition.lang = 'pt-BR';
-  _kanRecognition.maxAlternatives = 1;
-  _kanBuffer = '';
-  _kanNoSpeechCount = 0;
+  if (_kanWantRunning) return;
   _kanWantRunning = true;
-  _kanRestartLock = false;
+  _kanWaitForTrackTries = 0;
+  _kanChunkSeq = 0;
+  _kanRecognition = { active: true }; // sentinel pra UI saber que tá ouvindo
+  console.log('[kan] iniciando transcrição via Whisper');
+  _kanWaitForAudioTrack();
+  try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
+}
 
-  _kanRecognition.onstart = () => {
-    console.log('[kan] ✓ transcrição rodando');
-    _kanRestartLock = false;
-    _kanNoSpeechCount = 0;
-    // Atualiza UI do mini-widget
-    try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
-  };
-
-  _kanRecognition.onresult = (event) => {
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      if (event.results[i].isFinal) {
-        const text = event.results[i][0].transcript.trim();
-        if (text.length > 5) {
-          console.log('[kan] 🎙', text);
-          _kanBuffer += text + '. ';
-          _kanNoSpeechCount = 0; // resetou contador, tem audio
-          // Debounce: agrupa 30s de fala antes de mandar pra IA
-          if (_kanBufferFlushTimer) clearTimeout(_kanBufferFlushTimer);
-          _kanBufferFlushTimer = setTimeout(() => _kanFlushBuffer(), 30000);
-          // Mas força flush se acumulou muito (~500 chars)
-          if (_kanBuffer.length > 500) _kanFlushBuffer();
-        }
-      }
+function _kanWaitForAudioTrack() {
+  if (!_kanWantRunning) return;
+  const ext = _chatState.extended;
+  const room = ext?.lk?.room;
+  const LK = window.LivekitClient;
+  if (!room || !LK) {
+    _kanWaitForTrackTries++;
+    if (_kanWaitForTrackTries < 30) {
+      setTimeout(_kanWaitForAudioTrack, 500);
     }
-  };
-
-  _kanRecognition.onerror = (e) => {
-    console.warn('[kan] recognition error:', e.error);
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      _kanWantRunning = false; // não reinicia
-      if (typeof _showKanWarning === 'function') {
-        _showKanWarning('Mic bloqueado pra Mestre Kan',
-          'Pra IA transcrever, libere acesso ao microfone nas permissões do navegador (clique no cadeado da URL).',
-          'warning');
-      }
-      return;
-    }
-    if (e.error === 'no-speech') {
-      _kanNoSpeechCount++;
-      // Se ficou 5 ciclos sem audio, avisa user
-      if (_kanNoSpeechCount === 5 && typeof _showKanWarning === 'function') {
-        _showKanWarning('Mestre Kan não escuta',
-          'Seu mic parece estar mudo ou capturando silêncio. Confira se o mic do tatame está ativo (não-mutado) e fale mais alto.',
-          'info');
-      }
-      // onend vai disparar — deixa ele restartar
-      return;
-    }
-    if (e.error === 'audio-capture') {
-      // Mic conflicto com LiveKit ou hardware indisponível
-      _kanWantRunning = false;
+    return;
+  }
+  const micPub = room.localParticipant.getTrackPublication(LK.Track?.Source?.Microphone);
+  const audioTrack = micPub?.audioTrack || micPub?.track;
+  const mst = audioTrack?.mediaStreamTrack;
+  if (!mst) {
+    _kanWaitForTrackTries++;
+    if (_kanWaitForTrackTries < 30) {
+      setTimeout(_kanWaitForAudioTrack, 500);
+    } else {
+      console.warn('[kan] timeout esperando audio track');
       if (typeof _showKanWarning === 'function') {
         _showKanWarning('Mestre Kan sem áudio',
-          'Não consegui acessar o microfone. Pode ser que outro app/aba já esteja usando. Tente convocar novamente.',
+          'Não consegui acessar o microfone — verifique se ele tá ativo no tatame (não-mutado).',
           'warning');
       }
-      return;
     }
-    // network, aborted, etc — onend lida
-  };
+    return;
+  }
+  // Tem track — começa a gravar
+  _kanRecordChunk(mst);
+}
 
-  _kanRecognition.onend = () => {
-    console.log('[kan] recognition ended');
-    // Restart só se ainda quer rodar e não temos lock (race)
-    if (_kanWantRunning && _kanRecognition && !_kanRestartLock) {
-      _kanRestartLock = true;
-      // Backoff progressivo: mais no-speech = espera mais antes de retry
-      const delay = Math.min(500 + _kanNoSpeechCount * 200, 3000);
-      setTimeout(() => {
-        if (_kanWantRunning && _kanRecognition) {
-          try {
-            _kanRecognition.start();
-          } catch(err) {
-            // InvalidStateError = já tá rodando, ok
-            console.warn('[kan] restart err:', err?.message);
-            _kanRestartLock = false;
-          }
-        } else {
-          _kanRestartLock = false;
-        }
-      }, delay);
+function _kanRecordChunk(mst) {
+  if (!_kanWantRunning) return;
+  // Se a track foi finalizada, espera nova
+  if (mst.readyState === 'ended') {
+    console.warn('[kan] audio track ended — esperando nova');
+    setTimeout(_kanWaitForAudioTrack, 1000);
+    return;
+  }
+  let mimeType = '';
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+  for (const m of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) { mimeType = m; break; }
+  }
+  if (!mimeType) {
+    console.warn('[kan] MediaRecorder não suporta audio/webm nem audio/mp4');
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Mestre Kan limitado',
+        'Seu navegador não suporta gravação de áudio. Use Chrome, Edge ou Safari recente.',
+        'warning');
     }
-    try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
-  };
+    _kanWantRunning = false;
+    return;
+  }
 
   try {
-    _kanRecognition.start();
-  } catch(e) { console.warn('[kan] start falhou:', e?.message); }
+    const stream = new MediaStream([mst]);
+    const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 32000 });
+    _kanRecorder = recorder;
+    const chunks = [];
+
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+
+    recorder.onstop = async () => {
+      _kanRecorder = null;
+      const blob = new Blob(chunks, { type: mimeType });
+      _kanChunkSeq++;
+      console.log(`[kan] chunk #${_kanChunkSeq} pronto, ${blob.size} bytes`);
+      if (blob.size > _KAN_MIN_BYTES) {
+        // Envia em background (não bloqueia próximo chunk)
+        _kanSendAudioChunk(blob, mimeType).catch(e => console.warn('[kan] send chunk:', e?.message));
+      } else {
+        console.log('[kan] chunk muito pequeno, descartando (silêncio)');
+      }
+      // Próximo chunk imediatamente
+      if (_kanWantRunning) {
+        setTimeout(() => _kanRecordChunk(mst), 100);
+      }
+    };
+
+    recorder.onerror = (e) => {
+      console.warn('[kan] recorder error:', e?.error || e);
+      if (_kanWantRunning) setTimeout(_kanWaitForAudioTrack, 2000);
+    };
+
+    recorder.start();
+    _kanRecorderTimer = setTimeout(() => {
+      try { if (recorder.state !== 'inactive') recorder.stop(); } catch(_){}
+    }, _KAN_CHUNK_MS);
+    try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
+  } catch(e) {
+    console.warn('[kan] recordChunk error:', e);
+    if (_kanWantRunning) setTimeout(_kanWaitForAudioTrack, 2000);
+  }
+}
+
+async function _kanSendAudioChunk(blob, mimeType) {
+  const ext = _chatState.extended;
+  if (!ext?.lk?.sessionId) return;
+  // Converte pra base64
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  const audio_chunk_base64 = btoa(bin);
+
+  // Endpoint
+  const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+  if (!cfg?.url) { console.warn('[kan] sem Supabase URL'); return; }
+  const endpoint = `${cfg.url}/functions/v1/kan-transcribe`;
+
+  // JWT
+  let jwt = null;
+  try {
+    if (typeof _capReadJWTFromStorage === 'function') jwt = _capReadJWTFromStorage();
+    if (!jwt) {
+      const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+      const s = await c?.auth.getSession();
+      jwt = s?.data?.session?.access_token;
+    }
+  } catch(_){}
+  if (!jwt) { console.warn('[kan] sem JWT'); return; }
+
+  try {
+    const r = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ session_id: ext.lk.sessionId, audio_chunk_base64, mime: mimeType }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(()=>'');
+      console.warn('[kan] kan-transcribe', r.status, t);
+      return;
+    }
+    const j = await r.json();
+    if (j.transcribed > 0) {
+      console.log(`[kan] ✓ transcrito ${j.transcribed} chars · ${j.decisions||0} decisões · ${j.actions||0} ações`);
+    } else if (j.skipped) {
+      console.log('[kan] chunk sem fala detectada');
+    }
+  } catch(e) {
+    console.warn('[kan] fetch error:', e?.message);
+  }
 }
 
 function _kanStopTranscription() {
   _kanWantRunning = false;
-  _kanRestartLock = false;
-  _kanNoSpeechCount = 0;
-  if (_kanRecognition) {
-    try { _kanRecognition.onend = null; } catch(_){}
-    try { _kanRecognition.stop(); } catch(_){}
-    _kanRecognition = null;
+  _kanRecognition = null;
+  if (_kanRecorderTimer) { clearTimeout(_kanRecorderTimer); _kanRecorderTimer = null; }
+  if (_kanRecorder) {
+    try {
+      if (_kanRecorder.state !== 'inactive') _kanRecorder.stop();
+    } catch(_){}
+    _kanRecorder = null;
   }
-  if (_kanBufferFlushTimer) {
-    clearTimeout(_kanBufferFlushTimer);
-    _kanBufferFlushTimer = null;
-  }
-  if (_kanBuffer.trim().length > 0) _kanFlushBuffer();
+  console.log('[kan] transcrição parada');
+  try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
 }
 
-async function _kanFlushBuffer() {
-  if (_kanBufferFlushTimer) {
-    clearTimeout(_kanBufferFlushTimer);
-    _kanBufferFlushTimer = null;
-  }
-  const text = _kanBuffer.trim();
-  _kanBuffer = '';
-  if (!text || text.length < 10) return;
-  const ext = _chatState.extended;
-  if (!ext?.lk?.sessionId) return;
-
-  console.log('[kan] flush →', text.slice(0,80) + (text.length>80?'…':''));
-
-  // Envia pra Edge Function classificar (sem áudio — só texto que já transcrevemos)
-  try {
-    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
-    if (!cfg?.url) return;
-    const c = _ensureSupaClient();
-    const { data: session } = await c.auth.getSession();
-    const jwt = session?.session?.access_token;
-    const r = await fetch(`${cfg.url}/functions/v1/kan-transcribe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
-      body: JSON.stringify({
-        session_id: ext.lk.sessionId,
-        transcript: text,
-        speaker_user_id: supaUser?.id,
-      }),
-    });
-    if (!r.ok) {
-      const errText = await r.text().catch(()=>'');
-      console.warn('[kan] classify falhou:', r.status, errText.slice(0,200));
-      return;
-    }
-    const result = await r.json();
-    console.log('[kan] classified:', result);
-    // Se IA capturou algo, decisões/ações vêm via Realtime sub
-    // que já tá rodando — _lkRenderSidepanel atualiza sozinho
-  } catch(e) {
-    console.warn('[kan] classify error:', e?.message||e);
-  }
-}
+// (Removido: _kanFlushBuffer era do fluxo Web Speech API antigo. Agora a
+// transcrição vai direto via _kanSendAudioChunk → kan-transcribe → Whisper.)
 
 async function _lkToggleAction(actionId) {
   const ext = _chatState.extended; if (!ext?.lk) return;
@@ -45913,39 +45967,102 @@ function _lkOpenCard(boardId, cardId) {
 }
 
 async function _lkLeave() {
-  const ext = _chatState.extended; if (!ext?.lk) return;
-  // Para transcrição do Mestre Kan
-  try { _kanStopTranscription(); } catch(_){}
-  try {
-    if (ext.lk.room) await ext.lk.room.disconnect();
-  } catch(_){}
-  try {
-    if (ext.lk.rtSub) {
+  const ext = _chatState.extended;
+  if (!ext?.lk) {
+    try { if (typeof _txClose === 'function') _txClose(); } catch(_){}
+    return;
+  }
+  // Snapshot pra usar mesmo se ext.lk for nullado em uma race
+  const room = ext.lk.room;
+  const sessionId = ext.lk.sessionId;
+  const rtSub = ext.lk.rtSub;
+  const remoteCount = room?.remoteParticipants?.size || 0;
+  const recording = ext.lk.recording;
+
+  // 1) Para transcrição do Mestre Kan
+  try { _kanStopTranscription(); } catch(e){ console.warn('[lk-leave] kan:', e); }
+
+  // 2) Para gravação fire-and-forget
+  if (recording?.egressId) {
+    try {
       const c = _ensureSupaClient();
-      if (c) c.removeChannel(ext.lk.rtSub);
-    }
-  } catch(_){}
-  // Encerra sessão no banco se foi o último
+      const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+      const stopUrl = `${cfg?.url}/functions/v1/livekit-recording/stop`;
+      c.auth.getSession().then(s => {
+        const jwt = s?.data?.session?.access_token;
+        fetch(stopUrl, {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+jwt},
+          body: JSON.stringify({ egress_id: recording.egressId })
+        }).catch(()=>{});
+      }).catch(()=>{});
+    } catch(_){}
+  }
+
+  // 3) Stop track processor antes de disconnect (evita memory leak MediaPipe)
   try {
-    const c = _ensureSupaClient();
-    if (c && ext.lk.sessionId) {
-      // Endpoint inteligente: se eu era o último, encerra; senão só registra saída
-      const remaining = ext.lk.room?.remoteParticipants.size || 0;
-      if (remaining === 0) {
-        await c.rpc('end_video_session', { p_session_id: ext.lk.sessionId, p_reason: 'last_left' });
+    const LK = window.LivekitClient;
+    const camPub = room?.localParticipant?.getTrackPublication?.(LK?.Track?.Source?.Camera);
+    const camTrack = camPub?.videoTrack || camPub?.track;
+    if (camTrack && typeof camTrack.stopProcessor === 'function') {
+      await Promise.race([
+        camTrack.stopProcessor(),
+        new Promise(r => setTimeout(r, 1500))
+      ]);
+    }
+  } catch(e){ console.warn('[lk-leave] processor:', e); }
+
+  // 4) Disconnect do LiveKit (com timeout)
+  try {
+    if (room) {
+      await Promise.race([
+        room.disconnect(),
+        new Promise(r => setTimeout(r, 2500))
+      ]);
+    }
+  } catch(e){ console.warn('[lk-leave] disconnect:', e); }
+
+  // 5) Remove subscription Realtime
+  try {
+    if (rtSub) {
+      const c = _ensureSupaClient();
+      if (c) c.removeChannel(rtSub);
+    }
+  } catch(e){ console.warn('[lk-leave] removeChannel:', e); }
+
+  // 6) Encerra sessão no banco se foi o último (com timeout)
+  try {
+    if (sessionId && remoteCount === 0) {
+      const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+      if (c) {
+        await Promise.race([
+          c.rpc('end_video_session', { p_session_id: sessionId, p_reason: 'last_left' }),
+          new Promise(r => setTimeout(r, 2000))
+        ]);
       }
     }
-  } catch(_){}
+  } catch(e){ console.warn('[lk-leave] end session:', e); }
 
-  ext.lk = null;
+  // 7) Limpa state e DOM (sempre — mesmo se algo acima travou)
+  if (_chatState.extended) _chatState.extended.lk = null;
   const ov = document.getElementById('tx-overlay');
   if (ov) {
     ov.classList.remove('tx-livekit-mode');
     const body = ov.querySelector('.lk-body');
     if (body) body.remove();
+    const controls = ov.querySelector('.tx-controls');
+    if (controls) controls.remove();
+    const kanMini = ov.querySelector('#lk-kan-mini');
+    if (kanMini) kanMini.remove();
   }
-  // Mantém o tx-overlay aberto em modo voice-only ou fecha
-  if (typeof _txClose === 'function') _txClose();
+  // Limpa modais que possam ter ficado abertos
+  ['lk-fx-ov','lk-rec-consent-ov','lk-share-modal-ov','acervo-player-ov','lk-reactions-pop'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  });
+  // Fecha o overlay do tatame
+  try { if (typeof _txClose === 'function') _txClose(); } catch(e){ console.warn('[lk-leave] _txClose:', e); }
+  console.log('[lk] saiu da chamada com sucesso');
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -47672,12 +47789,12 @@ async function _tpLoadProfile(userId, opts) {
     cards = data || [];
   } catch(e) { console.warn('[tp] tatami_profile_cards falhou:', e?.message||e); }
 
-  // ── Fallback: se RPC retornou 0 cards mas o user é próprio (auth.uid() === userId),
-  //    consulta direto a tabela cards. Cobre o caso da migration antiga (sem fix do
-  //    p_user_id = v_caller_id) ainda não ter sido aplicada no Supabase do user.
+  // ── Fallback: se RPC retornou 0 cards, consulta direto a tabela cards.
+  //    Funciona pra qualquer user (não só o próprio) — RLS já filtra os
+  //    boards que o caller tem acesso, então só vê cards de boards visíveis.
+  //    Cobre o caso da migration antiga ainda não ter sido aplicada.
   try {
-    const myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
-    if (cards.length === 0 && userId === myId) {
+    if (cards.length === 0) {
       const { data: directCards, error: directErr } = await c.from('cards')
         .select('id, board_id, name, col, deadline, priority, tag_ids, boards!inner(name)')
         .eq('assigned_user_id', userId)
@@ -47703,7 +47820,14 @@ async function _tpLoadProfile(userId, opts) {
           .eq('assigned_user_id', userId)
           .is('done_at', null);
         if (typeof openCount === 'number') stats.cards_in_progress = openCount;
-        console.info(`[tp] fallback aplicado · ${cards.length} cards via tabela direta. Rode MIGRATION_TATAMI_PROFILE.sql atualizada pra usar o RPC.`);
+        console.info(`[tp] fallback cards aplicado · ${cards.length} cards via tabela direta`);
+      } else if (!stats.cards_in_progress) {
+        // Conta cards mesmo se a lista vier vazia (pra mostrar "X cards" certo)
+        const { count: openCount } = await c.from('cards')
+          .select('id', { count: 'exact', head: true })
+          .eq('assigned_user_id', userId)
+          .is('done_at', null);
+        if (typeof openCount === 'number') stats.cards_in_progress = openCount;
       }
     }
   } catch(e) { console.warn('[tp] fallback cards falhou:', e?.message||e); }
