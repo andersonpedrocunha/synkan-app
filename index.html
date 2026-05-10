@@ -5481,6 +5481,49 @@ body.density-compact .col{padding:7px;}
 .lk-ctrl-kan:hover{background:linear-gradient(135deg,rgba(107,93,200,.32) 0%,rgba(107,93,200,.18) 100%);}
 .lk-ctrl-kan.is-active{background:#6B5DC8;border-color:rgba(181,168,255,.6);font-style:normal;font-weight:600;}
 
+/* ── Efeitos de câmera (modal seletor) ──────────────────────────────── */
+.lk-fx-ov{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;z-index:10001;}
+.lk-fx-ov.is-open{display:flex;}
+.lk-fx-modal{background:linear-gradient(135deg,#0F0B07 0%,#1A1611 100%);border:1px solid rgba(193,154,58,.30);border-radius:18px;padding:28px;width:92%;max-width:900px;max-height:90vh;overflow:auto;color:#fff;box-shadow:0 30px 80px rgba(0,0,0,.5);}
+.lk-fx-h{font-family:var(--tatami-mincho,serif);font-size:24px;font-weight:600;margin-bottom:6px;}
+.lk-fx-h em{color:#BC002D;font-style:italic;}
+.lk-fx-sub{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:13.5px;color:rgba(255,255,255,.6);margin-bottom:24px;}
+.lk-fx-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media(max-width:760px){.lk-fx-grid{grid-template-columns:repeat(2,1fr);}}
+.lk-fx-item{background:rgba(255,255,255,.04);border:2px solid rgba(255,255,255,.08);border-radius:12px;padding:10px;cursor:pointer;transition:all .18s;text-align:left;display:flex;flex-direction:column;gap:8px;}
+.lk-fx-item:hover{border-color:rgba(193,154,58,.40);transform:translateY(-2px);background:rgba(255,255,255,.06);}
+.lk-fx-item.is-active{border-color:#BC002D;background:rgba(188,0,45,.12);box-shadow:0 0 0 1px #BC002D,0 8px 20px rgba(188,0,45,.25);}
+.lk-fx-preview{aspect-ratio:4/3;border-radius:8px;overflow:hidden;position:relative;background:#0F0B07;}
+.lk-fx-preview svg{width:100%;height:100%;display:block;}
+.lk-fx-preview-avatar{position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);width:42%;aspect-ratio:1/1;border-radius:50%;background:linear-gradient(135deg,#6B5DC8 0%,#322B5F 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--tatami-mincho,serif);font-size:22px;font-weight:600;border:2px solid rgba(255,255,255,.2);}
+.lk-fx-name{font-family:var(--tatami-mincho,serif);font-size:13px;font-weight:600;color:#fff;}
+.lk-fx-tag{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:10.5px;color:rgba(255,255,255,.55);}
+.lk-fx-status-pill{display:inline-block;font-size:9px;background:rgba(193,154,58,.20);color:#FBE7A4;padding:2px 7px;border-radius:999px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;font-family:-apple-system,sans-serif;font-style:normal;margin-left:5px;}
+.lk-fx-footer{margin-top:18px;padding:12px 14px;background:rgba(193,154,58,.08);border-left:3px solid #C19A3A;border-radius:0 8px 8px 0;font-family:var(--tatami-mincho,serif);font-style:italic;font-size:12px;color:rgba(255,255,255,.85);line-height:1.5;}
+
+/* CSS filters aplicados ao tile local quando efeito ativo (preview) */
+.lk-tile[data-fx="blur"] video{filter:blur(8px);}
+.lk-tile[data-fx="dojo"] video{filter:sepia(.4) saturate(1.3) brightness(.95);}
+.lk-tile[data-fx="hokusai"] video{filter:hue-rotate(-30deg) saturate(1.6) brightness(.9);}
+.lk-tile[data-fx="sakura"] video{filter:hue-rotate(330deg) saturate(1.4) brightness(1.05);}
+.lk-tile[data-fx="sumie"] video{filter:grayscale(1) contrast(1.6) brightness(.9);}
+.lk-tile[data-fx="hanko"] video{filter:hue-rotate(-15deg) saturate(2) contrast(1.2) brightness(1);}
+
+/* ── REC indicator (pulsando) ───────────────────────────────────────── */
+.lk-rec-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 7px;background:linear-gradient(135deg,#BC002D 0%,#5C0015 100%);border-radius:999px;font-family:var(--tatami-mincho,serif);font-size:11px;font-weight:700;color:#fff;letter-spacing:.10em;text-transform:uppercase;font-style:normal;border:1px solid rgba(255,255,255,.15);}
+.lk-rec-badge::before{content:'';width:8px;height:8px;background:#fff;border-radius:50%;animation:lkRecPulse 1.2s ease infinite;}
+@keyframes lkRecPulse{0%,100%{opacity:1;box-shadow:0 0 8px #fff;}50%{opacity:.4;box-shadow:0 0 0 #fff;}}
+
+/* ── LGPD consent modal pra gravação ───────────────────────────────── */
+.lk-rec-modal{background:linear-gradient(135deg,#FFFCF5 0%,#EDE5D0 100%);color:var(--tatami-ink,#3A332C);border-radius:16px;padding:32px;width:92%;max-width:520px;border:1px solid #B8A878;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.5);}
+.lk-rec-stamp{position:absolute;top:-18px;right:24px;width:60px;height:60px;}
+.lk-rec-modal-h{font-family:var(--tatami-mincho,serif);font-size:22px;font-weight:600;margin-bottom:8px;}
+.lk-rec-modal-sub{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:13px;color:var(--tatami-ink-soft,#5C4F3F);margin-bottom:20px;line-height:1.55;}
+.lk-rec-checklist{margin-bottom:20px;}
+.lk-rec-checklist li{padding:8px 12px 8px 30px;font-size:12.5px;color:var(--tatami-ink,#3A332C);position:relative;line-height:1.45;list-style:none;}
+.lk-rec-checklist li::before{content:'';position:absolute;left:8px;top:14px;width:14px;height:14px;border:1.5px solid #C19A3A;border-radius:3px;}
+.lk-rec-checklist li::after{content:'✓';position:absolute;left:11px;top:6px;color:#3a6b2c;font-weight:700;font-size:13px;}
+
 /* Picker modal de items Synkan pra apresentar */
 .lk-share-modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:10001;}
 .lk-share-modal-ov.is-open{display:flex;}
@@ -6784,6 +6827,8 @@ body.tx-active .belt-ring::after{
       <span class="sb-icon" style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:-.04em;color:#BC002D;">財</span><span>Zai</span></button>
     <button class="sb-item" id="sb-chat" onclick="switchTab('chat')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1 -1.5 1.5h-6L4 14v-2H3a1.5 1.5 0 0 1 -1.5 -1.5v-5.5A1.5 1.5 0 0 1 3 3.5z"/><line x1="5" y1="6.4" x2="11" y2="6.4"/><line x1="5" y1="8.7" x2="9" y2="8.7"/></svg></span><span>Tatami</span><span class="sb-chat-badge" id="sb-chat-badge" style="display:none;"></span></button>
+    <button class="sb-item" id="sb-acervo" onclick="switchTab('acervo')">
+      <span class="sb-icon" style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:-.04em;color:#BC002D;">録</span><span>Acervo</span></button>
     <button class="sb-item" id="sb-okrs" onclick="switchTab('okrs')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></span><span>OKRs</span></button>
     <button class="sb-item" id="sb-registry" onclick="switchTab('registry')">
@@ -6941,6 +6986,10 @@ body.tx-active .belt-ring::after{
 
   <div id="view-chat" style="display:none;">
     <div id="chat-root"></div>
+  </div>
+
+  <div id="view-acervo" style="display:none;">
+    <div id="acervo-root"></div>
   </div>
 
   <div id="view-dojo" style="display:none;">
@@ -17967,6 +18016,8 @@ function switchTab(tab) {
   document.getElementById('view-okrs').style.display      = tab==='okrs'      ? '' : 'none';
   document.getElementById('view-zai').style.display       = tab==='zai'       ? '' : 'none';
   document.getElementById('view-chat').style.display      = tab==='chat'      ? '' : 'none';
+  const acervoEl = document.getElementById('view-acervo');
+  if (acervoEl) acervoEl.style.display = tab==='acervo' ? '' : 'none';
   document.getElementById('view-dojo').style.display      = tab==='dojo'      ? '' : 'none';
   document.getElementById('view-settings').style.display  = tab==='settings'  ? '' : 'none';
   document.getElementById('view-kanban').style.display    = tab==='kanban'    ? '' : 'none';
@@ -17983,7 +18034,7 @@ function switchTab(tab) {
   // Sidebar — seção de visões só aparece quando está dentro de um board
   const viewsSec = document.getElementById('sb-views-section');
   if (viewsSec) viewsSec.style.display = inBoard ? '' : 'none';
-  ['home','boards','gallery','canvas','registry','okrs','chat','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker'].forEach(t=>{
+  ['home','boards','gallery','canvas','registry','okrs','chat','acervo','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker'].forEach(t=>{
     const el = document.getElementById('sb-'+t);
     if (el) el.classList.toggle('active', tab===t);
   });
@@ -17996,6 +18047,7 @@ function switchTab(tab) {
   if (tab==='okrs') renderOKRs();
   if (tab==='zai') renderZaiHub();
   if (tab==='chat') renderChat();
+  if (tab==='acervo' && typeof renderAcervo === 'function') renderAcervo();
   // Limpa subscription realtime do chat ao sair da aba (pra não vazar conexões)
   if (tab !== 'chat' && typeof _chatUnsubscribeRealtime === 'function') _chatUnsubscribeRealtime();
   // Tatame: ao sair do chat, minimiza pra não ocupar a tela; ao entrar, reativa monitor.
@@ -43984,7 +44036,8 @@ function _lkCanUseVideo() {
 function _lkCanRecord() {
   try {
     const code = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
-    return code === 'faixa_preta';
+    // Trial também pode gravar pra testar. Em produção, só Faixa Preta.
+    return ['trial','faixa_preta'].includes(code);
   } catch(_) { return false; }
 }
 
@@ -44612,7 +44665,10 @@ function _lkTileHTML(p, isLocal) {
   const hasCamera = cameraPub && !cameraPub.isMuted;
   const isMuted = !micPub || micPub.isMuted;
 
-  return `<div class="lk-tile ${hasCamera?'':'is-camera-off'}${speaking?' is-speaking':''}" data-sid="${_esc(p.sid)}" data-uid="${_esc(userId||'')}">
+  // Aplica efeito de câmera no tile local (preview CSS)
+  const fxId = isLocal ? _lkGetCurrentEffect() : 'none';
+  const fxAttr = (fxId && fxId !== 'none') ? ` data-fx="${fxId}"` : '';
+  return `<div class="lk-tile ${hasCamera?'':'is-camera-off'}${speaking?' is-speaking':''}" data-sid="${_esc(p.sid)}" data-uid="${_esc(userId||'')}"${fxAttr}>
     <div class="lk-tile-video" data-track-mount="${_esc(p.sid)}">
       ${hasCamera ? '' : (u?.avatar ? `<img src="${_esc(u.avatar)}" alt=""/>` : _esc(initials))}
     </div>
@@ -44770,6 +44826,406 @@ function _lkAnimateReaction(emoji, userId) {
   el.style.cssText = `position:fixed;left:${startRect.left + startRect.width/2 - 20}px;top:${startRect.top + 20}px;font-size:40px;pointer-events:none;z-index:10010;animation:lkReactFloat 2.4s ease-out forwards;`;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2500);
+}
+
+// ── Efeitos de câmera ────────────────────────────────────────────────
+const _LK_EFFECTS = [
+  { id:'none',    name:'Original',          tag:'sem efeito',           preview:'plain' },
+  { id:'blur',    name:'Borrar fundo',      tag:'foco em você',          preview:'blur' },
+  { id:'dojo',    name:'道場 Dojo',         tag:'papel washi · tatami',  preview:'dojo' },
+  { id:'hokusai', name:'🌊 Onda Hokusai',   tag:'mar ukiyo-e',           preview:'hokusai' },
+  { id:'sakura',  name:'🌸 Sakura',         tag:'cerejeira em flor',     preview:'sakura' },
+  { id:'sumie',   name:'墨 Sumi-e',         tag:'pintura zen mono',      preview:'sumie' },
+  { id:'hanko',   name:'🎴 Hanko',          tag:'selo vermelho',          preview:'hanko' },
+];
+
+function _lkOpenEffectsModal() {
+  let ov = document.getElementById('lk-fx-ov');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'lk-fx-ov';
+    ov.className = 'lk-fx-ov';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = _lkEffectsModalHTML();
+  ov.classList.add('is-open');
+  ov.onclick = e => { if (e.target === ov) _lkCloseEffectsModal(); };
+}
+function _lkCloseEffectsModal() {
+  const ov = document.getElementById('lk-fx-ov');
+  if (ov) ov.classList.remove('is-open');
+}
+
+function _lkGetCurrentEffect() {
+  try { return localStorage.getItem('synkan_lk_effect') || 'none'; }
+  catch(_){ return 'none'; }
+}
+
+function _lkSetEffect(fxId) {
+  try { localStorage.setItem('synkan_lk_effect', fxId); } catch(_){}
+  // Aplica CSS filter no tile local imediatamente (preview)
+  const localUid = supaUser?.id;
+  const tile = document.querySelector(`.lk-tile[data-uid="${localUid}"]`);
+  if (tile) tile.setAttribute('data-fx', fxId === 'none' ? '' : fxId);
+  _lkRender(); // re-render pra atualizar modal selection
+}
+
+function _lkPickEffect(fxId) {
+  _lkSetEffect(fxId);
+  _lkCloseEffectsModal();
+  if (typeof _showKanWarning === 'function') {
+    const fx = _LK_EFFECTS.find(f => f.id === fxId) || _LK_EFFECTS[0];
+    _showKanWarning('Efeito aplicado',
+      `<strong>${_esc(fx.name)}</strong> · visível pra você. Em breve transmitido pros outros via MediaPipe.`,
+      'info');
+  }
+}
+
+function _lkEffectsModalHTML() {
+  const current = _lkGetCurrentEffect();
+  return `<div class="lk-fx-modal">
+    <div class="lk-fx-h">Efeitos de <em>câmera</em></div>
+    <div class="lk-fx-sub">Escolha o pano de fundo do seu vídeo. Identidade Synkan, nada de fundo genérico.</div>
+    <div class="lk-fx-grid">
+      ${_LK_EFFECTS.map(fx => `
+        <button type="button" class="lk-fx-item ${fx.id===current?'is-active':''}" onclick="_lkPickEffect('${fx.id}')">
+          <div class="lk-fx-preview">${_lkPreviewSVG(fx.preview)}<div class="lk-fx-preview-avatar">${supaUser?.user_metadata?.full_name?supaUser.user_metadata.full_name[0].toUpperCase():'A'}</div></div>
+          <div class="lk-fx-name">${_esc(fx.name)} ${fx.id===current?'<span class="lk-fx-status-pill">ativo</span>':''}</div>
+          <div class="lk-fx-tag">${_esc(fx.tag)}</div>
+        </button>
+      `).join('')}
+    </div>
+    <div class="lk-fx-footer">
+      ✦ Etapa 1 (agora): preview local pra você ver o efeito. <strong style="color:#FBE7A4;font-style:normal;">Etapa 2 (em breve)</strong>: processamento real via MediaPipe — todos os participantes verão o efeito também.
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
+      <button type="button" onclick="_lkCloseEffectsModal()" style="background:transparent;border:1px solid rgba(255,255,255,.15);color:#fff;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:12.5px;font-family:inherit;">Fechar</button>
+    </div>
+  </div>`;
+}
+
+// SVG previews — cada um com identidade visual Synkan
+function _lkPreviewSVG(kind) {
+  const w = '100%', h = '100%';
+  const svgs = {
+    plain: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="pl-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3D362F"/><stop offset="1" stop-color="#1A1611"/></linearGradient></defs><rect width="200" height="150" fill="url(#pl-g)"/></svg>`,
+    blur: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="bl-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5C7A9D"/><stop offset=".5" stop-color="#3D5470"/><stop offset="1" stop-color="#1F2933"/></linearGradient><filter id="bl-f"><feGaussianBlur stdDeviation="6"/></filter></defs><rect width="200" height="150" fill="url(#bl-g)" filter="url(#bl-f)"/><circle cx="60" cy="50" r="20" fill="#7A9D52" opacity=".5" filter="url(#bl-f)"/><circle cx="150" cy="100" r="25" fill="#A86F3F" opacity=".5" filter="url(#bl-f)"/></svg>`,
+    dojo: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><pattern id="dj-tatami" x="0" y="0" width="40" height="20" patternUnits="userSpaceOnUse"><rect width="40" height="20" fill="#E8DFCB"/><line x1="0" y1="10" x2="40" y2="10" stroke="#1A1611" stroke-width=".4" opacity=".25"/><line x1="20" y1="0" x2="20" y2="20" stroke="#1A1611" stroke-width=".4" opacity=".25"/></pattern><pattern id="dj-spots" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse"><circle cx="15" cy="15" r="1" fill="#8F6E1F" opacity=".35"/><circle cx="45" cy="35" r=".8" fill="#8F6E1F" opacity=".30"/></pattern></defs><rect width="200" height="150" fill="url(#dj-tatami)"/><rect width="200" height="150" fill="url(#dj-spots)"/><line x1="0" y1="100" x2="200" y2="100" stroke="#1A1611" stroke-width="1" opacity=".18"/></svg>`,
+    hokusai: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="hk-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8DFCB"/><stop offset=".4" stop-color="#D5CBA6"/><stop offset="1" stop-color="#9DB0CC"/></linearGradient><linearGradient id="hk-wave" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1F3A5F"/><stop offset="1" stop-color="#0E1F33"/></linearGradient></defs><rect width="200" height="150" fill="url(#hk-sky)"/><circle cx="160" cy="40" r="18" fill="#FAFAF8" opacity=".75"/><path d="M0 90 C 30 75, 50 80, 80 70 C 110 60, 130 65, 160 75 C 180 80, 195 78, 200 80 L 200 150 L 0 150 Z" fill="url(#hk-wave)"/><path d="M40 88 C 50 78, 60 78, 70 88 M40 88 C 30 92, 35 100, 45 102" stroke="#FAFAF8" stroke-width="1.4" fill="none" opacity=".85"/><path d="M80 80 C 95 65, 110 65, 125 78" stroke="#FAFAF8" stroke-width="1.4" fill="none" opacity=".85"/></svg>`,
+    sakura: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sk-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9F0"/><stop offset="1" stop-color="#F5C7D5"/></linearGradient><g id="sk-petal"><path d="M0 -5 C -3 -2, -3 2, 0 5 C 3 2, 3 -2, 0 -5 Z" fill="#E8657F"/></g></defs><rect width="200" height="150" fill="url(#sk-bg)"/><path d="M180 20 C 165 25, 155 35, 150 50 M150 50 C 140 55, 135 70, 138 85" stroke="#5C2A1A" stroke-width="1.5" fill="none"/><use href="#sk-petal" x="160" y="35"/><use href="#sk-petal" x="148" y="55" transform="rotate(20 148 55)"/><use href="#sk-petal" x="140" y="78" transform="rotate(45 140 78)"/><use href="#sk-petal" x="40" y="40" transform="rotate(60 40 40)"/><use href="#sk-petal" x="80" y="100" transform="rotate(100 80 100)"/><use href="#sk-petal" x="20" y="115" transform="rotate(140 20 115)"/><use href="#sk-petal" x="120" y="25" transform="rotate(180 120 25)"/></svg>`,
+    sumie: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sm-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F5EFE0"/><stop offset="1" stop-color="#D9CDA8"/></linearGradient></defs><rect width="200" height="150" fill="url(#sm-bg)"/><path d="M30 100 C 50 70, 80 60, 100 70 C 120 80, 140 75, 170 60" stroke="#1A1611" stroke-width="6" fill="none" stroke-linecap="round" opacity=".85"/><path d="M40 110 C 55 95, 75 95, 90 110" stroke="#1A1611" stroke-width="2" fill="none" opacity=".5" stroke-linecap="round"/><circle cx="155" cy="55" r="1.5" fill="#1A1611" opacity=".4"/><circle cx="160" cy="65" r="1" fill="#1A1611" opacity=".3"/></svg>`,
+    hanko: `<svg width="${w}" height="${h}" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="hk-bg" cx=".5" cy=".5" r=".7"><stop offset="0" stop-color="#FFFCF5"/><stop offset="1" stop-color="#EDE5D0"/></radialGradient></defs><rect width="200" height="150" fill="url(#hk-bg)"/><g transform="translate(100 75) rotate(-6)"><rect x="-40" y="-40" width="80" height="80" rx="6" fill="#BC002D" opacity=".92"/><rect x="-34" y="-34" width="68" height="68" rx="3" fill="none" stroke="#fff" stroke-width="1" opacity=".4"/><text x="0" y="13" font-family="'Noto Serif JP',serif" font-weight="700" font-size="48" text-anchor="middle" fill="#fff">賞</text></g></svg>`,
+  };
+  return svgs[kind] || svgs.plain;
+}
+
+// ── Gravação de chamada ──────────────────────────────────────────────
+async function _lkToggleRecording() {
+  const ext = _chatState.extended; if (!ext?.lk?.connected) return;
+  if (ext.lk.recording) {
+    return _lkStopRecording();
+  }
+  // LGPD consent modal
+  _lkOpenRecordingConsent();
+}
+
+function _lkOpenRecordingConsent() {
+  let ov = document.getElementById('lk-rec-ov');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'lk-rec-ov';
+    ov.className = 'lk-fx-ov';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div class="lk-rec-modal">
+      <div class="lk-rec-stamp">
+        <svg viewBox="0 0 64 64" width="60" height="60"><g transform="rotate(-8 32 32)"><rect x="14" y="14" width="36" height="36" rx="3.5" fill="#BC002D"/><text x="32" y="43" font-family="'Noto Serif JP',serif" font-weight="700" font-size="22" text-anchor="middle" fill="#fff">録</text></g></svg>
+      </div>
+      <div class="lk-rec-modal-h">Gravar esta sessão</div>
+      <p class="lk-rec-modal-sub">Esta chamada vai ser gravada e ficará disponível pra revisão posterior. Por LGPD, todos participantes serão notificados via badge "REC" no header.</p>
+      <ul class="lk-rec-checklist">
+        <li>Vídeo + áudio + tela compartilhada gravados juntos (MP4)</li>
+        <li>Transcrição automática via Mestre Kan IA (opcional)</li>
+        <li>Vídeo fica salvo em <strong>巻物 · Acervo de Gravações</strong> (módulo separado)</li>
+        <li>Só você e workspace owner podem deletar depois</li>
+      </ul>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" onclick="_lkCloseRecConsent()" style="background:transparent;border:1px solid #B8A878;padding:9px 18px;border-radius:8px;cursor:pointer;color:var(--tatami-ink,#3A332C);font-size:12.5px;font-family:inherit;">Cancelar</button>
+        <button type="button" onclick="_lkStartRecording()" style="background:#BC002D;border:none;color:#fff;padding:9px 22px;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;display:inline-flex;align-items:center;gap:7px;">
+          <span style="width:8px;height:8px;background:#fff;border-radius:50%;"></span>
+          Iniciar gravação
+        </button>
+      </div>
+    </div>`;
+  ov.classList.add('is-open');
+  ov.onclick = e => { if (e.target === ov) _lkCloseRecConsent(); };
+}
+function _lkCloseRecConsent() {
+  const ov = document.getElementById('lk-rec-ov');
+  if (ov) ov.classList.remove('is-open');
+}
+
+async function _lkStartRecording() {
+  _lkCloseRecConsent();
+  const ext = _chatState.extended; if (!ext?.lk?.connected) return;
+  if (!_lkCanRecord()) {
+    appAlert('Gravação requer Faixa Preta',
+      'A gravação de chamadas é feature do plano Faixa Preta. Faça upgrade em Configurações → Plano.',
+      { icon: '🎬' });
+    return;
+  }
+
+  const c = _ensureSupaClient(); if (!c) return;
+  const ch = _chatState.channels.find(x => x.id === ext.channelId) || {};
+  // 1) Cria recording pendente no banco
+  let recordingId;
+  try {
+    const { data, error } = await c.rpc('create_recording_pending', {
+      p_session_id: ext.lk.sessionId,
+      p_channel_id: ext.channelId,
+      p_channel_name: ch.name || 'sem nome',
+      p_livekit_room: ext.lk.livekitRoom,
+      p_title: null,
+    });
+    if (error) throw error;
+    recordingId = data.recording_id;
+  } catch(e) {
+    console.error('[lk] create recording:', e);
+    appAlert('Erro', 'Não consegui registrar a gravação: ' + (e?.message || e), { icon: '⚠️' });
+    return;
+  }
+
+  // 2) Chama Edge Function pra iniciar Egress
+  try {
+    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+    const startUrl = `${cfg?.url}/functions/v1/livekit-recording/start`;
+    const session = await c.auth.getSession();
+    const jwt = session?.data?.session?.access_token;
+    const r = await fetch(startUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ recording_id: recordingId, room_name: ext.lk.livekitRoom }),
+    });
+    if (!r.ok) {
+      const errText = await r.text().catch(()=>'');
+      throw new Error(`Edge Function ${r.status}: ${errText}`);
+    }
+    const result = await r.json();
+    ext.lk.recording = { id: recordingId, egressId: result.egress_id, startedAt: Date.now() };
+    _lkRender();
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Gravação iniciada', 'A chamada está sendo gravada. Aparece um badge REC no topo.', 'info');
+    }
+  } catch(e) {
+    console.error('[lk] start egress:', e);
+    appAlert('Erro ao iniciar gravação',
+      `Verifique se a Edge Function 'livekit-recording' foi deployada: ${e?.message || e}`,
+      { icon: '⚠️' });
+    // Marca recording como failed
+    try { await c.from('tatame_recordings').update({ status: 'failed' }).eq('id', recordingId); } catch(_){}
+  }
+}
+
+async function _lkStopRecording() {
+  const ext = _chatState.extended; if (!ext?.lk?.recording) return;
+  const ok = await appConfirm('Parar gravação?',
+    'A gravação será processada (1-2 min) e aparecerá em <strong>巻物 · Acervo</strong>.',
+    { okLabel: 'Parar gravação', cancelLabel: 'Continuar gravando' });
+  if (!ok) return;
+
+  const c = _ensureSupaClient(); if (!c) return;
+  const egressId = ext.lk.recording.egressId;
+  try {
+    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+    const stopUrl = `${cfg?.url}/functions/v1/livekit-recording/stop`;
+    const session = await c.auth.getSession();
+    const jwt = session?.data?.session?.access_token;
+    await fetch(stopUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ egress_id: egressId }),
+    });
+  } catch(e) { console.warn('[lk] stop egress falhou:', e); }
+
+  ext.lk.recording = null;
+  _lkRender();
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Gravação parada',
+      'Processando o vídeo… vai aparecer em <strong>巻物 · Acervo</strong> em ~2 min.', 'info');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 巻物 · Acervo de Gravações — módulo separado (não fica no Tatami)
+// ════════════════════════════════════════════════════════════════════
+async function renderAcervo() {
+  const root = document.getElementById('acervo-root');
+  if (!root) return;
+  if (getStorageMode() !== 'supabase' || !supaUser) {
+    root.innerHTML = `<div style="padding:48px 24px;text-align:center;color:var(--color-text-secondary);">
+      <h2 style="margin:0 0 8px;font-size:20px;color:var(--color-text-primary);">Acervo requer modo Cloud</h2>
+      <p style="margin:0 0 16px;font-size:13px;line-height:1.6;max-width:380px;margin-left:auto;margin-right:auto;">
+        O Acervo guarda as gravações das chamadas do Tatami. Funciona em conjunto com Supabase.
+      </p>
+      <button class="btn-s" onclick="switchTab('settings');setSettingsTab('sync');">Configurar conta</button>
+    </div>`;
+    return;
+  }
+
+  // Loading inicial
+  root.innerHTML = `<div style="padding:60px 24px;text-align:center;font-family:var(--tatami-mincho,serif);font-style:italic;color:var(--color-text-tertiary);">Carregando 巻物…</div>`;
+
+  // Busca gravações
+  let recordings = [];
+  try {
+    const c = _ensureSupaClient(); if (!c) throw new Error('sem cliente');
+    const { data, error } = await c.rpc('list_recordings', { p_channel_id: null, p_limit: 100, p_offset: 0 });
+    if (error) throw error;
+    recordings = data || [];
+  } catch(e) {
+    console.warn('[acervo] list:', e);
+    root.innerHTML = `<div style="padding:48px 24px;text-align:center;color:var(--color-text-secondary);">
+      <h2 style="margin:0 0 8px;font-size:18px;">Acervo não disponível</h2>
+      <p style="font-size:13px;">Verifique se a migration <code>MIGRATION_TATAME_RECORDINGS.sql</code> foi executada.</p>
+    </div>`;
+    return;
+  }
+
+  // Agrupa por canal
+  const byChannel = {};
+  recordings.forEach(r => {
+    const key = r.channel_name || 'sem nome';
+    (byChannel[key] = byChannel[key] || []).push(r);
+  });
+
+  const fmt = (sec) => {
+    if (!sec) return '—';
+    const m = Math.floor(sec/60), s = sec%60;
+    if (m < 60) return `${m}m ${s}s`;
+    return `${Math.floor(m/60)}h ${m%60}m`;
+  };
+  const dt = (iso) => new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+
+  const empty = recordings.length === 0 ? `<div style="padding:60px 24px;text-align:center;font-family:var(--tatami-mincho,serif);font-style:italic;color:var(--tatami-ink-soft,#5C4F3F);">
+    <div style="font-size:48px;margin-bottom:14px;color:var(--tatami-hinomaru,#BC002D);">録</div>
+    <h2 style="font-family:var(--tatami-mincho,serif);font-size:22px;font-style:normal;font-weight:600;color:var(--tatami-sumi,#1A1611);margin-bottom:8px;">Nenhuma gravação ainda</h2>
+    <p style="max-width:420px;margin:0 auto;line-height:1.55;font-size:13.5px;">As gravações das suas chamadas no Tatami aparecem aqui. Pra gravar, abra um tatame ao vivo, clique em vídeo + Mestre Kan e depois no botão <strong style="font-style:normal;">REC</strong> (disponível na Faixa Preta).</p>
+  </div>` : '';
+
+  root.innerHTML = `
+    <style>
+      .acervo-wrap { padding: 32px 32px 60px; max-width: 1200px; margin: 0 auto; }
+      .acervo-h { font-family: var(--tatami-mincho); font-size: 32px; font-weight: 600; margin-bottom: 6px; display:flex; align-items:center; gap:14px; color: var(--tatami-sumi); }
+      .acervo-h .kanji { color: var(--tatami-hinomaru); font-size:36px; }
+      .acervo-sub { font-family: var(--tatami-mincho); font-style:italic; font-size: 14px; color: var(--tatami-ink-soft); margin-bottom: 36px; max-width: 620px; line-height:1.55; }
+      .acervo-folder { margin-bottom: 36px; }
+      .acervo-folder-h {
+        font-family: var(--tatami-mincho); font-size: 13px; color: var(--tatami-ink-soft);
+        font-style: italic; margin-bottom: 12px; display:flex; align-items:center; gap:10px;
+      }
+      .acervo-folder-h::before { content:'#'; color: var(--tatami-hinomaru); font-style: normal; }
+      .acervo-folder-h .count { background: var(--tatami-cream); padding:1px 8px; border-radius:999px; font-size:11px; color:var(--tatami-sumi); margin-left:auto; }
+      .acervo-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+      .acervo-card { background: #FFFCF5; border: 1px solid var(--tatami-tan); border-radius: 12px; overflow:hidden; cursor:pointer; transition: all .15s; }
+      .acervo-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(0,0,0,.08); border-color: var(--tatami-hinomaru); }
+      .acervo-thumb { aspect-ratio: 16/9; background: linear-gradient(135deg, #6B5DC8 0%, #322B5F 100%); position:relative; display:flex; align-items:center; justify-content:center; color: #fff; }
+      .acervo-thumb img { width:100%; height:100%; object-fit:cover; }
+      .acervo-thumb .play { width: 50px; height:50px; border-radius:50%; background: rgba(255,255,255,.95); display:flex; align-items:center; justify-content:center; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+      .acervo-thumb .play::after { content:''; border-style:solid; border-width: 9px 0 9px 14px; border-color: transparent transparent transparent #BC002D; margin-left:3px; }
+      .acervo-thumb .duration { position:absolute; bottom: 8px; right: 8px; background:rgba(0,0,0,.7); color:#fff; font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; }
+      .acervo-thumb .status-bad { position:absolute; top:8px; left:8px; background:#FFB840; color:#5C3F08; font-size:10px; padding:2px 8px; border-radius:999px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+      .acervo-card-body { padding: 12px 14px; }
+      .acervo-card-title { font-family: var(--tatami-mincho); font-size: 14.5px; font-weight: 600; color: var(--tatami-sumi); margin-bottom: 4px; line-height:1.35; }
+      .acervo-card-meta { font-size: 11px; color: var(--tatami-ink-soft); font-family: var(--tatami-mincho); font-style:italic; line-height:1.55; }
+      .acervo-card-tags { display:flex; gap: 6px; margin-top: 8px; flex-wrap:wrap; }
+      .acervo-card-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: var(--tatami-cream); color: var(--tatami-ink); font-weight:500; }
+      .acervo-card-tag.is-actions { background: rgba(188,0,45,.10); color: var(--tatami-hinomaru); }
+      .acervo-card-tag.is-decisions { background: rgba(193,154,58,.18); color: #8F6E1F; }
+    </style>
+    <div class="acervo-wrap">
+      <div class="acervo-h"><span class="kanji">巻物</span> Acervo de Gravações</div>
+      <div class="acervo-sub">Cada chamada gravada no Tatami fica aqui — organizadas por canal, com transcrição e ações capturadas pelo Mestre Kan. Click no card pra assistir.</div>
+      ${empty}
+      ${Object.entries(byChannel).map(([channelName, recs]) => `
+        <div class="acervo-folder">
+          <div class="acervo-folder-h">${_esc(channelName)}<span class="count">${recs.length} ${recs.length===1?'gravação':'gravações'}</span></div>
+          <div class="acervo-grid">
+            ${recs.map(r => `
+              <div class="acervo-card" onclick="${r.status==='ready'?`_acervoOpenPlayer('${_esc(r.id)}')`:''}">
+                <div class="acervo-thumb">
+                  ${r.thumbnail_url ? `<img src="${_esc(r.thumbnail_url)}" alt=""/>` : ''}
+                  ${r.status === 'ready' ? `<div class="play"></div>` : ''}
+                  ${r.status === 'recording' ? `<div class="status-bad" style="background:#BC002D;color:#fff;">● gravando</div>` : ''}
+                  ${r.status === 'processing' ? `<div class="status-bad">processando</div>` : ''}
+                  ${r.status === 'failed' ? `<div class="status-bad" style="background:#666;color:#fff;">falhou</div>` : ''}
+                  ${r.duration_sec ? `<div class="duration">${fmt(r.duration_sec)}</div>` : ''}
+                </div>
+                <div class="acervo-card-body">
+                  <div class="acervo-card-title">${_esc(r.title || 'sem título')}</div>
+                  <div class="acervo-card-meta">${dt(r.started_at)} · ${r.participants_count||0} ${r.participants_count===1?'pessoa':'pessoas'}</div>
+                  ${(r.decisions_count > 0 || r.actions_count > 0) ? `
+                    <div class="acervo-card-tags">
+                      ${r.decisions_count > 0 ? `<span class="acervo-card-tag is-decisions">${r.decisions_count} ${r.decisions_count===1?'decisão':'decisões'}</span>` : ''}
+                      ${r.actions_count > 0 ? `<span class="acervo-card-tag is-actions">${r.actions_count} ${r.actions_count===1?'ação':'ações'}</span>` : ''}
+                      ${r.has_transcript ? `<span class="acervo-card-tag">transcrição</span>` : ''}
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+async function _acervoOpenPlayer(recordingId) {
+  const c = _ensureSupaClient(); if (!c) return;
+  let rec;
+  try {
+    const { data, error } = await c.from('tatame_recordings').select('*').eq('id', recordingId).single();
+    if (error) throw error;
+    rec = data;
+  } catch(e) {
+    appAlert('Erro', 'Não consegui carregar essa gravação: ' + (e?.message || e), { icon: '⚠️' });
+    return;
+  }
+
+  // Cria player overlay
+  let ov = document.getElementById('acervo-player-ov');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'acervo-player-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);backdrop-filter:blur(20px);z-index:10000;display:flex;flex-direction:column;animation:fadeIn .2s;';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div style="padding:14px 22px;display:flex;align-items:center;gap:14px;border-bottom:1px solid rgba(255,255,255,.07);color:#fff;">
+      <div style="font-family:var(--tatami-mincho,serif);font-size:17px;font-weight:600;flex:1;">${_esc(rec.title)}</div>
+      <div style="font-family:var(--tatami-mincho,serif);font-style:italic;font-size:12px;color:rgba(255,255,255,.6);">
+        ${new Date(rec.started_at).toLocaleString('pt-BR')}
+      </div>
+      <button onclick="document.getElementById('acervo-player-ov').remove()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12.5px;">✕ Fechar</button>
+    </div>
+    <div style="flex:1;display:flex;min-height:0;">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px;background:#000;">
+        ${rec.url ? `<video src="${_esc(rec.url)}" controls autoplay style="max-width:100%;max-height:100%;border-radius:8px;background:#000;"></video>` : `<div style="color:#fff;font-family:var(--tatami-mincho,serif);font-style:italic;">Vídeo ainda processando…</div>`}
+      </div>
+      <div style="width:340px;background:rgba(20,16,12,.95);border-left:1px solid rgba(193,154,58,.20);padding:18px;overflow-y:auto;color:#fff;">
+        <div style="font-family:var(--tatami-mincho,serif);font-style:italic;font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Detalhes</div>
+        <div style="font-size:12.5px;line-height:1.6;color:rgba(255,255,255,.85);">
+          <div style="margin-bottom:6px;">📍 #${_esc(rec.channel_name||'sem nome')}</div>
+          <div style="margin-bottom:6px;">⏱ ${rec.duration_sec ? Math.round(rec.duration_sec/60)+' min' : '—'}</div>
+          <div style="margin-bottom:6px;">👥 ${rec.participants_count||0} pessoas</div>
+          ${rec.decisions_count > 0 ? `<div style="margin-bottom:6px;">📌 ${rec.decisions_count} decisões</div>` : ''}
+          ${rec.actions_count > 0 ? `<div>⚡ ${rec.actions_count} ações criadas</div>` : ''}
+        </div>
+        <div style="margin-top:24px;padding-top:18px;border-top:1px dashed rgba(255,255,255,.12);font-family:var(--tatami-mincho,serif);font-style:italic;font-size:11.5px;color:rgba(255,255,255,.55);line-height:1.5;">
+          ✦ Em breve: pular pra um momento da decisão, busca semântica na transcrição, e cards das ações vinculados.
+        </div>
+      </div>
+    </div>`;
 }
 
 // CSS da animação injetado dinamicamente uma vez
@@ -44947,6 +45403,12 @@ function _lkRenderControls() {
     </button>
     <button type="button" class="lk-ctrl" onclick="_lkOpenReactions(this)" title="Reagir com emoji">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="0.8" fill="currentColor"/><circle cx="15" cy="10" r="0.8" fill="currentColor"/><path d="M8 14 q 4 4 8 0"/></svg>
+    </button>
+    <button type="button" class="lk-ctrl ${_lkGetCurrentEffect()!=='none'?'is-active':''}" onclick="_lkOpenEffectsModal()" title="Efeitos de câmera (fundos Synkan)">
+      <svg viewBox="0 0 24 24"><path d="M12 2 L13.5 8 L20 8.5 L14.5 12.5 L16.5 19 L12 15.5 L7.5 19 L9.5 12.5 L4 8.5 L10.5 8 Z"/></svg>
+    </button>
+    <button type="button" class="lk-ctrl ${ext.lk.recording?'is-active':''}" onclick="_lkToggleRecording()" title="Gravar a chamada (Faixa Preta)" style="${ext.lk.recording?'background:#BC002D !important;':''}">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
     </button>
     <button type="button" class="lk-ctrl" style="margin-left:auto;background:#BC002D;border-color:#BC002D;width:auto;padding:0 16px;gap:7px;font-family:var(--tatami-mincho,serif);font-size:12.5px;font-weight:600;" onclick="_lkLeave()">
       <svg viewBox="0 0 24 24"><path d="M9 21H5 a2 2 0 0 1 -2 -2V5 a2 2 0 0 1 2 -2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
