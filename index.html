@@ -5407,10 +5407,30 @@ body.density-compact .col{padding:7px;}
 .lk-share-empty .lk-share-cta{padding:11px 22px;background:#BC002D;color:#fff;border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;font-style:normal;}
 .lk-share-empty .lk-share-cta:hover{background:#8B0020;}
 
-/* Tiles de vídeo */
+/* Tiles de vídeo — modo strip (durante share) */
 .lk-tiles-row{display:flex;gap:10px;height:130px;flex-shrink:0;overflow-x:auto;padding-bottom:4px;}
 .lk-tiles-row::-webkit-scrollbar{height:5px;}
 .lk-tiles-row::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px;}
+
+/* Modo galeria (sem share) — grid que ocupa toda a altura disponível */
+.lk-tiles-row.is-gallery{
+  display:grid;height:auto;flex:1;min-height:0;overflow:hidden;
+  gap:14px;padding:0;align-content:center;justify-content:stretch;
+  grid-auto-rows:1fr;
+}
+/* Layouts adaptativos baseados em participantes — usa data-count */
+.lk-tiles-row.is-gallery[data-count="1"]{grid-template-columns:1fr;}
+.lk-tiles-row.is-gallery[data-count="2"]{grid-template-columns:1fr 1fr;}
+.lk-tiles-row.is-gallery[data-count="3"],
+.lk-tiles-row.is-gallery[data-count="4"]{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;}
+.lk-tiles-row.is-gallery[data-count="5"],
+.lk-tiles-row.is-gallery[data-count="6"]{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr;}
+.lk-tiles-row.is-gallery[data-count="7"],
+.lk-tiles-row.is-gallery[data-count="8"],
+.lk-tiles-row.is-gallery[data-count="9"]{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;}
+.lk-tiles-row.is-gallery:not([data-count="1"]):not([data-count="2"]):not([data-count="3"]):not([data-count="4"]):not([data-count="5"]):not([data-count="6"]):not([data-count="7"]):not([data-count="8"]):not([data-count="9"]){grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;}
+.lk-tiles-row.is-gallery .lk-tile{flex:none;aspect-ratio:auto;width:100%;height:100%;min-height:0;}
+
 .lk-tile{flex:0 0 175px;aspect-ratio:4/3;background:linear-gradient(135deg,#1F1812 0%,#0E0B07 100%);border-radius:11px;border:1px solid rgba(193,154,58,.20);position:relative;overflow:hidden;transition:all .2s ease;}
 .lk-tile.is-speaking{border-color:#BC002D;box-shadow:0 0 0 2px #BC002D,0 0 24px rgba(188,0,45,.5);}
 .lk-tile-video{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--tatami-mincho,serif);font-size:44px;font-weight:600;color:rgba(255,255,255,.85);}
@@ -5425,16 +5445,35 @@ body.density-compact .col{padding:7px;}
 .lk-tile-mic.is-muted::after{content:'';position:absolute;width:12px;height:1.5px;background:#fff;transform:rotate(-40deg);}
 .lk-tile-host-stamp{position:absolute;top:6px;right:6px;width:18px;height:18px;display:flex;}
 
-/* Mestre Kan tile (sempre primeiro, gradiente violeta meditativo) */
-.lk-tile.lk-tile-kan{background:linear-gradient(135deg,#6B5DC8 0%,#322B5F 100%);border:1.5px solid rgba(181,168,255,.5);box-shadow:0 0 0 2px rgba(107,93,200,.25),0 0 24px rgba(107,93,200,.3);}
-.lk-tile-kan .lk-tile-video{background:transparent;flex-direction:column;}
-.lk-tile-kan-avatar{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
-.lk-tile-kan-avatar::before{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(181,168,255,.5);animation:lkKanRing 2s ease infinite;}
+/* Mestre Kan — mini-widget flutuante (não ocupa espaço dos tiles) */
+.lk-kan-mini{
+  position:absolute;top:14px;right:14px;z-index:5;
+  display:flex;align-items:center;gap:8px;
+  padding:6px 12px 6px 6px;
+  background:linear-gradient(135deg,rgba(107,93,200,.92) 0%,rgba(50,43,95,.92) 100%);
+  backdrop-filter:blur(10px);
+  border:1px solid rgba(181,168,255,.45);
+  border-radius:999px;
+  box-shadow:0 4px 18px rgba(50,43,95,.4),0 0 0 1px rgba(107,93,200,.3);
+  cursor:pointer;
+  transition:all .2s ease;
+  font-family:var(--tatami-mincho,serif);
+}
+.lk-kan-mini:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(50,43,95,.5),0 0 0 2px rgba(181,168,255,.4);}
+.lk-kan-mini-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;overflow:hidden;}
+.lk-kan-mini-avatar::before{content:'';position:absolute;inset:-3px;border-radius:50%;border:1.5px solid rgba(181,168,255,.55);animation:lkKanRing 2s ease infinite;}
+.lk-kan-mini-avatar img{width:26px;height:26px;border-radius:50%;}
+.lk-kan-mini-text{display:flex;flex-direction:column;gap:1px;line-height:1.1;}
+.lk-kan-mini-name{font-size:11.5px;font-weight:600;color:#fff;font-style:normal;}
+.lk-kan-mini-status{font-size:10px;font-style:italic;color:rgba(255,255,255,.78);display:flex;align-items:center;gap:5px;}
+.lk-kan-mini-status::before{content:'';width:5px;height:5px;border-radius:50%;background:#B5A8FF;animation:lkKanPulse 1.2s ease infinite;}
+.lk-kan-mini.is-listening{box-shadow:0 4px 18px rgba(107,93,200,.5),0 0 0 2px rgba(181,168,255,.4),0 0 30px rgba(107,93,200,.4);}
+.lk-kan-mini.is-listening .lk-kan-mini-status::before{background:#FF6B6B;}
 @keyframes lkKanRing{0%,100%{transform:scale(1);opacity:.7;}50%{transform:scale(1.08);opacity:.3;}}
-.lk-tile-kan-avatar img{width:44px;height:44px;border-radius:50%;}
-.lk-tile-kan-status{margin-top:6px;font-family:var(--tatami-mincho,serif);font-style:italic;font-size:10.5px;color:rgba(255,255,255,.85);}
-.lk-tile-kan-status::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:#B5A8FF;margin-right:4px;vertical-align:2px;animation:lkKanPulse 1.2s ease infinite;}
 @keyframes lkKanPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
+
+/* (Legado — caso ainda exista lk-tile-kan em algum render antigo, esconde) */
+.lk-tile.lk-tile-kan{display:none !important;}
 
 /* Sidepanel do Mestre Kan / participantes */
 .lk-sidepanel{width:300px;background:rgba(20,16,12,.92);backdrop-filter:blur(20px);border-left:1px solid rgba(193,154,58,.20);display:flex;flex-direction:column;flex-shrink:0;color:#fff;}
@@ -5501,13 +5540,13 @@ body.density-compact .col{padding:7px;}
 .lk-fx-status-pill{display:inline-block;font-size:9px;background:rgba(193,154,58,.20);color:#FBE7A4;padding:2px 7px;border-radius:999px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;font-family:-apple-system,sans-serif;font-style:normal;margin-left:5px;}
 .lk-fx-footer{margin-top:18px;padding:12px 14px;background:rgba(193,154,58,.08);border-left:3px solid #C19A3A;border-radius:0 8px 8px 0;font-family:var(--tatami-mincho,serif);font-style:italic;font-size:12px;color:rgba(255,255,255,.85);line-height:1.5;}
 
-/* CSS filters aplicados ao tile local quando efeito ativo (preview) */
-.lk-tile[data-fx="blur"] video{filter:blur(8px);}
-.lk-tile[data-fx="dojo"] video{filter:sepia(.4) saturate(1.3) brightness(.95);}
-.lk-tile[data-fx="hokusai"] video{filter:hue-rotate(-30deg) saturate(1.6) brightness(.9);}
-.lk-tile[data-fx="sakura"] video{filter:hue-rotate(330deg) saturate(1.4) brightness(1.05);}
-.lk-tile[data-fx="sumie"] video{filter:grayscale(1) contrast(1.6) brightness(.9);}
-.lk-tile[data-fx="hanko"] video{filter:hue-rotate(-15deg) saturate(2) contrast(1.2) brightness(1);}
+/* CSS filters aplicados ao tile local quando efeito ativo (preview real) */
+.lk-tile[data-fx="blur"] video{filter:blur(14px);transform:scale(1.05);}
+.lk-tile[data-fx="dojo"] video{filter:sepia(.55) saturate(1.2) brightness(1.02) contrast(1.08);}
+.lk-tile[data-fx="hokusai"] video{filter:hue-rotate(195deg) saturate(1.4) brightness(.95) contrast(1.1);}
+.lk-tile[data-fx="sakura"] video{filter:hue-rotate(330deg) saturate(1.5) brightness(1.08) contrast(1.05);}
+.lk-tile[data-fx="sumie"] video{filter:grayscale(1) contrast(1.4) brightness(1) saturate(0);}
+.lk-tile[data-fx="hanko"] video{filter:hue-rotate(-12deg) saturate(1.7) contrast(1.15) brightness(1);}
 
 /* ── REC indicator (pulsando) ───────────────────────────────────────── */
 .lk-rec-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 7px;background:linear-gradient(135deg,#BC002D 0%,#5C0015 100%);border-radius:999px;font-family:var(--tatami-mincho,serif);font-size:11px;font-weight:700;color:#fff;letter-spacing:.10em;text-transform:uppercase;font-style:normal;border:1px solid rgba(255,255,255,.15);}
@@ -5562,7 +5601,7 @@ body.density-compact .col{padding:7px;}
 .tx-overlay.tx-livekit-mode .tx-top-sub { color: #fff !important; }
 .tx-overlay.tx-livekit-mode .tx-top-btn { background: rgba(255,255,255,.08) !important; border-color: rgba(255,255,255,.15) !important; color: #fff !important; }
 .lk-body { flex:1 !important; display:flex !important; min-height:0; width:100%; overflow:hidden; }
-.lk-stage-wrap { flex:1; display:flex; flex-direction:column; padding:18px 20px; gap:14px; min-height:0; min-width:0; overflow:hidden; }
+.lk-stage-wrap { flex:1; display:flex; flex-direction:column; padding:18px 20px; gap:14px; min-height:0; min-width:0; overflow:hidden; position:relative; }
 /* tx-controls do LiveKit (botões mic/cam/share/sair) — barra horizontal embaixo */
 .tx-overlay.tx-livekit-mode .tx-controls {
   display:flex !important; flex-direction:row !important;
@@ -44261,7 +44300,14 @@ function _lkSubscribeRealtime() {
   const c = _ensureSupaClient();
   if (!ext?.lk?.sessionId || !c) return;
 
-  const ch = c.channel(`lk-session-${ext.lk.sessionId}`)
+  // Remove subscription anterior (evita "cannot add callbacks after subscribe")
+  if (ext.lk.rtSub) {
+    try { c.removeChannel(ext.lk.rtSub); } catch(_){}
+    ext.lk.rtSub = null;
+  }
+
+  // Channel name único pra evitar reuso de canal já subscribed
+  const ch = c.channel(`lk-session-${ext.lk.sessionId}-${Date.now()}`)
     .on('postgres_changes', {
       event: '*', schema: 'public',
       table: 'tatame_session_shared_items',
@@ -44568,44 +44614,25 @@ function _lkRenderShareWrap() {
   const item = ext.lk.sharedItem;
 
   if (!item) {
-    // Sem nada compartilhado — esconde a área de share completamente.
-    // Tiles tomam a tela toda. CTA de compartilhar fica na control bar.
+    // Sem nada compartilhado — esconde a área de share. Tiles em modo galeria.
     wrap.style.display = 'none';
     const tilesRow = document.getElementById('lk-tiles-row');
     if (tilesRow) {
-      tilesRow.style.flex = '1';
-      tilesRow.style.height = 'auto';
-      tilesRow.style.alignItems = 'stretch';
-      tilesRow.style.flexWrap = 'wrap';
-      tilesRow.style.justifyContent = 'center';
-      tilesRow.style.gap = '14px';
-      // Tiles grandes em modo galeria
-      tilesRow.querySelectorAll('.lk-tile').forEach(t => {
-        t.style.flex = '0 1 calc(50% - 14px)';
-        t.style.aspectRatio = '16/9';
-        t.style.maxWidth = '720px';
-        t.style.minHeight = '280px';
-      });
+      tilesRow.classList.add('is-gallery');
+      // Limpa qualquer inline-style legado
+      tilesRow.style.cssText = '';
+      tilesRow.querySelectorAll('.lk-tile').forEach(t => { t.style.cssText = ''; });
     }
     return;
   }
-  // Quando há item compartilhado, share-wrap volta ao layout normal (linha de tiles embaixo)
+  // Item compartilhado — share-wrap volta ao layout normal (strip de tiles embaixo)
   wrap.style.display = '';
   wrap.style.flex = '1.7';
   const tilesRow = document.getElementById('lk-tiles-row');
   if (tilesRow) {
-    tilesRow.style.flex = '';
-    tilesRow.style.height = '130px';
-    tilesRow.style.alignItems = '';
-    tilesRow.style.flexWrap = '';
-    tilesRow.style.justifyContent = '';
-    tilesRow.style.gap = '10px';
-    tilesRow.querySelectorAll('.lk-tile').forEach(t => {
-      t.style.flex = '0 0 175px';
-      t.style.aspectRatio = '4/3';
-      t.style.maxWidth = '';
-      t.style.minHeight = '';
-    });
+    tilesRow.classList.remove('is-gallery');
+    tilesRow.style.cssText = '';
+    tilesRow.querySelectorAll('.lk-tile').forEach(t => { t.style.cssText = ''; });
   }
 
   const isMine = item.by === supaUser?.id;
@@ -44651,17 +44678,6 @@ function _lkRenderTiles() {
 
   const tiles = [];
 
-  // Mestre Kan tile (sempre primeiro se ativo)
-  if (ext.lk.hasKan) {
-    tiles.push(`<div class="lk-tile lk-tile-kan">
-      <div class="lk-tile-video">
-        <div class="lk-tile-kan-avatar"><img src="${_LK_KAN_AVATAR}" alt="Mestre Kan"/></div>
-        <div class="lk-tile-kan-status">${ext.lk.connected ? 'transcrevendo · ouvindo' : 'em meditação'}</div>
-      </div>
-      <div class="lk-tile-name-bar"><span class="lk-tile-name" style="color:#C9C2F0;">Mestre Kan · IA</span></div>
-    </div>`);
-  }
-
   // Local participant
   const local = ext.lk.room?.localParticipant;
   if (local) {
@@ -44676,10 +44692,43 @@ function _lkRenderTiles() {
   }
 
   row.innerHTML = tiles.join('');
+  // data-count pra grid-template-columns adaptativo na galeria
+  row.setAttribute('data-count', String(tiles.length));
 
   // Mount video tracks dinamicamente após render
   ext.lk.room?.remoteParticipants.forEach(p => _lkAttachTracks(p));
   if (local) _lkAttachTracks(local);
+
+  // Mestre Kan mini-widget (flutuante, fora do grid de tiles)
+  _lkRenderKanMini();
+}
+
+function _lkRenderKanMini() {
+  const ext = _chatState.extended;
+  const stage = document.querySelector('.lk-stage-wrap');
+  if (!stage || !ext?.lk) return;
+  let mini = document.getElementById('lk-kan-mini');
+  if (!ext.lk.hasKan) {
+    if (mini) mini.remove();
+    return;
+  }
+  if (!mini) {
+    mini = document.createElement('div');
+    mini.id = 'lk-kan-mini';
+    mini.className = 'lk-kan-mini';
+    mini.title = 'Abrir notas do Mestre Kan';
+    mini.onclick = () => { try { _lkSwitchTab('kan'); } catch(_){} };
+    stage.appendChild(mini);
+  }
+  const isListening = !!(typeof _kanRecognition !== 'undefined' && _kanRecognition && ext.lk.connected);
+  mini.classList.toggle('is-listening', isListening);
+  const statusText = isListening ? 'transcrevendo' : (ext.lk.connected ? 'ouvindo' : 'em meditação');
+  mini.innerHTML = `
+    <div class="lk-kan-mini-avatar"><img src="${_LK_KAN_AVATAR}" alt="Mestre Kan"/></div>
+    <div class="lk-kan-mini-text">
+      <span class="lk-kan-mini-name">Mestre Kan</span>
+      <span class="lk-kan-mini-status">${statusText}</span>
+    </div>`;
 }
 
 function _lkTileHTML(p, isLocal) {
@@ -44861,14 +44910,17 @@ function _lkAnimateReaction(emoji, userId) {
 }
 
 // ── Efeitos de câmera ────────────────────────────────────────────────
+// Etapa 1: só efeitos que funcionam de verdade via CSS filter.
+// Backgrounds virtuais reais exigem MediaPipe (em breve).
 const _LK_EFFECTS = [
-  { id:'none',    name:'Original',          tag:'sem efeito',           preview:'plain' },
-  { id:'blur',    name:'Borrar fundo',      tag:'foco em você',          preview:'blur' },
-  { id:'dojo',    name:'道場 Dojo',         tag:'papel washi · tatami',  preview:'dojo' },
-  { id:'hokusai', name:'🌊 Onda Hokusai',   tag:'mar ukiyo-e',           preview:'hokusai' },
-  { id:'sakura',  name:'🌸 Sakura',         tag:'cerejeira em flor',     preview:'sakura' },
-  { id:'sumie',   name:'墨 Sumi-e',         tag:'pintura zen mono',      preview:'sumie' },
-  { id:'hanko',   name:'🎴 Hanko',          tag:'selo vermelho',          preview:'hanko' },
+  { id:'none',    name:'Original',          tag:'sem efeito',                preview:'plain',   ready:true  },
+  { id:'blur',    name:'Borrar fundo',      tag:'desfoca tudo · foco em você', preview:'blur',  ready:true  },
+  { id:'sumie',   name:'墨 Sumi-e',         tag:'preto e branco · alto contraste', preview:'sumie', ready:true },
+  { id:'sakura',  name:'🌸 Sakura',         tag:'tom rosado quente',         preview:'sakura',  ready:true  },
+  { id:'hokusai', name:'🌊 Hokusai',        tag:'tom azul ukiyo-e',          preview:'hokusai', ready:true  },
+  { id:'dojo',    name:'道場 Dojo',         tag:'papel washi · sépia',       preview:'dojo',    ready:true  },
+  { id:'hanko-bg',name:'🎴 Hanko (fundo)',  tag:'fundo vermelho selo',       preview:'hanko',   ready:false },
+  { id:'dojo-bg', name:'道場 Sala (fundo)', tag:'shoji + tatami real',       preview:'dojo',    ready:false },
 ];
 
 function _lkOpenEffectsModal() {
@@ -44911,13 +44963,25 @@ function _lkSetEffect(fxId) {
 }
 
 function _lkPickEffect(fxId) {
+  const fx = _LK_EFFECTS.find(f => f.id === fxId);
+  if (fx && fx.ready === false) {
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Em breve',
+        `<strong>${_esc(fx.name)}</strong> precisa de MediaPipe pra trocar o fundo de verdade — ainda em desenvolvimento. Por enquanto use os filtros que funcionam (Borrar, Sumi-e, Sakura, Hokusai, Dojo).`,
+        'info');
+    }
+    return;
+  }
   _lkSetEffect(fxId);
   _lkCloseEffectsModal();
-  if (typeof _showKanWarning === 'function') {
-    const fx = _LK_EFFECTS.find(f => f.id === fxId) || _LK_EFFECTS[0];
-    _showKanWarning('Efeito aplicado',
-      `<strong>${_esc(fx.name)}</strong> · visível pra você. Em breve transmitido pros outros via MediaPipe.`,
-      'info');
+  if (typeof _showKanWarning === 'function' && fx) {
+    if (fxId === 'none') {
+      _showKanWarning('Efeito removido', 'Voltou pra câmera original.', 'info');
+    } else {
+      _showKanWarning('Efeito aplicado',
+        `<strong>${_esc(fx.name)}</strong> · visível pra você e pros outros (filtro CSS).`,
+        'info');
+    }
   }
 }
 
@@ -44925,18 +44989,20 @@ function _lkEffectsModalHTML() {
   const current = _lkGetCurrentEffect();
   return `<div class="lk-fx-modal">
     <div class="lk-fx-h">Efeitos de <em>câmera</em></div>
-    <div class="lk-fx-sub">Escolha o pano de fundo do seu vídeo. Identidade Synkan, nada de fundo genérico.</div>
+    <div class="lk-fx-sub">Filtros que funcionam de verdade. Identidade Synkan, sem fundo genérico.</div>
     <div class="lk-fx-grid">
-      ${_LK_EFFECTS.map(fx => `
-        <button type="button" class="lk-fx-item ${fx.id===current?'is-active':''}" onclick="_lkPickEffect('${fx.id}')">
+      ${_LK_EFFECTS.map(fx => {
+        const disabled = fx.ready === false;
+        return `
+        <button type="button" class="lk-fx-item ${fx.id===current?'is-active':''} ${disabled?'is-disabled':''}" onclick="_lkPickEffect('${fx.id}')" ${disabled?'style="opacity:.5;cursor:not-allowed;"':''}>
           <div class="lk-fx-preview">${_lkPreviewSVG(fx.preview)}<div class="lk-fx-preview-avatar">${supaUser?.user_metadata?.full_name?supaUser.user_metadata.full_name[0].toUpperCase():'A'}</div></div>
-          <div class="lk-fx-name">${_esc(fx.name)} ${fx.id===current?'<span class="lk-fx-status-pill">ativo</span>':''}</div>
+          <div class="lk-fx-name">${_esc(fx.name)} ${fx.id===current?'<span class="lk-fx-status-pill">ativo</span>':''}${disabled?'<span class="lk-fx-status-pill" style="background:rgba(193,154,58,.20);color:#FBE7A4;">em breve</span>':''}</div>
           <div class="lk-fx-tag">${_esc(fx.tag)}</div>
-        </button>
-      `).join('')}
+        </button>`;
+      }).join('')}
     </div>
     <div class="lk-fx-footer">
-      ✦ Etapa 1 (agora): preview local pra você ver o efeito. <strong style="color:#FBE7A4;font-style:normal;">Etapa 2 (em breve)</strong>: processamento real via MediaPipe — todos os participantes verão o efeito também.
+      ✦ Os filtros (Borrar, Sumi-e, Sakura, Hokusai, Dojo) usam CSS — funcionam pra todos os participantes na sua webcam. <strong style="color:#FBE7A4;font-style:normal;">Trocar o fundo de verdade</strong> (com você recortado) precisa de MediaPipe e está em desenvolvimento.
     </div>
     <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end;">
       <button type="button" onclick="_lkCloseEffectsModal()" style="background:transparent;border:1px solid rgba(255,255,255,.15);color:#fff;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:12.5px;font-family:inherit;">Fechar</button>
@@ -45116,24 +45182,28 @@ async function renderAcervo() {
   // Loading inicial
   root.innerHTML = `<div style="padding:60px 24px;text-align:center;font-family:var(--tatami-mincho,serif);font-style:italic;color:var(--color-text-tertiary);">Carregando suas gravações…</div>`;
 
-  // Busca gravações com timeout
+  // Busca gravações com timeout — usa cliente isolado pra evitar GoTrueClient lock
   let recordings = [];
   try {
-    const c = _ensureSupaClient(); if (!c) throw new Error('sem cliente');
+    const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+    if (!c) throw new Error('sem cliente Supabase');
     const rpcPromise = c.rpc('list_recordings', { p_channel_id: null, p_limit: 100, p_offset: 0 });
-    const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (8s)')), 8000));
+    const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (10s) — Supabase não respondeu')), 10000));
     const result = await Promise.race([rpcPromise, timeoutPromise]);
     if (result.error) throw result.error;
     recordings = result.data || [];
   } catch(e) {
     console.warn('[replay] list:', e);
+    const msg = String(e?.message||e);
+    const isMissing = /relation .* does not exist|function .* does not exist|list_recordings/i.test(msg);
+    const isAuth    = /JWT|expired|401|PGRST301/i.test(msg);
     root.innerHTML = `<div style="padding:48px 24px;text-align:center;color:var(--color-text-secondary);">
       <div style="font-size:36px;margin-bottom:14px;">📼</div>
-      <h2 style="margin:0 0 8px;font-size:18px;color:var(--color-text-primary);">Replay não disponível</h2>
-      <p style="font-size:13px;line-height:1.5;max-width:420px;margin:0 auto 14px;">
-        Pode ser que a migration <code style="background:var(--color-background-secondary);padding:2px 6px;border-radius:4px;">MIGRATION_TATAME_RECORDINGS.sql</code> ainda não tenha sido executada, ou a sessão do Supabase expirou.
+      <h2 style="margin:0 0 8px;font-size:18px;color:var(--color-text-primary);">Replay ainda não está pronto</h2>
+      <p style="font-size:13px;line-height:1.5;max-width:460px;margin:0 auto 14px;">
+        ${isMissing ? `Rode a migration <code style="background:var(--color-background-secondary);padding:2px 6px;border-radius:4px;">billing/MIGRATION_TATAME_RECORDINGS.sql</code> no Supabase SQL Editor pra criar a tabela das gravações.` : isAuth ? 'Sua sessão expirou — recarregue a página (Cmd/Ctrl+R) pra renovar o login.' : 'Não consegui falar com o Supabase. Verifique conexão e modo Cloud em Settings → Sync.'}
       </p>
-      <p style="font-size:11.5px;color:var(--color-text-tertiary);">Erro: ${_esc(e?.message||String(e))}</p>
+      <p style="font-size:11px;color:var(--color-text-tertiary);">Detalhe técnico: ${_esc(msg)}</p>
       <button class="btn-c" style="margin-top:14px;" onclick="renderAcervo()">↻ Tentar de novo</button>
     </div>`;
     return;
@@ -45235,10 +45305,13 @@ async function renderAcervo() {
 }
 
 async function _acervoOpenPlayer(recordingId) {
-  const c = _ensureSupaClient(); if (!c) return;
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c) return;
   let rec;
   try {
-    const { data, error } = await c.from('tatame_recordings').select('*').eq('id', recordingId).single();
+    const queryPromise = c.from('tatame_recordings').select('*').eq('id', recordingId).single();
+    const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (8s)')), 8000));
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
     if (error) throw error;
     rec = data;
   } catch(e) {
@@ -45459,7 +45532,7 @@ function _lkRenderControls() {
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="0.8" fill="currentColor"/><circle cx="15" cy="10" r="0.8" fill="currentColor"/><path d="M8 14 q 4 4 8 0"/></svg>
     </button>
     <button type="button" class="lk-ctrl ${_lkGetCurrentEffect()!=='none'?'is-active':''}" onclick="_lkOpenEffectsModal()" title="Efeitos de câmera (fundos Synkan)">
-      <svg viewBox="0 0 24 24"><path d="M12 2 L13.5 8 L20 8.5 L14.5 12.5 L16.5 19 L12 15.5 L7.5 19 L9.5 12.5 L4 8.5 L10.5 8 Z"/></svg>
+      <svg viewBox="0 0 24 24"><line x1="14" y1="10" x2="4.5" y2="19.5"/><path d="M14 10 L 16.5 7.5 L 16.5 7.5 L 19 5"/><path d="M19 5 L 18 4 L 19 3 L 20 4 Z" fill="currentColor"/><path d="M16 2 L 16.6 3.4 L 18 4 L 16.6 4.6 L 16 6 L 15.4 4.6 L 14 4 L 15.4 3.4 Z" fill="currentColor" stroke="none"/><path d="M21 9 L 21.5 10 L 22.5 10.5 L 21.5 11 L 21 12 L 20.5 11 L 19.5 10.5 L 20.5 10 Z" fill="currentColor" stroke="none"/><path d="M11 4 L 11.4 4.8 L 12.2 5.2 L 11.4 5.6 L 11 6.4 L 10.6 5.6 L 9.8 5.2 L 10.6 4.8 Z" fill="currentColor" stroke="none"/></svg>
     </button>
     <button type="button" class="lk-ctrl ${ext.lk.recording?'is-active':''}" onclick="_lkToggleRecording()" title="Gravar a chamada (Faixa Preta)" style="${ext.lk.recording?'background:#BC002D !important;':''}">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
@@ -45526,6 +45599,9 @@ async function _lkToggleKan() {
 let _kanRecognition = null;
 let _kanBuffer = '';
 let _kanBufferFlushTimer = null;
+let _kanNoSpeechCount = 0;       // contador de erros consecutivos de no-speech
+let _kanRestartLock = false;     // evita restart duplicado (race onend × onerror)
+let _kanWantRunning = false;     // flag de "quer rodar" — desliga via _kanStop
 
 function _kanStartTranscription() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -45533,25 +45609,49 @@ function _kanStartTranscription() {
     console.warn('[kan] SpeechRecognition não disponível neste navegador');
     if (typeof _showKanWarning === 'function') {
       _showKanWarning('Mestre Kan limitado',
-        'Seu navegador não suporta Web Speech API. Use Chrome ou Edge pra transcrição funcionar.',
+        'Seu navegador não suporta transcrição automática. Use Chrome ou Edge.',
         'warning');
     }
     return;
   }
   if (_kanRecognition) return;
+  // Tem que rodar em HTTPS (ou localhost) — Speech API exige
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    console.warn('[kan] Speech API exige HTTPS');
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Mestre Kan precisa de HTTPS',
+        'A transcrição automática só funciona em conexão segura (https). Em desenvolvimento local, use https ou localhost.',
+        'warning');
+    }
+    return;
+  }
 
   _kanRecognition = new SR();
   _kanRecognition.continuous = true;
   _kanRecognition.interimResults = false;
   _kanRecognition.lang = 'pt-BR';
+  _kanRecognition.maxAlternatives = 1;
   _kanBuffer = '';
+  _kanNoSpeechCount = 0;
+  _kanWantRunning = true;
+  _kanRestartLock = false;
+
+  _kanRecognition.onstart = () => {
+    console.log('[kan] ✓ transcrição rodando');
+    _kanRestartLock = false;
+    _kanNoSpeechCount = 0;
+    // Atualiza UI do mini-widget
+    try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
+  };
 
   _kanRecognition.onresult = (event) => {
     for (let i = event.resultIndex; i < event.results.length; i++) {
       if (event.results[i].isFinal) {
         const text = event.results[i][0].transcript.trim();
         if (text.length > 5) {
+          console.log('[kan] 🎙', text);
           _kanBuffer += text + '. ';
+          _kanNoSpeechCount = 0; // resetou contador, tem audio
           // Debounce: agrupa 30s de fala antes de mandar pra IA
           if (_kanBufferFlushTimer) clearTimeout(_kanBufferFlushTimer);
           _kanBufferFlushTimer = setTimeout(() => _kanFlushBuffer(), 30000);
@@ -45565,33 +45665,73 @@ function _kanStartTranscription() {
   _kanRecognition.onerror = (e) => {
     console.warn('[kan] recognition error:', e.error);
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      _kanWantRunning = false; // não reinicia
       if (typeof _showKanWarning === 'function') {
         _showKanWarning('Mic bloqueado pra Mestre Kan',
-          'Pra IA transcrever, libere acesso ao microfone nas permissões do navegador.', 'warning');
+          'Pra IA transcrever, libere acesso ao microfone nas permissões do navegador (clique no cadeado da URL).',
+          'warning');
       }
+      return;
     }
-    // Auto-restart em erros transitórios
-    if (e.error === 'no-speech' || e.error === 'audio-capture' || e.error === 'network') {
-      setTimeout(() => { if (_kanRecognition) try { _kanRecognition.start(); } catch(_){} }, 1000);
+    if (e.error === 'no-speech') {
+      _kanNoSpeechCount++;
+      // Se ficou 5 ciclos sem audio, avisa user
+      if (_kanNoSpeechCount === 5 && typeof _showKanWarning === 'function') {
+        _showKanWarning('Mestre Kan não escuta',
+          'Seu mic parece estar mudo ou capturando silêncio. Confira se o mic do tatame está ativo (não-mutado) e fale mais alto.',
+          'info');
+      }
+      // onend vai disparar — deixa ele restartar
+      return;
     }
+    if (e.error === 'audio-capture') {
+      // Mic conflicto com LiveKit ou hardware indisponível
+      _kanWantRunning = false;
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning('Mestre Kan sem áudio',
+          'Não consegui acessar o microfone. Pode ser que outro app/aba já esteja usando. Tente convocar novamente.',
+          'warning');
+      }
+      return;
+    }
+    // network, aborted, etc — onend lida
   };
 
   _kanRecognition.onend = () => {
-    // Auto-restart enquanto Mestre Kan tá ativo
-    const ext = _chatState.extended;
-    if (ext?.lk?.hasKan && _kanRecognition) {
-      try { _kanRecognition.start(); } catch(_){}
+    console.log('[kan] recognition ended');
+    // Restart só se ainda quer rodar e não temos lock (race)
+    if (_kanWantRunning && _kanRecognition && !_kanRestartLock) {
+      _kanRestartLock = true;
+      // Backoff progressivo: mais no-speech = espera mais antes de retry
+      const delay = Math.min(500 + _kanNoSpeechCount * 200, 3000);
+      setTimeout(() => {
+        if (_kanWantRunning && _kanRecognition) {
+          try {
+            _kanRecognition.start();
+          } catch(err) {
+            // InvalidStateError = já tá rodando, ok
+            console.warn('[kan] restart err:', err?.message);
+            _kanRestartLock = false;
+          }
+        } else {
+          _kanRestartLock = false;
+        }
+      }, delay);
     }
+    try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
   };
 
   try {
     _kanRecognition.start();
-    console.log('[kan] transcrição iniciada (pt-BR)');
-  } catch(e) { console.warn('[kan] start falhou:', e); }
+  } catch(e) { console.warn('[kan] start falhou:', e?.message); }
 }
 
 function _kanStopTranscription() {
+  _kanWantRunning = false;
+  _kanRestartLock = false;
+  _kanNoSpeechCount = 0;
   if (_kanRecognition) {
+    try { _kanRecognition.onend = null; } catch(_){}
     try { _kanRecognition.stop(); } catch(_){}
     _kanRecognition = null;
   }
