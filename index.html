@@ -44330,10 +44330,15 @@ async function _lkStart() {
     ext.lk.connected = true;
     console.log('[lk] ✓ conectado!');
     // Auto-enable câmera + microfone (browser pede permissão na primeira vez)
+    // Câmera em 540p (não 720p) = menos pixels pro MediaPipe processar
+    // → menos jitter de borda + menos CPU/GPU + menos bandwidth
     try {
       await room.localParticipant.setMicrophoneEnabled(true);
-      await room.localParticipant.setCameraEnabled(true);
-      console.log('[lk] mic + camera ativados automaticamente');
+      const camOpts = LK.VideoPresets?.h540 ? {
+        resolution: LK.VideoPresets.h540.resolution,
+      } : { resolution: { width: 960, height: 540, frameRate: 24 } };
+      await room.localParticipant.setCameraEnabled(true, camOpts);
+      console.log('[lk] mic + camera ativados (540p pra performance)');
       // Re-aplica efeito de câmera salvo (em background — não bloqueia)
       try { _lkApplyStoredEffect(); } catch(_){}
     } catch(permErr) {
@@ -44350,6 +44355,9 @@ async function _lkStart() {
 
   // Subscribe Realtime pra sync de shared_item + decisões + ações
   _lkSubscribeRealtime();
+
+  // Inicia refresh periódico do JWT (evita expiração mid-call)
+  _lkStartJwtRefresh();
 
   // Auto-inicia transcrição do Mestre Kan se foi convocado
   if (ext.lk.hasKan) {
@@ -44474,10 +44482,50 @@ function _lkOnActiveSpeakersChanged(speakers) {
     el.classList.toggle('is-speaking', ext.lk.activeSpeakerIds.has(el.dataset.sid));
   });
 }
-function _lkOnDisconnected() {
-  const ext = _chatState.extended; if (!ext?.lk) return;
+function _lkOnDisconnected(reason) {
+  console.warn('[lk] room disconnected, reason:', reason);
+  const ext = _chatState.extended;
+  if (!ext?.lk) return;
   ext.lk.connected = false;
-  _lkRender();
+  // CRÍTICO: NÃO chamar nada que possa cascade pra logout (auth.signOut, etc).
+  // Se foi um drop temporário, o LiveKit reconecta sozinho via auto-reconnect.
+  // Re-render só pra UI mostrar status de desconectado.
+  try { _lkRender(); } catch(_){}
+  // Se disconnect for permanente (server, expulsão, etc), avisa user
+  // mas SEM trigger de logout do app principal.
+  if (reason === 'CLIENT_INITIATED' || reason === 'PARTICIPANT_REMOVED') {
+    return; // Saída intencional, silencioso
+  }
+  // Mostra toast informando, sem desconectar do app
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Conexão caiu',
+      'A chamada foi interrompida. Você continua logado — clique em "Vídeo + Mestre Kan" pra reconectar.',
+      'warning');
+  }
+}
+
+// Refresh periódico do JWT durante a call — evita expiração mid-call
+let _lkJwtRefreshTimer = null;
+function _lkStartJwtRefresh() {
+  if (_lkJwtRefreshTimer) clearInterval(_lkJwtRefreshTimer);
+  _lkJwtRefreshTimer = setInterval(async () => {
+    const ext = _chatState.extended;
+    if (!ext?.lk?.connected) return;
+    try {
+      const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+      if (c?.auth?.refreshSession) {
+        const { error } = await Promise.race([
+          c.auth.refreshSession(),
+          new Promise(r => setTimeout(() => r({ error: { message: 'timeout' } }), 4000))
+        ]);
+        if (error) console.warn('[lk] JWT refresh:', error?.message);
+        else console.log('[lk] ✓ JWT refreshed');
+      }
+    } catch(e) { console.warn('[lk] JWT refresh exception:', e?.message); }
+  }, 5 * 60 * 1000); // a cada 5 min
+}
+function _lkStopJwtRefresh() {
+  if (_lkJwtRefreshTimer) { clearInterval(_lkJwtRefreshTimer); _lkJwtRefreshTimer = null; }
 }
 
 function _lkOnDataReceived(payload, participant) {
@@ -44501,11 +44549,18 @@ async function _lkToggleCamera() {
   const ext = _chatState.extended; if (!ext?.lk?.room) return;
   const enabled = ext.lk.room.localParticipant.isCameraEnabled;
   try {
-    await ext.lk.room.localParticipant.setCameraEnabled(!enabled);
-    _lkRender();
-    // Quando reativa câmera, re-aplica efeito salvo (track novo perde processor)
     if (!enabled) {
+      // Reactivating — usa preset 540p
+      const LK = window.LivekitClient;
+      const camOpts = LK.VideoPresets?.h540 ? {
+        resolution: LK.VideoPresets.h540.resolution,
+      } : { resolution: { width: 960, height: 540, frameRate: 24 } };
+      await ext.lk.room.localParticipant.setCameraEnabled(true, camOpts);
+      _lkRender();
       try { _lkApplyStoredEffect(); } catch(_){}
+    } else {
+      await ext.lk.room.localParticipant.setCameraEnabled(false);
+      _lkRender();
     }
   } catch(e) { console.warn('[lk] camera toggle:', e); }
 }
@@ -45143,21 +45198,11 @@ async function _lkRasterizeBg(srcUrl, w=1280, h=720) {
   return out;
 }
 
-// Preload todos backgrounds em background (idle) pra primeira escolha ser instantânea
-let _lkPreloadStarted = false;
-function _lkPreloadAllBgs() {
-  if (_lkPreloadStarted) return;
-  _lkPreloadStarted = true;
-  const urls = Object.values(_LK_BG_IMAGES);
-  const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 100));
-  urls.forEach((url, i) => {
-    idle(() => {
-      setTimeout(() => {
-        _lkRasterizeBg(url).catch(e => console.warn('[lk-fx] preload', url, e?.message));
-      }, i * 600);  // Stagger pra não saturar rede/CPU
-    });
-  });
-}
+// Preload removido: 11 PNGs × 8MB = 88MB carregando em paralelo travava o
+// browser e causava drops na chamada. Agora carrega on-demand quando user
+// pickar o efeito (pago via toast "carregando..."). Cache permanece pra
+// próximas escolhas serem instantâneas.
+function _lkPreloadAllBgs() { /* no-op — kept for compat */ }
 
 async function _lkSetEffect(fxId) {
   try { localStorage.setItem('synkan_lk_effect', fxId); } catch(_){}
@@ -45330,28 +45375,41 @@ function _lkPreviewSVG(kind) {
 
 // ── Gravação de chamada ──────────────────────────────────────────────
 async function _lkToggleRecording() {
+  const safeAlert = (title, body, opts) => {
+    if (typeof appAlert === 'function') return appAlert(title, body, opts);
+    return alert(`${title}\n\n${(body||'').replace(/<[^>]+>/g,'')}`);
+  };
   const ext = _chatState.extended;
-  console.log('[lk-rec] toggle clicked, lk:', !!ext?.lk, 'connected:', ext?.lk?.connected);
+  console.log('[lk-rec] BUTTON CLICKED — lk:', !!ext?.lk, 'connected:', ext?.lk?.connected, 'recording:', !!ext?.lk?.recording, 'canRecord:', _lkCanRecord());
   if (!ext?.lk) {
-    appAlert('Não conectado', 'Volte pro tatame ao vivo primeiro.', { icon:'⚠️' });
+    safeAlert('Não conectado', 'Volte pro tatame ao vivo primeiro.', { icon:'⚠️' });
     return;
   }
   if (!ext.lk.connected) {
-    appAlert('Aguarde conectar', 'A chamada ainda está conectando — tente em alguns segundos.', { icon:'⏳' });
+    safeAlert('Aguarde conectar', 'A chamada ainda está conectando — tente em alguns segundos.', { icon:'⏳' });
     return;
   }
   if (ext.lk.recording) {
     return _lkStopRecording();
   }
-  // Verifica plano antes de abrir modal (feedback imediato)
+  // Verifica plano (mas NÃO bloqueia em dev/trial)
   if (!_lkCanRecord()) {
-    appAlert('Gravação requer Faixa Preta',
-      'A gravação de chamadas é feature do plano Faixa Preta. Faça upgrade em Configurações → Plano.',
+    const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'unknown';
+    safeAlert('Gravação requer Faixa Preta',
+      `Seu plano atual: <strong>${planCode}</strong>. Gravação só em Trial ou Faixa Preta. Configurações → Plano.`,
       { icon:'🎬' });
     return;
   }
+  console.log('[lk-rec] abrindo modal de consentimento LGPD...');
   // LGPD consent modal
-  _lkOpenRecordingConsent();
+  try {
+    _lkOpenRecordingConsent();
+  } catch(e) {
+    console.error('[lk-rec] falhou ao abrir modal:', e);
+    safeAlert('Erro ao abrir gravação',
+      'Ocorreu um erro: ' + (e?.message||e) + '. Veja o console (F12) pra detalhes.',
+      { icon:'⚠️' });
+  }
 }
 
 function _lkOpenRecordingConsent() {
@@ -45944,8 +46002,89 @@ function _kanStartTranscription() {
   _kanFailureCount = 0;
   _kanRecognition = { active: true }; // sentinel pra UI saber que tá ouvindo
   console.log('[kan] 🎙 iniciando transcrição via Whisper (chunks de 8s)');
-  _kanWaitForAudioTrack();
+  // Diagnóstico: faz um ping na endpoint pra detectar deploy/keys faltando
+  _kanProbeEndpoint().then(ok => {
+    if (ok) {
+      console.log('[kan] ✓ endpoint kan-transcribe está respondendo, iniciando captura...');
+      _kanWaitForAudioTrack();
+    } else {
+      // Probe falhou — alerta claro foi mostrado
+      _kanWantRunning = false;
+    }
+  });
   try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
+}
+
+// Faz um ping na Edge Function pra validar que tá deployada e com keys
+async function _kanProbeEndpoint() {
+  const ext = _chatState.extended;
+  const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+  if (!cfg?.url) {
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Mestre Kan sem Supabase',
+        'Sua sessão Supabase não está configurada. Vá em Settings → Sync e ative o modo Cloud.',
+        'warning');
+    }
+    return false;
+  }
+  const endpoint = `${cfg.url}/functions/v1/kan-transcribe`;
+  let jwt = null;
+  try {
+    if (typeof _capReadJWTFromStorage === 'function') jwt = _capReadJWTFromStorage();
+    if (!jwt) {
+      const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+      const s = await c?.auth.getSession();
+      jwt = s?.data?.session?.access_token;
+    }
+  } catch(_){}
+  if (!jwt) {
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Mestre Kan sem auth', 'Sessão expirou — recarregue a página.', 'warning');
+    }
+    return false;
+  }
+  try {
+    // Probe: envia um corpo mínimo (transcript vazio) — se a function não existe, dá 404
+    const r = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ session_id: ext?.lk?.sessionId || 'probe', transcript: '' }),
+    });
+    if (r.status === 404) {
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning('kan-transcribe não deployada',
+          'A Edge Function <code>kan-transcribe</code> não existe no Supabase. Deploy ela primeiro: <code>supabase functions deploy kan-transcribe --no-verify-jwt</code>',
+          'warning');
+      }
+      return false;
+    }
+    if (r.status === 401) {
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning('kan-transcribe sem JWT verify',
+          'Edge Function rejeitou o JWT. Re-deploy com <code>--no-verify-jwt</code>.',
+          'warning');
+      }
+      return false;
+    }
+    if (!r.ok && r.status !== 400) {
+      const t = await r.text().catch(()=>'');
+      let hint = 'Veja os logs em Supabase Dashboard → Edge Functions → kan-transcribe.';
+      if (/OPENAI_API_KEY/i.test(t)) hint = 'Configure a secret <code>OPENAI_API_KEY</code> no Supabase: <code>supabase secrets set OPENAI_API_KEY=sk-...</code>';
+      else if (/ANTHROPIC_API_KEY/i.test(t)) hint = 'Configure a secret <code>ANTHROPIC_API_KEY</code> no Supabase: <code>supabase secrets set ANTHROPIC_API_KEY=sk-ant-...</code>';
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning(`kan-transcribe ${r.status}`, hint, 'warning');
+      }
+      return false;
+    }
+    return true;
+  } catch(e) {
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('kan-transcribe inalcançável',
+        'Não consegui conectar com a Edge Function: ' + (e?.message||e),
+        'warning');
+    }
+    return false;
+  }
 }
 
 // Stream separado pro Kan (getUserMedia direto) — não compartilha com LiveKit
@@ -46208,6 +46347,9 @@ async function _lkLeave() {
   const rtSub = ext.lk.rtSub;
   const remoteCount = room?.remoteParticipants?.size || 0;
   const recording = ext.lk.recording;
+
+  // 0) Para JWT refresh timer
+  try { _lkStopJwtRefresh(); } catch(_){}
 
   // 1) Para transcrição do Mestre Kan
   try { _kanStopTranscription(); } catch(e){ console.warn('[lk-leave] kan:', e); }
