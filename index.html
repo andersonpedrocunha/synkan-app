@@ -44414,60 +44414,47 @@ class _SynkanBgProcessor {
         this._maskCanvas.width = mw;
         this._maskCanvas.height = mh;
       }
-      // Constrói máscara: branco+opaco onde é PESSOA. No selfie_segmenter
-      // landscape, valor 0 = pessoa (foreground), 255 (ou !=0) = bg. Tinha
-      // tava invertido — o efeito aparecia DENTRO da pessoa em vez do fundo.
+      // ── Temporal smoothing per-pixel (CORRETO desta vez) ────────────────
+      // Mantém um Uint8Array "prevMask" e faz média ponderada exata:
+      //   prevMask[i] = α * new + (1-α) * prevMask[i]
+      // α baixo = bordas estáveis (lenta); α alto = responsivo (treme).
+      // 0.35 é o sweet spot que o Meet/Zoom usa empiricamente.
+      const N = maskU8.length;
+      if (!this._prevMaskRaw || this._prevMaskRaw.length !== N) {
+        this._prevMaskRaw = new Uint8Array(N);
+        // Inicializa com a máscara atual (sem ghost frame zero)
+        for (let i = 0; i < N; i++) {
+          this._prevMaskRaw[i] = (maskU8[i] === 0) ? 255 : 0;
+        }
+      } else {
+        const ALPHA = 0.35;
+        const ONE_MINUS_ALPHA = 1 - ALPHA;
+        for (let i = 0; i < N; i++) {
+          const newVal = (maskU8[i] === 0) ? 255 : 0;
+          this._prevMaskRaw[i] = (ALPHA * newVal + ONE_MINUS_ALPHA * this._prevMaskRaw[i]) | 0;
+        }
+      }
+
+      // Constrói ImageData com alpha gradual (já vem suavizado do blend acima)
       const maskImg = this._maskCtx.createImageData(mw, mh);
       const px = maskImg.data;
-      for (let i = 0; i < maskU8.length; i++) {
+      for (let i = 0; i < N; i++) {
         const o = i * 4;
-        const isPerson = maskU8[i] === 0;
-        if (isPerson) { px[o] = 255; px[o+1] = 255; px[o+2] = 255; px[o+3] = 255; }
-        else          { px[o] = 0;   px[o+1] = 0;   px[o+2] = 0;   px[o+3] = 0;   }
+        const a = this._prevMaskRaw[i];
+        px[o] = 255; px[o+1] = 255; px[o+2] = 255; px[o+3] = a;
       }
       this._maskCtx.putImageData(maskImg, 0, 0);
 
-      // ── Temporal smoothing ─────────────────────────────────────────────
-      // Sem isso, cada frame o MediaPipe entrega máscara um pouco diferente
-      // (borda treme/pisca como gelatina). Mistura 70% da máscara ANTERIOR
-      // + 30% da NOVA — bordas ficam estáveis sem perder responsividade.
-      if (!this._smoothCanvas) {
-        this._smoothCanvas = document.createElement('canvas');
-        this._smoothCtx = this._smoothCanvas.getContext('2d');
-      }
-      if (this._smoothCanvas.width !== w || this._smoothCanvas.height !== h) {
-        this._smoothCanvas.width = w;
-        this._smoothCanvas.height = h;
-      }
-      // Desenha a máscara nova em alta resolução (escala bilinear suaviza)
-      const sctx = this._smoothCtx;
-      sctx.globalAlpha = 1;
-      sctx.globalCompositeOperation = 'source-over';
-      // Se já tem máscara anterior, mantém 70% e mistura 30% da nova
-      if (this._hasPrevMask) {
-        sctx.globalAlpha = 0.30;
-      } else {
-        // primeiro frame: 100% da nova
-        sctx.clearRect(0, 0, w, h);
-        sctx.globalAlpha = 1;
-      }
-      sctx.imageSmoothingEnabled = true;
-      sctx.imageSmoothingQuality = 'high';
-      sctx.drawImage(this._maskCanvas, 0, 0, w, h);
-      sctx.globalAlpha = 1;
-      this._hasPrevMask = true;
-
-      // Composição final usando a máscara suavizada (smoothCanvas):
-      // 1) Limpa o canvas de saída
+      // Composição:
+      // 1) Limpa canvas de saída
       ctx.clearRect(0, 0, w, h);
-      // 2) Desenha máscara suavizada
+      // 2) Desenha máscara escalada + leve blur pras bordas (feathering)
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      // Aplica blur leve nas bordas pra feathering (igual Meet/Zoom)
       ctx.filter = 'blur(2px)';
-      ctx.drawImage(this._smoothCanvas, 0, 0, w, h);
+      ctx.drawImage(this._maskCanvas, 0, 0, w, h);
       ctx.filter = 'none';
-      // 3) Usa máscara como alpha → desenha video só onde a pessoa está
+      // 3) source-in: vídeo aparece SÓ onde a máscara é opaca (pessoa)
       ctx.globalCompositeOperation = 'source-in';
       ctx.drawImage(v, 0, 0, w, h);
       // 4) Desenha fundo ATRÁS da pessoa (destination-over preserva pessoa)
@@ -44513,9 +44500,7 @@ class _SynkanBgProcessor {
       this._video = null;
     }
     // Reseta smoothing — próximo processor começa do zero, sem máscara residual
-    this._smoothCanvas = null;
-    this._smoothCtx = null;
-    this._hasPrevMask = false;
+    this._prevMaskRaw = null;
     this.processedTrack = null;
   }
 
