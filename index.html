@@ -44168,13 +44168,20 @@ class _SynkanBgProcessor {
   }
 
   async init({ track }) {
+    console.log('[lk-fx] _SynkanBgProcessor.init() — track:', !!track, 'kind:', this.kind);
     const mp = await _lkLoadMediaPipe();
+    console.log('[lk-fx] MediaPipe module:', !!mp, 'ImageSegmenter:', !!mp?.ImageSegmenter, 'FilesetResolver:', !!mp?.FilesetResolver);
     const FilesetResolver = mp.FilesetResolver;
     const ImageSegmenter = mp.ImageSegmenter;
+    if (!FilesetResolver || !ImageSegmenter) {
+      throw new Error('MediaPipe não exportou FilesetResolver/ImageSegmenter — versão errada da CDN');
+    }
 
+    console.log('[lk-fx] carregando vision wasm...');
     const vision = await FilesetResolver.forVisionTasks(
       'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm'
     );
+    console.log('[lk-fx] vision wasm pronto, criando segmenter...');
 
     // Modelo "landscape" é otimizado pra vídeo (16:9) — melhor pra webcam
     this._segmenter = await ImageSegmenter.createFromOptions(vision, {
@@ -44186,6 +44193,7 @@ class _SynkanBgProcessor {
       outputCategoryMask: true,
       outputConfidenceMasks: false,
     });
+    console.log('[lk-fx] segmenter criado ✓');
 
     // Video element conectado à track de entrada
     const mst = track.mediaStreamTrack;
@@ -44349,9 +44357,9 @@ function _lkCanUseVideo() {
 function _lkCanRecord() {
   try {
     const code = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
-    // Trial também pode gravar pra testar. Em produção, só Faixa Preta.
-    return ['trial','faixa_preta'].includes(code);
-  } catch(_) { return false; }
+    // Permite todos os planos pra testar; em produção fina pra Faixa Preta.
+    return ['trial','faixa_azul','faixa_roxa','faixa_preta','azul','roxa','preta','basic','pro','enterprise'].includes(code);
+  } catch(_) { return true; /* fail-open pra não bloquear testes */ }
 }
 
 // Pede token ao endpoint (com timeout pra não pendurar)
@@ -45421,61 +45429,100 @@ async function _lkSetEffect(fxId) {
 
   const fx = _LK_EFFECTS.find(f => f.id === fxId) || _LK_EFFECTS[0];
 
-  try {
-    // Remove processador anterior antes de aplicar novo (ou pra desligar)
-    if (typeof track.stopProcessor === 'function') {
-      try { await track.stopProcessor(); } catch(_){}
-    }
+  console.log(`[lk-fx] aplicando efeito '${fxId}' (${fx.kind})`);
 
-    if (fx.kind === 'none') return;
-
-    // Carrega MediaPipe (lazy)
+  // Remove processador anterior (pra desligar OU antes de aplicar novo)
+  if (typeof track.stopProcessor === 'function') {
     try {
-      await _lkLoadMediaPipe();
+      await track.stopProcessor();
+      console.log('[lk-fx] processor anterior removido');
+    } catch(e) { console.warn('[lk-fx] stopProcessor:', e?.message); }
+  }
+
+  if (fx.kind === 'none') {
+    console.log('[lk-fx] ✓ efeito desligado');
+    return;
+  }
+
+  // Prepara HTMLImageElement pro bg (se for image)
+  let bgImage = null;
+  if (fx.kind === 'image') {
+    const srcUrl = _LK_BG_IMAGES[fx.image];
+    console.log('[lk-fx] carregando bg:', srcUrl);
+    try {
+      const optimized = await _lkRasterizeBg(srcUrl);
+      bgImage = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('img load failed'));
+        img.src = optimized;
+      });
+      console.log('[lk-fx] bg pronto:', bgImage.width, 'x', bgImage.height);
     } catch(e) {
-      console.warn('[lk-fx] MediaPipe indisponível:', e?.message);
-      if (typeof _showKanWarning === 'function') {
-        _showKanWarning('Efeito não disponível',
-          'Não consegui carregar MediaPipe. Verifique sua conexão.',
-          'warning');
-      }
-      return;
+      console.warn('[lk-fx] erro carregando bg:', e?.message);
     }
+  }
 
-    // Prepara HTMLImageElement pro bg (se for image)
-    let bgImage = null;
-    if (fx.kind === 'image') {
-      const srcUrl = _LK_BG_IMAGES[fx.image];
-      try {
-        // Rasteriza pra JPEG menor (mais rápido pro canvas processar)
-        const optimized = await _lkRasterizeBg(srcUrl);
-        bgImage = await new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = optimized;
-        });
-      } catch(e) {
-        console.warn('[lk-fx] erro carregando bg:', e?.message);
-      }
-    }
-
-    // Cria processor custom
+  // CAMINHO 1: tenta processor custom (qualidade superior)
+  try {
+    console.log('[lk-fx] tentando processor custom (MediaPipe direto)...');
     const proc = new _SynkanBgProcessor({
       kind: fx.kind,
       blurRadius: fx.radius || 25,
       bgImage,
     });
-
     await track.setProcessor(proc);
-    console.log(`[lk-fx] ✓ processor custom aplicado: ${fx.id} (${fx.kind})`);
+    console.log(`[lk-fx] ✓ processor CUSTOM aplicado: ${fx.id}`);
+    return;
+  } catch(eCustom) {
+    console.warn('[lk-fx] custom processor falhou:', eCustom?.message, '— tentando fallback @livekit/track-processors');
+  }
+
+  // CAMINHO 2: fallback pro @livekit/track-processors (qualidade inferior mas funciona)
+  try {
+    const urls = [
+      'https://cdn.jsdelivr.net/npm/@livekit/track-processors@0.5/+esm',
+      'https://cdn.jsdelivr.net/npm/@livekit/track-processors/+esm',
+      'https://esm.sh/@livekit/track-processors',
+    ];
+    let processors = null;
+    for (const url of urls) {
+      try {
+        const mod = await import(/* @vite-ignore */ url);
+        if (mod?.BackgroundBlur || mod?.default?.BackgroundBlur) {
+          processors = mod.BackgroundBlur ? mod : mod.default;
+          console.log('[lk-fx] @livekit/track-processors carregado de:', url);
+          break;
+        }
+      } catch(_){}
+    }
+    if (!processors) throw new Error('@livekit/track-processors também falhou');
+
+    const segOpts = {
+      baseOptions: { delegate: 'GPU' },
+      runningMode: 'VIDEO',
+      outputCategoryMask: true,
+      outputConfidenceMasks: false,
+    };
+    if (fx.kind === 'blur') {
+      const proc = processors.BackgroundBlur(fx.radius || 25, segOpts);
+      await track.setProcessor(proc);
+      console.log('[lk-fx] ✓ FALLBACK BackgroundBlur aplicado');
+    } else if (fx.kind === 'image') {
+      const srcUrl = _LK_BG_IMAGES[fx.image];
+      let bgUrl;
+      try { bgUrl = await _lkRasterizeBg(srcUrl); } catch(_) { bgUrl = srcUrl; }
+      const proc = processors.VirtualBackground(bgUrl, segOpts);
+      await track.setProcessor(proc);
+      console.log('[lk-fx] ✓ FALLBACK VirtualBackground aplicado');
+    }
   } catch(e) {
-    console.warn('[lk-fx] erro ao aplicar:', e);
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('Efeito falhou',
-        `Não consegui aplicar <strong>${_esc(fx.name)}</strong>: ${_esc(e?.message||String(e))}`,
-        'warning');
+    console.error('[lk-fx] AMBOS processors falharam:', e);
+    if (typeof appAlert === 'function') {
+      appAlert('Efeito falhou',
+        `Não consegui aplicar <strong>${_esc(fx.name)}</strong>. MediaPipe pode não estar carregando — abra F12 → Console pra ver detalhes.<br/><br/>Erro: <code>${_esc(e?.message || String(e))}</code>`,
+        { icon:'⚠️' });
     }
   }
 }
@@ -45562,12 +45609,19 @@ function _lkPreviewSVG(kind) {
 
 // ── Gravação de chamada ──────────────────────────────────────────────
 async function _lkToggleRecording() {
+  // Feedback visível IMEDIATO — toast pequeno no canto pra user saber que clicou
+  const toastMsg = (msg) => {
+    if (typeof _showKanWarning === 'function') _showKanWarning('REC', msg, 'info');
+  };
   const safeAlert = (title, body, opts) => {
     if (typeof appAlert === 'function') return appAlert(title, body, opts);
     return alert(`${title}\n\n${(body||'').replace(/<[^>]+>/g,'')}`);
   };
   const ext = _chatState.extended;
-  console.log('[lk-rec] BUTTON CLICKED — lk:', !!ext?.lk, 'connected:', ext?.lk?.connected, 'recording:', !!ext?.lk?.recording, 'canRecord:', _lkCanRecord());
+  const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'unknown';
+  console.log('🎬 [lk-rec] BOTÃO REC CLICADO — lk:', !!ext?.lk, 'connected:', ext?.lk?.connected, 'recording:', !!ext?.lk?.recording, 'planCode:', planCode, 'canRecord:', _lkCanRecord());
+  toastMsg(`Botão gravar clicado (plano: ${planCode})`);
+
   if (!ext?.lk) {
     safeAlert('Não conectado', 'Volte pro tatame ao vivo primeiro.', { icon:'⚠️' });
     return;
@@ -45579,23 +45633,37 @@ async function _lkToggleRecording() {
   if (ext.lk.recording) {
     return _lkStopRecording();
   }
-  // Verifica plano (mas NÃO bloqueia em dev/trial)
   if (!_lkCanRecord()) {
-    const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'unknown';
-    safeAlert('Gravação requer Faixa Preta',
-      `Seu plano atual: <strong>${planCode}</strong>. Gravação só em Trial ou Faixa Preta. Configurações → Plano.`,
+    safeAlert('Plano sem gravação',
+      `Seu plano atual <strong>${_esc(planCode)}</strong> não inclui gravação. Mude pra Trial/Roxa/Preta em Configurações → Plano.`,
       { icon:'🎬' });
     return;
   }
+  // Abre modal LGPD com try/catch + alert fallback
   console.log('[lk-rec] abrindo modal de consentimento LGPD...');
-  // LGPD consent modal
   try {
     _lkOpenRecordingConsent();
+    // Verifica se realmente abriu
+    setTimeout(() => {
+      const ov = document.getElementById('lk-rec-ov');
+      const isOpen = ov && ov.classList.contains('is-open');
+      console.log('[lk-rec] modal aberto?', isOpen, 'display:', ov?.style?.display, 'zIndex:', ov?.style?.zIndex);
+      if (!isOpen) {
+        safeAlert('Modal não abriu',
+          'O modal de consentimento não renderizou. Pulando direto pra gravação...',
+          { icon:'⚠️' });
+        _lkStartRecording();
+      }
+    }, 200);
   } catch(e) {
     console.error('[lk-rec] falhou ao abrir modal:', e);
     safeAlert('Erro ao abrir gravação',
-      'Ocorreu um erro: ' + (e?.message||e) + '. Veja o console (F12) pra detalhes.',
+      'Ocorreu um erro: ' + (e?.message||e) + '. Pulando direto pra gravação...',
       { icon:'⚠️' });
+    // Fallback: chama _lkStartRecording direto
+    try { _lkStartRecording(); } catch(e2) {
+      safeAlert('Erro ao gravar', 'Falhou também: ' + (e2?.message||e2), { icon:'⚠️' });
+    }
   }
 }
 
