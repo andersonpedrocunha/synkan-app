@@ -33795,15 +33795,21 @@ function _renderCustomer360() {
       </div>
     </div>
     <div class="c360-stats">
+      ${(() => {
+        const myDeals = (_synDeals || []).filter(d => d.contact_id === _c360ContactId);
+        const openMy  = myDeals.filter(d => d.status === 'open');
+        const openCents = openMy.reduce((s,d) => s + (d.value_cents||0), 0);
+        const wonCents  = myDeals.filter(d=>d.status==='won').reduce((s,d)=>s+(d.value_cents||0),0);
+        return `<div class="c360-stat" style="cursor:pointer;" onclick="setC360Tab('deals')">
+          <div class="c360-stat-label">Pipeline (CRM)</div>
+          <div class="c360-stat-value" style="color:#3B6D11;">${_synFmtMoney(openCents)}</div>
+          <div class="c360-stat-sub">${openMy.length} aberto${openMy.length===1?'':'s'} · ${_synFmtMoney(wonCents)} ganho</div>
+        </div>`;
+      })()}
       <div class="c360-stat">
         <div class="c360-stat-label">Cards vinculados</div>
         <div class="c360-stat-value">${cards.length}</div>
         <div class="c360-stat-sub">${openCards.length} em aberto</div>
-      </div>
-      <div class="c360-stat">
-        <div class="c360-stat-label">Valor total</div>
-        <div class="c360-stat-value">${_formatBRL(value.total)}</div>
-        <div class="c360-stat-sub">${_formatBRL(value.won)} fechado</div>
       </div>
       <div class="c360-stat">
         <div class="c360-stat-label">Última interação</div>
@@ -33817,10 +33823,18 @@ function _renderCustomer360() {
       </div>
     </div>
     <div class="c360-tabs">
-      ${tabBtn('cards','📋 Cards', cards.length)}
-      ${tabBtn('docs','📄 Documentos', allDocs.length)}
-      ${tabBtn('timeline','🕒 Timeline', threadCount)}
-      ${tabBtn('ai','🤖 Mestre Kan', '')}
+      ${(() => {
+        const synDealCount = (_synDeals || []).filter(d => d.contact_id === _c360ContactId).length;
+        const synActCount  = (_synActivities || []).filter(a => a.contact_id === _c360ContactId).length;
+        return [
+          tabBtn('deals','🎯 Pipeline', synDealCount),
+          tabBtn('cards','📋 Cards', cards.length),
+          tabBtn('docs','📄 Documentos', allDocs.length),
+          tabBtn('bunko','📦 Bunko', ''),
+          tabBtn('timeline','🕒 Timeline', threadCount + synActCount),
+          tabBtn('ai','🤖 Mestre Kan', ''),
+        ].join('');
+      })()}
     </div>
     <div class="c360-body" id="c360-body"></div>
     <div class="c360-foot">
@@ -33942,24 +33956,123 @@ function _renderCustomer360Body(cards, docs) {
           date: t.date || card.createdAt,
           text: t.text || '',
           type: t.type || 'note',
+          source: 'card',
           cardId: card.id, cardName: card.name, boardId, boardName: board.name
         });
       });
     });
+    // Mescla atividades do Synconnect (notas, calls, emails, menções no tatame, mudança de estágio…)
+    const synActs = (_synActivities || []).filter(a => a.contact_id === _c360ContactId);
+    synActs.forEach(a => {
+      events.push({
+        date: a.occurred_at,
+        text: a.title || a.kind,
+        body: a.body || '',
+        type: a.kind,
+        source: 'syn',
+        synKind: a.kind,
+        dealId: a.deal_id,
+      });
+    });
     events.sort((a,b) => new Date(b.date||0) - new Date(a.date||0));
     if (!events.length) {
-      body.innerHTML = `<div class="c360-empty"><strong>Sem registros na timeline</strong>Adicione notas nos cards vinculados para ver o histórico aqui.</div>`;
+      body.innerHTML = `<div class="c360-empty"><strong>Sem registros na timeline</strong>Adicione notas nos cards vinculados, crie deals no pipeline ou mencione esta pessoa numa reunião pra ver o histórico aqui.</div>`;
       return;
     }
-    body.innerHTML = events.slice(0, 200).map(e => `<div class="c360-tl-item">
-      <div class="c360-tl-date">${e.date?new Date(e.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—'}</div>
-      <div class="c360-tl-text">
-        ${e.type==='auto'?'<span style="color:var(--color-text-tertiary);font-size:11px;">[auto]</span> ':''}${_esc(e.text||'').replace(/\n/g,'<br>')}
-        <div class="c360-tl-card" onclick="closeCustomer360();switchBoard('${e.boardId}',{goTo:'kanban'});setTimeout(()=>editCard(${typeof e.cardId==='string'?`'${e.cardId}'`:e.cardId}),200);">
-          ↳ ${_esc(e.boardName||'Board')} · ${_esc(e.cardName||'Card')}
+    const iconMap = {
+      note: '📝', call: '📞', email_sent: '📤', email_received: '📥',
+      meeting: '👥', stage_change: '🎯', created: '✨', won: '🏆',
+      lost: '❌', follow_up: '⏰', tatame_mention: '🎙'
+    };
+    body.innerHTML = events.slice(0, 200).map(e => {
+      if (e.source === 'syn') {
+        const icon = iconMap[e.synKind] || '·';
+        const deal = e.dealId ? (_synDeals||[]).find(d => d.id === e.dealId) : null;
+        return `<div class="c360-tl-item">
+          <div class="c360-tl-date">${e.date?new Date(e.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—'}</div>
+          <div class="c360-tl-text">
+            <span style="display:inline-block;width:18px;">${icon}</span>${_esc(e.text||'').replace(/\n/g,'<br>')}
+            ${e.body ? `<div style="margin-top:3px;color:var(--color-text-secondary);font-size:12px;">${_esc(String(e.body).slice(0,200))}${e.body.length>200?'…':''}</div>` : ''}
+            ${deal ? `<div class="c360-tl-card" onclick="closeCustomer360();_synOpenDealModal('${_esc(deal.id)}');">↳ Deal: ${_esc(deal.title)}</div>` : ''}
+          </div>
+        </div>`;
+      }
+      return `<div class="c360-tl-item">
+        <div class="c360-tl-date">${e.date?new Date(e.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—'}</div>
+        <div class="c360-tl-text">
+          ${e.type==='auto'?'<span style="color:var(--color-text-tertiary);font-size:11px;">[auto]</span> ':''}${_esc(e.text||'').replace(/\n/g,'<br>')}
+          <div class="c360-tl-card" onclick="closeCustomer360();switchBoard('${e.boardId}',{goTo:'kanban'});setTimeout(()=>editCard(${typeof e.cardId==='string'?`'${e.cardId}'`:e.cardId}),200);">
+            ↳ ${_esc(e.boardName||'Board')} · ${_esc(e.cardName||'Card')}
+          </div>
         </div>
+      </div>`;
+    }).join('');
+    return;
+  }
+  if (_c360Tab === 'deals') {
+    const myDeals = (_synDeals || []).filter(d => d.contact_id === _c360ContactId);
+    if (!myDeals.length) {
+      body.innerHTML = `<div class="c360-empty"><strong>Nenhuma oportunidade ainda</strong>
+        Crie um deal pra esta pessoa direto da aba Pipeline ou pelo botão abaixo.
+        <div style="margin-top:14px;"><button class="btn-c" style="background:#3B6D11;color:#fff;border-color:#3B6D11;" onclick="closeCustomer360();_synOpenDealModal(null,null);setTimeout(()=>{const sel=document.getElementById('syn-d-contact');if(sel){sel.value='${_esc(_c360ContactId)}';}},200);">+ Nova oportunidade</button></div></div>`;
+      return;
+    }
+    const sumOpenCents = myDeals.filter(d=>d.status==='open').reduce((s,d)=>s+(d.value_cents||0),0);
+    const sumWonCents  = myDeals.filter(d=>d.status==='won').reduce((s,d)=>s+(d.value_cents||0),0);
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
+        <div class="c360-stat"><div class="c360-stat-label">Em aberto</div><div class="c360-stat-value">${_synFmtMoney(sumOpenCents)}</div><div class="c360-stat-sub">${myDeals.filter(d=>d.status==='open').length} deals</div></div>
+        <div class="c360-stat"><div class="c360-stat-label">Ganhos</div><div class="c360-stat-value" style="color:#3B6D11;">${_synFmtMoney(sumWonCents)}</div><div class="c360-stat-sub">${myDeals.filter(d=>d.status==='won').length} fechados</div></div>
+        <div class="c360-stat"><div class="c360-stat-label">Perdidos</div><div class="c360-stat-value" style="color:#A32D2D;">${myDeals.filter(d=>d.status==='lost').length}</div><div class="c360-stat-sub">precisa entender pq</div></div>
       </div>
-    </div>`).join('');
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${myDeals.sort((a,b)=>new Date(b.updated_at||0)-new Date(a.updated_at||0)).map(d => {
+          const stage = _synStageById(d.stage_id);
+          const statusBadge = d.status === 'won'
+            ? '<span style="background:rgba(59,109,17,.15);color:#27500A;padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:600;">GANHO</span>'
+            : d.status === 'lost'
+              ? '<span style="background:rgba(163,45,45,.15);color:#791F1F;padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:600;">PERDIDO</span>'
+              : stage ? `<span style="background:${stage.color}22;color:${stage.color};padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:500;">${_esc(stage.name)}</span>` : '';
+          return `<div onclick="closeCustomer360();_synOpenDealModal('${_esc(d.id)}')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--color-background-secondary);border-radius:8px;cursor:pointer;border:0.5px solid var(--color-border-tertiary);">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:500;color:var(--color-text-primary);">${_esc(d.title)}</div>
+              <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">
+                ${d.value_cents ? `<strong style="color:#27500A;">${_synFmtMoney(d.value_cents)}</strong> · ` : ''}
+                Atualizado ${d.updated_at ? new Date(d.updated_at).toLocaleDateString('pt-BR') : '—'}
+                ${d.follow_up_at ? ` · ⏱ ${new Date(d.follow_up_at).toLocaleDateString('pt-BR')}` : ''}
+              </div>
+            </div>
+            ${statusBadge}
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="margin-top:14px;text-align:right;">
+        <button class="btn-c" style="background:#3B6D11;color:#fff;border-color:#3B6D11;" onclick="closeCustomer360();_synOpenDealModal(null,null);setTimeout(()=>{const sel=document.getElementById('syn-d-contact');if(sel){sel.value='${_esc(_c360ContactId)}';}},200);">+ Nova oportunidade pra este contato</button>
+      </div>
+    `;
+    return;
+  }
+  if (_c360Tab === 'bunko') {
+    // Async load
+    body.innerHTML = `<div class="c360-empty">Buscando páginas vinculadas no Bunko Box…</div>`;
+    (async () => {
+      const pages = await _synGetLinkedBunkoPages({ contact_id: _c360ContactId });
+      if (!pages.length) {
+        body.innerHTML = `<div class="c360-empty"><strong>Nenhuma página do Bunko Box vinculada</strong>
+          Abra qualquer página do Bunko e clique em <strong>🔗 Synconnect</strong> pra ligar a este contato.</div>`;
+        return;
+      }
+      body.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px;">
+        ${pages.map(p => `<div onclick="closeCustomer360();switchTab('bunko');setTimeout(()=>_bunkoOpenPage('${_esc(p.id)}'),100);" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--color-background-secondary);border-radius:8px;cursor:pointer;border:0.5px solid var(--color-border-tertiary);">
+          <span style="font-size:18px;">${_esc(p.icon||'📄')}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:500;">${_esc(p.title)}</div>
+            ${p.summary ? `<div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:2px;">${_esc(String(p.summary).slice(0,120))}${p.summary.length>120?'…':''}</div>` : ''}
+          </div>
+          <span style="font-size:10.5px;color:var(--color-text-tertiary);">${_synFmtDate(p.updated_at)}</span>
+        </div>`).join('')}
+      </div>`;
+    })();
     return;
   }
 }
