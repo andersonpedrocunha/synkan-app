@@ -46173,6 +46173,26 @@ async function renderBunko() {
         .bunko-page-content li { margin: 3px 0; }
         .bunko-page-savestatus { font-size: 11px; color: #8B7250; font-style: italic; font-family: var(--tatami-mincho,serif); margin-left: auto; }
 
+        /* Anexos (estilo Notion-ish com cara Synkan) */
+        .bunko-attach-section { margin-top: 36px; padding-top: 22px; border-top: 1px dashed rgba(107,72,37,.25); }
+        .bunko-attach-h { display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px; }
+        .bunko-attach-title { font-family: var(--tatami-mincho,serif); font-size: 14px; font-weight: 600; color: #6B4825; letter-spacing: .02em; }
+        .bunko-attach-add { background: rgba(107,72,37,.08); border: 1px dashed #8B6634; color: #6B4825; padding: 5px 11px; border-radius: 7px; cursor: pointer; font-size: 12px; font-family: var(--tatami-mincho,serif); font-style: italic; transition: all .15s; }
+        .bunko-attach-add:hover { background: #6B4825; color: #F5E8C8; border-style: solid; }
+        .bunko-attach-list { display:flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 10px; transition: background .15s; }
+        .bunko-attach-list.is-drop-over { background: rgba(193,154,58,.18); outline: 2px dashed #C19A3A; }
+        .bunko-attach-empty { padding: 28px 16px; text-align: center; font-family: var(--tatami-mincho,serif); font-style: italic; font-size: 12.5px; color: #8B7250; border: 1px dashed rgba(107,72,37,.25); border-radius: 8px; }
+        .bunko-attach-empty em { color: #6B4825; }
+        .bunko-file-item { display:flex; align-items:center; gap: 10px; padding: 8px 10px; background: rgba(255,255,255,.55); border: 1px solid rgba(184,168,120,.45); border-radius: 8px; cursor: pointer; transition: all .15s; }
+        .bunko-file-item:hover { background: #FFFCF5; border-color: #8B6634; transform: translateX(2px); box-shadow: 0 3px 10px rgba(107,72,37,.10); }
+        .bunko-file-icon { width: 34px; height: 34px; border-radius: 8px; display:flex; align-items:center; justify-content:center; font-size: 18px; flex-shrink: 0; font-weight: 700; }
+        .bunko-file-info { flex:1; min-width: 0; }
+        .bunko-file-name { font-size: 13.5px; color: #1A1611; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bunko-file-meta { font-size: 11px; color: #8B7250; font-family: var(--tatami-mincho,serif); font-style: italic; margin-top: 2px; }
+        .bunko-file-action { background: transparent; border: none; color: #8B7250; cursor: pointer; padding: 6px 8px; font-size: 14px; border-radius: 5px; opacity: 0; transition: all .15s; }
+        .bunko-file-item:hover .bunko-file-action { opacity: 1; }
+        .bunko-file-action:hover { background: rgba(188,0,45,.12); color: #BC002D; }
+
         /* Player */
         .bunko-player-ov { position: fixed; inset: 0; background: rgba(0,0,0,.92); backdrop-filter: blur(20px); z-index: 10000; display:flex; flex-direction: column; }
         .bunko-player-ov header { padding: 14px 22px; display:flex; align-items:center; gap:14px; border-bottom: 1px solid rgba(255,255,255,.07); color: #fff; }
@@ -46771,10 +46791,188 @@ async function _bunkoOpenPage(pageId) {
       <div class="bunko-page-content" id="bunko-page-content-${_esc(pageId)}"
            contenteditable="true"
            oninput="_bunkoOnPageInput('${_esc(pageId)}')">${page.content_html || '<p></p>'}</div>
+
+      <!-- Anexos (arquivos da página) — funciona como pasta também -->
+      <div class="bunko-attach-section" id="bunko-attach-${_esc(pageId)}">
+        <div class="bunko-attach-h">
+          <span class="bunko-attach-title">📎 Anexos</span>
+          <button class="bunko-attach-add" onclick="document.getElementById('bunko-file-input-${_esc(pageId)}').click()">+ Adicionar arquivo</button>
+        </div>
+        <input type="file" id="bunko-file-input-${_esc(pageId)}" multiple style="display:none;" onchange="_bunkoUploadFiles('${_esc(pageId)}', this.files)"/>
+        <div class="bunko-attach-list" id="bunko-attach-list-${_esc(pageId)}"
+             ondragover="event.preventDefault(); this.classList.add('is-drop-over');"
+             ondragleave="this.classList.remove('is-drop-over');"
+             ondrop="event.preventDefault(); this.classList.remove('is-drop-over'); _bunkoUploadFiles('${_esc(pageId)}', event.dataTransfer.files)">
+          <div class="bunko-attach-empty">Arraste arquivos aqui ou clique em <em>+ Adicionar arquivo</em></div>
+        </div>
+      </div>
     </div>`;
   // Set up auto-save
   const titleInp = document.getElementById('bunko-page-title-'+pageId);
   if (titleInp) titleInp.addEventListener('input', () => _bunkoOnPageInput(pageId));
+  // Carrega anexos
+  _bunkoLoadFiles(pageId);
+}
+
+// ── Anexos (Supabase Storage) ───────────────────────────────────────
+function _bunkoFileIcon(name, mime) {
+  const ext = (name||'').toLowerCase().split('.').pop();
+  if (/^(pdf)$/i.test(ext)) return { icon:'📕', color:'#BC002D' };
+  if (/^(xlsx|xls|csv|ods|tsv)$/i.test(ext)) return { icon:'📊', color:'#1E7A3E' };
+  if (/^(doc|docx|odt|rtf|pages)$/i.test(ext)) return { icon:'📝', color:'#2A6FBC' };
+  if (/^(ppt|pptx|key|odp)$/i.test(ext)) return { icon:'📊', color:'#E68224' };
+  if (/^(png|jpg|jpeg|gif|webp|svg|bmp|heic|heif)$/i.test(ext)) return { icon:'🖼', color:'#9C5BC8' };
+  if (/^(mp4|mov|avi|mkv|webm|m4v)$/i.test(ext)) return { icon:'🎬', color:'#BC002D' };
+  if (/^(mp3|wav|m4a|aac|flac|ogg)$/i.test(ext)) return { icon:'🎵', color:'#C19A3A' };
+  if (/^(zip|tar|gz|rar|7z)$/i.test(ext)) return { icon:'🗜', color:'#6B4825' };
+  if (/^(txt|md|json|xml|yaml|yml)$/i.test(ext)) return { icon:'📄', color:'#5C4F3F' };
+  if (/^(ofx|qfx|qif)$/i.test(ext)) return { icon:'💰', color:'#1E7A3E' };  // extratos bancários
+  if (/^(js|ts|tsx|jsx|html|css|py|sql|sh|go|rs|rb|java|c|cpp)$/i.test(ext)) return { icon:'⚙️', color:'#3A2410' };
+  return { icon:'📎', color:'#6B4825' };
+}
+
+function _bunkoFormatSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KiB';
+  if (bytes < 1024*1024*1024) return (bytes/1024/1024).toFixed(1) + ' MiB';
+  return (bytes/1024/1024/1024).toFixed(1) + ' GiB';
+}
+
+async function _bunkoLoadFiles(pageId) {
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c) return;
+  let files = [];
+  try {
+    const { data, error } = await c.rpc('list_bunko_files', { p_page_id: pageId, p_folder_id: null });
+    if (error) throw error;
+    files = data || [];
+  } catch(e) { console.warn('[bunko-files] list:', e?.message); }
+  _bunkoRenderFiles(pageId, files);
+}
+
+function _bunkoRenderFiles(pageId, files) {
+  const el = document.getElementById('bunko-attach-list-' + pageId);
+  if (!el) return;
+  if (!files || files.length === 0) {
+    el.innerHTML = `<div class="bunko-attach-empty">Arraste arquivos aqui ou clique em <em>+ Adicionar arquivo</em></div>`;
+    return;
+  }
+  const fmtDate = (iso) => {
+    const d = new Date(iso);
+    const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
+    if (diffMin < 1) return 'agora';
+    if (diffMin < 60) return `há ${diffMin} min`;
+    const h = Math.floor(diffMin/60);
+    if (h < 24) return `há ${h}h`;
+    return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+  };
+  el.innerHTML = files.map(f => {
+    const { icon, color } = _bunkoFileIcon(f.name, f.mime_type);
+    return `<div class="bunko-file-item" onclick="_bunkoDownloadFile('${_esc(f.storage_path)}','${_esc(f.storage_bucket)}','${_esc(f.name)}')">
+      <div class="bunko-file-icon" style="background:${color}1a;color:${color};">${icon}</div>
+      <div class="bunko-file-info">
+        <div class="bunko-file-name">${_esc(f.name)}</div>
+        <div class="bunko-file-meta">${_bunkoFormatSize(f.size_bytes)} · ${fmtDate(f.uploaded_at)}</div>
+      </div>
+      <button class="bunko-file-action" onclick="event.stopPropagation(); _bunkoDeleteFile('${_esc(f.id)}','${_esc(f.storage_path)}','${_esc(f.storage_bucket)}','${_esc(pageId)}')" title="Excluir">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+async function _bunkoUploadFiles(pageId, fileList) {
+  if (!fileList || !fileList.length) return;
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c || !supaUser) {
+    appAlert('Sem cliente', 'Modo Cloud não está ativo.', { icon:'⚠️' });
+    return;
+  }
+  const total = fileList.length;
+  let done = 0, errors = 0;
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Enviando arquivos', `0 de ${total}…`, 'info');
+  }
+  for (const file of fileList) {
+    // Limita 25MB por arquivo (default Supabase Storage)
+    if (file.size > 25 * 1024 * 1024) {
+      errors++;
+      console.warn('[bunko-files] arquivo grande demais:', file.name, file.size);
+      continue;
+    }
+    try {
+      // Caminho no bucket: {user_id}/{page_id}/{timestamp}_{filename}
+      const safeName = file.name.replace(/[^\w\s.-]/g, '_');
+      const path = `${supaUser.id}/${pageId}/${Date.now()}_${safeName}`;
+      // Upload
+      const { error: upErr } = await c.storage.from('bunko-files').upload(path, file, {
+        contentType: file.type || 'application/octet-stream',
+        upsert: false,
+      });
+      if (upErr) throw upErr;
+      // Registra no banco
+      const { error: regErr } = await c.rpc('register_bunko_file', {
+        p_page_id: pageId,
+        p_folder_id: null,
+        p_name: file.name,
+        p_size_bytes: file.size,
+        p_mime_type: file.type || null,
+        p_storage_path: path,
+        p_storage_bucket: 'bunko-files',
+      });
+      if (regErr) throw regErr;
+      done++;
+    } catch(e) {
+      console.warn('[bunko-files] upload falhou:', file.name, e?.message);
+      errors++;
+    }
+  }
+  if (typeof _showKanWarning === 'function') {
+    if (errors === 0) {
+      _showKanWarning('Anexos salvos ✓', `${done} arquivo(s) anexado(s).`, 'success');
+    } else {
+      _showKanWarning('Upload parcial', `${done} OK, ${errors} falharam (verifique tamanho < 25MB e migration aplicada).`, 'warning');
+    }
+  }
+  _bunkoLoadFiles(pageId);
+}
+
+async function _bunkoDownloadFile(storagePath, bucket, filename) {
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c) return;
+  try {
+    // Gera URL signed válido por 1 hora
+    const { data, error } = await c.storage.from(bucket).createSignedUrl(storagePath, 3600);
+    if (error) throw error;
+    // Abre em nova aba (browser baixa ou exibe)
+    const a = document.createElement('a');
+    a.href = data.signedUrl;
+    a.download = filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch(e) {
+    appAlert('Erro ao baixar', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+async function _bunkoDeleteFile(fileId, storagePath, bucket, pageId) {
+  const ok = await appConfirm('Excluir anexo?', 'O arquivo será removido permanentemente.', {
+    okLabel: 'Excluir', cancelLabel: 'Cancelar', danger: true
+  });
+  if (!ok) return;
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c) return;
+  try {
+    // Soft delete no banco
+    await c.rpc('delete_bunko_file', { p_id: fileId });
+    // Hard delete no Storage
+    await c.storage.from(bucket).remove([storagePath]);
+    _bunkoLoadFiles(pageId);
+    if (typeof _showKanWarning === 'function') _showKanWarning('Excluído', 'Arquivo removido.', 'info');
+  } catch(e) {
+    appAlert('Erro', e?.message || String(e), { icon:'⚠️' });
+  }
 }
 
 let _bunkoSaveTimer = null;
