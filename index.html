@@ -46193,9 +46193,11 @@ async function renderBunko() {
         .bunko-card-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
         .bunko-card-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .bunko-card-meta { font-size: 11px; color: #6B4825; font-family: var(--tatami-mincho,serif); font-style:italic; line-height:1.45; margin-top: 4px; }
-        /* Card de página: ícone grande centralizado (mesmo estilo do file card) */
+        /* Card de página: ícone grande no topo + resumo (italic) embaixo */
         .bunko-card.is-page-card .bunko-card-page-thumb {
-          aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center;
+          aspect-ratio: 16/9; display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          padding: 12px 14px; gap: 8px;
           background: linear-gradient(135deg, #F5E8C8 0%, #E8D29A 100%);
           border-bottom: 1px solid rgba(184,168,120,.5);
           position: relative; color: #3A2410;
@@ -46203,6 +46205,14 @@ async function renderBunko() {
         .bunko-card.is-page-card .bunko-card-page-thumb .ic {
           font-size: 56px; line-height: 1;
           filter: drop-shadow(0 3px 6px rgba(0,0,0,.15));
+        }
+        .bunko-card-page-summary {
+          font-family: var(--tatami-mincho,serif);
+          font-style: italic; font-size: 11.5px; line-height: 1.35;
+          color: #5C4F3F; text-align: center;
+          max-width: 92%;
+          display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+          overflow: hidden;
         }
         .bunko-card-source-tag {
           position: absolute; top: 8px; left: 8px;
@@ -46756,6 +46766,7 @@ function _bunkoCardHTML(it) {
     ${isPage ? `
       <div class="bunko-card-page-thumb">
         <span class="ic">${_esc(it.icon || '📄')}</span>
+        ${it.preview && it.preview.trim() ? `<div class="bunko-card-page-summary">${_esc(it.preview.slice(0, 140))}${it.preview.length > 140 ? '…' : ''}</div>` : ''}
         ${it.source_kind === 'kan_transcript' ? `<div class="bunko-card-source-tag">🧘 Mestre Kan</div>` : ''}
         ${it.archived ? `<div class="bunko-card-source-tag" style="background:rgba(107,72,37,.85);color:#F5E8C8;">arquivado</div>` : ''}
       </div>
