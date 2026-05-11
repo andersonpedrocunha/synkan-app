@@ -45303,8 +45303,10 @@ function _lkRenderKanMini() {
   let mini = document.getElementById('lk-kan-mini');
   // Estado real: tá rodando? (não basta hasKan — esse só marca "convocado")
   const isListening = !!(window._kanWantRunning && window._kanRecognition?.active && ext.lk.connected);
-  // Esconde o mini se o Kan não foi convocado nem está ouvindo
-  if (!ext.lk.hasKan && !isListening) {
+  const isProbing = !!window._kanProbing;
+  const lastErr = window._kanLastError;
+  // Esconde o mini se o Kan não foi convocado, não tá ouvindo, não tá conectando e não há erro
+  if (!ext.lk.hasKan && !isListening && !isProbing && !lastErr) {
     if (mini) mini.remove();
     return;
   }
@@ -45317,7 +45319,13 @@ function _lkRenderKanMini() {
     stage.appendChild(mini);
   }
   mini.classList.toggle('is-listening', isListening);
-  const statusText = isListening ? 'transcrevendo' : 'em meditação · clique pra ligar';
+  const statusText = isProbing
+    ? 'conectando…'
+    : isListening
+      ? 'transcrevendo'
+      : lastErr
+        ? `✕ ${lastErr.title}`
+        : 'em meditação · clique pra ligar';
   mini.innerHTML = `
     <div class="lk-kan-mini-avatar"><img src="${_LK_KAN_AVATAR}" alt="Mestre Kan"/></div>
     <div class="lk-kan-mini-text">
@@ -49637,13 +49645,19 @@ function _lkNotasHTML() {
   const noNotes = decisions.length === 0 && actions.length === 0;
   // Estado real do Mestre Kan: tá rodando? Conta chunks ouvidos
   const isListening = !!(window._kanWantRunning && window._kanRecognition?.active);
+  const isProbing = !!window._kanProbing;
+  const lastErr = window._kanLastError;
   const chunksHeard = window._kanChunkSeq || 0;
-  const subStatus = isListening
-    ? `<span class="lk-kan-listening-dot"></span> ouvindo · ${chunksHeard} chunk${chunksHeard===1?'':'s'} processado${chunksHeard===1?'':'s'}`
-    : 'desligado · clique pra começar a transcrever';
+  const subStatus = isProbing
+    ? `<span class="lk-kan-listening-dot" style="background:#FBE7A4;"></span> conectando com kan-transcribe…`
+    : isListening
+      ? `<span class="lk-kan-listening-dot"></span> ouvindo · ${chunksHeard} chunk${chunksHeard===1?'':'s'} processado${chunksHeard===1?'':'s'}`
+      : (lastErr ? `<span style="color:#FF6B6B;">✕ ${_esc(lastErr.title)}</span>` : 'desligado · clique pra começar a transcrever');
 
   // Botão de toggle (visualmente claro o estado)
-  const toggleBtn = `<button type="button" onclick="_lkToggleKan()" title="${isListening?'Parar transcrição':'Iniciar transcrição com Mestre Kan'}" class="lk-kan-toggle ${isListening?'is-on':'is-off'}">${isListening?'⏸ Parar':'▶ Ligar Mestre Kan'}</button>`;
+  const toggleBtn = isProbing
+    ? `<button type="button" disabled class="lk-kan-toggle" style="opacity:.7;cursor:wait;">⌛ conectando…</button>`
+    : `<button type="button" onclick="_lkToggleKan()" title="${isListening?'Parar transcrição':'Iniciar transcrição com Mestre Kan'}" class="lk-kan-toggle ${isListening?'is-on':'is-off'}">${isListening?'⏸ Parar':'▶ Ligar Mestre Kan'}</button>`;
 
   // Header sempre com toggle
   const headerHTML = `<div class="lk-kan-h">
@@ -49656,17 +49670,33 @@ function _lkNotasHTML() {
     ${(!noNotes) ? `<button type="button" onclick="_lkSaveKanToBunko()" title="Salvar notas como página no Bunko Box" style="background:linear-gradient(135deg,#6B4825,#A88150);border:none;color:#F5E8C8;padding:6px 11px;border-radius:7px;cursor:pointer;font-size:11.5px;font-family:var(--tatami-mincho,serif);display:inline-flex;align-items:center;gap:5px;font-weight:600;margin-left:6px;">📦 Salvar</button>` : ''}
   </div>`;
 
+  // Erro visível inline (fica enquanto não fechar, não some como toast)
+  const errorBlock = (!isListening && !isProbing && lastErr) ? `
+    <div style="margin:12px 0;padding:12px 14px;background:rgba(188,0,45,.10);border:1px solid rgba(188,0,45,.40);border-radius:8px;font-family:var(--tatami-mincho,serif);font-size:12px;line-height:1.5;color:#FFE4E8;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="color:#FF6B6B;font-size:14px;">✕</span>
+        <strong style="font-style:normal;color:#FF9DA8;">${_esc(lastErr.title)}</strong>
+      </div>
+      <div style="font-style:italic;color:rgba(255,255,255,.85);">${lastErr.body}</div>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button type="button" onclick="_kanLastError=null;_lkRenderSidepanel();" style="background:transparent;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.85);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--tatami-mincho,serif);">Ignorar</button>
+        <button type="button" onclick="_lkToggleKan()" style="background:rgba(188,0,45,.4);border:1px solid rgba(188,0,45,.6);color:#fff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--tatami-mincho,serif);font-weight:600;">↻ Tentar de novo</button>
+      </div>
+    </div>` : '';
+
   if (noNotes) {
-    return headerHTML + `<div class="lk-kan-empty">
+    return headerHTML + errorBlock + `<div class="lk-kan-empty">
       <div class="lk-kan-empty-icon"><img src="${_LK_KAN_AVATAR}" alt=""/></div>
-      ${isListening
-        ? `<div>Ouvindo… ${chunksHeard > 0 ? `processados <strong>${chunksHeard}</strong> trechos de áudio.<br/><small style="opacity:.7;">Mestre Kan só captura <em>decisões</em> e <em>ações concretas</em> — frases tipo "alô, testando" são ignoradas. Fale algo tipo:<br/>"<em>vou abrir um ticket pra Maria revisar o contrato até sexta</em>".</small>` : 'ainda esperando o primeiro chunk de áudio (8s)…'}</div>`
-        : `<div>Mestre Kan está em <em>zazen</em>.<br/>Clique em <strong>“▶ Ligar Mestre Kan”</strong> acima pra começar a transcrever e capturar decisões/ações da reunião.</div>`
+      ${isProbing
+        ? `<div>Conectando com kan-transcribe…<br/><small style="opacity:.7;">Verificando se a Edge Function tá deployada.</small></div>`
+        : isListening
+          ? `<div>Ouvindo… ${chunksHeard > 0 ? `processados <strong>${chunksHeard}</strong> trechos de áudio.<br/><small style="opacity:.7;">Mestre Kan só captura <em>decisões</em> e <em>ações concretas</em> — frases tipo "alô, testando" são ignoradas. Fale algo tipo:<br/>"<em>vou abrir um ticket pra Maria revisar o contrato até sexta</em>".</small>` : 'ainda esperando o primeiro chunk de áudio (8s)…'}</div>`
+          : `<div>Mestre Kan está em <em>zazen</em>.<br/>Clique em <strong>“▶ Ligar Mestre Kan”</strong> acima pra começar a transcrever e capturar decisões/ações da reunião.</div>`
       }
     </div>`;
   }
 
-  let html = headerHTML;
+  let html = headerHTML + errorBlock;
 
   if (decisions.length > 0) {
     html += `<div class="lk-kan-section">decisões tomadas</div>`;
@@ -49887,9 +49917,11 @@ function _lkRenderControls() {
 }
 
 // Toggle do Mestre Kan (Liga/Desliga sob demanda)
-// Importante: hasKan reflete o estado de "ouvindo de verdade" — não basta
-// estar na sessão. Isso é o que o botão da barra inferior usa pra mostrar
-// is-active, e o que o mini-widget usa pra mudar o status pra "transcrevendo".
+// Importante: o estado real ("ouvindo de verdade") é (_kanWantRunning && _kanRecognition?.active).
+// O botão da barra inferior, o mini-widget e o painel Notas todos refletem esse estado.
+// Ao ligar, fazemos o probe da Edge Function ANTES de marcar o estado, pra não
+// dar pulinho visual (ligar e desligar em milissegundos). Durante o probe,
+// mostramos estado "conectando…" via _kanProbing.
 async function _lkToggleKan() {
   const ext = _chatState.extended;
   if (!ext?.lk?.connected) {
@@ -49897,37 +49929,53 @@ async function _lkToggleKan() {
     return;
   }
   const isOn = !!(window._kanWantRunning && window._kanRecognition?.active);
-  const newVal = !isOn;
 
+  // ── Desligando ────────────────────────────────────────────────────
   if (isOn) {
-    _kanStopTranscription();
+    _kanStopTranscription();      // já re-renderiza todas as superfícies
     ext.lk.hasKan = false;
     if (typeof _showKanWarning === 'function') {
       _showKanWarning('Mestre Kan desligado', 'Transcrição parada. Você pode religar a qualquer momento.', 'info');
     }
-  } else {
-    ext.lk.hasKan = true;
-    _kanStartTranscription();
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('Mestre Kan ouvindo', '✓ Transcrição funcionando! Decisões e ações aparecem em "📝 Notas" no painel direito.', 'success');
-    }
+    try { _lkRenderSidepanel(); _lkRenderKanMini && _lkRenderKanMini(); _lkRenderControls && _lkRenderControls(); } catch(_){}
+    // Sync com banco em background
+    try {
+      const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+      if (c && ext.lk.sessionId) {
+        Promise.resolve(c.from('tatame_video_sessions').update({ has_kan_assist: false }).eq('id', ext.lk.sessionId)).catch(()=>{});
+      }
+    } catch(_){}
+    return;
   }
 
-  // Re-render de todas as superfícies que mostram o estado do Kan:
-  //   • painel Notas (botão "▶ Ligar / ⏸ Parar")
-  //   • mini-widget flutuante (badge "transcrevendo / ouvindo / em meditação")
-  //   • barra de controles inferior (botão "Mestre Kan" fica roxo quando ativo)
-  try { _lkRenderSidepanel(); } catch(_){}
-  try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
-  try { _lkRenderControls && _lkRenderControls(); } catch(_){}
+  // ── Ligando: probe primeiro, depois ativa ─────────────────────────
+  _kanProbing = true;
+  _kanLastError = null;
+  ext.lk.hasKan = true;
+  try { _lkRenderSidepanel(); _lkRenderKanMini && _lkRenderKanMini(); _lkRenderControls && _lkRenderControls(); } catch(_){}
 
-  // Sync com banco em background (fire-and-forget, não bloqueia UI)
+  const ok = await _kanProbeEndpoint();
+  _kanProbing = false;
+
+  if (!ok) {
+    // Probe falhou — _kanLastError já registrado dentro do probe.
+    // Mantém hasKan=true só pra mini-widget mostrar a mensagem de erro
+    // (sem isso, o widget some e o user nem vê o que aconteceu).
+    try { _lkRenderSidepanel(); _lkRenderKanMini && _lkRenderKanMini(); _lkRenderControls && _lkRenderControls(); } catch(_){}
+    return;
+  }
+
+  // Probe OK — agora liga de verdade
+  _kanStartTranscription();
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Mestre Kan ouvindo', '✓ Transcrição ativa. Decisões e ações aparecem em "📝 Notas" no painel direito.', 'success');
+  }
+  try { _lkRenderSidepanel(); _lkRenderKanMini && _lkRenderKanMini(); _lkRenderControls && _lkRenderControls(); } catch(_){}
+  // Sync com banco em background
   try {
     const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
     if (c && ext.lk.sessionId) {
-      Promise.resolve(
-        c.from('tatame_video_sessions').update({ has_kan_assist: newVal }).eq('id', ext.lk.sessionId)
-      ).catch(()=>{});
+      Promise.resolve(c.from('tatame_video_sessions').update({ has_kan_assist: true }).eq('id', ext.lk.sessionId)).catch(()=>{});
     }
   } catch(_){}
 }
@@ -49949,6 +49997,8 @@ let _kanChunkSeq = 0;
 let _kanWaitForTrackTries = 0;
 let _kanFirstSuccess = false;     // pra avisar o user no primeiro chunk transcrito
 let _kanFailureCount = 0;         // contador de falhas pra alertar
+let _kanProbing = false;          // probe em andamento (mostra "conectando…")
+let _kanLastError = null;         // { title, body } — última falha do probe ou do envio
 const _KAN_CHUNK_MS = 8000;       // chunks de 8s (feedback mais rápido)
 const _KAN_MIN_BYTES = 3000;      // 3KB — captura mais conteúdo, deixa Whisper decidir se é silêncio
 
@@ -49965,20 +50015,16 @@ function _kanStartTranscription() {
   try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
   try { _lkRenderControls && _lkRenderControls(); } catch(_){}
   try { _lkRenderSidepanel && _lkRenderSidepanel(); } catch(_){}
-  // Diagnóstico: faz um ping na endpoint pra detectar deploy/keys faltando
-  _kanProbeEndpoint().then(ok => {
-    if (ok) {
-      console.log('[kan] ✓ endpoint kan-transcribe está respondendo, iniciando captura...');
-      _kanWaitForAudioTrack();
-    } else {
-      // Probe falhou — alerta claro foi mostrado; reverte estado e UI
-      _kanWantRunning = false;
-      _kanRecognition = null;
-      try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
-      try { _lkRenderControls && _lkRenderControls(); } catch(_){}
-      try { _lkRenderSidepanel && _lkRenderSidepanel(); } catch(_){}
-    }
-  });
+  // Probe já rodou no _lkToggleKan — vai direto pra captura de áudio
+  _kanWaitForAudioTrack();
+}
+
+// Helper: registra a última falha pro Mestre Kan exibir inline no painel
+// (toast some rápido demais; precisa ficar visível pra debug).
+function _kanRegisterError(title, body) {
+  _kanLastError = { title, body, at: Date.now() };
+  if (typeof _showKanWarning === 'function') _showKanWarning(title, body, 'warning');
+  console.error('[kan]', title, '·', body.replace(/<[^>]+>/g,''));
 }
 
 // Faz um ping na Edge Function pra validar que tá deployada e com keys
@@ -49986,11 +50032,8 @@ async function _kanProbeEndpoint() {
   const ext = _chatState.extended;
   const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
   if (!cfg?.url) {
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('Mestre Kan sem Supabase',
-        'Sua sessão Supabase não está configurada. Vá em Settings → Sync e ative o modo Cloud.',
-        'warning');
-    }
+    _kanRegisterError('Mestre Kan sem Supabase',
+      'Sua sessão Supabase não está configurada. Vá em Settings → Sync e ative o modo Cloud.');
     return false;
   }
   const endpoint = `${cfg.url}/functions/v1/kan-transcribe`;
@@ -50004,9 +50047,7 @@ async function _kanProbeEndpoint() {
     }
   } catch(_){}
   if (!jwt) {
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('Mestre Kan sem auth', 'Sessão expirou — recarregue a página.', 'warning');
-    }
+    _kanRegisterError('Mestre Kan sem auth', 'Sessão expirou — recarregue a página.');
     return false;
   }
   try {
@@ -50017,19 +50058,13 @@ async function _kanProbeEndpoint() {
       body: JSON.stringify({ session_id: ext?.lk?.sessionId || 'probe', transcript: '' }),
     });
     if (r.status === 404) {
-      if (typeof _showKanWarning === 'function') {
-        _showKanWarning('kan-transcribe não deployada',
-          'A Edge Function <code>kan-transcribe</code> não existe no Supabase. Deploy ela primeiro: <code>supabase functions deploy kan-transcribe --no-verify-jwt</code>',
-          'warning');
-      }
+      _kanRegisterError('kan-transcribe não deployada',
+        'A Edge Function <code>kan-transcribe</code> não existe no Supabase. Deploy ela primeiro: <code>supabase functions deploy kan-transcribe --no-verify-jwt</code>');
       return false;
     }
     if (r.status === 401) {
-      if (typeof _showKanWarning === 'function') {
-        _showKanWarning('kan-transcribe sem JWT verify',
-          'Edge Function rejeitou o JWT. Re-deploy com <code>--no-verify-jwt</code>.',
-          'warning');
-      }
+      _kanRegisterError('kan-transcribe sem JWT verify',
+        'Edge Function rejeitou o JWT. Re-deploy com <code>--no-verify-jwt</code>.');
       return false;
     }
     if (!r.ok && r.status !== 400) {
@@ -50037,18 +50072,15 @@ async function _kanProbeEndpoint() {
       let hint = 'Veja os logs em Supabase Dashboard → Edge Functions → kan-transcribe.';
       if (/OPENAI_API_KEY/i.test(t)) hint = 'Configure a secret <code>OPENAI_API_KEY</code> no Supabase: <code>supabase secrets set OPENAI_API_KEY=sk-...</code>';
       else if (/ANTHROPIC_API_KEY/i.test(t)) hint = 'Configure a secret <code>ANTHROPIC_API_KEY</code> no Supabase: <code>supabase secrets set ANTHROPIC_API_KEY=sk-ant-...</code>';
-      if (typeof _showKanWarning === 'function') {
-        _showKanWarning(`kan-transcribe ${r.status}`, hint, 'warning');
-      }
+      _kanRegisterError(`kan-transcribe ${r.status}`, hint);
       return false;
     }
+    // Sucesso — limpa último erro
+    _kanLastError = null;
     return true;
   } catch(e) {
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('kan-transcribe inalcançável',
-        'Não consegui conectar com a Edge Function: ' + (e?.message||e),
-        'warning');
-    }
+    _kanRegisterError('kan-transcribe inalcançável',
+      'Não consegui conectar com a Edge Function: ' + (e?.message||e));
     return false;
   }
 }
