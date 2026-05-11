@@ -44963,25 +44963,71 @@ function _lkOnDisconnected(reason) {
   }
 }
 
-// Refresh periódico do JWT durante a call — evita expiração mid-call
+// Refresh periódico do JWT durante a call — evita expiração mid-call.
+// Estratégia em camadas: getSession → refreshSession → setSession do localStorage.
+// Se TUDO falhar, avisa o user uma vez sem dropar a call (LK token dura 6h).
 let _lkJwtRefreshTimer = null;
+let _lkJwtFailureWarned = false;
+async function _lkRecoverSession(c) {
+  // Camada A: ainda tem sessão viva?
+  try {
+    const { data } = await Promise.race([
+      c.auth.getSession(),
+      new Promise(r => setTimeout(() => r({ data: null }), 3000))
+    ]);
+    if (data?.session?.access_token) return { ok: true, reason: 'already_alive' };
+  } catch(_){}
+
+  // Camada B: tenta refresh padrão
+  try {
+    const { data, error } = await Promise.race([
+      c.auth.refreshSession(),
+      new Promise(r => setTimeout(() => r({ error: { message: 'timeout' } }), 4000))
+    ]);
+    if (!error && data?.session?.access_token) return { ok: true, reason: 'refreshed' };
+  } catch(_){}
+
+  // Camada C: tenta restaurar a partir de tokens guardados no localStorage
+  try {
+    const keys = Object.keys(localStorage).filter(k => /sb-.*-auth-token/.test(k));
+    for (const key of keys) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      const access = parsed?.access_token || parsed?.currentSession?.access_token;
+      const refresh = parsed?.refresh_token || parsed?.currentSession?.refresh_token;
+      if (access && refresh) {
+        const { data, error } = await c.auth.setSession({ access_token: access, refresh_token: refresh });
+        if (!error && data?.session) return { ok: true, reason: 'restored_from_storage' };
+      }
+    }
+  } catch(e) { console.warn('[lk] setSession recovery falhou:', e?.message); }
+
+  return { ok: false, reason: 'all_recovery_failed' };
+}
 function _lkStartJwtRefresh() {
   if (_lkJwtRefreshTimer) clearInterval(_lkJwtRefreshTimer);
+  _lkJwtFailureWarned = false;
   _lkJwtRefreshTimer = setInterval(async () => {
     const ext = _chatState.extended;
     if (!ext?.lk?.connected) return;
     try {
       const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
-      if (c?.auth?.refreshSession) {
-        const { error } = await Promise.race([
-          c.auth.refreshSession(),
-          new Promise(r => setTimeout(() => r({ error: { message: 'timeout' } }), 4000))
-        ]);
-        if (error) console.warn('[lk] JWT refresh:', error?.message);
-        else console.log('[lk] ✓ JWT refreshed');
+      if (!c?.auth) return;
+      const r = await _lkRecoverSession(c);
+      if (r.ok) {
+        console.log(`[lk] ✓ sessão OK (${r.reason})`);
+      } else if (!_lkJwtFailureWarned) {
+        _lkJwtFailureWarned = true;
+        console.warn('[lk] sessão Supabase perdida — chamada continua mas alguns recursos podem falhar (transcrição/save).');
+        if (typeof _showKanWarning === 'function') {
+          _showKanWarning('Sessão expirou',
+            'Sua sessão de login expirou durante a call. A chamada continua, mas pra salvar transcrição/usar IA, abra outra aba e refaça login.',
+            'warning');
+        }
       }
     } catch(e) { console.warn('[lk] JWT refresh exception:', e?.message); }
-  }, 5 * 60 * 1000); // a cada 5 min
+  }, 3 * 60 * 1000); // a cada 3 min (antes era 5; renova mais cedo do que o TTL padrão de 1h do Supabase)
 }
 function _lkStopJwtRefresh() {
   if (_lkJwtRefreshTimer) { clearInterval(_lkJwtRefreshTimer); _lkJwtRefreshTimer = null; }
