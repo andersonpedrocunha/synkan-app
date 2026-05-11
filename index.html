@@ -45301,7 +45301,10 @@ function _lkRenderKanMini() {
   const stage = document.querySelector('.lk-stage-wrap');
   if (!stage || !ext?.lk) return;
   let mini = document.getElementById('lk-kan-mini');
-  if (!ext.lk.hasKan) {
+  // Estado real: tá rodando? (não basta hasKan — esse só marca "convocado")
+  const isListening = !!(window._kanWantRunning && window._kanRecognition?.active && ext.lk.connected);
+  // Esconde o mini se o Kan não foi convocado nem está ouvindo
+  if (!ext.lk.hasKan && !isListening) {
     if (mini) mini.remove();
     return;
   }
@@ -45313,9 +45316,8 @@ function _lkRenderKanMini() {
     mini.onclick = () => { try { _lkSwitchTab('kan'); } catch(_){} };
     stage.appendChild(mini);
   }
-  const isListening = !!(typeof _kanRecognition !== 'undefined' && _kanRecognition && ext.lk.connected);
   mini.classList.toggle('is-listening', isListening);
-  const statusText = isListening ? 'transcrevendo' : (ext.lk.connected ? 'ouvindo' : 'em meditação');
+  const statusText = isListening ? 'transcrevendo' : 'em meditação · clique pra ligar';
   mini.innerHTML = `
     <div class="lk-kan-mini-avatar"><img src="${_LK_KAN_AVATAR}" alt="Mestre Kan"/></div>
     <div class="lk-kan-mini-text">
@@ -49860,9 +49862,9 @@ function _lkRenderControls() {
       <svg viewBox="0 0 24 24"><path d="M3 7h18v10H3z"/><line x1="8" y1="11" x2="8" y2="13"/><line x1="12" y1="11" x2="12" y2="13"/><line x1="16" y1="11" x2="16" y2="13"/><path d="M3 7 L 7 3 L 21 3 L 21 7"/></svg>
       <span>compartilhar Synkan</span>
     </button>
-    <button type="button" class="lk-ctrl lk-ctrl-kan ${ext.lk.hasKan?'is-active':''}" onclick="_lkToggleKan()" title="Mestre Kan">
+    <button type="button" class="lk-ctrl lk-ctrl-kan ${(window._kanWantRunning && window._kanRecognition?.active)?'is-active':''}" onclick="_lkToggleKan()" title="${(window._kanWantRunning && window._kanRecognition?.active)?'Mestre Kan ouvindo · clique pra parar':'Convocar Mestre Kan pra transcrever'}">
       <img src="${_LK_KAN_AVATAR}" alt=""/>
-      <span>Mestre Kan</span>
+      <span>${(window._kanWantRunning && window._kanRecognition?.active)?'Mestre Kan · ouvindo':'Mestre Kan'}</span>
     </button>
     <button type="button" class="lk-ctrl ${screenOn?'is-active':''}" onclick="_lkToggleScreenShare()" title="Compartilhar tela do navegador">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="17" x2="12" y2="20"/></svg>
@@ -49884,56 +49886,10 @@ function _lkRenderControls() {
     </button>`;
 }
 
-async function _lkToggleKan() {
-  const ext = _chatState.extended; if (!ext?.lk) return;
-  const newVal = !ext.lk.hasKan;
-
-  // Atualiza UI imediatamente
-  ext.lk.hasKan = newVal;
-  _lkRenderTiles();
-  _lkRenderSidepanel();
-  _lkRenderControls();
-
-  if (newVal) {
-    // Convocou Mestre Kan — inicia transcrição via Web Speech API
-    _kanStartTranscription();
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('Mestre Kan convocado',
-        'Em meditação · vai começar a capturar decisões e ações da conversa.', 'info');
-    }
-  } else {
-    _kanStopTranscription();
-    // Dispensou — confirma com modal
-    const ok = await appConfirm('Dispensar Mestre Kan?',
-      'A IA vai parar de transcrever e capturar notas. Você pode convocar novamente a qualquer momento.',
-      { okLabel: 'Dispensar', cancelLabel: 'Cancelar' });
-    if (!ok) {
-      // Reverte
-      ext.lk.hasKan = true;
-      _lkRenderTiles();
-      _lkRenderSidepanel();
-      _lkRenderControls();
-      return;
-    }
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('Mestre Kan dispensado',
-        'Notas capturadas até agora ficam salvas — basta convocar de novo pra continuar.', 'info');
-    }
-  }
-
-  // Sync com banco em background
-  try {
-    const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
-    if (c && ext.lk.sessionId) {
-      await c.from('tatame_video_sessions')
-        .update({ has_kan_assist: newVal })
-        .eq('id', ext.lk.sessionId);
-      console.log('[lk] kan toggle sincronizado:', newVal);
-    }
-  } catch(e) { console.warn('[lk] kan toggle sync falhou:', e?.message||e); }
-}
-
-// Toggle do Mestre Kan no painel Notas (Liga/Desliga sob demanda)
+// Toggle do Mestre Kan (Liga/Desliga sob demanda)
+// Importante: hasKan reflete o estado de "ouvindo de verdade" — não basta
+// estar na sessão. Isso é o que o botão da barra inferior usa pra mostrar
+// is-active, e o que o mini-widget usa pra mudar o status pra "transcrevendo".
 async function _lkToggleKan() {
   const ext = _chatState.extended;
   if (!ext?.lk?.connected) {
@@ -49941,6 +49897,8 @@ async function _lkToggleKan() {
     return;
   }
   const isOn = !!(window._kanWantRunning && window._kanRecognition?.active);
+  const newVal = !isOn;
+
   if (isOn) {
     _kanStopTranscription();
     ext.lk.hasKan = false;
@@ -49949,22 +49907,29 @@ async function _lkToggleKan() {
     }
   } else {
     ext.lk.hasKan = true;
-    // Atualiza sessão no banco pra marcar que tem Kan (fire and forget).
-    // Wraps em Promise.resolve pq Supabase builders são thenable mas não têm .catch
-    try {
-      const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
-      Promise.resolve(c.from('tatame_video_sessions').update({ has_kan_assist: true }).eq('id', ext.lk.sessionId))
-        .catch(()=>{});
-    } catch(_){}
     _kanStartTranscription();
     if (typeof _showKanWarning === 'function') {
       _showKanWarning('Mestre Kan ouvindo', '✓ Transcrição funcionando! Decisões e ações aparecem em "📝 Notas" no painel direito.', 'success');
     }
   }
-  // Re-render do painel (atualiza o estado do botão)
+
+  // Re-render de todas as superfícies que mostram o estado do Kan:
+  //   • painel Notas (botão "▶ Ligar / ⏸ Parar")
+  //   • mini-widget flutuante (badge "transcrevendo / ouvindo / em meditação")
+  //   • barra de controles inferior (botão "Mestre Kan" fica roxo quando ativo)
   try { _lkRenderSidepanel(); } catch(_){}
-  // Re-render do mini Kan (avatar no canto)
   try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
+  try { _lkRenderControls && _lkRenderControls(); } catch(_){}
+
+  // Sync com banco em background (fire-and-forget, não bloqueia UI)
+  try {
+    const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+    if (c && ext.lk.sessionId) {
+      Promise.resolve(
+        c.from('tatame_video_sessions').update({ has_kan_assist: newVal }).eq('id', ext.lk.sessionId)
+      ).catch(()=>{});
+    }
+  } catch(_){}
 }
 
 // ── Mestre Kan · transcrição via Web Speech API ──────────────────────
@@ -49996,17 +49961,24 @@ function _kanStartTranscription() {
   _kanFailureCount = 0;
   _kanRecognition = { active: true }; // sentinel pra UI saber que tá ouvindo
   console.log('[kan] 🎙 iniciando transcrição via Whisper (chunks de 8s)');
+  // Atualiza UI imediatamente — botão fica roxo, mini muda pra "transcrevendo"
+  try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
+  try { _lkRenderControls && _lkRenderControls(); } catch(_){}
+  try { _lkRenderSidepanel && _lkRenderSidepanel(); } catch(_){}
   // Diagnóstico: faz um ping na endpoint pra detectar deploy/keys faltando
   _kanProbeEndpoint().then(ok => {
     if (ok) {
       console.log('[kan] ✓ endpoint kan-transcribe está respondendo, iniciando captura...');
       _kanWaitForAudioTrack();
     } else {
-      // Probe falhou — alerta claro foi mostrado
+      // Probe falhou — alerta claro foi mostrado; reverte estado e UI
       _kanWantRunning = false;
+      _kanRecognition = null;
+      try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
+      try { _lkRenderControls && _lkRenderControls(); } catch(_){}
+      try { _lkRenderSidepanel && _lkRenderSidepanel(); } catch(_){}
     }
   });
-  try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
 }
 
 // Faz um ping na Edge Function pra validar que tá deployada e com keys
@@ -50330,7 +50302,10 @@ function _kanStopTranscription() {
     _kanMicStream = null;
   }
   console.log('[kan] transcrição parada');
+  // Atualiza todas as superfícies que mostram estado do Kan (mini, controles, painel)
   try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
+  try { _lkRenderControls && _lkRenderControls(); } catch(_){}
+  try { _lkRenderSidepanel && _lkRenderSidepanel(); } catch(_){}
 }
 
 // (Removido: _kanFlushBuffer era do fluxo Web Speech API antigo. Agora a
