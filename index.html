@@ -49684,6 +49684,37 @@ function _lkNotasHTML() {
       </div>
     </div>` : '';
 
+  // Helper: monta o feed de transcrição bruta (reutilizado em empty e populated)
+  const renderRawTranscripts = () => {
+    if (!isListening || _kanRecentTranscripts.length === 0) return '';
+    let f = `<div class="lk-kan-section" style="margin-top:18px;">o que ouvi <span style="opacity:.5;font-weight:400;">· últimos ${_kanRecentTranscripts.length}</span></div>`;
+    const items = _kanRecentTranscripts.slice().reverse();
+    items.forEach(t => {
+      const time = new Date(t.at).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      if (t.skipped) {
+        f += `<div style="padding:6px 10px;background:rgba(255,255,255,.02);border-left:2px solid rgba(255,255,255,.10);border-radius:0 6px 6px 0;margin-bottom:5px;font-size:11px;color:rgba(255,255,255,.4);font-family:var(--tatami-mincho,serif);font-style:italic;">
+          <span style="opacity:.6;">${_esc(time)} · </span>${_esc(t.text)}
+        </div>`;
+      } else {
+        const tagColor = (t.decisions+t.actions) > 0 ? '#5EE6A8' : 'rgba(255,255,255,.4)';
+        const tagText = (t.decisions+t.actions) > 0
+          ? `✓ virou ${t.decisions?(t.decisions+' decisão'):''}${t.decisions&&t.actions?' + ':''}${t.actions?(t.actions+' ação'):''}`
+          : 'descartado · sem decisão/ação concreta';
+        f += `<div style="padding:8px 10px;background:rgba(255,255,255,.04);border-left:2px solid rgba(107,93,200,.50);border-radius:0 6px 6px 0;margin-bottom:6px;font-size:12px;line-height:1.45;color:rgba(255,255,255,.85);">
+          <div style="font-family:var(--tatami-mincho,serif);font-style:italic;">"${_esc(t.text)}"</div>
+          <div style="margin-top:4px;font-size:10px;color:${tagColor};display:flex;justify-content:space-between;gap:8px;">
+            <span>${tagText}</span>
+            <span style="color:rgba(255,255,255,.35);">${_esc(time)}</span>
+          </div>
+        </div>`;
+      }
+    });
+    f += `<div style="margin-top:8px;padding:8px 10px;font-size:10.5px;font-family:var(--tatami-mincho,serif);font-style:italic;color:rgba(255,255,255,.45);line-height:1.5;">
+      ✦ Mestre Kan só vira em nota quando ouve <strong>decisão</strong> (escolha, aprovação) ou <strong>ação concreta</strong> (quem faz, prazo). Fala casual ele descarta de propósito.
+    </div>`;
+    return f;
+  };
+
   if (noNotes) {
     return headerHTML + errorBlock + `<div class="lk-kan-empty">
       <div class="lk-kan-empty-icon"><img src="${_LK_KAN_AVATAR}" alt=""/></div>
@@ -49693,7 +49724,7 @@ function _lkNotasHTML() {
           ? `<div>Ouvindo… ${chunksHeard > 0 ? `processados <strong>${chunksHeard}</strong> trechos de áudio.<br/><small style="opacity:.7;">Mestre Kan só captura <em>decisões</em> e <em>ações concretas</em> — frases tipo "alô, testando" são ignoradas. Fale algo tipo:<br/>"<em>vou abrir um ticket pra Maria revisar o contrato até sexta</em>".</small>` : 'ainda esperando o primeiro chunk de áudio (8s)…'}</div>`
           : `<div>Mestre Kan está em <em>zazen</em>.<br/>Clique em <strong>“▶ Ligar Mestre Kan”</strong> acima pra começar a transcrever e capturar decisões/ações da reunião.</div>`
       }
-    </div>`;
+    </div>` + renderRawTranscripts();
   }
 
   let html = headerHTML + errorBlock;
@@ -49724,6 +49755,9 @@ function _lkNotasHTML() {
       </div>`;
     });
   }
+
+  // Feed de transcrição bruta (mesmo helper usado no estado vazio)
+  html += renderRawTranscripts();
 
   return html;
 }
@@ -49999,6 +50033,7 @@ let _kanFirstSuccess = false;     // pra avisar o user no primeiro chunk transcr
 let _kanFailureCount = 0;         // contador de falhas pra alertar
 let _kanProbing = false;          // probe em andamento (mostra "conectando…")
 let _kanLastError = null;         // { title, body } — última falha do probe ou do envio
+let _kanRecentTranscripts = [];   // últimos 8 trechos do Whisper pra debug visível
 const _KAN_CHUNK_MS = 8000;       // chunks de 8s (feedback mais rápido)
 const _KAN_MIN_BYTES = 3000;      // 3KB — captura mais conteúdo, deixa Whisper decidir se é silêncio
 
@@ -50173,6 +50208,8 @@ function _kanRecordChunk(mst) {
       } else {
         console.log('[kan] chunk muito pequeno, descartando (silêncio)');
       }
+      // Atualiza o contador no painel imediatamente (não espera transcrição)
+      try { _lkRenderSidepanel && _lkRenderSidepanel(); } catch(_){}
       // Próximo chunk imediatamente
       if (_kanWantRunning) {
         setTimeout(() => _kanRecordChunk(mst), 100);
@@ -50293,6 +50330,21 @@ async function _kanSendAudioChunk(blob, mimeType) {
     _kanFailureCount = 0; // reset em sucesso
     if (j.transcribed > 0) {
       console.log(`[kan] ✓ transcrito ${j.transcribed} chars · ${j.decisions||0} decisões · ${j.actions||0} ações`);
+      // Guarda o texto bruto pra mostrar no painel (debug: o que o Whisper ouviu).
+      // j.text é o transcript completo; se backend só mandar contagem, mostra
+      // contagem ao menos.
+      const rawText = (typeof j.text === 'string' && j.text.trim())
+        ? j.text.trim()
+        : `(${j.transcribed} chars transcritos · texto não retornado pelo backend)`;
+      _kanRecentTranscripts.push({
+        text: rawText,
+        chars: j.transcribed,
+        decisions: j.decisions || 0,
+        actions: j.actions || 0,
+        at: Date.now(),
+      });
+      // Mantém só os últimos 8
+      if (_kanRecentTranscripts.length > 8) _kanRecentTranscripts.shift();
       // Primeira transcrição com texto: avisa user que tá funcionando
       if (!_kanFirstSuccess) {
         _kanFirstSuccess = true;
@@ -50304,9 +50356,13 @@ async function _kanSendAudioChunk(blob, mimeType) {
       }
     } else if (j.skipped) {
       console.log('[kan] chunk sem fala detectada (silêncio ou ruído)');
+      _kanRecentTranscripts.push({ text: '(silêncio ou ruído)', skipped: true, at: Date.now() });
+      if (_kanRecentTranscripts.length > 8) _kanRecentTranscripts.shift();
     } else {
       console.log('[kan] resposta:', j);
     }
+    // Re-renderiza pra mostrar o texto novo na timeline
+    try { _lkRenderSidepanel && _lkRenderSidepanel(); } catch(_){}
   } catch(e) {
     console.warn('[kan] ❌ fetch error:', e?.message);
     _kanFailureCount++;
@@ -50321,6 +50377,7 @@ async function _kanSendAudioChunk(blob, mimeType) {
 function _kanStopTranscription() {
   _kanWantRunning = false;
   _kanRecognition = null;
+  _kanRecentTranscripts = []; // limpa o feed pra próxima sessão começar limpo
   if (_kanRecorderTimer) { clearTimeout(_kanRecorderTimer); _kanRecorderTimer = null; }
   if (_kanRecorder) {
     try {
