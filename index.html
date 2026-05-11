@@ -47140,21 +47140,308 @@ function _bunkoInsertLink() {
   try { document.execCommand('createLink', false, url); } catch(_){}
 }
 
+// Biblioteca grande de ícones, organizados por categoria + tags pra busca
+const _BUNKO_ICON_LIBRARY = [
+  { label: 'Documentos', icons: [
+    {i:'📄',t:'documento doc texto pagina'},
+    {i:'📑',t:'documento marcadores aba'},
+    {i:'📋',t:'clipboard prancheta lista'},
+    {i:'📝',t:'nota anotacao escrever'},
+    {i:'🗒️',t:'bloco notas planner'},
+    {i:'📓',t:'caderno notebook livro'},
+    {i:'📔',t:'diario notebook capa'},
+    {i:'📒',t:'caderno amarelo notas'},
+    {i:'📕',t:'livro vermelho red book'},
+    {i:'📗',t:'livro verde green book'},
+    {i:'📘',t:'livro azul blue book'},
+    {i:'📙',t:'livro laranja orange book'},
+    {i:'📚',t:'livros biblioteca estudo'},
+    {i:'📰',t:'jornal noticias newspaper'},
+    {i:'🗞️',t:'jornal enrolado'},
+    {i:'✍️',t:'escrever assinatura'},
+    {i:'📜',t:'pergaminho scroll contrato'},
+    {i:'📃',t:'pagina dobrada'},
+  ]},
+  { label: 'Trabalho · Negócios', icons: [
+    {i:'💼',t:'maleta business trabalho'},
+    {i:'💰',t:'dinheiro saco grana'},
+    {i:'💵',t:'dolar dinheiro nota'},
+    {i:'💶',t:'euro'},
+    {i:'💴',t:'iene yen'},
+    {i:'💷',t:'libra pound'},
+    {i:'💸',t:'dinheiro voando gastar'},
+    {i:'💳',t:'cartao credito'},
+    {i:'🪙',t:'moeda coin'},
+    {i:'🧾',t:'recibo nota fiscal'},
+    {i:'🏦',t:'banco'},
+    {i:'🏢',t:'predio escritorio'},
+    {i:'🏪',t:'loja comercio'},
+    {i:'📊',t:'grafico barras'},
+    {i:'📈',t:'grafico subindo crescimento'},
+    {i:'📉',t:'grafico descendo'},
+    {i:'🎯',t:'alvo meta objetivo'},
+    {i:'🏆',t:'trofeu conquista'},
+    {i:'🥇',t:'medalha ouro primeiro'},
+    {i:'🥈',t:'medalha prata'},
+    {i:'🥉',t:'medalha bronze'},
+    {i:'📇',t:'rolodex contatos'},
+  ]},
+  { label: 'Calendário · Tempo', icons: [
+    {i:'📅',t:'calendario data'},
+    {i:'📆',t:'calendario folha'},
+    {i:'🗓️',t:'calendario plano'},
+    {i:'⏰',t:'despertador alarme'},
+    {i:'⏱️',t:'cronometro stopwatch'},
+    {i:'⏲️',t:'timer'},
+    {i:'🕐',t:'relogio hora'},
+    {i:'⌚',t:'relogio pulso watch'},
+    {i:'⏳',t:'ampulheta hourglass'},
+    {i:'🔔',t:'sino notificacao'},
+    {i:'⚡',t:'raio rapido velocidade'},
+    {i:'⏩',t:'avancar fast forward'},
+  ]},
+  { label: 'Ferramentas · Produtividade', icons: [
+    {i:'💡',t:'ideia lampada insight'},
+    {i:'🧠',t:'cerebro pensamento'},
+    {i:'🔍',t:'lupa busca pesquisa'},
+    {i:'🔎',t:'lupa direita'},
+    {i:'🔧',t:'chave inglesa ferramenta'},
+    {i:'🔨',t:'martelo'},
+    {i:'⚙️',t:'engrenagem config'},
+    {i:'🛠️',t:'ferramentas martelo chave'},
+    {i:'🧰',t:'caixa ferramentas'},
+    {i:'🔑',t:'chave key'},
+    {i:'🗝️',t:'chave antiga'},
+    {i:'🔒',t:'cadeado seguro'},
+    {i:'🔓',t:'cadeado aberto'},
+    {i:'📌',t:'tachinha pin'},
+    {i:'📍',t:'pino localizacao'},
+    {i:'🖇️',t:'clips paper'},
+    {i:'📎',t:'clip anexo'},
+    {i:'🔗',t:'link corrente'},
+    {i:'📡',t:'antena satelite'},
+    {i:'🛰️',t:'satelite'},
+    {i:'🖥️',t:'computador desktop'},
+    {i:'💻',t:'laptop notebook computador'},
+    {i:'📱',t:'celular phone mobile'},
+    {i:'⌨️',t:'teclado keyboard'},
+    {i:'🖨️',t:'impressora printer'},
+    {i:'💾',t:'disquete salvar'},
+    {i:'📀',t:'cd dvd'},
+    {i:'📷',t:'camera foto'},
+    {i:'📸',t:'camera flash'},
+    {i:'🎥',t:'camera filmadora video'},
+    {i:'🎬',t:'claquete cinema'},
+  ]},
+  { label: 'Comunicação · Pessoas', icons: [
+    {i:'💬',t:'balao fala chat'},
+    {i:'💭',t:'pensamento balao'},
+    {i:'📢',t:'megafone alto-falante'},
+    {i:'📣',t:'megafone'},
+    {i:'📞',t:'telefone phone'},
+    {i:'☎️',t:'telefone fixo'},
+    {i:'📧',t:'email'},
+    {i:'📨',t:'envelope email'},
+    {i:'✉️',t:'envelope carta'},
+    {i:'📮',t:'caixa correio'},
+    {i:'🙋',t:'maos levantada pergunta'},
+    {i:'🙇',t:'reverencia bow'},
+    {i:'🤝',t:'aperto maos handshake'},
+    {i:'👥',t:'pessoas time grupo'},
+    {i:'👤',t:'pessoa silhueta'},
+    {i:'👨‍💼',t:'homem business gravata'},
+    {i:'👩‍💼',t:'mulher business'},
+  ]},
+  { label: 'Status · Marcadores', icons: [
+    {i:'⭐',t:'estrela favorito'},
+    {i:'🌟',t:'estrela brilhante'},
+    {i:'✨',t:'brilhos sparkles'},
+    {i:'❤️',t:'coracao vermelho amor'},
+    {i:'🧡',t:'coracao laranja'},
+    {i:'💛',t:'coracao amarelo'},
+    {i:'💚',t:'coracao verde'},
+    {i:'💙',t:'coracao azul'},
+    {i:'💜',t:'coracao roxo'},
+    {i:'🖤',t:'coracao preto'},
+    {i:'🔥',t:'fogo flame quente'},
+    {i:'⚠️',t:'aviso atencao perigo'},
+    {i:'❗',t:'exclamacao importante'},
+    {i:'❓',t:'interrogacao duvida'},
+    {i:'✅',t:'check ok feito'},
+    {i:'☑️',t:'checkbox marcado'},
+    {i:'❌',t:'x erro cancelar'},
+    {i:'⛔',t:'proibido bloqueado'},
+    {i:'🚀',t:'foguete lancamento rapido'},
+    {i:'🎉',t:'festa celebracao'},
+    {i:'🎊',t:'confete'},
+    {i:'🏁',t:'bandeira chegada finish'},
+    {i:'🚩',t:'bandeira vermelha'},
+    {i:'🏷️',t:'tag etiqueta marcador'},
+  ]},
+  { label: 'Sinkan · Japão', icons: [
+    {i:'🧘',t:'meditacao zen mestre kan'},
+    {i:'🥋',t:'kimono artes marciais'},
+    {i:'🥷',t:'ninja'},
+    {i:'🏯',t:'castelo japones'},
+    {i:'⛩️',t:'torii santuario'},
+    {i:'🎴',t:'hanko carta jogo'},
+    {i:'🌸',t:'sakura cerejeira flor'},
+    {i:'🍵',t:'cha tea matcha'},
+    {i:'🍱',t:'bento marmita'},
+    {i:'🍣',t:'sushi'},
+    {i:'🎌',t:'bandeira japao crossed'},
+    {i:'🗾',t:'mapa japao'},
+    {i:'🗻',t:'fuji monte'},
+    {i:'🎋',t:'bambu tanabata'},
+    {i:'🎍',t:'pinheiro decoracao'},
+    {i:'🎏',t:'koinobori carpa'},
+    {i:'🎐',t:'sino vento furin'},
+  ]},
+  { label: 'Natureza · Lugares', icons: [
+    {i:'🌍',t:'terra planeta global'},
+    {i:'🌎',t:'terra americas'},
+    {i:'🌏',t:'terra asia'},
+    {i:'🌙',t:'lua moon'},
+    {i:'☀️',t:'sol sun'},
+    {i:'⭐',t:'estrela'},
+    {i:'⛅',t:'nuvem sol'},
+    {i:'☁️',t:'nuvem cloud'},
+    {i:'🌧️',t:'chuva'},
+    {i:'⚡',t:'raio storm'},
+    {i:'🌊',t:'onda mar wave'},
+    {i:'🏔️',t:'montanha snow'},
+    {i:'🌳',t:'arvore tree'},
+    {i:'🌲',t:'pinheiro'},
+    {i:'🌴',t:'palmeira'},
+    {i:'🌵',t:'cacto'},
+    {i:'🌷',t:'tulipa'},
+    {i:'🌹',t:'rosa'},
+    {i:'🌼',t:'margarida'},
+    {i:'🍀',t:'trevo quatro folhas sorte'},
+    {i:'🏠',t:'casa home'},
+    {i:'🏡',t:'casa jardim'},
+    {i:'✈️',t:'aviao'},
+    {i:'🚗',t:'carro'},
+  ]},
+];
+const _BUNKO_ICON_LSKEY = 'synkan_bunko_recent_icons';
+
+function _bunkoGetRecentIcons() {
+  try {
+    const v = localStorage.getItem(_BUNKO_ICON_LSKEY);
+    return v ? JSON.parse(v) : [];
+  } catch(_) { return []; }
+}
+function _bunkoSaveRecentIcon(icon) {
+  try {
+    let recent = _bunkoGetRecentIcons().filter(x => x !== icon);
+    recent.unshift(icon);
+    recent = recent.slice(0, 12);
+    localStorage.setItem(_BUNKO_ICON_LSKEY, JSON.stringify(recent));
+  } catch(_){}
+}
+
 async function _bunkoChangePageIcon(pageId) {
-  const icons = ['📄','📑','📋','📊','📈','📒','📕','📗','📘','📙','📚','📰','🗒','📓','🗓','📝','✍️','💡','⭐','🎯','🧘','💼','🏯','🎴','📌'];
   const choice = await new Promise(resolve => {
     const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:10001;display:flex;align-items:center;justify-content:center;padding:20px;';
     ov.onclick = (e) => { if (e.target === ov) { ov.remove(); resolve(null); } };
-    ov.innerHTML = `<div style="background:#FFFCF5;border:1px solid #B8A878;border-radius:12px;padding:18px;max-width:340px;">
-      <h3 style="margin:0 0 12px;font-family:var(--tatami-mincho,serif);font-size:16px;">Escolha um ícone</h3>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;">
-        ${icons.map(i => `<button style="background:#F5E8C8;border:1px solid #D4B888;border-radius:6px;padding:8px;font-size:22px;cursor:pointer;" data-icon="${i}">${i}</button>`).join('')}
+
+    const recent = _bunkoGetRecentIcons();
+    const recentSection = recent.length > 0 ? `
+      <div class="cat-label">Recentes</div>
+      <div class="icon-grid">
+        ${recent.map(i => `<button class="icon-btn" data-icon="${_esc(i)}" title="${_esc(i)}">${_esc(i)}</button>`).join('')}
+      </div>
+    ` : '';
+
+    const sectionsHtml = _BUNKO_ICON_LIBRARY.map(cat => `
+      <div class="cat-label">${_esc(cat.label)}</div>
+      <div class="icon-grid">
+        ${cat.icons.map(it => `<button class="icon-btn" data-icon="${_esc(it.i)}" data-search="${_esc(it.t)}" title="${_esc(it.t)}">${it.i}</button>`).join('')}
+      </div>
+    `).join('');
+
+    ov.innerHTML = `<div class="bunko-iconpicker">
+      <style>
+        .bunko-iconpicker { background:#FFFCF5; border:1px solid #B8A878; border-radius:14px; padding:18px; width:520px; max-width:100%; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 30px 80px rgba(0,0,0,.4); }
+        .bunko-iconpicker h3 { margin:0 0 8px; font-family:var(--tatami-mincho,serif); font-size:18px; color:#3A2410; }
+        .bunko-iconpicker .sub { font-family:var(--tatami-mincho,serif); font-style:italic; font-size:12px; color:#8B7250; margin-bottom:12px; }
+        .bunko-iconpicker .search { width:100%; padding:8px 12px; border:1px solid #B8A878; border-radius:8px; background:#F5E8C8; color:#3A2410; font-size:13px; outline:none; margin-bottom:14px; font-family:inherit; }
+        .bunko-iconpicker .search:focus { border-color:#6B4825; background:#FFFCF5; }
+        .bunko-iconpicker .body { flex:1; overflow-y:auto; padding-right:6px; }
+        .bunko-iconpicker .cat-label { font-family:var(--tatami-mincho,serif); font-size:11px; font-weight:600; color:#6B4825; letter-spacing:.05em; text-transform:uppercase; margin:12px 0 6px; padding-bottom:4px; border-bottom:1px dashed rgba(107,72,37,.20); }
+        .bunko-iconpicker .cat-label:first-child { margin-top:0; }
+        .bunko-iconpicker .icon-grid { display:grid; grid-template-columns:repeat(8, 1fr); gap:5px; }
+        .bunko-iconpicker .icon-btn { background:#F5E8C8; border:1px solid #D4B888; border-radius:7px; padding:7px 0; font-size:20px; cursor:pointer; transition:all .12s; line-height:1; }
+        .bunko-iconpicker .icon-btn:hover { background:#6B4825; border-color:#3A2410; transform:scale(1.1); box-shadow:0 4px 10px rgba(107,72,37,.25); }
+        .bunko-iconpicker .empty { padding:24px; text-align:center; font-family:var(--tatami-mincho,serif); font-style:italic; color:#8B7250; }
+        .bunko-iconpicker .foot { margin-top:12px; padding-top:10px; border-top:1px dashed rgba(107,72,37,.20); display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:11.5px; color:#8B7250; font-family:var(--tatami-mincho,serif); font-style:italic; }
+        .bunko-iconpicker .foot .total { font-style:normal; }
+        .bunko-iconpicker .foot button { background:transparent; border:1px solid #B8A878; color:#3A2410; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:12px; font-family:inherit; }
+        @media(max-width:560px){ .bunko-iconpicker .icon-grid{grid-template-columns:repeat(6,1fr);} }
+      </style>
+      <h3>Escolha um ícone</h3>
+      <div class="sub">Mais de ${_BUNKO_ICON_LIBRARY.reduce((a,c)=>a+c.icons.length,0)} opções · use a busca pra encontrar rápido</div>
+      <input class="search" id="iconpicker-search" placeholder="🔎 Buscar (ex: dinheiro, livro, fogo, sushi...)" autocomplete="off" />
+      <div class="body" id="iconpicker-body">${recentSection}${sectionsHtml}</div>
+      <div class="foot">
+        <span class="total">${_BUNKO_ICON_LIBRARY.reduce((a,c)=>a+c.icons.length,0)} ícones</span>
+        <button id="iconpicker-cancel">Cancelar</button>
       </div>
     </div>`;
     document.body.appendChild(ov);
-    ov.querySelectorAll('button[data-icon]').forEach(b => {
-      b.onclick = () => { ov.remove(); resolve(b.dataset.icon); };
+
+    const searchInp = ov.querySelector('#iconpicker-search');
+    const body = ov.querySelector('#iconpicker-body');
+    searchInp.focus();
+    searchInp.oninput = () => {
+      const q = searchInp.value.toLowerCase().trim();
+      if (!q) {
+        body.querySelectorAll('.cat-label, .icon-grid').forEach(el => el.style.display = '');
+        body.querySelectorAll('.icon-btn').forEach(b => b.style.display = '');
+        const empty = body.querySelector('.empty'); if (empty) empty.remove();
+        return;
+      }
+      let matched = 0;
+      body.querySelectorAll('.icon-btn').forEach(b => {
+        const txt = (b.dataset.search || '') + ' ' + (b.dataset.icon || '');
+        const show = txt.toLowerCase().includes(q);
+        b.style.display = show ? '' : 'none';
+        if (show) matched++;
+      });
+      // Esconde categorias vazias
+      body.querySelectorAll('.icon-grid').forEach(g => {
+        const visible = Array.from(g.querySelectorAll('.icon-btn')).some(b => b.style.display !== 'none');
+        g.style.display = visible ? '' : 'none';
+        const label = g.previousElementSibling;
+        if (label && label.classList.contains('cat-label')) label.style.display = visible ? '' : 'none';
+      });
+      let empty = body.querySelector('.empty');
+      if (matched === 0) {
+        if (!empty) {
+          empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.textContent = 'Nenhum ícone com esse termo. Tenta outra palavra (ex: livro, fogo, alvo).';
+          body.appendChild(empty);
+        }
+      } else if (empty) {
+        empty.remove();
+      }
+    };
+    // Atalhos: ESC fecha
+    ov.tabIndex = -1;
+    ov.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { ov.remove(); resolve(null); }
+    });
+    ov.querySelector('#iconpicker-cancel').onclick = () => { ov.remove(); resolve(null); };
+    body.querySelectorAll('.icon-btn').forEach(b => {
+      b.onclick = () => {
+        const icon = b.dataset.icon;
+        _bunkoSaveRecentIcon(icon);
+        ov.remove();
+        resolve(icon);
+      };
     });
   });
   if (!choice) return;
