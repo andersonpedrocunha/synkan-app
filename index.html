@@ -45700,6 +45700,18 @@ async function _lkSetEffect(fxId) {
 
   if (fx.kind === 'none') {
     console.log('[lk-fx] ✓ efeito desligado');
+    // Volta self-view pra mostrar a câmera bruta (já que tinha sido apontado pro canvas)
+    try {
+      const ext = _chatState.extended;
+      const localSid = ext?.lk?.room?.localParticipant?.sid;
+      const mount = localSid ? document.querySelector(`[data-track-mount="${localSid}"]`) : null;
+      const video = mount?.querySelector('video');
+      const mst = track?.mediaStreamTrack;
+      if (video && mst) {
+        video.srcObject = new MediaStream([mst]);
+        video.play?.().catch(()=>{});
+      }
+    } catch(_){}
     return;
   }
 
@@ -45733,6 +45745,21 @@ async function _lkSetEffect(fxId) {
     });
     await track.setProcessor(proc);
     console.log(`[lk-fx] ✓ processor CUSTOM aplicado: ${fx.id}`);
+    // Força self-view a usar o processedTrack — LiveKit publica pro remoto
+    // automaticamente mas o <video> local foi anexado antes e mostra a câmera crua.
+    try {
+      const ext = _chatState.extended;
+      const localSid = ext?.lk?.room?.localParticipant?.sid;
+      const mount = localSid ? document.querySelector(`[data-track-mount="${localSid}"]`) : null;
+      const video = mount?.querySelector('video');
+      if (video && proc.processedTrack) {
+        video.srcObject = new MediaStream([proc.processedTrack]);
+        video.play?.().catch(()=>{});
+        console.log('[lk-fx] self-view atualizado com processedTrack');
+      }
+    } catch(reattachErr) {
+      console.warn('[lk-fx] re-attach self-view falhou:', reattachErr?.message);
+    }
     return;
   } catch(eCustom) {
     console.warn('[lk-fx] custom processor falhou:', eCustom?.message, '— tentando fallback @livekit/track-processors');
