@@ -46413,8 +46413,77 @@ function _bunkoCardHTML(it) {
         ${it.has_transcript ? `<span class="bunko-tag">transcrição</span>` : ''}
       </div>` : ''}
       ${isPage && it.source_kind === 'kan_transcript' ? `<div class="bunko-card-tags"><span class="bunko-tag is-decisions">🧘 Mestre Kan</span></div>` : ''}
+      ${!isPage && (it.status === 'processing' || it.status === 'recording' || it.status === 'failed') ? `<div style="margin-top:8px;"><button onclick="event.stopPropagation(); _bunkoCheckRecording('${_esc(it.id)}')" style="background:rgba(107,72,37,.10);border:1px solid #8B6634;color:#6B4825;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--tatami-mincho,serif);font-style:italic;">↻ Verificar status no LiveKit</button></div>` : ''}
     </div>
   </div>`;
+}
+
+// Consulta status do Egress diretamente na LiveKit Cloud (não depende de webhook)
+async function _bunkoCheckRecording(recordingId) {
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c) return;
+  // Busca o egress_id e session do banco
+  let rec;
+  try {
+    const { data, error } = await c.from('tatame_recordings')
+      .select('id, livekit_egress_id, status, url').eq('id', recordingId).single();
+    if (error) throw error;
+    rec = data;
+  } catch(e) {
+    appAlert('Erro', 'Não consegui buscar a gravação: ' + (e?.message||e), { icon:'⚠️' });
+    return;
+  }
+  if (!rec.livekit_egress_id) {
+    appAlert('Sem Egress ID',
+      'Essa gravação não tem ID do LiveKit (provavelmente falhou antes de iniciar). Pode arquivar/excluir.',
+      { icon:'⚠️' });
+    return;
+  }
+  // Chama edge function /check
+  const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+  const checkUrl = `${cfg?.url}/functions/v1/livekit-recording/check`;
+  let jwt = null;
+  if (typeof _capReadJWTFromStorage === 'function') jwt = _capReadJWTFromStorage();
+  if (!jwt) {
+    try {
+      const { data } = await Promise.race([
+        c.auth.getSession(),
+        new Promise(res => setTimeout(() => res({data:{session:null}}), 2000))
+      ]);
+      jwt = data?.session?.access_token;
+    } catch(_){}
+  }
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Verificando…', 'Consultando status na LiveKit Cloud.', 'info');
+  }
+  try {
+    const r = await fetch(checkUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ egress_id: rec.livekit_egress_id, recording_id: recordingId })
+    });
+    const result = await r.json();
+    if (!r.ok) throw new Error(result.error || `HTTP ${r.status}`);
+    const status = result.status;
+    if (typeof _showKanWarning === 'function') {
+      if (status === 'ready') {
+        _showKanWarning('Gravação pronta ✓',
+          `Status: <strong>${status}</strong>. ${result.duration_sec ? `${Math.round(result.duration_sec/60)} min · ` : ''}${result.size_bytes ? Math.round(result.size_bytes/1024/1024)+' MB' : ''}`,
+          'success');
+      } else if (status === 'failed' || status === 'aborted') {
+        _showKanWarning(`Gravação falhou no LiveKit`,
+          `Status: <strong>${status}</strong>${result.error_msg ? '<br/>Erro: '+_esc(result.error_msg) : ''}<br/><br/>Verifique se os secrets do R2 estão configurados corretamente no Supabase.`,
+          'warning');
+      } else {
+        _showKanWarning('Ainda processando',
+          `Status atual: <strong>${status}</strong>. Tente de novo em alguns minutos.`,
+          'info');
+      }
+    }
+    await _bunkoLoadAll();
+  } catch(e) {
+    appAlert('Erro ao verificar', e?.message || String(e), { icon:'⚠️' });
+  }
 }
 
 function _bunkoSetFilter(f) {
