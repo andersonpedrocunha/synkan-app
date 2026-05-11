@@ -50162,7 +50162,7 @@ async function _kanSendAudioChunk(blob, mimeType) {
           hint = `Detalhe: <code>${_esc(cleanMsg)}</code><br/><br/>Veja logs em <strong>Supabase Dashboard → Edge Functions → kan-transcribe → Logs</strong>.`;
         }
         if (typeof appAlert === 'function') {
-          appAlert(title, hint, { icon:'⚠️' });
+          appAlert(title, hint, { icon:'⚠️', html: true });
         } else if (typeof _showKanWarning === 'function') {
           _showKanWarning(title, hint, 'warning');
         }
