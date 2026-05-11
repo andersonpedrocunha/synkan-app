@@ -46393,6 +46393,14 @@ async function renderBunko() {
           padding: 0;
         }
         .bunko-page-summary-input::placeholder { color: #8B7250; opacity: .85; }
+        .bunko-page-summary-counter {
+          margin-top: 4px; text-align: right;
+          font-size: 10.5px; font-family: var(--tatami-mincho,serif);
+          color: #8B7250; font-style: italic;
+          transition: color .15s;
+        }
+        .bunko-page-summary-counter.is-near { color: #C19A3A; font-weight: 600; }
+        .bunko-page-summary-counter.is-max { color: #BC002D; font-weight: 700; font-style: normal; }
 
         /* Anexos (estilo Notion-ish com cara Synkan) */
         .bunko-attach-section { margin-top: 36px; padding-top: 22px; border-top: 1px dashed rgba(107,72,37,.25); }
@@ -47154,9 +47162,11 @@ async function _bunkoOpenPage(pageId) {
           <button class="bunko-page-summary-kan" onclick="_bunkoSummarizeWithKan('${_esc(pageId)}')" title="Pedir ao Mestre Kan pra resumir a página"><img src="${_LK_KAN_AVATAR}" alt=""/>Resumir com Mestre Kan</button>
         </div>
         <textarea class="bunko-page-summary-input" id="bunko-page-summary-${_esc(pageId)}"
-                  placeholder="Escreva uma linha sobre o que essa página é... (ou peça pro Mestre Kan resumir)"
+                  placeholder="Escreva uma linha sobre o que essa página é... (até 140 caracteres)"
                   rows="2"
-                  oninput="_bunkoOnPageInput('${_esc(pageId)}')">${_esc(page.summary || '')}</textarea>
+                  maxlength="140"
+                  oninput="_bunkoOnPageInput('${_esc(pageId)}'); _bunkoUpdateSummaryCounter('${_esc(pageId)}')">${_esc((page.summary || '').slice(0, 140))}</textarea>
+        <div class="bunko-page-summary-counter" id="bunko-page-summary-counter-${_esc(pageId)}">${(page.summary || '').length}/140</div>
       </div>
       <div class="bunko-page-toolbar">
         <button onclick="_bunkoExec('bold')" title="Bold (Cmd+B)"><b>B</b></button>
@@ -47200,8 +47210,21 @@ async function _bunkoOpenPage(pageId) {
   // Set up auto-save
   const titleInp = document.getElementById('bunko-page-title-'+pageId);
   if (titleInp) titleInp.addEventListener('input', () => _bunkoOnPageInput(pageId));
+  // Inicializa contador do resumo
+  _bunkoUpdateSummaryCounter(pageId);
   // Carrega anexos
   _bunkoLoadFiles(pageId);
+}
+
+// Atualiza contador "X/140" com cor que vira laranja/vermelha perto do limite
+function _bunkoUpdateSummaryCounter(pageId) {
+  const ta = document.getElementById('bunko-page-summary-'+pageId);
+  const counter = document.getElementById('bunko-page-summary-counter-'+pageId);
+  if (!ta || !counter) return;
+  const len = (ta.value || '').length;
+  counter.textContent = `${len}/140`;
+  counter.classList.toggle('is-near', len >= 120 && len < 140);
+  counter.classList.toggle('is-max', len >= 140);
 }
 
 // ── Anexos (Supabase Storage) ───────────────────────────────────────
@@ -47698,7 +47721,8 @@ async function _bunkoSavePage(pageId) {
   const title = titleEl.value || 'Sem título';
   const html = contentEl.innerHTML;
   const text = contentEl.innerText;
-  const summary = summaryEl ? (summaryEl.value || '') : null;
+  // Trunca em 140 chars (caso o user cole algo grande, ou auto-fill)
+  const summary = summaryEl ? (summaryEl.value || '').slice(0, 140) : null;
   const c = await _chatGetClient();
   const statusEl = document.getElementById('bunko-page-savestatus');
   try {
@@ -47783,7 +47807,8 @@ async function _bunkoSummarizeWithKan(pageId) {
     if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
     const summary = (j.summary || '').trim();
     if (!summary) throw new Error('Resumo vazio');
-    summaryEl.value = summary;
+    summaryEl.value = summary.slice(0, 140);
+    _bunkoUpdateSummaryCounter(pageId);
     // Salva imediatamente
     _bunkoOnPageInput(pageId);
     if (typeof _showKanWarning === 'function') {
