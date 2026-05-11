@@ -49685,6 +49685,9 @@ function _lkNotasHTML() {
     </div>` : '';
 
   // Helper: monta o feed de transcrição bruta (reutilizado em empty e populated)
+  // Cada trecho mostra o texto que Whisper ouviu + a explicação do Claude
+  // (campo "reason") pra cada classificação. Útil pra debugar quando Claude
+  // descarta uma frase que parecia ação/decisão clara.
   const renderRawTranscripts = () => {
     if (!isListening || _kanRecentTranscripts.length === 0) return '';
     let f = `<div class="lk-kan-section" style="margin-top:18px;">o que ouvi <span style="opacity:.5;font-weight:400;">· últimos ${_kanRecentTranscripts.length}</span></div>`;
@@ -49696,21 +49699,35 @@ function _lkNotasHTML() {
           <span style="opacity:.6;">${_esc(time)} · </span>${_esc(t.text)}
         </div>`;
       } else {
-        const tagColor = (t.decisions+t.actions) > 0 ? '#5EE6A8' : 'rgba(255,255,255,.4)';
-        const tagText = (t.decisions+t.actions) > 0
+        const promoted = (t.decisions+t.actions) > 0;
+        const tagColor = promoted ? '#5EE6A8' : 'rgba(255,255,255,.45)';
+        const tagText = promoted
           ? `✓ virou ${t.decisions?(t.decisions+' decisão'):''}${t.decisions&&t.actions?' + ':''}${t.actions?(t.actions+' ação'):''}`
-          : 'descartado · sem decisão/ação concreta';
-        f += `<div style="padding:8px 10px;background:rgba(255,255,255,.04);border-left:2px solid rgba(107,93,200,.50);border-radius:0 6px 6px 0;margin-bottom:6px;font-size:12px;line-height:1.45;color:rgba(255,255,255,.85);">
+          : 'descartado pelo Mestre Kan';
+        // Renderiza cada item classificado com seu próprio motivo
+        const perItemHTML = (Array.isArray(t.items) && t.items.length > 0)
+          ? t.items.map(it => {
+              const typeIcon = it.type === 'decision' ? '◆' : (it.type === 'action' ? '⚡' : '·');
+              const typeColor = it.type === 'decision' ? '#FBE7A4' : (it.type === 'action' ? '#5EE6A8' : 'rgba(255,255,255,.4)');
+              const typeLabel = it.type === 'decision' ? 'decisão' : (it.type === 'action' ? 'ação' : 'skip');
+              return `<div style="margin-top:6px;padding:5px 8px;background:rgba(0,0,0,.20);border-radius:5px;font-size:10.5px;line-height:1.45;color:rgba(255,255,255,.7);">
+                <div style="color:${typeColor};font-weight:600;font-family:var(--tatami-mincho,serif);font-style:normal;">${typeIcon} ${typeLabel}: <span style="color:rgba(255,255,255,.85);font-weight:400;font-style:italic;">${_esc(it.content || '')}</span></div>
+                ${it.reason ? `<div style="margin-top:3px;color:rgba(255,255,255,.5);font-family:var(--tatami-mincho,serif);font-style:italic;">↳ ${_esc(it.reason)}</div>` : ''}
+              </div>`;
+            }).join('')
+          : '';
+        f += `<div style="padding:8px 10px;background:rgba(255,255,255,.04);border-left:2px solid rgba(107,93,200,.50);border-radius:0 6px 6px 0;margin-bottom:8px;font-size:12px;line-height:1.45;color:rgba(255,255,255,.85);">
           <div style="font-family:var(--tatami-mincho,serif);font-style:italic;">"${_esc(t.text)}"</div>
           <div style="margin-top:4px;font-size:10px;color:${tagColor};display:flex;justify-content:space-between;gap:8px;">
             <span>${tagText}</span>
             <span style="color:rgba(255,255,255,.35);">${_esc(time)}</span>
           </div>
+          ${perItemHTML}
         </div>`;
       }
     });
     f += `<div style="margin-top:8px;padding:8px 10px;font-size:10.5px;font-family:var(--tatami-mincho,serif);font-style:italic;color:rgba(255,255,255,.45);line-height:1.5;">
-      ✦ Mestre Kan só vira em nota quando ouve <strong>decisão</strong> (escolha, aprovação) ou <strong>ação concreta</strong> (quem faz, prazo). Fala casual ele descarta de propósito.
+      ✦ Mestre Kan vira em nota quando ouve <strong>decisão</strong> (escolha, aprovação) ou <strong>ação concreta</strong> (verbo de fazer + sujeito/prazo). O motivo de cada classificação aparece abaixo de cada trecho.
     </div>`;
     return f;
   };
@@ -50341,6 +50358,8 @@ async function _kanSendAudioChunk(blob, mimeType) {
         chars: j.transcribed,
         decisions: j.decisions || 0,
         actions: j.actions || 0,
+        // classified_items vem do backend com { type, content, reason } por item
+        items: Array.isArray(j.classified_items) ? j.classified_items : [],
         at: Date.now(),
       });
       // Mantém só os últimos 8
