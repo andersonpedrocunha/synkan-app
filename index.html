@@ -44730,6 +44730,8 @@ async function _lkStart() {
       if (typeof _kanMicStream !== 'undefined' && _kanMicStream) {
         try { _kanMicStream.getTracks().forEach(t => t.stop()); } catch(_){}
       }
+      // Para o stream raiz do preMicStream (caso ainda esteja guardado)
+      try { ext?.lk?._preStream?.getTracks().forEach(t => t.stop()); } catch(_){}
     } catch(_){}
   };
   window.addEventListener('beforeunload', beforeUnloadHandler);
@@ -44762,6 +44764,10 @@ async function _lkStart() {
         if (audioTrack) pubs.push(room.localParticipant.publishTrack(audioTrack));
         if (videoTrack) pubs.push(room.localParticipant.publishTrack(videoTrack));
         await Promise.all(pubs);
+        // GUARDA referência do stream original — setCameraEnabled(false) só
+        // unpublica, NÃO chama .stop() em tracks criadas externamente. Sem isso
+        // a LED da webcam fica acesa pra sempre depois de sair do tatame.
+        ext.lk._preStream = preMicStream;
         console.log('[lk] ✓ tracks pré-obtidas publicadas (zero delay)');
       } else {
         // Fallback: pede via SDK
@@ -49961,7 +49967,19 @@ function _lkRenderControls() {
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="0.8" fill="currentColor"/><circle cx="15" cy="10" r="0.8" fill="currentColor"/><path d="M8 14 q 4 4 8 0"/></svg>
     </button>
     <button type="button" class="lk-ctrl ${_lkGetCurrentEffect()!=='none'?'is-active':''}" onclick="_lkOpenEffectsModal()" title="Efeitos de câmera">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 3.2 Q 16.5 5.8 13.5 9 Q 10.5 12 8.6 14.4" stroke-width="1.9"/><path d="M19.7 4.6 Q 16.4 6.8 13.6 9.6 Q 11 12.4 9.4 14.4" stroke-width="0.5" opacity="0.5"/><circle cx="20.7" cy="3.2" r="1" fill="currentColor" stroke="none"/><circle cx="20.7" cy="3.2" r="2.2" fill="currentColor" stroke="none" opacity="0.18"/><path d="M8.6 14.4 L 7.5 15.5" stroke-width="2.2"/><circle cx="6.6" cy="16.4" r="1.5" stroke-width="1.3" fill="currentColor" fill-opacity="0.15"/><circle cx="6.6" cy="16.4" r="0.45" fill="currentColor" stroke="none"/><path d="M5.6 17.4 L 2.6 20.4" stroke-width="2.6"/><path d="M5 18 L 5.3 18.3 M 4.4 18.6 L 4.7 18.9 M 3.8 19.2 L 4.1 19.5" stroke-width="0.55" opacity="0.75"/><circle cx="2.3" cy="20.7" r="0.75" fill="currentColor" stroke="none"/><g stroke="none"><path d="M22 7 L 22.35 8.05 L 23.4 8.4 L 22.35 8.75 L 22 9.8 L 21.65 8.75 L 20.6 8.4 L 21.65 8.05 Z" fill="currentColor" opacity="0.9"/><path d="M16.2 2.4 L 16.45 3.15 L 17.2 3.4 L 16.45 3.65 L 16.2 4.4 L 15.95 3.65 L 15.2 3.4 L 15.95 3.15 Z" fill="currentColor" opacity="0.95"/><path d="M11.4 4.6 L 11.55 5.05 L 12 5.2 L 11.55 5.35 L 11.4 5.8 L 11.25 5.35 L 10.8 5.2 L 11.25 5.05 Z" fill="currentColor" opacity="0.85"/><circle cx="14" cy="7.2" r="0.32" fill="currentColor" opacity="0.65"/><circle cx="18.3" cy="10.5" r="0.28" fill="currentColor" opacity="0.55"/><circle cx="9.5" cy="11.8" r="0.22" fill="currentColor" opacity="0.45"/></g></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <!-- lâmina da katana (top-right → centro) -->
+        <line x1="20" y1="4" x2="11" y2="13" stroke-width="2"/>
+        <!-- tsuba (guarda perpendicular) -->
+        <line x1="9.5" y1="11.5" x2="13" y2="15" stroke-width="1.6"/>
+        <!-- cabo (tsuka, mais grosso) -->
+        <line x1="11" y1="13" x2="6.5" y2="17.5" stroke-width="2.6"/>
+        <!-- brilho grande na ponta -->
+        <path d="M21 2 L 21.6 4 L 23.5 4.5 L 21.6 5 L 21 7 L 20.4 5 L 18.5 4.5 L 20.4 4 Z" fill="currentColor" stroke="none"/>
+        <!-- brilhinhos flutuando -->
+        <circle cx="16" cy="8" r="0.9" fill="currentColor" stroke="none" opacity="0.75"/>
+        <circle cx="6" cy="9" r="0.7" fill="currentColor" stroke="none" opacity="0.55"/>
+      </svg>
     </button>
     <button type="button" class="lk-ctrl lk-ctrl-rec ${ext.lk.recording?'is-recording':''}" onclick="_lkToggleRecording()" title="${ext.lk.recording?'Parar gravação':'Iniciar gravação'}">
       ${ext.lk.recording
@@ -50487,6 +50505,19 @@ async function _lkLeave() {
       }).catch(()=>{});
     } catch(_){}
   }
+
+  // 3a) CAUSA RAIZ: stream criado externamente via getUserMedia (preMicStream)
+  //     LiveKit publica essas tracks mas NÃO as fecha em setCameraEnabled(false)
+  //     porque não foi quem criou. Sem parar essas tracks aqui, LED fica aceso.
+  try {
+    if (ext.lk._preStream) {
+      ext.lk._preStream.getTracks().forEach(t => {
+        try { if (t.readyState !== 'ended') t.stop(); } catch(_){}
+      });
+      console.log('[lk-leave] preMicStream tracks paradas');
+      ext.lk._preStream = null;
+    }
+  } catch(e) { console.warn('[lk-leave] preStream:', e); }
 
   // 3) Para track processor + DESLIGA câmera/mic e libera devices (CRÍTICO — sem
   //    isso o LED da webcam fica aceso, navegador acha que ainda tá em call).
