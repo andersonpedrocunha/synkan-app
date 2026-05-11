@@ -46441,8 +46441,8 @@ async function renderBunko() {
           <input type="text" class="bunko-search" id="bunko-search-input" placeholder="🔎 Buscar pasta, página, gravação..." oninput="_bunkoOnSearchInput(this.value)"/>
           <div class="bunko-filter-tabs">
             <button class="bunko-filter-tab is-active" data-filter="active" onclick="_bunkoSetFilter('active')">Ativos</button>
-            <button class="bunko-filter-tab" data-filter="archived" onclick="_bunkoSetFilter('archived')">📦</button>
-            <button class="bunko-filter-tab" data-filter="trash" onclick="_bunkoSetFilter('trash')">🗑</button>
+            <button class="bunko-filter-tab" data-filter="archived" onclick="_bunkoSetFilter('archived')" title="Arquivados">🗄</button>
+            <button class="bunko-filter-tab" data-filter="trash" onclick="_bunkoSetFilter('trash')" title="Lixeira">🗑</button>
           </div>
           <div class="bunko-folder-actions">
             <button onclick="_bunkoCreateFolder(null)">+ Pasta</button>
@@ -46462,7 +46462,7 @@ async function renderBunko() {
                 </div>
                 <button class="bunko-btn" onclick="_bunkoCreatePage(_bunkoState.currentFolderId)">+ Nova página</button>
                 <button class="bunko-btn" onclick="_bunkoCreateFolder(_bunkoState.currentFolderId)">+ Nova subpasta</button>
-                <button class="bunko-btn" id="bunko-btn-download-zip" onclick="_bunkoDownloadFolderZip(_bunkoState.currentFolderId)" title="Baixar todos arquivos da pasta atual zipados">📦 Baixar (.zip)</button>
+                <button class="bunko-btn" id="bunko-btn-download-zip" onclick="_bunkoDownloadFolderZip(_bunkoState.currentFolderId)" title="Baixar todos arquivos da pasta atual zipados">🗜 Baixar (.zip)</button>
                 <button class="bunko-btn is-danger" onclick="_bunkoCleanupStale()" title="Limpar gravações presas">↺ Limpar</button>
               </div>
             </div>
@@ -46642,7 +46642,7 @@ function _bunkoRenderItems() {
     const isTrash = _bunkoState.filter === 'trash';
     const isArchived = _bunkoState.filter === 'archived';
     el.innerHTML = `<div class="bunko-empty">
-      <div class="bunko-empty-ic">${isTrash ? '🗑' : isArchived ? '📦' : '📁'}</div>
+      <div class="bunko-empty-ic">${isTrash ? '🗑' : isArchived ? '🗄' : '📁'}</div>
       <h3>${isTrash ? 'Lixeira vazia' : isArchived ? 'Sem itens arquivados' : 'Nada por aqui ainda'}</h3>
       <p>${isTrash ? 'Itens deletados aparecem aqui (recuperáveis).' : isArchived ? 'Você pode arquivar itens pra tirar da vista sem deletar.' : 'Crie uma pasta, página, grave uma chamada no Tatami, ou arraste arquivos aqui.'}</p>
       ${!isTrash && !isArchived ? `<div style="display:flex;gap:10px;justify-content:center;">
@@ -46973,7 +46973,7 @@ function _bunkoItemMenu(evt, kind, itemId, title) {
     <button onclick="_bunkoClosePopover(); _bunkoMoveItemPrompt('${kind}', '${_esc(itemId)}')">📂 Mover pra...</button>
     ${kind==='page' ? `<button onclick="_bunkoClosePopover(); _bunkoExportPageDocx('${_esc(itemId)}')">💾 Baixar Word</button>` : ''}
     <div class="divider"></div>
-    <button onclick="_bunkoClosePopover(); _bunkoArchiveItem('${kind}', '${_esc(itemId)}', ${!archived})">${archived?'↺ Desarquivar':'📦 Arquivar'}</button>
+    <button onclick="_bunkoClosePopover(); _bunkoArchiveItem('${kind}', '${_esc(itemId)}', ${!archived})">${archived?'↺ Desarquivar':'🗄 Arquivar'}</button>
     <button class="is-danger" onclick="_bunkoClosePopover(); _bunkoDeleteItem('${kind}', '${_esc(itemId)}')">🗑 Excluir</button>`;
   _bunkoShowPopover(pop, evt);
 }
@@ -47437,7 +47437,7 @@ async function _bunkoDownloadFolderZip(folderId) {
   if (!files.length) {
     appAlert('Pasta vazia',
       'Nenhum arquivo nessa pasta pra baixar. Adicione anexos primeiro (arraste arquivos pra cá ou cole em uma página).',
-      { icon:'📦' });
+      { icon:'🗜' });
     return;
   }
 
