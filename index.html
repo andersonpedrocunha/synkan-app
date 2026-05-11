@@ -32524,6 +32524,10 @@ async function _synMoveDealToStage(dealId, newStageId) {
       _synActivities = [...ar.data, ..._synActivities.filter(a => !ids.has(a.id))];
     }
   } catch(_){}
+  // Trigger cross-módulo: won → cria card no Zai
+  if (r.data?.status === 'won') {
+    try { await _synOnDealWon(r.data); } catch(e) { console.warn('[syn] won hook:', e?.message); }
+  }
   return r.data;
 }
 
@@ -32562,6 +32566,196 @@ async function _synDeleteActivity(actId) {
   if (error) { console.warn('[syn] delete activity:', error.message); return false; }
   _synActivities = _synActivities.filter(a => a.id !== actId);
   return true;
+}
+
+// ── Multi-contato por deal ───────────────────────────────────────────
+let _synDealContacts = {}; // dealId → [{ contact_id, role, is_primary, contact_name, ... }]
+
+async function _synLoadDealContacts(dealId) {
+  try {
+    const c = await _synGetClient(); if (!c) return [];
+    // Usa view pra já vir com nome do contato
+    const r = await c.from('synconnect_deal_contacts_view').select('*').eq('deal_id', dealId);
+    if (r.error) { console.warn('[syn] load deal contacts:', r.error.message); return []; }
+    _synDealContacts[dealId] = r.data || [];
+    return r.data;
+  } catch(e) { console.warn('[syn] load deal contacts ex:', e?.message); return []; }
+}
+
+async function _synAddDealContact(dealId, contactId, role) {
+  try {
+    const c = await _synGetClient(); if (!c) return false;
+    const { data: { user } } = await c.auth.getUser(); if (!user) return false;
+    const r = await c.from('synconnect_deal_contacts').upsert({
+      deal_id: dealId, contact_id: contactId, user_id: user.id, role: role || null,
+    }, { onConflict: 'deal_id,contact_id' });
+    if (r.error) { console.warn('[syn] add deal contact:', r.error.message); return false; }
+    await _synLoadDealContacts(dealId);
+    return true;
+  } catch(e) { console.warn('[syn] add deal contact ex:', e?.message); return false; }
+}
+
+async function _synRemoveDealContact(dealId, contactId) {
+  try {
+    const c = await _synGetClient(); if (!c) return false;
+    const r = await c.from('synconnect_deal_contacts').delete().eq('deal_id', dealId).eq('contact_id', contactId);
+    if (r.error) { console.warn('[syn] rm deal contact:', r.error.message); return false; }
+    await _synLoadDealContacts(dealId);
+    return true;
+  } catch(e) { console.warn('[syn] rm deal contact ex:', e?.message); return false; }
+}
+
+// ── Bunko pages vinculadas a deal/contact ────────────────────────────
+async function _synGetLinkedBunkoPages(opts) {
+  try {
+    const c = await _synGetClient(); if (!c) return [];
+    let q = c.from('bunko_pages').select('id,title,icon,summary,updated_at,synconnect_deal_id,synconnect_contact_id').is('deleted_at', null);
+    if (opts.deal_id)    q = q.eq('synconnect_deal_id', opts.deal_id);
+    if (opts.contact_id) q = q.eq('synconnect_contact_id', opts.contact_id);
+    const r = await q.order('updated_at', { ascending: false }).limit(20);
+    if (r.error) { console.warn('[syn] linked pages:', r.error.message); return []; }
+    return r.data || [];
+  } catch(e) { console.warn('[syn] linked pages ex:', e?.message); return []; }
+}
+
+async function _synLinkBunkoPage(pageId, opts) {
+  try {
+    const c = await _synGetClient(); if (!c) return false;
+    const { error } = await c.rpc('bunko_link_to_synconnect', {
+      p_page_id: pageId,
+      p_deal_id: opts.deal_id || null,
+      p_contact_id: opts.contact_id || null,
+    });
+    if (error) { console.warn('[syn] link bunko:', error.message); return false; }
+    // Refresh activities (a RPC já inseriu uma)
+    const ar = await c.from('synconnect_activities').select('*').order('occurred_at', { ascending: false }).limit(50);
+    if (ar.data) _synActivities = ar.data;
+    return true;
+  } catch(e) { console.warn('[syn] link bunko ex:', e?.message); return false; }
+}
+
+// ── Cards do Kanban vinculados a deal (cards são localStorage) ──────
+// Cada card tem campo `synconnect_deal_id` quando criado via "Criar card" no modal.
+function _synFindCardsForDeal(dealId) {
+  const out = [];
+  try {
+    if (typeof allBoards !== 'object' || !allBoards) return out;
+    Object.entries(allBoards).forEach(([boardId, board]) => {
+      if (!board?.cards) return;
+      board.cards.forEach(card => {
+        if (card.synconnect_deal_id === dealId) {
+          out.push({ ...card, _boardId: boardId, _boardName: board.name || board.title || boardId });
+        }
+      });
+    });
+  } catch(_){}
+  return out;
+}
+
+// Cria card a partir de um deal num board específico (Zai ou regular)
+function _synCreateCardFromDeal(deal, boardId, opts) {
+  opts = opts || {};
+  try {
+    if (typeof allBoards !== 'object' || !allBoards[boardId]) {
+      alert('Board não encontrado.');
+      return null;
+    }
+    const board = allBoards[boardId];
+    if (!Array.isArray(board.cards)) board.cards = [];
+    // Identifica coluna alvo: "A fazer" / "Backlog" / primeira coluna
+    const cols = board.columns || board.cols || [];
+    const firstCol = (cols.find(c => /a fazer|backlog|to ?do|prospect/i.test(c.title||c.name||'')) || cols[0]);
+    const colId = firstCol?.id || cols[0]?.id || 'col-0';
+    const contact = _synContactById(deal.contact_id);
+    const stage = _synStageById(deal.stage_id);
+    const id = Date.now() * 1000 + Math.floor(Math.random()*999);
+    const card = {
+      id,
+      title: opts.title || `[Deal] ${deal.title}${contact ? ' · ' + contact.name : ''}`,
+      description: [
+        opts.note || '',
+        `\n— Vinculado ao Synconnect`,
+        deal.value_cents ? `Valor: ${_synFmtMoney(deal.value_cents)}` : '',
+        stage ? `Estágio: ${stage.name}` : '',
+        contact ? `Contato: ${contact.name}${contact.email ? ' · ' + contact.email : ''}` : '',
+        deal.expected_close_at ? `Fechamento previsto: ${_synFmtDate(deal.expected_close_at)}` : '',
+      ].filter(Boolean).join('\n'),
+      column: colId,
+      synconnect_deal_id: deal.id,
+      synconnect_contact_id: deal.contact_id || null,
+      priority: opts.priority || 'media',
+      deadline: deal.follow_up_at ? deal.follow_up_at.slice(0,10) : (deal.expected_close_at || null),
+      createdAt: new Date().toISOString(),
+    };
+    board.cards.push(card);
+    if (typeof persistAllBoards === 'function') persistAllBoards();
+    else if (typeof persistBoard === 'function') persistBoard(boardId);
+    // Log activity
+    _synLogActivity({
+      deal_id: deal.id, contact_id: deal.contact_id,
+      kind: 'note', title: 'Card criado no board',
+      body: `Board "${board.name||boardId}" · Card "${card.title}"`,
+      meta: { board_id: boardId, card_id: id },
+    });
+    return { card, boardId };
+  } catch(e) { console.warn('[syn] create card ex:', e?.message); return null; }
+}
+
+// Quando deal vira 'won', cria automaticamente um card de receita no board Zai (se existir)
+async function _synOnDealWon(deal) {
+  try {
+    if (deal.status !== 'won' || !(deal.value_cents > 0)) return;
+    // Acha primeiro board Zai do user
+    if (typeof allBoards !== 'object' || !allBoards) return;
+    const zaiBoardEntry = Object.entries(allBoards).find(([_id, b]) => b && (b.zai === true || b.template === 'zai' || /zai/i.test(b.name||b.title||'')));
+    if (!zaiBoardEntry) {
+      console.log('[syn] won: nenhum board Zai pra criar lançamento');
+      return;
+    }
+    const [zaiBoardId, zaiBoard] = zaiBoardEntry;
+    // Evita criar duplicado se já existe card pra esse deal nesse board
+    if ((zaiBoard.cards || []).some(c => c.synconnect_deal_id === deal.id)) return;
+    const contact = _synContactById(deal.contact_id);
+    _synCreateCardFromDeal(deal, zaiBoardId, {
+      title: `💰 Receber: ${deal.title}${contact ? ' · ' + contact.name : ''}`,
+      note: `Deal fechado · ${_synFmtMoney(deal.value_cents)}`,
+      priority: 'alta',
+    });
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Lançamento criado no Zai ✓',
+        `Receita "${deal.title}" (${_synFmtMoney(deal.value_cents)}) adicionada ao board <strong>${_esc(zaiBoard.name||zaiBoardId)}</strong>.`,
+        'success');
+    }
+  } catch(e) { console.warn('[syn] on deal won ex:', e?.message); }
+}
+
+// ── Tatame mention detector: varre transcrição e cria activity ───────
+// Chamado após cada chunk transcrito com sucesso. Lookahead simples por nome.
+function _synScanTatameForMentions(transcribedText, sessionId) {
+  if (!transcribedText || _contacts.length === 0) return;
+  const text = transcribedText.toLowerCase();
+  const matched = new Set(); // ids já marcados nesse chunk
+  for (const contact of _contacts) {
+    if (!contact.name || matched.has(contact.id)) continue;
+    // Pega primeiro nome (palavra com 4+ chars) + nome completo
+    const fullName = contact.name.trim().toLowerCase();
+    const firstName = fullName.split(/\s+/)[0];
+    if (firstName.length < 4) continue; // muito curto = ambíguo (João, Ana são OK; Léo, Edu = ambíguo)
+    // Word-boundary match
+    const fullRe  = new RegExp(`\\b${fullName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`, 'i');
+    const firstRe = new RegExp(`\\b${firstName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`, 'i');
+    if (fullRe.test(text) || firstRe.test(text)) {
+      matched.add(contact.id);
+      _synLogActivity({
+        contact_id: contact.id,
+        kind: 'tatame_mention',
+        title: 'Mencionado em reunião',
+        body: transcribedText.slice(0, 400),
+        meta: { session_id: sessionId || null, matched_name: firstName },
+      });
+      console.log('[syn] tatame mention:', contact.name);
+    }
+  }
 }
 
 // Helpers de formatação
@@ -32840,7 +33034,29 @@ async function _synOpenDealModal(dealId, presetStageId) {
           <label>Notas</label>
           <textarea id="syn-d-notes" placeholder="Histórico, observações, próximos passos…">${_esc(deal?.notes || '')}</textarea>
         </div>
-        ${isEdit ? `<div style="margin-top:6px;border-top:0.5px dashed var(--color-border-tertiary);padding-top:12px;">
+        ${isEdit ? `
+        <div style="margin-top:6px;border-top:0.5px dashed var(--color-border-tertiary);padding-top:14px;">
+          <!-- Multi-contato -->
+          <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Pessoas envolvidas <span style="font-weight:400;opacity:.65;text-transform:none;letter-spacing:0;">· quem mais participa desse deal</span></div>
+          <div id="syn-d-contacts"></div>
+        </div>
+
+        <div style="margin-top:14px;border-top:0.5px dashed var(--color-border-tertiary);padding-top:14px;">
+          <!-- Cards do Kanban vinculados -->
+          <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+            <span>Cards no Kanban</span>
+            <button class="syn-btn-secondary" style="font-size:11px;padding:4px 9px;" onclick="_synOpenCreateCardPicker('${_esc(deal.id)}')">+ Criar card</button>
+          </div>
+          <div id="syn-d-cards"></div>
+        </div>
+
+        <div style="margin-top:14px;border-top:0.5px dashed var(--color-border-tertiary);padding-top:14px;">
+          <!-- Bunko pages vinculadas -->
+          <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Páginas do Bunko Box <span style="font-weight:400;opacity:.65;text-transform:none;letter-spacing:0;">· contratos, propostas, transcrições</span></div>
+          <div id="syn-d-pages"></div>
+        </div>
+
+        <div style="margin-top:14px;border-top:0.5px dashed var(--color-border-tertiary);padding-top:14px;">
           <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Timeline</div>
           <div id="syn-d-timeline"></div>
           <div style="margin-top:10px;display:flex;gap:6px;">
@@ -32866,8 +33082,159 @@ async function _synOpenDealModal(dealId, presetStageId) {
     </div>`;
   ov.classList.add('is-open');
   ov.onclick = (e) => { if (e.target === ov) _synCloseDealModal(); };
-  if (isEdit) _synRenderDealTimeline(deal.id);
+  if (isEdit) {
+    _synRenderDealTimeline(deal.id);
+    _synRenderDealContacts(deal.id);
+    _synRenderDealCards(deal.id);
+    _synRenderDealPages(deal.id);
+  }
   setTimeout(() => document.getElementById('syn-d-title')?.focus(), 50);
+}
+
+// ── Renderiza seção multi-contato no modal ──────────────────────────
+async function _synRenderDealContacts(dealId) {
+  const el = document.getElementById('syn-d-contacts'); if (!el) return;
+  el.innerHTML = '<div style="font-size:12px;color:var(--color-text-tertiary);">Carregando…</div>';
+  const list = await _synLoadDealContacts(dealId);
+  const others = _contacts.filter(c => !list.some(dc => dc.contact_id === c.id));
+  const roleOptions = ['principal','decisor','financeiro','técnico','indicação','comprador','outros'];
+  el.innerHTML = `
+    ${list.length === 0 ? '<div style="font-size:12px;color:var(--color-text-tertiary);font-style:italic;margin-bottom:8px;">Nenhuma pessoa vinculada além do contato principal.</div>' : ''}
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;">
+      ${list.map(dc => {
+        const c = _synContactById(dc.contact_id);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--color-background-secondary);border-radius:7px;font-size:12.5px;">
+          <span style="flex:1;"><strong>${_esc(dc.contact_name||c?.name||'?')}</strong> ${dc.is_primary?'<span style="background:#3B6D11;color:#fff;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px;">principal</span>':''}
+          ${dc.role && !dc.is_primary ? `<span style="font-size:11px;color:var(--color-text-tertiary);margin-left:4px;">${_esc(dc.role)}</span>`:''}
+          ${dc.email||c?.email?`<div style="font-size:11px;color:var(--color-text-tertiary);">${_esc(dc.email||c.email)}</div>`:''}</span>
+          ${!dc.is_primary ? `<button class="syn-btn-secondary" style="font-size:10px;padding:3px 8px;" onclick="_synRemoveDealContact('${_esc(dealId)}','${_esc(dc.contact_id)}').then(()=>_synRenderDealContacts('${_esc(dealId)}'))">remover</button>` : '' }
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <select id="syn-d-addcontact" style="flex:1;border:0.5px solid var(--color-border-secondary);border-radius:7px;padding:7px 10px;font-size:12.5px;font-family:inherit;background:var(--color-background-primary);">
+        <option value="">+ Adicionar pessoa…</option>
+        ${others.map(c => `<option value="${_esc(c.id)}">${_esc(c.name)}${c.email?` · ${_esc(c.email)}`:''}</option>`).join('')}
+      </select>
+      <select id="syn-d-addrole" style="border:0.5px solid var(--color-border-secondary);border-radius:7px;padding:7px 8px;font-size:12px;font-family:inherit;background:var(--color-background-primary);">
+        ${roleOptions.filter(r=>r!=='principal').map(r => `<option value="${r}">${r}</option>`).join('')}
+      </select>
+      <button class="syn-btn-secondary" onclick="(async()=>{const id=document.getElementById('syn-d-addcontact').value;const role=document.getElementById('syn-d-addrole').value;if(id){await _synAddDealContact('${_esc(dealId)}',id,role);_synRenderDealContacts('${_esc(dealId)}');}})()">+</button>
+    </div>
+  `;
+}
+
+// ── Renderiza cards do Kanban vinculados ────────────────────────────
+function _synRenderDealCards(dealId) {
+  const el = document.getElementById('syn-d-cards'); if (!el) return;
+  const cards = _synFindCardsForDeal(dealId);
+  if (cards.length === 0) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--color-text-tertiary);font-style:italic;">Nenhum card criado ainda. Clica em "+ Criar card" pra spawn um task no Kanban.</div>';
+    return;
+  }
+  el.innerHTML = `<div style="display:flex;flex-direction:column;gap:4px;">
+    ${cards.map(card => `<div style="display:flex;gap:8px;padding:7px 10px;background:var(--color-background-secondary);border-radius:7px;font-size:12.5px;cursor:pointer;" onclick="_synOpenCardFromDeal('${_esc(card._boardId)}',${card.id})">
+      <span style="flex:1;"><strong>${_esc(card.title)}</strong>${card.deadline?`<div style="font-size:11px;color:var(--color-text-tertiary);">📅 ${_esc(card.deadline)}</div>`:''}</span>
+      <span style="font-size:11px;color:var(--color-text-tertiary);align-self:center;">${_esc(card._boardName)}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
+function _synOpenCardFromDeal(boardId, cardId) {
+  // Fecha o modal do deal e tenta abrir o board+card
+  _synCloseDealModal();
+  try {
+    if (typeof switchTab === 'function') switchTab('kanban');
+    if (typeof switchToBoard === 'function') switchToBoard(boardId);
+    setTimeout(() => {
+      if (typeof openCardModal === 'function') openCardModal(cardId);
+    }, 100);
+  } catch(e) { console.warn('open card from deal:', e); }
+}
+
+// ── Renderiza páginas do Bunko vinculadas ───────────────────────────
+async function _synRenderDealPages(dealId) {
+  const el = document.getElementById('syn-d-pages'); if (!el) return;
+  el.innerHTML = '<div style="font-size:12px;color:var(--color-text-tertiary);">Carregando…</div>';
+  const pages = await _synGetLinkedBunkoPages({ deal_id: dealId });
+  if (pages.length === 0) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--color-text-tertiary);font-style:italic;">Nenhuma página vinculada. Você pode anexar de dentro de qualquer página no Bunko (botão "🔗 Vincular ao Synconnect").</div>`;
+    return;
+  }
+  el.innerHTML = `<div style="display:flex;flex-direction:column;gap:4px;">
+    ${pages.map(p => `<div style="display:flex;gap:8px;padding:7px 10px;background:var(--color-background-secondary);border-radius:7px;font-size:12.5px;cursor:pointer;" onclick="_synOpenBunkoPage('${_esc(p.id)}')">
+      <span style="font-size:14px;">${_esc(p.icon||'📄')}</span>
+      <span style="flex:1;"><strong>${_esc(p.title)}</strong>${p.summary?`<div style="font-size:11px;color:var(--color-text-tertiary);">${_esc((p.summary||'').slice(0,80))}${(p.summary||'').length>80?'…':''}</div>`:''}</span>
+      <span style="font-size:10px;color:var(--color-text-tertiary);align-self:center;font-variant-numeric:tabular-nums;">${_synFmtDate(p.updated_at)}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
+function _synOpenBunkoPage(pageId) {
+  _synCloseDealModal();
+  try {
+    if (typeof switchTab === 'function') switchTab('bunko');
+    setTimeout(() => {
+      if (typeof _bunkoOpenPage === 'function') _bunkoOpenPage(pageId);
+    }, 100);
+  } catch(e) { console.warn('open bunko page:', e); }
+}
+
+// ── Picker pra criar card no Kanban a partir do deal ────────────────
+async function _synOpenCreateCardPicker(dealId) {
+  const deal = _synDeals.find(d => d.id === dealId); if (!deal) return;
+  if (typeof allBoards !== 'object' || !allBoards) { alert('Boards não carregados.'); return; }
+  const boards = Object.entries(allBoards).map(([id,b]) => ({ id, name: b?.name || b?.title || id }));
+  if (boards.length === 0) { alert('Você não tem nenhum board criado ainda.'); return; }
+  // Modal de picker
+  let ov = document.getElementById('syn-card-picker');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'syn-card-picker';
+    ov.className = 'syn-modal-ov';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div class="syn-modal" onclick="event.stopPropagation()">
+      <div class="syn-modal-h"><h3>Criar card no Kanban</h3><button class="syn-modal-x" onclick="this.closest('.syn-modal-ov').classList.remove('is-open')">×</button></div>
+      <div class="syn-modal-body">
+        <div class="syn-field">
+          <label>Em qual board?</label>
+          <select id="syn-pick-board">
+            ${boards.map(b => `<option value="${_esc(b.id)}">${_esc(b.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="syn-field">
+          <label>Título do card</label>
+          <input id="syn-pick-title" type="text" value="[Deal] ${_esc(deal.title)}" />
+        </div>
+        <div class="syn-field">
+          <label>Nota inicial (opcional)</label>
+          <textarea id="syn-pick-note" placeholder="Próximos passos, instruções pra equipe…"></textarea>
+        </div>
+      </div>
+      <div class="syn-modal-f">
+        <button class="syn-btn-secondary" onclick="this.closest('.syn-modal-ov').classList.remove('is-open')">Cancelar</button>
+        <button class="syn-btn-primary" onclick="_synSubmitCreateCard('${_esc(dealId)}')">Criar</button>
+      </div>
+    </div>`;
+  ov.classList.add('is-open');
+}
+
+function _synSubmitCreateCard(dealId) {
+  const deal = _synDeals.find(d => d.id === dealId); if (!deal) return;
+  const boardId = document.getElementById('syn-pick-board').value;
+  const title = document.getElementById('syn-pick-title').value;
+  const note  = document.getElementById('syn-pick-note').value;
+  const result = _synCreateCardFromDeal(deal, boardId, { title, note });
+  if (result) {
+    document.getElementById('syn-card-picker').classList.remove('is-open');
+    _synRenderDealCards(dealId);
+    _synRenderDealTimeline(dealId);
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Card criado ✓', `<strong>${_esc(title)}</strong> adicionado ao board.`, 'success');
+    }
+  }
 }
 
 function _synCloseDealModal() {
@@ -49432,10 +49799,12 @@ async function _bunkoOpenPage(pageId) {
         <button onclick="_bunkoInsertLink()" title="Link">🔗</button>
         <button onclick="_bunkoInsertWikilinkHint('${_esc(pageId)}')" title="Vincular outra página (Wikilink) — digite [[ no editor" style="font-family:Menlo,monospace;">[[…]]</button>
         <button onclick="_bunkoExtractActionsPrompt('${_esc(pageId)}')" title="Mestre Kan extrai ações pra cards" class="bunko-btn" style="padding:4px 10px;background:linear-gradient(135deg,rgba(188,0,45,.10) 0%,rgba(107,93,200,.10) 100%);border-color:rgba(188,0,45,.40);">🧘 Ações</button>
+        <button onclick="_bunkoOpenSynconnectLinker('${_esc(pageId)}')" title="Vincular esta página a um deal ou contato do Synconnect" class="bunko-btn" style="padding:4px 10px;background:linear-gradient(135deg,rgba(59,109,17,.10) 0%,rgba(127,119,221,.10) 100%);border-color:rgba(59,109,17,.40);">🔗 Synconnect</button>
         <button onclick="_bunkoExportPageDocx('${_esc(pageId)}')" title="Baixar Word" class="bunko-btn" style="padding:4px 10px;">💾 Word</button>
         <button onclick="_bunkoSharePagePrompt('${_esc(pageId)}')" title="Compartilhar via link público" class="bunko-btn" style="padding:4px 10px;">🔗 Link</button>
         <span class="bunko-page-savestatus" id="bunko-page-savestatus">Salvo</span>
       </div>
+      <div id="bunko-synconnect-badge-${_esc(pageId)}"></div>
       <div class="bunko-page-content" id="bunko-page-content-${_esc(pageId)}"
            contenteditable="true"
            oninput="_bunkoOnPageInput('${_esc(pageId)}'); _bunkoOnEditorInput(event, '${_esc(pageId)}')"
@@ -49466,6 +49835,109 @@ async function _bunkoOpenPage(pageId) {
   _bunkoLoadFiles(pageId);
   // Carrega índice de páginas pro autocomplete de wikilinks (background)
   _bunkoLoadPagesIndex();
+  // Badge de vínculo com Synconnect (deal/contato)
+  if (page.synconnect_deal_id || page.synconnect_contact_id) {
+    if (typeof _synInitCloud === 'function') _synInitCloud().then(() => {
+      _bunkoRenderSynconnectBadge(pageId, page.synconnect_deal_id, page.synconnect_contact_id);
+    });
+  }
+}
+
+// ── Vincular página do Bunko a deal/contato do Synconnect ────────────
+async function _bunkoOpenSynconnectLinker(pageId) {
+  // Garante CRM carregado
+  if (typeof _synInitCloud === 'function') await _synInitCloud();
+  const c = await _synGetClient();
+  if (!c) { alert('Supabase não disponível.'); return; }
+  // Lê estado atual da página
+  const r = await c.from('bunko_pages').select('id,title,synconnect_deal_id,synconnect_contact_id').eq('id', pageId).single();
+  if (r.error) { alert('Não consegui carregar a página: ' + r.error.message); return; }
+  const page = r.data;
+  const deals = (_synDeals || []).filter(d => d.status === 'open').sort((a,b) => (a.title||'').localeCompare(b.title||''));
+  const contacts = (_contacts || []).slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
+  let ov = document.getElementById('bunko-syn-linker');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'bunko-syn-linker';
+    ov.className = 'syn-modal-ov';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div class="syn-modal" onclick="event.stopPropagation()">
+      <div class="syn-modal-h">
+        <h3>Vincular ao Synconnect</h3>
+        <button class="syn-modal-x" onclick="document.getElementById('bunko-syn-linker').classList.remove('is-open')">×</button>
+      </div>
+      <div class="syn-modal-body">
+        <div style="font-size:12.5px;color:var(--color-text-secondary);margin-bottom:4px;">
+          Liga essa página a um deal ou contato. Ela vai aparecer no modal da oportunidade e na timeline do contato.
+        </div>
+        <div class="syn-field">
+          <label>Deal (oportunidade)</label>
+          <select id="bunko-link-deal">
+            <option value="">— nenhum —</option>
+            ${deals.map(d => `<option value="${_esc(d.id)}" ${d.id===page.synconnect_deal_id?'selected':''}>${_esc(d.title)}${d.value_cents?` · ${_synFmtMoney(d.value_cents)}`:''}</option>`).join('')}
+          </select>
+        </div>
+        <div class="syn-field">
+          <label>Contato (pessoa)</label>
+          <select id="bunko-link-contact">
+            <option value="">— nenhum —</option>
+            ${contacts.map(c2 => `<option value="${_esc(c2.id)}" ${c2.id===page.synconnect_contact_id?'selected':''}>${_esc(c2.name)}${c2.email?` · ${_esc(c2.email)}`:''}</option>`).join('')}
+          </select>
+        </div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);font-style:italic;">
+          Pode ligar a um deal, a um contato, aos dois, ou desligar (deixando ambos vazios).
+        </div>
+      </div>
+      <div class="syn-modal-f">
+        <button class="syn-btn-secondary" onclick="document.getElementById('bunko-syn-linker').classList.remove('is-open')">Cancelar</button>
+        <button class="syn-btn-primary" onclick="_bunkoSubmitSynconnectLink('${_esc(pageId)}')">Salvar vínculo</button>
+      </div>
+    </div>`;
+  ov.classList.add('is-open');
+}
+
+async function _bunkoSubmitSynconnectLink(pageId) {
+  const dealId    = document.getElementById('bunko-link-deal').value || null;
+  const contactId = document.getElementById('bunko-link-contact').value || null;
+  const ok = await _synLinkBunkoPage(pageId, { deal_id: dealId, contact_id: contactId });
+  if (ok) {
+    document.getElementById('bunko-syn-linker').classList.remove('is-open');
+    _bunkoRenderSynconnectBadge(pageId, dealId, contactId);
+    if (typeof _showKanWarning === 'function') {
+      const tags = [];
+      if (dealId) {
+        const d = _synDeals.find(x => x.id === dealId);
+        if (d) tags.push(`Deal: <strong>${_esc(d.title)}</strong>`);
+      }
+      if (contactId) {
+        const c = _synContactById(contactId);
+        if (c) tags.push(`Contato: <strong>${_esc(c.name)}</strong>`);
+      }
+      _showKanWarning('Página vinculada ✓',
+        tags.length ? tags.join(' · ') : 'Vínculo removido.',
+        'success');
+    }
+  } else {
+    alert('Falha ao vincular. Verifique se a migration v2 foi aplicada.');
+  }
+}
+
+function _bunkoRenderSynconnectBadge(pageId, dealId, contactId) {
+  const el = document.getElementById('bunko-synconnect-badge-' + pageId);
+  if (!el) return;
+  const parts = [];
+  if (dealId) {
+    const d = _synDeals.find(x => x.id === dealId);
+    if (d) parts.push(`<span style="background:rgba(59,109,17,.12);color:#27500A;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:500;cursor:pointer;" onclick="document.getElementById('bunko-syn-linker')?.remove();_synOpenDealModal('${_esc(dealId)}')">🎯 ${_esc(d.title)}</span>`);
+  }
+  if (contactId) {
+    const c2 = _synContactById(contactId);
+    if (c2) parts.push(`<span style="background:rgba(127,119,221,.12);color:#3C3489;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:500;">👤 ${_esc(c2.name)}</span>`);
+  }
+  el.innerHTML = parts.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px;">${parts.join('')}</div>` : '';
 }
 
 // Hint: insere "[[" no editor pra abrir o picker
@@ -51181,6 +51653,12 @@ async function _kanSendAudioChunk(blob, mimeType) {
         chars: j.transcribed,
         at: Date.now(),
       });
+      // ── Cross-módulo: varre contatos do Synconnect mencionados na fala
+      try {
+        if (typeof _synScanTatameForMentions === 'function' && typeof j.text === 'string') {
+          _synScanTatameForMentions(j.text, ext?.lk?.sessionId);
+        }
+      } catch(_){}
       // Primeira transcrição com texto: avisa user que tá funcionando
       if (!_kanFirstSuccess) {
         _kanFirstSuccess = true;
