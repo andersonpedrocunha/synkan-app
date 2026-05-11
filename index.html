@@ -45792,30 +45792,35 @@ async function _lkStartRecording() {
     return;
   }
 
-  const c = _ensureSupaClient();
+  // Usa cliente isolado (_chatGetClient) pra evitar GoTrueClient lock contention.
+  // Com _ensureSupaClient() em paralelo com outros calls, a RPC trava indefinidamente
+  // (deadlock) e congela a UI inteira.
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
   if (!c) {
     appAlert('Sem Supabase', 'Cliente Supabase não disponível. Recarregue a página.', { icon:'⚠️' });
     return;
   }
   const ch = _chatState.channels.find(x => x.id === ext.channelId) || {};
-  // 1) Cria recording pendente no banco
+  // 1) Cria recording pendente no banco — com timeout pra não travar
   console.log('🎬 [lk-rec] criando recording no banco — session:', ext.lk.sessionId, 'channel:', ext.channelId);
   let recordingId;
   try {
-    const { data, error } = await c.rpc('create_recording_pending', {
+    const rpcPromise = c.rpc('create_recording_pending', {
       p_session_id: ext.lk.sessionId,
       p_channel_id: ext.channelId,
       p_channel_name: ch.name || 'sem nome',
       p_livekit_room: ext.lk.livekitRoom,
       p_title: null,
     });
+    const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout RPC (8s) — banco não respondeu')), 8000));
+    const { data, error } = await Promise.race([rpcPromise, timeoutPromise]);
     if (error) throw error;
     recordingId = data.recording_id;
     console.log('🎬 [lk-rec] ✓ recording criado no banco, id:', recordingId);
   } catch(e) {
     console.error('🎬 [lk-rec] create recording:', e);
     appAlert('Erro ao criar recording',
-      'Falhou no banco: ' + (e?.message || e) + '\n\nA migration MIGRATION_TATAME_RECORDINGS.sql foi executada?',
+      'Falhou no banco: ' + (e?.message || e) + '<br/><br/>Possíveis causas:<br/>• Migration <code>MIGRATION_TATAME_RECORDINGS.sql</code> não foi rodada no Supabase<br/>• Deadlock no auth client (refresh resolve)<br/>• Banco fora do ar',
       { icon: '⚠️' });
     return;
   }
@@ -45824,11 +45829,24 @@ async function _lkStartRecording() {
   try {
     const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
     const startUrl = `${cfg?.url}/functions/v1/livekit-recording/start`;
-    const session = await c.auth.getSession();
-    const jwt = session?.data?.session?.access_token;
+    // Pega JWT via cache (não trava) — fallback pra getSession com timeout curto
+    let jwt = null;
+    if (typeof _capReadJWTFromStorage === 'function') jwt = _capReadJWTFromStorage();
+    if (!jwt) {
+      try {
+        const { data } = await Promise.race([
+          c.auth.getSession(),
+          new Promise(res => setTimeout(() => res({ data: { session: null } }), 2000))
+        ]);
+        jwt = data?.session?.access_token;
+      } catch(_){}
+    }
+    if (!jwt) {
+      throw new Error('JWT indisponível — recarregue a página');
+    }
     // Pega o nome real da sala que LK retornou após connect
     const roomName = ext.lk.room?.name || ext.lk.livekitRoom;
-    console.log('[lk-rec] START Egress — recordingId:', recordingId, 'roomName:', roomName, '(room.name:', ext.lk.room?.name, '/ stored:', ext.lk.livekitRoom, ')');
+    console.log('🎬 [lk-rec] START Egress — recordingId:', recordingId, 'roomName:', roomName, '(room.name:', ext.lk.room?.name, '/ stored:', ext.lk.livekitRoom, ')');
     const r = await fetch(startUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
