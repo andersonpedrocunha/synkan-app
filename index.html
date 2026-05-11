@@ -141,6 +141,12 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .sb-item{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--color-text-secondary);transition:background .12s,color .12s;border:none;background:transparent;width:100%;text-align:left;font-family:var(--font-sans);}
 .sb-item:hover{background:var(--color-background-secondary);color:var(--color-text-primary);}
 .sb-item.active{background:var(--color-text-primary);color:var(--color-background-primary);font-weight:500;}
+/* Sub-itens (indentados como filhos de My Boards) */
+.sb-item.sb-sub{padding-left:28px;font-size:12.5px;color:var(--color-text-tertiary);position:relative;}
+.sb-item.sb-sub::before{content:'';position:absolute;left:18px;top:50%;width:5px;height:1px;background:var(--color-border-secondary);}
+.sb-item.sb-sub .sb-icon{font-size:13px;}
+.sb-item.sb-sub:hover{color:var(--color-text-primary);}
+.sb-item.sb-sub.active{padding-left:28px;}
 .sb-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0;line-height:1;}
 .sb-divider{height:0.5px;background:var(--color-border-tertiary);margin:8px 6px;}
 .sb-foot{padding:8px 10px;font-size:10px;color:var(--color-text-tertiary);text-align:center;border-top:0.5px solid var(--color-border-tertiary);}
@@ -6883,24 +6889,24 @@ body.tx-active .belt-ring::after{
     <button class="sb-item" id="sb-home" onclick="switchTab('home')">
       <span class="sb-icon">⌂</span><span>Home</span>
     </button>
+    <button class="sb-item" id="sb-chat" onclick="switchTab('chat')">
+      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1 -1.5 1.5h-6L4 14v-2H3a1.5 1.5 0 0 1 -1.5 -1.5v-5.5A1.5 1.5 0 0 1 3 3.5z"/><line x1="5" y1="6.4" x2="11" y2="6.4"/><line x1="5" y1="8.7" x2="9" y2="8.7"/></svg></span><span>Tatami</span><span class="sb-chat-badge" id="sb-chat-badge" style="display:none;"></span></button>
     <button class="sb-item" id="sb-boards" onclick="switchTab('boards')">
       <span class="sb-icon">▤</span><span>My boards</span>
     </button>
-    <button class="sb-item" id="sb-gallery" onclick="switchTab('gallery')">
+    <button class="sb-item sb-sub" id="sb-zai" onclick="switchTab('zai')">
+      <span class="sb-icon" style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:-.04em;color:#BC002D;">財</span><span>Zai</span></button>
+    <button class="sb-item sb-sub" id="sb-gallery" onclick="switchTab('gallery')">
       <span class="sb-icon">✦</span><span>Gallery</span>
     </button>
     <button class="sb-item" id="sb-canvas" onclick="switchTab('canvas')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M6.4 1.8h3.2"/><path d="M6.8 1.8v4.4L3.4 12.6a1.4 1.4 0 0 0 1.2 2H11.4a1.4 1.4 0 0 0 1.2-2L9.2 6.2V1.8"/><path d="M5.4 9.4h5.2"/><circle cx="6.5" cy="11.4" r="0.55" fill="currentColor"/><circle cx="9.2" cy="12.2" r="0.45" fill="currentColor"/></svg></span><span>Lab</span></button>
-    <button class="sb-item" id="sb-zai" onclick="switchTab('zai')">
-      <span class="sb-icon" style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:-.04em;color:#BC002D;">財</span><span>Zai</span></button>
-    <button class="sb-item" id="sb-chat" onclick="switchTab('chat')">
-      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1 -1.5 1.5h-6L4 14v-2H3a1.5 1.5 0 0 1 -1.5 -1.5v-5.5A1.5 1.5 0 0 1 3 3.5z"/><line x1="5" y1="6.4" x2="11" y2="6.4"/><line x1="5" y1="8.7" x2="9" y2="8.7"/></svg></span><span>Tatami</span><span class="sb-chat-badge" id="sb-chat-badge" style="display:none;"></span></button>
-    <button class="sb-item" id="sb-bunko" onclick="switchTab('bunko')">
-      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M2 4 L 8 1.5 L 14 4 L 14 12 L 8 14.5 L 2 12 Z"/><path d="M2 4 L 8 6.5 L 14 4" opacity=".7"/><path d="M8 6.5 L 8 14.5" opacity=".5"/><path d="M5 5.2 L 5 12.7" opacity=".3"/><path d="M11 5.2 L 11 12.7" opacity=".3"/></svg></span><span>Bunko Box</span></button>
     <button class="sb-item" id="sb-okrs" onclick="switchTab('okrs')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></span><span>OKRs</span></button>
     <button class="sb-item" id="sb-registry" onclick="switchTab('registry')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5.5 4V2.8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V4"/><rect x="2" y="4" width="12" height="9.2" rx="1.4"/><path d="M2 8h12"/><path d="M7 7.5v1"/><path d="M9 7.5v1"/></svg></span><span>Synconnect</span></button>
+    <button class="sb-item" id="sb-bunko" onclick="switchTab('bunko')">
+      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M2 4 L 8 1.5 L 14 4 L 14 12 L 8 14.5 L 2 12 Z"/><path d="M2 4 L 8 6.5 L 14 4" opacity=".7"/><path d="M8 6.5 L 8 14.5" opacity=".5"/><path d="M5 5.2 L 5 12.7" opacity=".3"/><path d="M11 5.2 L 11 12.7" opacity=".3"/></svg></span><span>Bunko Box</span></button>
     <div id="sb-views-section" style="display:none;">
       <div class="sb-divider"></div>
       <div class="sb-section-label" id="sb-current-board"></div>
@@ -47715,7 +47721,8 @@ async function _kanSendAudioChunk(blob, mimeType) {
         if (parsed?.error) cleanMsg = String(parsed.error).slice(0, 200);
       } catch(_){}
       // Mostra warning IMEDIATAMENTE (uma vez por sessão pra não floodar)
-      if (!ext.lk._kanErrorShown) {
+      // Defensiva: se ext.lk for null (call ended), não tenta marcar e segue
+      if (ext && ext.lk && !ext.lk._kanErrorShown) {
         ext.lk._kanErrorShown = true;
         let title = `Mestre Kan: erro ${r.status}`;
         let hint = '';
