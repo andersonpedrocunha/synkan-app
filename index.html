@@ -46193,25 +46193,17 @@ async function renderBunko() {
         .bunko-card-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
         .bunko-card-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .bunko-card-meta { font-size: 11px; color: #6B4825; font-family: var(--tatami-mincho,serif); font-style:italic; line-height:1.45; margin-top: 4px; }
-        /* Card de página: summary substitui o thumb gigante */
-        .bunko-card.is-page-card .bunko-card-summary {
-          aspect-ratio: 16/9; padding: 18px 16px; position: relative;
+        /* Card de página: ícone grande centralizado (mesmo estilo do file card) */
+        .bunko-card.is-page-card .bunko-card-page-thumb {
+          aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center;
           background: linear-gradient(135deg, #F5E8C8 0%, #E8D29A 100%);
           border-bottom: 1px solid rgba(184,168,120,.5);
-          color: #3A2410; display: flex; flex-direction: column; justify-content: center;
+          position: relative; color: #3A2410;
         }
-        .bunko-card-summary-text {
-          font-family: var(--tatami-mincho,serif); font-size: 14px; line-height: 1.55;
-          color: #3A2410; font-style: italic;
-          display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
-          overflow: hidden;
+        .bunko-card.is-page-card .bunko-card-page-thumb .ic {
+          font-size: 56px; line-height: 1;
+          filter: drop-shadow(0 3px 6px rgba(0,0,0,.15));
         }
-        .bunko-card-summary-empty {
-          font-family: var(--tatami-mincho,serif); font-size: 13px; line-height: 1.5;
-          color: #8B7250; text-align: center;
-        }
-        .bunko-card-summary-empty em { color: #6B4825; font-weight: 600; font-style: italic; }
-        .bunko-card-summary-empty .hint { font-size: 11px; opacity: .85; }
         .bunko-card-source-tag {
           position: absolute; top: 8px; left: 8px;
           background: rgba(107,93,200,.85); color: #fff;
@@ -46755,10 +46747,8 @@ function _bunkoCardHTML(it) {
     </div>`;
   }
 
-  // PÁGINAS: thumb mostra o RESUMO (summary). Se vazio, mostra placeholder convidativo.
-  // GRAVAÇÕES: thumb mostra ícone grande + duração + status.
-  const summaryText = (it.preview || '').slice(0, 180);
-  const hasSummary = isPage && summaryText && summaryText.trim().length > 0;
+  // PÁGINAS: thumb com ícone grande centralizado (estilo arquivo).
+  // GRAVAÇÕES: thumb com ícone de filme + duração + status.
   return `<div class="bunko-card ${isPage?'is-page-card':''}"
     draggable="true"
     ondragstart="_bunkoDragStart(event, '${it.kind}', '${_esc(it.id)}')"
@@ -46767,13 +46757,8 @@ function _bunkoCardHTML(it) {
       <button class="bunko-card-menu-btn" onclick="event.stopPropagation(); _bunkoItemMenu(event, '${it.kind}', '${_esc(it.id)}', '${_esc((it.title||'').replace(/'/g,'\\\''))}')">⋯</button>
     </div>
     ${isPage ? `
-      <div class="bunko-card-summary">
-        ${hasSummary
-          ? `<div class="bunko-card-summary-text">${_esc(summaryText)}${summaryText.length >= 180 ? '…' : ''}</div>`
-          : `<div class="bunko-card-summary-empty">
-              <em>Sem resumo ainda.</em><br/>
-              <span class="hint">Abra a página pra escrever ou pedir resumo ao 🧘 Mestre Kan.</span>
-            </div>`}
+      <div class="bunko-card-page-thumb">
+        <span class="ic">${_esc(it.icon || '📄')}</span>
         ${it.source_kind === 'kan_transcript' ? `<div class="bunko-card-source-tag">🧘 Mestre Kan</div>` : ''}
         ${it.archived ? `<div class="bunko-card-source-tag" style="background:rgba(107,72,37,.85);color:#F5E8C8;">arquivado</div>` : ''}
       </div>
@@ -46787,7 +46772,6 @@ function _bunkoCardHTML(it) {
     `}
     <div class="bunko-card-body">
       <div class="bunko-card-title">
-        <span class="bunko-card-icon">${_esc(it.icon || (isPage?'📄':'🎬'))}</span>
         <span class="bunko-card-name">${_esc(it.title||'sem título')}</span>
       </div>
       <div class="bunko-card-meta">${dt(it.updated_at || it.created_at)}</div>
