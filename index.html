@@ -46083,6 +46083,10 @@ const _bunkoState = {
   expandedFolders: new Set(),
   selectedItemIds: new Set(),
   viewMode: (function(){ try { return localStorage.getItem('synkan_bunko_view') || 'grid'; } catch(_) { return 'grid'; }})(),  // 'grid' | 'list'
+  sortMode: (function(){ try { return localStorage.getItem('synkan_bunko_sort') || 'updated'; } catch(_) { return 'updated'; }})(),  // 'updated' | 'name' | 'created' | 'type' | 'size'
+  globalSearch: false,
+  globalResults: [],
+  pagesIndex: [],     // cache pra wikilinks autocomplete
   rtSub: null,
 };
 
@@ -46431,6 +46435,74 @@ async function renderBunko() {
         .bunko-player-ov .body { flex:1; display:flex; min-height: 0; }
         .bunko-player-ov .body .video-wrap { flex:1; display:flex; align-items: center; justify-content: center; padding: 20px; background:#000; }
         .bunko-player-ov .body .video-wrap video { max-width:100%; max-height:100%; border-radius: 8px; background:#000; }
+
+        /* ── Pin indicator (A2) ─────────────────────────────────── */
+        .bunko-card.is-pinned { box-shadow: 0 0 0 2px rgba(193,154,58,.45), 0 4px 16px rgba(58,36,16,.08); }
+        .bunko-card-pin { position: absolute; top: 8px; left: 8px; z-index: 3; font-size: 14px; line-height: 1; background: linear-gradient(135deg,#FFE69A,#C19A3A); color: #3A2410; padding: 4px 7px; border-radius: 6px; box-shadow: 0 2px 6px rgba(58,36,16,.22); border: 1px solid #8B6634; }
+        .bunko-list-row.is-pinned { background: linear-gradient(90deg, rgba(193,154,58,.10), transparent 30%); }
+        .bunko-list-row.is-pinned .col-name { font-weight: 700; }
+        .bunko-pin-mark { display: inline-block; margin-right: 6px; font-size: 13px; vertical-align: middle; filter: drop-shadow(0 1px 1px rgba(193,154,58,.40)); }
+
+        /* ── Sort popover options (A3) ──────────────────────────── */
+        .bunko-sort-opt { display: block; width: 100%; text-align: left; background: transparent; border: none; padding: 8px 12px; cursor: pointer; font-size: 13px; color: #3A2410; border-radius: 6px; font-family: inherit; }
+        .bunko-sort-opt:hover { background: rgba(184,168,120,.15); }
+        .bunko-sort-opt.is-active { font-weight: 600; color: #BC002D; }
+
+        /* ── Templates picker (B1) ──────────────────────────────── */
+        .bunko-tpl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        @media (max-width: 600px) { .bunko-tpl-grid { grid-template-columns: 1fr; } }
+        .bunko-tpl-card { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid #D6C896; border-radius: 10px; background: #FFFEF8; cursor: pointer; text-align: left; transition: transform .15s, border-color .15s, box-shadow .15s; font-family: inherit; }
+        .bunko-tpl-card:hover { border-color: #BC002D; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(58,36,16,.10); }
+        .bunko-tpl-card.is-blank { border-style: dashed; background: rgba(184,168,120,.06); }
+        .bunko-tpl-ic { font-size: 30px; line-height: 1; flex-shrink: 0; }
+        .bunko-tpl-info { flex: 1; min-width: 0; }
+        .bunko-tpl-name { font-family: var(--tatami-mincho,serif); font-size: 15px; font-weight: 600; color: #3A2410; margin-bottom: 4px; }
+        .bunko-tpl-desc { font-size: 12px; color: #6B5840; line-height: 1.4; }
+
+        /* ── Wikilinks (B2) ─────────────────────────────────────── */
+        .bunko-wiki-pop { position: fixed; z-index: 10002; min-width: 260px; max-width: 320px; max-height: 280px; overflow: auto; background: #FFFCF5; border: 1px solid #B8A878; border-radius: 10px; box-shadow: 0 12px 36px rgba(58,36,16,.25); padding: 4px; }
+        .bunko-wiki-opt { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; background: transparent; border: none; cursor: pointer; text-align: left; border-radius: 6px; font-size: 13px; color: #3A2410; font-family: inherit; }
+        .bunko-wiki-opt:hover, .bunko-wiki-opt.is-active { background: rgba(184,168,120,.18); }
+        .bunko-wiki-opt .ic { font-size: 15px; line-height: 1; flex-shrink: 0; }
+        .bunko-wiki-opt .ttl { flex: 1; min-width: 0; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+        .bunko-wiki-empty { padding: 10px; font-size: 12px; color: #6B5840; display: flex; flex-direction: column; gap: 8px; }
+        .bunko-wiki-empty .bunko-btn { font-size: 12px; padding: 4px 8px; }
+        .bunko-wikilink { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; background: rgba(107,93,200,.10); border: 1px solid rgba(107,93,200,.30); border-radius: 4px; color: #4B3A8C !important; text-decoration: none !important; font-weight: 500; cursor: pointer; }
+        .bunko-wikilink:hover { background: rgba(107,93,200,.18); border-color: rgba(107,93,200,.55); }
+
+        /* ── Shared page view (C2) ──────────────────────────────── */
+        #bunko-shared-page-view { position: fixed; inset: 0; z-index: 99999; background: linear-gradient(180deg, #FBF6E8 0%, #F0E4C8 100%); overflow: auto; }
+        .bunko-shared-wrap { max-width: 780px; margin: 0 auto; padding: 24px 28px 60px; }
+        .bunko-shared-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 0 28px; border-bottom: 1px solid rgba(184,168,120,.40); margin-bottom: 28px; }
+        .bunko-shared-brand { display: flex; align-items: center; gap: 10px; }
+        .bunko-shared-logo { font-size: 22px; }
+        .bunko-shared-brand-name { font-family: var(--tatami-mincho,serif); font-size: 14px; color: #6B5840; font-weight: 600; letter-spacing: .04em; }
+        .bunko-shared-close { background: rgba(255,255,255,.65); border: 1px solid #B8A878; color: #3A2410; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; }
+        .bunko-shared-article { background: #FFFCF5; border: 1px solid #B8A878; border-radius: 16px; padding: 40px 44px; box-shadow: 0 10px 40px rgba(58,36,16,.10); }
+        .bunko-shared-icon { font-size: 56px; line-height: 1; margin-bottom: 14px; }
+        .bunko-shared-title { font-family: var(--tatami-mincho,serif); font-size: 32px; font-weight: 700; color: #3A2410; margin: 0 0 12px; line-height: 1.2; }
+        .bunko-shared-summary { font-size: 17px; color: #6B5840; line-height: 1.6; margin: 0 0 20px; font-style: italic; padding-left: 16px; border-left: 3px solid #C19A3A; }
+        .bunko-shared-meta { font-size: 12px; color: #8B6634; margin-bottom: 28px; padding-bottom: 14px; border-bottom: 1px solid rgba(184,168,120,.30); }
+        .bunko-shared-content { font-size: 15px; line-height: 1.7; color: #3A2410; }
+        .bunko-shared-content h1, .bunko-shared-content h2, .bunko-shared-content h3 { font-family: var(--tatami-mincho,serif); color: #3A2410; }
+        .bunko-shared-content h1 { font-size: 26px; margin: 32px 0 12px; }
+        .bunko-shared-content h2 { font-size: 22px; margin: 28px 0 10px; }
+        .bunko-shared-content h3 { font-size: 18px; margin: 22px 0 8px; }
+        .bunko-shared-content p { margin: 0 0 14px; }
+        .bunko-shared-content ul, .bunko-shared-content ol { margin: 0 0 14px; padding-left: 24px; }
+        .bunko-shared-content li { margin-bottom: 6px; }
+        .bunko-shared-content blockquote { margin: 16px 0; padding: 12px 18px; background: rgba(184,168,120,.10); border-left: 3px solid #C19A3A; border-radius: 0 8px 8px 0; }
+        .bunko-shared-content code { background: rgba(58,36,16,.06); padding: 1px 6px; border-radius: 4px; font-family: Menlo,Monaco,monospace; font-size: 0.9em; }
+        .bunko-shared-content pre { background: rgba(58,36,16,.06); padding: 14px; border-radius: 8px; overflow-x: auto; }
+        .bunko-shared-content a { color: #BC002D; }
+        .bunko-shared-content img { max-width: 100%; height: auto; border-radius: 8px; }
+        .bunko-shared-content .bunko-wikilink { pointer-events: none; }
+        .bunko-shared-footer { margin-top: 36px; padding-top: 18px; border-top: 1px solid rgba(184,168,120,.30); font-size: 11px; color: #8B6634; text-align: center; font-style: italic; }
+        .bunko-shared-loading { text-align: center; padding: 80px 24px; color: #6B5840; font-family: var(--tatami-mincho,serif); }
+        .bunko-shared-loading.is-error h2 { color: #BC002D; margin: 0 0 10px; }
+
+        /* ── Bunko popover divider (was missing) ────────────────── */
+        .bunko-popover .divider { height: 1px; background: rgba(184,168,120,.40); margin: 4px 0; }
       </style>
       <div class="bunko-shell">
         <aside class="bunko-sidebar">
@@ -46438,7 +46510,7 @@ async function renderBunko() {
             <div class="bunko-sidebar-h-ic"><svg viewBox="0 0 24 24"><path d="M3 6 L 12 2 L 21 6 L 21 18 L 12 22 L 3 18 Z"/><path d="M3 6 L 12 10 L 21 6" opacity=".7"/><path d="M12 10 L 12 22" opacity=".5"/></svg></div>
             <div><div class="bunko-sidebar-h-title">Bunko Box</div><div class="bunko-sidebar-h-sub">seu armazém de conhecimento</div></div>
           </div>
-          <input type="text" class="bunko-search" id="bunko-search-input" placeholder="🔎 Buscar pasta, página, gravação..." oninput="_bunkoOnSearchInput(this.value)"/>
+          <input type="text" class="bunko-search" id="bunko-search-input" placeholder="🔎 Buscar em todo Bunko Box..." oninput="_bunkoOnSearchInput(this.value)"/>
           <div class="bunko-filter-tabs">
             <button class="bunko-filter-tab is-active" data-filter="active" onclick="_bunkoSetFilter('active')">Ativos</button>
             <button class="bunko-filter-tab" data-filter="archived" onclick="_bunkoSetFilter('archived')" title="Arquivados">🗄</button>
@@ -46460,6 +46532,8 @@ async function renderBunko() {
                   <button class="bunko-view-btn" data-view="grid" onclick="_bunkoSetViewMode('grid')" title="Visão de cards">▦</button>
                   <button class="bunko-view-btn" data-view="list" onclick="_bunkoSetViewMode('list')" title="Visão de lista">☰</button>
                 </div>
+                <button class="bunko-btn" onclick="_bunkoOpenSortMenu(event)" title="Ordenar"><span style="font-size:11px;">⇅</span> <span id="bunko-sort-label">Modificado</span></button>
+                <button class="bunko-btn" onclick="_bunkoOpenTemplatePicker()" title="Criar página a partir de template">⚡ Template</button>
                 <button class="bunko-btn" onclick="_bunkoCreatePage(_bunkoState.currentFolderId)">+ Nova página</button>
                 <button class="bunko-btn" onclick="_bunkoCreateFolder(_bunkoState.currentFolderId)">+ Nova subpasta</button>
                 <button class="bunko-btn" id="bunko-btn-download-zip" onclick="_bunkoDownloadFolderZip(_bunkoState.currentFolderId)" title="Baixar todos arquivos da pasta atual zipados">🗜 Baixar (.zip)</button>
@@ -46476,6 +46550,95 @@ async function renderBunko() {
   }
 
   await _bunkoLoadAll();
+  // Wikilinks: pré-carrega índice de páginas
+  _bunkoLoadPagesIndex();
+  // Ativa atalhos de teclado (uma vez só)
+  _bunkoInstallShortcuts();
+}
+
+// ── A5: Keyboard shortcuts ───────────────────────────────────────────
+let _bunkoShortcutsInstalled = false;
+function _bunkoIsBunkoActive() {
+  // Verifica se a tela atual é o Bunko Box (existe #bunko-root visível)
+  const root = document.getElementById('bunko-root');
+  if (!root) return false;
+  // Olha se há shell renderizado (não a tela "modo cloud")
+  if (!root.querySelector('.bunko-shell')) return false;
+  // Confere visibilidade
+  return root.offsetParent !== null;
+}
+function _bunkoInstallShortcuts() {
+  if (_bunkoShortcutsInstalled) return;
+  _bunkoShortcutsInstalled = true;
+  document.addEventListener('keydown', function(e) {
+    if (!_bunkoIsBunkoActive()) return;
+    // Não dispara se foco em input/textarea/contenteditable
+    const ae = document.activeElement;
+    const isTyping = ae && (
+      ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' ||
+      (ae.getAttribute && ae.getAttribute('contenteditable') === 'true')
+    );
+    const isMeta = e.metaKey || e.ctrlKey;
+    // Cmd+K: foco na busca (mesmo se estiver digitando em outro lugar)
+    if (isMeta && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      const inp = document.getElementById('bunko-search-input');
+      if (inp) { inp.focus(); inp.select(); }
+      return;
+    }
+    if (isTyping) return; // outros atalhos respeitam contexto
+    // Cmd+N: nova página
+    if (isMeta && !e.shiftKey && e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      if (typeof _bunkoOpenTemplatePicker === 'function') _bunkoOpenTemplatePicker();
+      else _bunkoCreatePage(_bunkoState.currentFolderId);
+      return;
+    }
+    // Cmd+Shift+N: nova pasta
+    if (isMeta && e.shiftKey && e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      _bunkoCreateFolder(_bunkoState.currentFolderId);
+      return;
+    }
+    // "?" mostra ajuda dos atalhos
+    if (e.key === '?' && !isMeta) {
+      e.preventDefault();
+      _bunkoShowShortcutsHelp();
+      return;
+    }
+  });
+}
+function _bunkoShowShortcutsHelp() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+  const meta = isMac ? '⌘' : 'Ctrl';
+  ov.innerHTML = `
+    <div style="background:#FFFCF5;border:1px solid #B8A878;border-radius:14px;padding:24px;max-width:420px;width:92%;box-shadow:0 16px 48px rgba(58,36,16,.30);">
+      <h3 style="margin:0 0 14px;font-family:var(--tatami-mincho,serif);font-size:20px;color:#3A2410;">⌨️ Atalhos do Bunko Box</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#3A2410;">
+        <div style="display:flex;justify-content:space-between;padding:8px 10px;background:rgba(184,168,120,.10);border-radius:6px;">
+          <span>Buscar</span><kbd style="font-family:Menlo,monospace;font-size:12px;background:#FFFEF8;border:1px solid #B8A878;padding:2px 8px;border-radius:4px;">${meta} K</kbd>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 10px;background:rgba(184,168,120,.10);border-radius:6px;">
+          <span>Nova página (com template)</span><kbd style="font-family:Menlo,monospace;font-size:12px;background:#FFFEF8;border:1px solid #B8A878;padding:2px 8px;border-radius:4px;">${meta} N</kbd>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 10px;background:rgba(184,168,120,.10);border-radius:6px;">
+          <span>Nova pasta</span><kbd style="font-family:Menlo,monospace;font-size:12px;background:#FFFEF8;border:1px solid #B8A878;padding:2px 8px;border-radius:4px;">${meta} ⇧ N</kbd>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 10px;background:rgba(184,168,120,.10);border-radius:6px;">
+          <span>Mostrar essa ajuda</span><kbd style="font-family:Menlo,monospace;font-size:12px;background:#FFFEF8;border:1px solid #B8A878;padding:2px 8px;border-radius:4px;">?</kbd>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 10px;background:rgba(184,168,120,.10);border-radius:6px;">
+          <span>Wikilink (no editor)</span><kbd style="font-family:Menlo,monospace;font-size:12px;background:#FFFEF8;border:1px solid #B8A878;padding:2px 8px;border-radius:4px;">[ [</kbd>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+        <button class="bunko-btn is-primary" onclick="this.closest('div[style*=fixed]').remove()">Entendi</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
 }
 
 // Drag-drop de arquivos do desktop pra main area (current folder)
@@ -46545,17 +46708,19 @@ function _bunkoRenderTree() {
     const isActive = _bunkoState.currentFolderId === folder.id;
     const hasChildren = folder.children && folder.children.length > 0;
     const totalCount = (folder.page_count|0) + (folder.recording_count|0);
+    const color = folder.color || '#8B6634';
     return `<li class="bunko-tree-node">
       <div class="bunko-tree-row ${isActive?'is-active':''}"
            data-folder-id="${_esc(folder.id)}"
            draggable="true"
+           style="--folder-color:${_esc(color)};"
            ondragstart="_bunkoDragStart(event, 'folder', '${_esc(folder.id)}')"
            ondragover="_bunkoDragOver(event, this)"
            ondragleave="_bunkoDragLeave(event, this)"
            ondrop="_bunkoDrop(event, '${_esc(folder.id)}')"
            onclick="_bunkoOpenFolder('${_esc(folder.id)}')">
         <span class="bunko-tree-chevron ${hasChildren?'':'is-empty'} ${isExpanded?'is-expanded':''}" onclick="event.stopPropagation(); _bunkoToggleExpand('${_esc(folder.id)}')">›</span>
-        <span class="bunko-tree-icon">${_esc(folder.icon||'📁')}</span>
+        <span class="bunko-tree-icon" style="color:${_esc(color)};">${_esc(folder.icon||'📁')}</span>
         <span class="bunko-tree-name">${_esc(folder.name)}</span>
         ${totalCount > 0 ? `<span class="bunko-tree-count">${totalCount}</span>` : ''}
         <span class="bunko-tree-actions">
@@ -46629,11 +46794,37 @@ function _bunkoRenderBreadcrumb() {
 function _bunkoRenderItems() {
   const el = document.getElementById('bunko-main-content');
   if (!el) return;
-  const items = _bunkoState.items;
+  let items;
+  if (_bunkoState.globalSearch) {
+    // Search results já filtrados pelo servidor; converte pra formato compatível com card
+    items = (_bunkoState.globalResults || []).map(r => ({
+      kind: r.kind,
+      id: r.id,
+      folder_id: r.folder_id,
+      title: r.title,
+      icon: r.icon || (r.kind === 'page' ? '📄' : r.kind === 'recording' ? '🎬' : null),
+      preview: r.preview,
+      status: r.kind === 'file' ? r.status : 'ready',
+      url: r.url || '',
+      source_kind: r.source_kind || 'bunko-files',
+      duration_sec: null,
+      actions_count: 0,
+      decisions_count: 0,
+      has_transcript: false,
+      archived: false,
+      pinned: false,
+      created_at: r.updated_at,
+      updated_at: r.updated_at,
+    }));
+  } else {
+    items = _bunkoState.items;
+  }
   const query = (_bunkoState.searchQuery||'').toLowerCase().trim();
-  const filtered = query
+  const localFiltered = (!_bunkoState.globalSearch && query)
     ? items.filter(i => (i.title||'').toLowerCase().includes(query) || (i.preview||'').toLowerCase().includes(query))
     : items;
+  // Aplica sort
+  const filtered = _bunkoSortItems(localFiltered, _bunkoState.sortMode);
 
   // Sincroniza UI dos botões de view com state (caso veio do localStorage)
   document.querySelectorAll('.bunko-view-btn').forEach(b => b.classList.toggle('is-active', b.dataset.view === _bunkoState.viewMode));
@@ -46706,12 +46897,12 @@ function _bunkoListRowHTML(it) {
     menuOnClick = `_bunkoItemMenu(event, 'recording', '${_esc(it.id)}', '${_esc((it.title||'').replace(/'/g,'\\\''))}')`;
   }
 
-  return `<div class="bunko-list-row"
+  return `<div class="bunko-list-row${it.pinned ? ' is-pinned' : ''}"
     draggable="true"
     ondragstart="_bunkoDragStart(event, '${it.kind}', '${_esc(it.id)}')"
     onclick="${onClickAttr}">
     <div class="col-icon"><span class="ic">${iconHtml}</span></div>
-    <div class="col-name">${_esc(it.title || 'sem título')}${it.archived ? ' <span class="badge-archived">arquivado</span>' : ''}${!isReady && isRec ? ` <span class="badge-status ${it.status||''}">${it.status||'pendente'}</span>` : ''}</div>
+    <div class="col-name">${it.pinned ? '<span class="bunko-pin-mark" title="Fixado">⭐</span>' : ''}${_esc(it.title || 'sem título')}${it.archived ? ' <span class="badge-archived">arquivado</span>' : ''}${!isReady && isRec ? ` <span class="badge-status ${it.status||''}">${it.status||'pendente'}</span>` : ''}</div>
     <div class="col-type">${typeLabel}</div>
     <div class="col-size">${size}</div>
     <div class="col-date">${dt(it.updated_at || it.created_at)}</div>
@@ -46743,10 +46934,11 @@ function _bunkoCardHTML(it) {
     const fileBucket = it.source_kind || 'bunko-files';
     const fileSize = it.actions_count || 0;
     const fi = _bunkoFileIcon(it.title, fileMime);
-    return `<div class="bunko-card is-file-card"
+    return `<div class="bunko-card is-file-card${it.pinned ? ' is-pinned' : ''}"
       draggable="true"
       ondragstart="_bunkoDragStart(event, 'file', '${_esc(it.id)}')"
       onclick="_bunkoDownloadFile('${_esc(filePath)}','${_esc(fileBucket)}','${_esc(it.title)}')">
+      ${it.pinned ? '<div class="bunko-card-pin" title="Fixado">⭐</div>' : ''}
       <div class="bunko-card-menu">
         <button class="bunko-card-menu-btn" onclick="event.stopPropagation(); _bunkoFileMenu(event, '${_esc(it.id)}','${_esc(filePath)}','${_esc(fileBucket)}','${_esc((it.title||'').replace(/'/g,'\\\''))}')">⋯</button>
       </div>
@@ -46764,10 +46956,11 @@ function _bunkoCardHTML(it) {
 
   // PÁGINAS: thumb com ícone grande centralizado (estilo arquivo).
   // GRAVAÇÕES: thumb com ícone de filme + duração + status.
-  return `<div class="bunko-card ${isPage?'is-page-card':''}"
+  return `<div class="bunko-card ${isPage?'is-page-card':''}${it.pinned ? ' is-pinned' : ''}"
     draggable="true"
     ondragstart="_bunkoDragStart(event, '${it.kind}', '${_esc(it.id)}')"
     onclick="${onClick}">
+    ${it.pinned ? '<div class="bunko-card-pin" title="Fixado">⭐</div>' : ''}
     <div class="bunko-card-menu">
       <button class="bunko-card-menu-btn" onclick="event.stopPropagation(); _bunkoItemMenu(event, '${it.kind}', '${_esc(it.id)}', '${_esc((it.title||'').replace(/'/g,'\\\''))}')">⋯</button>
     </div>
@@ -46888,9 +47081,82 @@ function _bunkoSetViewMode(mode) {
   _bunkoRenderItems();
 }
 
+// Sort: pinned sempre no topo; depois aplica o modo escolhido
+function _bunkoSortItems(items, mode) {
+  const arr = [...items];
+  const cmp = {
+    updated: (a,b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at),
+    created: (a,b) => new Date(b.created_at) - new Date(a.created_at),
+    name:    (a,b) => (a.title||'').localeCompare(b.title||'', 'pt-BR'),
+    type:    (a,b) => (a.kind||'').localeCompare(b.kind||''),
+    size:    (a,b) => (b.actions_count||0) - (a.actions_count||0),  // files; outros vão pro fim
+  }[mode] || cmp.updated;
+  arr.sort((a,b) => {
+    // Pinned no topo sempre
+    const pa = a.pinned ? 0 : 1;
+    const pb = b.pinned ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    return cmp(a,b);
+  });
+  return arr;
+}
+
+function _bunkoSetSort(mode) {
+  _bunkoState.sortMode = mode;
+  try { localStorage.setItem('synkan_bunko_sort', mode); } catch(_){}
+  document.querySelectorAll('.bunko-sort-opt').forEach(b => b.classList.toggle('is-active', b.dataset.sort === mode));
+  const lbl = document.getElementById('bunko-sort-label');
+  if (lbl) {
+    lbl.textContent = ({updated:'Modificado',created:'Criado',name:'Nome',type:'Tipo',size:'Tamanho'})[mode] || 'Modificado';
+  }
+  _bunkoRenderItems();
+  _bunkoClosePopover();
+}
+
+function _bunkoOpenSortMenu(evt) {
+  evt?.stopPropagation();
+  _bunkoClosePopover();
+  const pop = document.createElement('div');
+  pop.className = 'bunko-popover';
+  pop.id = 'bunko-popover';
+  const opts = [
+    { mode:'updated', label:'Modificado (recente)' },
+    { mode:'created', label:'Criado (recente)' },
+    { mode:'name',    label:'Nome (A-Z)' },
+    { mode:'type',    label:'Tipo' },
+    { mode:'size',    label:'Tamanho' },
+  ];
+  pop.innerHTML = opts.map(o => `<button class="bunko-sort-opt ${_bunkoState.sortMode === o.mode ? 'is-active' : ''}" data-sort="${o.mode}" onclick="_bunkoSetSort('${o.mode}')">${_bunkoState.sortMode === o.mode ? '✓ ' : '&nbsp;&nbsp;&nbsp;'}${_esc(o.label)}</button>`).join('');
+  _bunkoShowPopover(pop, evt);
+}
+
+let _bunkoSearchTimer = null;
 function _bunkoOnSearchInput(v) {
   _bunkoState.searchQuery = v;
-  _bunkoRenderItems();
+  if (_bunkoSearchTimer) clearTimeout(_bunkoSearchTimer);
+  // < 2 chars: filtro local na pasta atual
+  if (!v || v.trim().length < 2) {
+    _bunkoState.globalSearch = false;
+    _bunkoState.globalResults = [];
+    _bunkoRenderItems();
+    return;
+  }
+  // >= 2 chars: busca GLOBAL com debounce 300ms
+  _bunkoSearchTimer = setTimeout(async () => {
+    try {
+      const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+      const { data, error } = await c.rpc('search_bunko', { p_query: v.trim() });
+      if (error) throw error;
+      _bunkoState.globalSearch = true;
+      _bunkoState.globalResults = data || [];
+      _bunkoRenderItems();
+    } catch(e) {
+      console.warn('[bunko] search:', e?.message);
+      // Fallback: filtro local
+      _bunkoState.globalSearch = false;
+      _bunkoRenderItems();
+    }
+  }, 300);
 }
 
 // ── CRUD pastas ─────────────────────────────────────────────────────
@@ -46924,6 +47190,67 @@ async function _bunkoRenameFolder(folderId) {
   }
 }
 
+async function _bunkoChangeFolderColor(folderId) {
+  const colors = [
+    {hex:'#8B6634', name:'Marrom madeira'},
+    {hex:'#BC002D', name:'Vermelho hanko'},
+    {hex:'#C19A3A', name:'Dourado pergaminho'},
+    {hex:'#1E7A3E', name:'Verde bambu'},
+    {hex:'#2A6FBC', name:'Azul indigo'},
+    {hex:'#6B5DC8', name:'Roxo violeta'},
+    {hex:'#D87A8E', name:'Rosa sakura'},
+    {hex:'#5C4F3F', name:'Cinza sumi'},
+  ];
+  const choice = await new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;';
+    ov.onclick = (e) => { if (e.target === ov) { ov.remove(); resolve(null); } };
+    ov.innerHTML = `<div style="background:#FFFCF5;border:1px solid #B8A878;border-radius:12px;padding:18px;max-width:340px;">
+      <h3 style="margin:0 0 12px;font-family:var(--tatami-mincho,serif);font-size:16px;color:#3A2410;">Cor da pasta</h3>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+        ${colors.map(c => `<button data-color="${c.hex}" title="${_esc(c.name)}" style="width:54px;height:54px;border-radius:10px;background:${c.hex};border:2px solid #FFFCF5;box-shadow:0 0 0 1px #B8A878;cursor:pointer;transition:transform .12s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></button>`).join('')}
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.querySelectorAll('button[data-color]').forEach(b => {
+      b.onclick = () => { ov.remove(); resolve(b.dataset.color); };
+    });
+  });
+  if (!choice) return;
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('update_bunko_folder', { p_id: folderId, p_name: null, p_icon: null, p_color: choice });
+    if (error) throw error;
+    await _bunkoLoadAll();
+  } catch(e) { appAlert('Erro', e?.message || String(e), { icon:'⚠️' }); }
+}
+
+async function _bunkoChangeFolderIcon(folderId) {
+  const icons = ['📁','📂','🗂','💼','📒','📕','📗','📘','📙','📚','📰','📇','🗃','🗄','📋','💰','💳','🏦','🏢','🏠','🎯','⭐','💡','🧘','🥋','🏯','⛩️','🎴','🌸','🎬','🎵','🖼','💻','📱','📷','💾'];
+  const choice = await new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;';
+    ov.onclick = (e) => { if (e.target === ov) { ov.remove(); resolve(null); } };
+    ov.innerHTML = `<div style="background:#FFFCF5;border:1px solid #B8A878;border-radius:12px;padding:18px;max-width:360px;">
+      <h3 style="margin:0 0 12px;font-family:var(--tatami-mincho,serif);font-size:16px;color:#3A2410;">Ícone da pasta</h3>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px;">
+        ${icons.map(i => `<button data-icon="${i}" style="background:#F5E8C8;border:1px solid #D4B888;border-radius:6px;padding:8px;font-size:20px;cursor:pointer;">${i}</button>`).join('')}
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.querySelectorAll('button[data-icon]').forEach(b => {
+      b.onclick = () => { ov.remove(); resolve(b.dataset.icon); };
+    });
+  });
+  if (!choice) return;
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('update_bunko_folder', { p_id: folderId, p_name: null, p_icon: choice, p_color: null });
+    if (error) throw error;
+    await _bunkoLoadAll();
+  } catch(e) { appAlert('Erro', e?.message || String(e), { icon:'⚠️' }); }
+}
+
 async function _bunkoDeleteFolder(folderId) {
   const folder = _bunkoState.folders.find(f => f.id === folderId);
   const subfolderCount = folder?.subfolder_count || 0;
@@ -46953,6 +47280,8 @@ function _bunkoFolderMenu(evt, folderId) {
   pop.id = 'bunko-popover';
   pop.innerHTML = `
     <button onclick="_bunkoClosePopover(); _bunkoRenameFolder('${_esc(folderId)}')">✏️ Renomear</button>
+    <button onclick="_bunkoClosePopover(); _bunkoChangeFolderColor('${_esc(folderId)}')">🎨 Mudar cor</button>
+    <button onclick="_bunkoClosePopover(); _bunkoChangeFolderIcon('${_esc(folderId)}')">📁 Mudar ícone</button>
     <button onclick="_bunkoClosePopover(); _bunkoCreateFolder('${_esc(folderId)}')">+ Nova subpasta</button>
     <button onclick="_bunkoClosePopover(); _bunkoCreatePage('${_esc(folderId)}')">+ Nova página</button>
     <div class="divider"></div>
@@ -46965,18 +47294,811 @@ function _bunkoItemMenu(evt, kind, itemId, title) {
   const item = _bunkoState.items.find(i => i.id === itemId && i.kind === kind);
   if (!item) return;
   const archived = item.archived;
+  const isTrash = _bunkoState.filter === 'trash';
   const pop = document.createElement('div');
   pop.className = 'bunko-popover';
   pop.id = 'bunko-popover';
-  pop.innerHTML = `
-    <button onclick="_bunkoClosePopover(); _bunkoRenameItem('${kind}', '${_esc(itemId)}')">✏️ Renomear</button>
-    <button onclick="_bunkoClosePopover(); _bunkoMoveItemPrompt('${kind}', '${_esc(itemId)}')">📂 Mover pra...</button>
-    ${kind==='page' ? `<button onclick="_bunkoClosePopover(); _bunkoExportPageDocx('${_esc(itemId)}')">💾 Baixar Word</button>` : ''}
-    <div class="divider"></div>
-    <button onclick="_bunkoClosePopover(); _bunkoArchiveItem('${kind}', '${_esc(itemId)}', ${!archived})">${archived?'↺ Desarquivar':'🗄 Arquivar'}</button>
-    <button class="is-danger" onclick="_bunkoClosePopover(); _bunkoDeleteItem('${kind}', '${_esc(itemId)}')">🗑 Excluir</button>`;
+  const pinned = !!item.pinned;
+  if (isTrash) {
+    // Item na lixeira: opções reduzidas (restaurar / excluir permanente)
+    pop.innerHTML = `
+      <button onclick="_bunkoClosePopover(); _bunkoRestoreItem('${kind}', '${_esc(itemId)}')">↺ Restaurar</button>
+      <div class="divider"></div>
+      <button class="is-danger" onclick="_bunkoClosePopover(); _bunkoPurgeItem('${kind}', '${_esc(itemId)}')">⚠️ Excluir permanente</button>`;
+  } else {
+    pop.innerHTML = `
+      <button onclick="_bunkoClosePopover(); _bunkoTogglePin('${kind}', '${_esc(itemId)}', ${!pinned})">${pinned?'☆ Desafixar':'⭐ Fixar no topo'}</button>
+      <button onclick="_bunkoClosePopover(); _bunkoRenameItem('${kind}', '${_esc(itemId)}')">✏️ Renomear</button>
+      <button onclick="_bunkoClosePopover(); _bunkoMoveItemPrompt('${kind}', '${_esc(itemId)}')">📂 Mover pra...</button>
+      ${kind==='page' ? `<button onclick="_bunkoClosePopover(); _bunkoExportPageDocx('${_esc(itemId)}')">💾 Baixar Word</button>` : ''}
+      ${kind==='page' ? `<button onclick="_bunkoClosePopover(); _bunkoExtractActionsPrompt('${_esc(itemId)}')">🧘 Extrair ações (Mestre Kan)</button>` : ''}
+      ${kind==='page' ? `<button onclick="_bunkoClosePopover(); _bunkoSharePagePrompt('${_esc(itemId)}')">🔗 Compartilhar via link</button>` : ''}
+      <div class="divider"></div>
+      <button onclick="_bunkoClosePopover(); _bunkoArchiveItem('${kind}', '${_esc(itemId)}', ${!archived})">${archived?'↺ Desarquivar':'🗄 Arquivar'}</button>
+      <button class="is-danger" onclick="_bunkoClosePopover(); _bunkoDeleteItem('${kind}', '${_esc(itemId)}')">🗑 Excluir</button>`;
+  }
   _bunkoShowPopover(pop, evt);
 }
+
+// Pin/unpin universal
+async function _bunkoTogglePin(kind, itemId, newPinned) {
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('toggle_bunko_pin', { p_kind: kind, p_id: itemId, p_pinned: newPinned });
+    if (error) throw error;
+    await _bunkoLoadAll();
+  } catch(e) { appAlert('Erro', e?.message || String(e), { icon:'⚠️' }); }
+}
+
+// ── A4: Restaurar item da lixeira ────────────────────────────────────
+async function _bunkoRestoreItem(kind, itemId) {
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('restore_bunko_item', { p_kind: kind, p_id: itemId });
+    if (error) throw error;
+    await _bunkoLoadAll();
+  } catch(e) { appAlert('Erro ao restaurar', e?.message || String(e), { icon:'⚠️' }); }
+}
+
+// Excluir permanente (apaga deletado da lixeira)
+async function _bunkoPurgeItem(kind, itemId) {
+  const item = _bunkoState.items.find(i => i.id === itemId && i.kind === kind);
+  const ok = await appConfirm('Excluir PERMANENTEMENTE?',
+    `<strong>${_esc(item?.title||'item')}</strong> vai ser apagado da lixeira pra sempre. Essa ação não pode ser desfeita.`,
+    { okLabel: 'Apagar pra sempre', cancelLabel: 'Cancelar', danger: true });
+  if (!ok) return;
+  const c = await _chatGetClient();
+  try {
+    // Tenta RPC dedicada; se não existir, deleta direto da tabela apropriada
+    let purged = false;
+    try {
+      const { error } = await c.rpc('purge_bunko_item', { p_kind: kind, p_id: itemId });
+      if (!error) purged = true;
+    } catch(_){}
+    if (!purged) {
+      const tbl = kind === 'page' ? 'bunko_pages' : kind === 'recording' ? 'tatame_recordings' : 'bunko_files';
+      const { error } = await c.from(tbl).delete().eq('id', itemId);
+      if (error) throw error;
+    }
+    await _bunkoLoadAll();
+  } catch(e) { appAlert('Erro', e?.message || String(e), { icon:'⚠️' }); }
+}
+
+// ── C2: Compartilhar página via link público ─────────────────────────
+async function _bunkoSharePagePrompt(pageId) {
+  const c = await _chatGetClient();
+  // Primeiro busca estado atual
+  let page;
+  try {
+    const { data, error } = await c.rpc('get_bunko_page', { p_id: pageId });
+    if (error) throw error;
+    page = data;
+  } catch(e) {
+    appAlert('Erro', e?.message || String(e), { icon:'⚠️' });
+    return;
+  }
+  const isShared = !!page.share_enabled;
+  const shareToken = page.share_token || '';
+  const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+  const baseUrl = (typeof location !== 'undefined') ? `${location.origin}${location.pathname}` : '';
+  const publicUrl = shareToken ? `${baseUrl}#bunko-share=${shareToken}` : '';
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div style="background:#FFFCF5;border:1px solid #B8A878;border-radius:14px;padding:24px;max-width:520px;width:92%;box-shadow:0 16px 48px rgba(58,36,16,.30);">
+      <h3 style="margin:0 0 6px;font-family:var(--tatami-mincho,serif);font-size:20px;color:#3A2410;">🔗 Compartilhar via link</h3>
+      <p style="margin:0 0 16px;font-size:13px;color:#6B5840;line-height:1.5;">
+        ${isShared
+          ? 'Qualquer pessoa com o link pode ler essa página (somente leitura). Você pode revogar o link a qualquer momento.'
+          : 'Ative o compartilhamento pra gerar um link público. Quem tiver o link vai conseguir ler — sem editar, sem login.'}
+      </p>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px;background:rgba(184,168,120,.12);border:1px solid #D6C896;border-radius:8px;margin-bottom:14px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;font-size:14px;font-weight:600;color:#3A2410;">
+          <input type="checkbox" id="bunko-share-toggle" ${isShared?'checked':''} style="width:18px;height:18px;cursor:pointer;accent-color:#BC002D;" onchange="_bunkoShareDoToggle('${_esc(pageId)}', this.checked)" />
+          <span>${isShared ? 'Link público ativado' : 'Ativar link público'}</span>
+        </label>
+      </div>
+      ${isShared && publicUrl ? `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:#6B5840;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">Link público</div>
+          <div style="display:flex;gap:6px;">
+            <input id="bunko-share-url" readonly value="${_esc(publicUrl)}" onclick="this.select()" style="flex:1;padding:8px 10px;border:1px solid #B8A878;border-radius:6px;font-family:Menlo,monospace;font-size:11px;background:#FFFEF8;color:#3A2410;" />
+            <button class="bunko-btn is-primary" onclick="_bunkoShareCopyUrl()">📋 Copiar</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#8B6634;font-style:italic;line-height:1.5;">
+          ⚠️ Qualquer pessoa que tenha esse link pode ler a página. Compartilhe com cuidado.
+        </div>
+      ` : ''}
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
+        <button class="bunko-btn" onclick="this.closest('div[style*=fixed]').remove()">Fechar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  window._bunkoShareOv = ov;
+}
+window._bunkoShareDoToggle = async function(pageId, enabled) {
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('toggle_bunko_share', { p_page_id: pageId, p_enabled: enabled });
+    if (error) throw error;
+    // Reabre modal com novo estado (incluindo URL recém-gerada)
+    if (window._bunkoShareOv) window._bunkoShareOv.remove();
+    _bunkoSharePagePrompt(pageId);
+  } catch(e) { appAlert('Erro', e?.message || String(e), { icon:'⚠️' }); }
+};
+window._bunkoShareCopyUrl = function() {
+  const inp = document.getElementById('bunko-share-url');
+  if (!inp) return;
+  inp.select();
+  try {
+    navigator.clipboard.writeText(inp.value);
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Copiado ✓', 'Link público na área de transferência.', 'success');
+    }
+  } catch(_){ document.execCommand('copy'); }
+};
+
+// Render da página compartilhada (acessada via #bunko-share=TOKEN)
+async function _bunkoRenderSharedPage(token) {
+  const root = document.getElementById('app') || document.body;
+  // overlay full-screen
+  let ov = document.getElementById('bunko-shared-page-view');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'bunko-shared-page-view';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `<div class="bunko-shared-loading">Carregando…</div>`;
+  // Usa cliente anônimo (sem JWT — RPC tem SECURITY DEFINER + checa share_enabled)
+  let c;
+  try { c = await _chatGetClient(); } catch(_){ c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null; }
+  if (!c) {
+    ov.innerHTML = `<div class="bunko-shared-loading">Erro: cliente não disponível</div>`;
+    return;
+  }
+  try {
+    const { data, error } = await c.rpc('get_bunko_shared_page', { p_share_token: token });
+    if (error) throw error;
+    if (!data) throw new Error('Página não encontrada ou link revogado.');
+    const page = data;
+    ov.innerHTML = `
+      <div class="bunko-shared-wrap">
+        <header class="bunko-shared-header">
+          <div class="bunko-shared-brand">
+            <span class="bunko-shared-logo">📦</span>
+            <span class="bunko-shared-brand-name">Bunko Box · Synkan</span>
+          </div>
+          <button class="bunko-shared-close" onclick="location.hash=''; document.getElementById('bunko-shared-page-view').remove();">Fechar</button>
+        </header>
+        <article class="bunko-shared-article">
+          <div class="bunko-shared-icon">${_esc(page.icon || '📄')}</div>
+          <h1 class="bunko-shared-title">${_esc(page.title || 'Sem título')}</h1>
+          ${page.summary ? `<p class="bunko-shared-summary">${_esc(page.summary)}</p>` : ''}
+          <div class="bunko-shared-meta">Atualizada em ${new Date(page.updated_at).toLocaleString('pt-BR')}</div>
+          <div class="bunko-shared-content">${page.content_html || '<p><em>Sem conteúdo.</em></p>'}</div>
+          <footer class="bunko-shared-footer">
+            <span>Página compartilhada via Synkan Bunko Box · somente leitura</span>
+          </footer>
+        </article>
+      </div>`;
+  } catch(e) {
+    ov.innerHTML = `<div class="bunko-shared-loading is-error">
+      <h2>Link inválido</h2>
+      <p>${_esc(e?.message || 'Não foi possível abrir essa página.')}</p>
+      <button onclick="location.hash=''; document.getElementById('bunko-shared-page-view').remove();" class="bunko-btn">Voltar</button>
+    </div>`;
+  }
+}
+
+// Hook: checa hash ao carregar página, abre share view
+(function _bunkoHashWatch() {
+  function check() {
+    const m = (location.hash || '').match(/#bunko-share=([a-zA-Z0-9_-]+)/);
+    if (m && m[1]) {
+      _bunkoRenderSharedPage(m[1]);
+    } else {
+      const ov = document.getElementById('bunko-shared-page-view');
+      if (ov) ov.remove();
+    }
+  }
+  window.addEventListener('hashchange', check);
+  // Roda no load (depois que renderBunko etc estejam disponíveis)
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(check, 600);
+  } else {
+    window.addEventListener('DOMContentLoaded', () => setTimeout(check, 600));
+  }
+})();
+
+// ── B1: Templates de página ──────────────────────────────────────────
+const _BUNKO_TEMPLATES = [
+  {
+    key: 'reuniao-1on1',
+    name: 'Reunião 1:1',
+    icon: '🤝',
+    summary: 'Pauta de 1:1 com agenda, conquistas, dificuldades e próximos passos.',
+    html: `
+      <h2>🤝 Reunião 1:1 — [nome]</h2>
+      <p><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}<br/>
+      <strong>Participantes:</strong> [você] e [nome]</p>
+      <h3>1. Como você está? (check-in)</h3>
+      <p><em>Espaço pra conversar sobre energia, vida pessoal, contexto.</em></p>
+      <ul><li></li></ul>
+      <h3>2. Conquistas desde a última 1:1</h3>
+      <ul><li></li></ul>
+      <h3>3. Bloqueios / dificuldades</h3>
+      <ul><li></li></ul>
+      <h3>4. Próximos passos (action items)</h3>
+      <ul><li>[ ] </li><li>[ ] </li></ul>
+      <h3>5. Feedback (em ambas as direções)</h3>
+      <p><em>O que tá funcionando? O que pode melhorar?</em></p>
+      <ul><li></li></ul>`
+  },
+  {
+    key: 'contrato',
+    name: 'Contrato de prestação de serviços',
+    icon: '📜',
+    summary: 'Modelo de contrato com escopo, prazo, valores, condições e cláusulas comuns.',
+    html: `
+      <h2>📜 Contrato de Prestação de Serviços</h2>
+      <p><strong>Contratante:</strong> [nome / CNPJ]<br/>
+      <strong>Contratada:</strong> [nome / CNPJ]<br/>
+      <strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
+      <h3>1. Objeto</h3>
+      <p>Pelo presente instrumento, a CONTRATADA se obriga a prestar à CONTRATANTE os seguintes serviços: <em>[descrever escopo]</em>.</p>
+      <h3>2. Prazo</h3>
+      <p>O presente contrato vigorará de <em>[data início]</em> a <em>[data fim]</em>, podendo ser renovado por acordo entre as partes.</p>
+      <h3>3. Valor e forma de pagamento</h3>
+      <p>O valor total dos serviços é de <strong>R$ [valor]</strong>, pago em <em>[N parcelas]</em>, com vencimento todo dia <em>[X]</em> de cada mês, via <em>[PIX / boleto / TED]</em>.</p>
+      <h3>4. Obrigações da Contratada</h3>
+      <ul><li>Executar os serviços com diligência e qualidade técnica.</li><li>Manter sigilo sobre informações confidenciais.</li><li>Entregar os produtos no prazo acordado.</li></ul>
+      <h3>5. Obrigações da Contratante</h3>
+      <ul><li>Efetuar os pagamentos nas datas combinadas.</li><li>Fornecer informações necessárias para execução dos serviços.</li></ul>
+      <h3>6. Rescisão</h3>
+      <p>O contrato pode ser rescindido por qualquer das partes mediante aviso prévio de <em>[30]</em> dias.</p>
+      <h3>7. Foro</h3>
+      <p>Fica eleito o foro da comarca de <em>[cidade/UF]</em> para dirimir quaisquer dúvidas.</p>
+      <p style="margin-top:24px;">__________________________<br/>CONTRATANTE</p>
+      <p style="margin-top:18px;">__________________________<br/>CONTRATADA</p>`
+  },
+  {
+    key: 'brief',
+    name: 'Brief de projeto',
+    icon: '🎯',
+    summary: 'Brief com objetivo, público, escopo, deliverables, prazo e referências.',
+    html: `
+      <h2>🎯 Brief — [nome do projeto]</h2>
+      <h3>Contexto</h3>
+      <p><em>Por que esse projeto existe? Qual problema resolve?</em></p>
+      <h3>Objetivo (1 frase)</h3>
+      <p></p>
+      <h3>Público-alvo</h3>
+      <p></p>
+      <h3>Escopo (o que está dentro)</h3>
+      <ul><li></li></ul>
+      <h3>Fora do escopo (o que NÃO faremos)</h3>
+      <ul><li></li></ul>
+      <h3>Deliverables</h3>
+      <ul><li></li></ul>
+      <h3>Prazo</h3>
+      <p>Início: <em>[data]</em> · Entrega: <em>[data]</em></p>
+      <h3>Orçamento</h3>
+      <p>R$ <em>[valor]</em></p>
+      <h3>Referências</h3>
+      <ul><li></li></ul>
+      <h3>Stakeholders</h3>
+      <ul><li><strong>Decisor final:</strong> </li><li><strong>Squad:</strong> </li></ul>`
+  },
+  {
+    key: 'okr',
+    name: 'OKR — Objetivo + Key Results',
+    icon: '🎯',
+    summary: 'Estrutura de OKR (Objetivo qualitativo + 3-5 KRs mensuráveis).',
+    html: `
+      <h2>🎯 OKR — [trimestre/ano]</h2>
+      <h3>Objetivo</h3>
+      <p><em>Qualitativo, inspirador, em 1 frase.</em></p>
+      <p><strong>Obj:</strong> </p>
+      <h3>Key Results (mensuráveis)</h3>
+      <p><strong>KR1:</strong> <em>De [X] para [Y] até [data]</em></p>
+      <p><strong>KR2:</strong> </p>
+      <p><strong>KR3:</strong> </p>
+      <p><strong>KR4:</strong> </p>
+      <h3>Iniciativas (como vamos lá)</h3>
+      <ul><li>[ ] </li><li>[ ] </li><li>[ ] </li></ul>
+      <h3>Check-in (atualização semanal)</h3>
+      <p><strong>Semana 1:</strong> KR1: %  · KR2: %  · KR3: %</p>
+      <p><strong>Confidence:</strong> 🟢 / 🟡 / 🔴</p>
+      <h3>Riscos</h3>
+      <ul><li></li></ul>`
+  },
+  {
+    key: 'pauta',
+    name: 'Pauta de reunião',
+    icon: '📋',
+    summary: 'Pauta padrão com objetivo, participantes, tópicos, decisões e ações.',
+    html: `
+      <h2>📋 Pauta — [tema]</h2>
+      <p><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}<br/>
+      <strong>Duração:</strong> [60 min]<br/>
+      <strong>Local:</strong> [Tatami #canal / Google Meet / Sala X]</p>
+      <h3>Objetivo da reunião</h3>
+      <p><em>O que queremos sair daqui tendo decidido / definido?</em></p>
+      <h3>Participantes</h3>
+      <ul><li></li></ul>
+      <h3>Tópicos a discutir (com tempo)</h3>
+      <ol><li>[10 min] </li><li>[15 min] </li><li>[20 min] </li><li>[5 min] Próximos passos</li></ol>
+      <h3>Decisões tomadas</h3>
+      <ul><li></li></ul>
+      <h3>Ações (action items)</h3>
+      <ul><li>[ ] <em>[responsável]</em> </li><li>[ ] <em>[responsável]</em> </li></ul>
+      <h3>Próxima reunião</h3>
+      <p></p>`
+  },
+  {
+    key: 'one-pager',
+    name: 'One-pager / pitch',
+    icon: '📄',
+    summary: 'One-pager de produto/projeto: problema, solução, métricas, plano.',
+    html: `
+      <h2>📄 One-pager — [projeto]</h2>
+      <h3>O problema</h3>
+      <p><em>Pra quem? O quê dói? Por que agora?</em></p>
+      <h3>A solução</h3>
+      <p></p>
+      <h3>Por que nós, por que agora</h3>
+      <p></p>
+      <h3>Métricas de sucesso</h3>
+      <ul><li>Métrica 1: </li><li>Métrica 2: </li><li>Métrica 3: </li></ul>
+      <h3>Plano (próximos 90 dias)</h3>
+      <ul><li>Mês 1: </li><li>Mês 2: </li><li>Mês 3: </li></ul>
+      <h3>Riscos & mitigação</h3>
+      <ul><li><strong>Risco:</strong>  · <strong>Mitigação:</strong> </li></ul>
+      <h3>Pedido</h3>
+      <p><em>O que você está pedindo (orçamento, gente, decisão)?</em></p>`
+  },
+];
+
+function _bunkoOpenTemplatePicker() {
+  _bunkoClosePopover();
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  const cards = _BUNKO_TEMPLATES.map((t, idx) => `
+    <button class="bunko-tpl-card" onclick="_bunkoCreateFromTemplate(${idx})">
+      <div class="bunko-tpl-ic">${t.icon}</div>
+      <div class="bunko-tpl-info">
+        <div class="bunko-tpl-name">${_esc(t.name)}</div>
+        <div class="bunko-tpl-desc">${_esc(t.summary)}</div>
+      </div>
+    </button>`).join('');
+  ov.innerHTML = `
+    <div style="background:#FFFCF5;border:1px solid #B8A878;border-radius:14px;padding:24px;max-width:680px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 16px 48px rgba(58,36,16,.30);">
+      <h3 style="margin:0 0 6px;font-family:var(--tatami-mincho,serif);font-size:22px;color:#3A2410;">📋 Modelo de página</h3>
+      <p style="margin:0 0 18px;font-size:13px;color:#6B5840;">Escolhe um modelo pronto — você pode editar tudo depois.</p>
+      <div class="bunko-tpl-grid">
+        <button class="bunko-tpl-card is-blank" onclick="_bunkoCreatePage(_bunkoState.currentFolderId); this.closest('div[style*=fixed]').remove();">
+          <div class="bunko-tpl-ic">✨</div>
+          <div class="bunko-tpl-info">
+            <div class="bunko-tpl-name">Em branco</div>
+            <div class="bunko-tpl-desc">Comece do zero, sem template.</div>
+          </div>
+        </button>
+        ${cards}
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:18px;">
+        <button class="bunko-btn" onclick="this.closest('div[style*=fixed]').remove()">Fechar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  window._bunkoTplOv = ov;
+}
+
+async function _bunkoCreateFromTemplate(idx) {
+  const t = _BUNKO_TEMPLATES[idx];
+  if (!t) return;
+  if (window._bunkoTplOv) { window._bunkoTplOv.remove(); window._bunkoTplOv = null; }
+  const c = await _chatGetClient();
+  try {
+    // Cria página com conteúdo do template
+    const { data, error } = await c.rpc('create_bunko_page', {
+      p_title: t.name,
+      p_folder_id: _bunkoState.currentFolderId,
+      p_content_html: t.html,
+      p_content_text: t.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 2000),
+      p_icon: t.icon,
+      p_source_kind: 'template',
+      p_source_recording_id: null
+    });
+    if (error) throw error;
+    // Set summary too (em chamada separada se houver RPC)
+    try {
+      await c.from('bunko_pages').update({ summary: t.summary.slice(0,140) }).eq('id', data.page_id);
+    } catch(_){}
+    await _bunkoLoadAll();
+    _bunkoOpenPage(data.page_id);
+  } catch(e) {
+    appAlert('Erro ao criar', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+// ── B2: Wikilinks [[página]] — autocomplete no editor ────────────────
+let _bunkoWikiPop = null;
+let _bunkoWikiTrigger = null;
+let _bunkoWikiQuery = '';
+let _bunkoWikiSelIdx = 0;
+
+async function _bunkoLoadPagesIndex() {
+  try {
+    const c = await _chatGetClient();
+    const { data, error } = await c.rpc('list_bunko_pages_lite');
+    if (error) throw error;
+    _bunkoState.pagesIndex = (data || []).map(p => ({
+      id: p.id, title: p.title || 'Sem título', icon: p.icon || '📄'
+    }));
+  } catch(e) {
+    // Silencioso — wikilinks são best-effort
+    console.warn('[bunko] pages index:', e?.message);
+  }
+}
+
+function _bunkoCloseWikiPop() {
+  if (_bunkoWikiPop) { _bunkoWikiPop.remove(); _bunkoWikiPop = null; }
+  _bunkoWikiTrigger = null;
+  _bunkoWikiQuery = '';
+  _bunkoWikiSelIdx = 0;
+}
+
+function _bunkoRenderWikiPop() {
+  if (!_bunkoWikiPop) return;
+  const q = _bunkoWikiQuery.toLowerCase();
+  const all = _bunkoState.pagesIndex || [];
+  const matches = (q
+    ? all.filter(p => (p.title||'').toLowerCase().includes(q))
+    : all.slice(0, 12)
+  ).slice(0, 12);
+  if (matches.length === 0) {
+    _bunkoWikiPop.innerHTML = `<div class="bunko-wiki-empty">
+      <span>Nenhuma página com “${_esc(_bunkoWikiQuery)}”</span>
+      <button class="bunko-btn" onclick="_bunkoWikiCreateNewFromQuery()">+ Criar “${_esc(_bunkoWikiQuery)}”</button>
+    </div>`;
+    return;
+  }
+  _bunkoWikiSelIdx = Math.min(_bunkoWikiSelIdx, matches.length - 1);
+  _bunkoWikiPop.innerHTML = matches.map((p, i) => `
+    <button class="bunko-wiki-opt ${i === _bunkoWikiSelIdx ? 'is-active' : ''}" data-idx="${i}"
+      onmouseenter="_bunkoWikiSetSel(${i})"
+      onclick="_bunkoWikiInsert('${_esc(p.id)}', '${_esc((p.title||'').replace(/'/g,'\\\''))}', '${_esc(p.icon||'📄')}')">
+      <span class="ic">${_esc(p.icon||'📄')}</span>
+      <span class="ttl">${_esc(p.title)}</span>
+    </button>`).join('');
+}
+
+window._bunkoWikiSetSel = function(i) {
+  _bunkoWikiSelIdx = i;
+  _bunkoRenderWikiPop();
+};
+
+window._bunkoWikiInsert = function(pageId, title, icon) {
+  if (!_bunkoWikiTrigger) { _bunkoCloseWikiPop(); return; }
+  const ed = _bunkoWikiTrigger;
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) { _bunkoCloseWikiPop(); return; }
+  // Localiza os "[[" anteriores ao caret no nó atual
+  const range = sel.getRangeAt(0);
+  const node = range.startContainer;
+  if (node.nodeType !== Node.TEXT_NODE) { _bunkoCloseWikiPop(); return; }
+  const text = node.textContent || '';
+  const caret = range.startOffset;
+  const before = text.slice(0, caret);
+  const bracketIdx = before.lastIndexOf('[[');
+  if (bracketIdx < 0) { _bunkoCloseWikiPop(); return; }
+  // Substitui texto "[[query" pelo link
+  const r = document.createRange();
+  r.setStart(node, bracketIdx);
+  r.setEnd(node, caret);
+  r.deleteContents();
+  const link = document.createElement('a');
+  link.href = '#bunko-page=' + pageId;
+  link.className = 'bunko-wikilink';
+  link.contentEditable = 'false';
+  link.dataset.pageId = pageId;
+  link.textContent = `${icon} ${title}`;
+  link.title = 'Abrir página vinculada';
+  link.onclick = (e) => { e.preventDefault(); e.stopPropagation(); _bunkoOpenPage(pageId); };
+  r.insertNode(link);
+  // Espaço depois pra continuar digitando
+  const space = document.createTextNode(' ');
+  link.parentNode.insertBefore(space, link.nextSibling);
+  // Reposiciona cursor
+  const newR = document.createRange();
+  newR.setStartAfter(space);
+  newR.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(newR);
+  _bunkoCloseWikiPop();
+  // Dispara save
+  const pageId2 = ed.id.replace('bunko-page-content-', '');
+  if (typeof _bunkoOnPageInput === 'function') _bunkoOnPageInput(pageId2);
+};
+
+window._bunkoWikiCreateNewFromQuery = async function() {
+  const title = _bunkoWikiQuery.trim();
+  if (!title) { _bunkoCloseWikiPop(); return; }
+  const c = await _chatGetClient();
+  try {
+    const { data, error } = await c.rpc('create_bunko_page', {
+      p_title: title, p_folder_id: _bunkoState.currentFolderId,
+      p_content_html: '<p></p>', p_content_text: '',
+      p_icon: '📄', p_source_kind: 'manual', p_source_recording_id: null
+    });
+    if (error) throw error;
+    // Atualiza índice e insere
+    await _bunkoLoadPagesIndex();
+    _bunkoWikiInsert(data.page_id, title, '📄');
+  } catch(e) { appAlert('Erro', e?.message || String(e), { icon:'⚠️' }); }
+};
+
+function _bunkoOnEditorKeydown(e, pageId) {
+  // Triggers de wikilink
+  if (_bunkoWikiPop) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const opts = _bunkoWikiPop.querySelectorAll('.bunko-wiki-opt');
+      _bunkoWikiSelIdx = (_bunkoWikiSelIdx + 1) % Math.max(1, opts.length);
+      _bunkoRenderWikiPop();
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const opts = _bunkoWikiPop.querySelectorAll('.bunko-wiki-opt');
+      _bunkoWikiSelIdx = (_bunkoWikiSelIdx - 1 + Math.max(1, opts.length)) % Math.max(1, opts.length);
+      _bunkoRenderWikiPop();
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const sel = _bunkoWikiPop.querySelector('.bunko-wiki-opt.is-active');
+      if (sel) sel.click();
+      else {
+        const first = _bunkoWikiPop.querySelector('.bunko-wiki-opt');
+        if (first) first.click();
+        else _bunkoWikiCreateNewFromQuery();
+      }
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      _bunkoCloseWikiPop();
+      return;
+    }
+  }
+}
+
+function _bunkoOnEditorInput(e, pageId) {
+  // Detecta "[[" pra abrir picker
+  const ed = e.target;
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) { if (_bunkoWikiPop) _bunkoCloseWikiPop(); return; }
+  const range = sel.getRangeAt(0);
+  const node = range.startContainer;
+  if (node.nodeType !== Node.TEXT_NODE) { if (_bunkoWikiPop) _bunkoCloseWikiPop(); return; }
+  const text = node.textContent || '';
+  const caret = range.startOffset;
+  const before = text.slice(0, caret);
+  const bracketIdx = before.lastIndexOf('[[');
+  // Verifica se ainda não tem ']]' fechando entre o "[[" e o caret
+  if (bracketIdx >= 0 && before.indexOf(']]', bracketIdx) < 0) {
+    _bunkoWikiQuery = before.slice(bracketIdx + 2);
+    // Se tem newline ou query > 40 chars, cancela
+    if (_bunkoWikiQuery.includes('\n') || _bunkoWikiQuery.length > 40) {
+      _bunkoCloseWikiPop();
+      return;
+    }
+    if (!_bunkoWikiPop) {
+      _bunkoWikiPop = document.createElement('div');
+      _bunkoWikiPop.className = 'bunko-wiki-pop';
+      document.body.appendChild(_bunkoWikiPop);
+      _bunkoWikiTrigger = ed;
+      // Garante índice carregado
+      if (!_bunkoState.pagesIndex || _bunkoState.pagesIndex.length === 0) {
+        _bunkoLoadPagesIndex().then(() => _bunkoRenderWikiPop());
+      }
+    }
+    // Posiciona perto do caret
+    const rect = range.getBoundingClientRect();
+    _bunkoWikiPop.style.left = Math.min(window.innerWidth - 280, rect.left) + 'px';
+    _bunkoWikiPop.style.top  = Math.min(window.innerHeight - 280, rect.bottom + 4) + 'px';
+    _bunkoRenderWikiPop();
+  } else if (_bunkoWikiPop) {
+    _bunkoCloseWikiPop();
+  }
+}
+
+// ── C1: Mestre Kan extrair ações pra board ───────────────────────────
+async function _bunkoExtractActionsPrompt(pageId) {
+  // Carrega página
+  const c = await _chatGetClient();
+  let page;
+  try {
+    const { data, error } = await c.rpc('get_bunko_page', { p_id: pageId });
+    if (error) throw error;
+    page = data;
+  } catch(e) {
+    appAlert('Erro', e?.message || String(e), { icon:'⚠️' });
+    return;
+  }
+  // Lista boards do usuário pra escolher
+  let boards = [];
+  try {
+    const { data, error } = await c.from('boards').select('id, name, icon').eq('archived', false).order('updated_at', { ascending: false }).limit(40);
+    if (!error) boards = data || [];
+  } catch(_){}
+  if (!boards.length) {
+    appAlert('Sem boards', 'Você precisa ter pelo menos um board ativo pra extrair ações pra cards.', { icon:'📌' });
+    return;
+  }
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div id="bunko-extract-modal" style="background:#FFFCF5;border:1px solid #B8A878;border-radius:14px;padding:24px;max-width:620px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 16px 48px rgba(58,36,16,.30);">
+      <h3 style="margin:0 0 6px;font-family:var(--tatami-mincho,serif);font-size:22px;color:#3A2410;">🧘 Mestre Kan — extrair ações</h3>
+      <p style="margin:0 0 18px;font-size:13px;color:#6B5840;line-height:1.5;">
+        O Mestre Kan vai ler a página <strong>“${_esc(page.title)}”</strong> e identificar ações concretas (action items, próximos passos, decisões com responsável). Você escolhe pra qual board virar card.
+      </p>
+      <label style="display:block;font-size:12px;font-weight:600;color:#3A2410;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;">Board destino</label>
+      <select id="bunko-extract-board" class="bunko-input" style="width:100%;padding:8px 10px;border:1px solid #B8A878;border-radius:6px;background:#FFFEF8;color:#3A2410;font-size:14px;margin-bottom:18px;">
+        ${boards.map(b => `<option value="${_esc(b.id)}">${_esc(b.icon||'📋')} ${_esc(b.name)}</option>`).join('')}
+      </select>
+      <div id="bunko-extract-status" style="display:none;padding:12px;background:rgba(107,93,200,.10);border:1px solid #6B5DC8;border-radius:8px;font-size:13px;color:#3A2410;margin-bottom:14px;"></div>
+      <div id="bunko-extract-actions" style="display:none;margin-bottom:14px;"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button class="bunko-btn" onclick="this.closest('div[style*=fixed]').remove()">Fechar</button>
+        <button id="bunko-extract-run" class="bunko-btn is-primary" onclick="_bunkoExtractActionsRun('${_esc(pageId)}')">🧘 Extrair ações</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  window._bunkoExtractOv = ov;
+  window._bunkoExtractPage = page;
+}
+
+window._bunkoExtractActionsRun = async function(pageId) {
+  const statusEl = document.getElementById('bunko-extract-status');
+  const actionsEl = document.getElementById('bunko-extract-actions');
+  const runBtn = document.getElementById('bunko-extract-run');
+  const boardSel = document.getElementById('bunko-extract-board');
+  if (!statusEl || !actionsEl || !runBtn || !boardSel) return;
+  const boardId = boardSel.value;
+  const page = window._bunkoExtractPage;
+  runBtn.disabled = true;
+  runBtn.textContent = '⏳ Pensando…';
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = '🧘 Mestre Kan está lendo a página… (pode demorar alguns segundos)';
+  actionsEl.style.display = 'none';
+
+  // Monta texto da página
+  const plain = (page.content_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!plain || plain.length < 30) {
+    statusEl.innerHTML = '⚠️ Página vazia ou muito curta. Escreva algo antes de extrair ações.';
+    runBtn.disabled = false;
+    runBtn.textContent = '🧘 Extrair ações';
+    return;
+  }
+
+  // Chama edge function /extract-actions-page
+  const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+  if (!cfg?.url) {
+    statusEl.innerHTML = '⚠️ Supabase não configurado.';
+    runBtn.disabled = false;
+    runBtn.textContent = '🧘 Extrair ações';
+    return;
+  }
+  const url = `${cfg.url}/functions/v1/kan-transcribe/extract-actions-page`;
+  let jwt = null;
+  if (typeof _capReadJWTFromStorage === 'function') jwt = _capReadJWTFromStorage();
+  if (!jwt) {
+    try {
+      const c = await _chatGetClient();
+      const { data } = await c.auth.getSession();
+      jwt = data?.session?.access_token;
+    } catch(_){}
+  }
+  let actions = [];
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ page_id: pageId, content: plain, title: page.title || '' })
+    });
+    const result = await r.json();
+    if (!r.ok) throw new Error(result.error || `HTTP ${r.status}`);
+    actions = result.actions || [];
+  } catch(e) {
+    statusEl.innerHTML = `⚠️ Erro: ${_esc(e?.message || String(e))}<br/><small>Verifique se o edge function <code>kan-transcribe</code> está atualizado e tem ANTHROPIC_API_KEY configurado.</small>`;
+    runBtn.disabled = false;
+    runBtn.textContent = '🧘 Extrair ações';
+    return;
+  }
+  if (!actions.length) {
+    statusEl.innerHTML = '🧘 Mestre Kan não encontrou ações concretas nessa página.';
+    runBtn.disabled = false;
+    runBtn.textContent = '🧘 Tentar de novo';
+    return;
+  }
+  statusEl.innerHTML = `✓ Mestre Kan encontrou <strong>${actions.length} ações</strong>. Revise antes de criar os cards:`;
+  actionsEl.style.display = 'block';
+  actionsEl.innerHTML = `
+    <div style="max-height:240px;overflow:auto;border:1px solid #D6C896;border-radius:8px;padding:8px;background:#FFFEF8;">
+      ${actions.map((a, i) => `
+        <label style="display:flex;align-items:flex-start;gap:8px;padding:8px;border-bottom:1px solid rgba(184,168,120,.30);cursor:pointer;">
+          <input type="checkbox" class="bunko-action-check" data-idx="${i}" checked style="margin-top:3px;accent-color:#BC002D;" />
+          <div style="flex:1;font-size:13px;color:#3A2410;line-height:1.4;">
+            <strong>${_esc(a.title || a)}</strong>
+            ${a.description ? `<div style="font-size:12px;color:#6B5840;margin-top:3px;">${_esc(a.description)}</div>` : ''}
+            ${a.assignee ? `<div style="font-size:11px;color:#8B6634;margin-top:3px;">👤 ${_esc(a.assignee)}</div>` : ''}
+          </div>
+        </label>`).join('')}
+    </div>`;
+  window._bunkoExtractActions = actions;
+  runBtn.textContent = `+ Criar ${actions.length} card(s) no board`;
+  runBtn.disabled = false;
+  runBtn.onclick = () => _bunkoExtractCommitCards(pageId, boardId);
+};
+
+window._bunkoExtractCommitCards = async function(pageId, boardId) {
+  const actions = window._bunkoExtractActions || [];
+  const checks = Array.from(document.querySelectorAll('.bunko-action-check'));
+  const selected = checks.filter(c => c.checked).map(c => actions[parseInt(c.dataset.idx, 10)]).filter(Boolean);
+  if (!selected.length) { appAlert('Vazio', 'Marque ao menos uma ação pra criar card.', { icon:'⚠️' }); return; }
+  const runBtn = document.getElementById('bunko-extract-run');
+  const statusEl = document.getElementById('bunko-extract-status');
+  if (runBtn) { runBtn.disabled = true; runBtn.textContent = '⏳ Criando…'; }
+  if (statusEl) statusEl.innerHTML = `🧘 Criando ${selected.length} card(s) no board…`;
+  const c = await _chatGetClient();
+  // Busca primeira coluna do board (Backlog/A fazer)
+  let columnId = null;
+  try {
+    const { data, error } = await c.from('board_columns').select('id, name, position').eq('board_id', boardId).order('position', { ascending: true }).limit(1);
+    if (error) throw error;
+    columnId = data?.[0]?.id;
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = `⚠️ Não consegui achar colunas no board: ${_esc(e?.message)}`;
+    if (runBtn) { runBtn.disabled = false; runBtn.textContent = '+ Tentar de novo'; }
+    return;
+  }
+  if (!columnId) {
+    if (statusEl) statusEl.innerHTML = `⚠️ Esse board não tem colunas. Crie uma coluna primeiro.`;
+    if (runBtn) { runBtn.disabled = false; runBtn.textContent = '+ Tentar de novo'; }
+    return;
+  }
+  let created = 0, failed = 0;
+  for (const a of selected) {
+    try {
+      const title = (typeof a === 'string') ? a : (a.title || '');
+      const desc = (typeof a === 'object' && a.description) ? a.description : '';
+      const fullDesc = `${desc}${desc ? '\n\n' : ''}— Extraído pelo Mestre Kan da página Bunko Box.`;
+      const { error } = await c.from('cards').insert({
+        board_id: boardId, column_id: columnId,
+        title: title.slice(0, 200),
+        description: fullDesc,
+        position: created * 1024,
+      });
+      if (error) throw error;
+      created++;
+    } catch(e) { failed++; console.warn('[extract] card insert:', e?.message); }
+  }
+  if (statusEl) {
+    statusEl.innerHTML = `✓ <strong>${created} card(s)</strong> criado(s)${failed ? ` · ${failed} falharam` : ''}.`;
+  }
+  if (runBtn) { runBtn.style.display = 'none'; }
+  setTimeout(() => {
+    if (window._bunkoExtractOv) { window._bunkoExtractOv.remove(); window._bunkoExtractOv = null; }
+  }, 1800);
+};
 
 function _bunkoShowPopover(pop, evt) {
   document.body.appendChild(pop);
@@ -47185,12 +48307,17 @@ async function _bunkoOpenPage(pageId) {
         <button onclick="_bunkoExecFormat('pre')" title="Code">{ }</button>
         <span class="divider"></span>
         <button onclick="_bunkoInsertLink()" title="Link">🔗</button>
+        <button onclick="_bunkoInsertWikilinkHint('${_esc(pageId)}')" title="Vincular outra página (Wikilink) — digite [[ no editor" style="font-family:Menlo,monospace;">[[…]]</button>
+        <button onclick="_bunkoExtractActionsPrompt('${_esc(pageId)}')" title="Mestre Kan extrai ações pra cards" class="bunko-btn" style="padding:4px 10px;background:linear-gradient(135deg,rgba(188,0,45,.10) 0%,rgba(107,93,200,.10) 100%);border-color:rgba(188,0,45,.40);">🧘 Ações</button>
         <button onclick="_bunkoExportPageDocx('${_esc(pageId)}')" title="Baixar Word" class="bunko-btn" style="padding:4px 10px;">💾 Word</button>
+        <button onclick="_bunkoSharePagePrompt('${_esc(pageId)}')" title="Compartilhar via link público" class="bunko-btn" style="padding:4px 10px;">🔗 Link</button>
         <span class="bunko-page-savestatus" id="bunko-page-savestatus">Salvo</span>
       </div>
       <div class="bunko-page-content" id="bunko-page-content-${_esc(pageId)}"
            contenteditable="true"
-           oninput="_bunkoOnPageInput('${_esc(pageId)}')">${page.content_html || '<p></p>'}</div>
+           oninput="_bunkoOnPageInput('${_esc(pageId)}'); _bunkoOnEditorInput(event, '${_esc(pageId)}')"
+           onkeydown="_bunkoOnEditorKeydown(event, '${_esc(pageId)}')"
+           onblur="setTimeout(_bunkoCloseWikiPop, 200)">${page.content_html || '<p></p>'}</div>
 
       <!-- Anexos (arquivos da página) — funciona como pasta também -->
       <div class="bunko-attach-section" id="bunko-attach-${_esc(pageId)}">
@@ -47214,6 +48341,19 @@ async function _bunkoOpenPage(pageId) {
   _bunkoUpdateSummaryCounter(pageId);
   // Carrega anexos
   _bunkoLoadFiles(pageId);
+  // Carrega índice de páginas pro autocomplete de wikilinks (background)
+  _bunkoLoadPagesIndex();
+}
+
+// Hint: insere "[[" no editor pra abrir o picker
+function _bunkoInsertWikilinkHint(pageId) {
+  const ed = document.getElementById('bunko-page-content-' + pageId);
+  if (!ed) return;
+  ed.focus();
+  try {
+    document.execCommand('insertText', false, '[[');
+    ed.dispatchEvent(new Event('input', { bubbles: true }));
+  } catch(_) {}
 }
 
 // Atualiza contador "X/140" com cor que vira laranja/vermelha perto do limite
