@@ -46082,6 +46082,7 @@ const _bunkoState = {
   searchQuery: '',
   expandedFolders: new Set(),
   selectedItemIds: new Set(),
+  viewMode: (function(){ try { return localStorage.getItem('synkan_bunko_view') || 'grid'; } catch(_) { return 'grid'; }})(),  // 'grid' | 'list'
   rtSub: null,
 };
 
@@ -46217,6 +46218,89 @@ async function renderBunko() {
           font-size: 10px; padding: 2px 8px; border-radius: 999px;
           font-weight: 600; letter-spacing: .04em;
           font-family: var(--tatami-mincho,serif); font-style: normal;
+        }
+
+        /* Card de arquivo (solto numa pasta) */
+        .bunko-card.is-file-card .bunko-card-file-thumb {
+          aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center;
+          background: linear-gradient(135deg, #F5E8C8 0%, #E8D29A 100%);
+          border-bottom: 1px solid rgba(184,168,120,.5);
+        }
+        .bunko-card.is-file-card .bunko-card-file-thumb .ic {
+          font-size: 56px; line-height: 1; filter: drop-shadow(0 3px 6px rgba(0,0,0,.18));
+        }
+
+        /* Toggle de visão (cards / lista) */
+        .bunko-view-toggle {
+          display: inline-flex; background: rgba(107,72,37,.06); border: 1px solid #B8A878;
+          border-radius: 7px; padding: 2px; margin-right: 4px;
+        }
+        .bunko-view-btn {
+          width: 30px; height: 28px; border: none; background: transparent;
+          border-radius: 5px; cursor: pointer; font-size: 14px;
+          color: #6B4825; transition: all .15s; line-height: 1;
+        }
+        .bunko-view-btn:hover { background: rgba(107,72,37,.12); }
+        .bunko-view-btn.is-active { background: #6B4825; color: #F5E8C8; }
+
+        /* Lista (modo alternativo) */
+        .bunko-list { display: flex; flex-direction: column; background: #FFFCF5; border: 1px solid #B8A878; border-radius: 10px; overflow: hidden; }
+        .bunko-list-head {
+          display: grid; grid-template-columns: 44px 1fr 110px 110px 150px 40px;
+          gap: 10px; padding: 10px 16px;
+          background: linear-gradient(135deg, #F5E8C8 0%, #E8D29A 100%);
+          border-bottom: 1px solid #B8A878;
+          font-family: var(--tatami-mincho,serif); font-size: 11px; font-weight: 600;
+          color: #6B4825; letter-spacing: .06em; text-transform: uppercase;
+        }
+        .bunko-list-row {
+          display: grid; grid-template-columns: 44px 1fr 110px 110px 150px 40px;
+          gap: 10px; padding: 10px 16px; align-items: center;
+          border-bottom: 1px solid rgba(184,168,120,.30); cursor: pointer;
+          transition: all .12s; color: #1A1611;
+        }
+        .bunko-list-row:hover { background: #F5E8C8; }
+        .bunko-list-row:last-child { border-bottom: none; }
+        .bunko-list-row .col-icon .ic { font-size: 20px; }
+        .bunko-list-row .col-name { font-size: 13.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bunko-list-row .col-type, .bunko-list-row .col-size, .bunko-list-row .col-date {
+          font-size: 12px; color: #6B4825; font-family: var(--tatami-mincho,serif); font-style: italic;
+        }
+        .bunko-list-row .col-actions { text-align: right; }
+        .bunko-list-row .row-menu {
+          width: 26px; height: 26px; border-radius: 50%; border: 1px solid #B8A878;
+          background: rgba(255,255,255,.7); color: #6B4825; cursor: pointer;
+          font-size: 14px; line-height: 1;
+        }
+        .bunko-list-row .row-menu:hover { background: #6B4825; color: #F5E8C8; }
+        .bunko-list-row .badge-archived, .bunko-list-row .badge-status {
+          display: inline-block; font-size: 9.5px; padding: 1px 6px; border-radius: 999px;
+          font-family: var(--tatami-mincho,serif); font-style: normal; font-weight: 600;
+          letter-spacing: .06em; text-transform: uppercase; vertical-align: 2px; margin-left: 6px;
+        }
+        .bunko-list-row .badge-archived { background: rgba(107,72,37,.18); color: #6B4825; }
+        .bunko-list-row .badge-status.processing { background: rgba(193,154,58,.20); color: #8F6E1F; }
+        .bunko-list-row .badge-status.recording { background: rgba(188,0,45,.10); color: #BC002D; }
+        .bunko-list-row .badge-status.failed { background: rgba(107,72,37,.15); color: #6B4825; }
+
+        @media(max-width:760px) {
+          .bunko-list-head, .bunko-list-row { grid-template-columns: 36px 1fr 60px 40px; }
+          .bunko-list-head .col-type, .bunko-list-row .col-type,
+          .bunko-list-head .col-size, .bunko-list-row .col-size { display: none; }
+        }
+
+        /* Drop visual na main area quando arrastando arquivo do desktop */
+        .bunko-main-content.is-file-drop-over {
+          background: rgba(193,154,58,.18) !important;
+          outline: 3px dashed #C19A3A; outline-offset: -10px;
+          position: relative;
+        }
+        .bunko-main-content.is-file-drop-over::before {
+          content: '📥 Solta aqui pra subir nesta pasta';
+          position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+          font-family: var(--tatami-mincho,serif); font-size: 20px; font-weight: 600;
+          color: #6B4825; pointer-events: none; z-index: 5;
+          text-shadow: 0 2px 4px rgba(255,255,255,.8);
         }
         .bunko-card-menu { position: absolute; top: 8px; right: 8px; opacity: 1; z-index: 5; }
         .bunko-card-menu-btn { width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.65); border: 1px solid rgba(255,255,255,.18); color: #fff; cursor: pointer; font-size: 18px; line-height: 1; display:flex; align-items:center; justify-content:center; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,.25); transition: all .15s; }
@@ -46362,18 +46446,46 @@ async function renderBunko() {
             <div class="bunko-main-title-row">
               <div class="bunko-main-title" id="bunko-main-title"><span class="bunko-main-title-icon">📁</span><span>Bunko Box</span></div>
               <div class="bunko-toolbar">
+                <div class="bunko-view-toggle">
+                  <button class="bunko-view-btn" data-view="grid" onclick="_bunkoSetViewMode('grid')" title="Visão de cards">▦</button>
+                  <button class="bunko-view-btn" data-view="list" onclick="_bunkoSetViewMode('list')" title="Visão de lista">☰</button>
+                </div>
                 <button class="bunko-btn" onclick="_bunkoCreatePage(_bunkoState.currentFolderId)">+ Nova página</button>
                 <button class="bunko-btn" onclick="_bunkoCreateFolder(_bunkoState.currentFolderId)">+ Nova subpasta</button>
                 <button class="bunko-btn is-danger" onclick="_bunkoCleanupStale()" title="Limpar gravações presas">↺ Limpar</button>
               </div>
             </div>
           </div>
-          <div class="bunko-main-content" id="bunko-main-content"></div>
+          <div class="bunko-main-content" id="bunko-main-content"
+               ondragover="_bunkoMainDragOver(event)"
+               ondragleave="_bunkoMainDragLeave(event)"
+               ondrop="_bunkoMainDrop(event)"></div>
         </main>
       </div>`;
   }
 
   await _bunkoLoadAll();
+}
+
+// Drag-drop de arquivos do desktop pra main area (current folder)
+function _bunkoMainDragOver(e) {
+  // Só responde se for arquivos vindo do desktop (dataTransfer.types contém 'Files')
+  if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('Files')) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  const main = document.getElementById('bunko-main-content');
+  if (main) main.classList.add('is-file-drop-over');
+}
+function _bunkoMainDragLeave(e) {
+  const main = document.getElementById('bunko-main-content');
+  if (main && e.target === main) main.classList.remove('is-file-drop-over');
+}
+function _bunkoMainDrop(e) {
+  if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+  e.preventDefault();
+  const main = document.getElementById('bunko-main-content');
+  if (main) main.classList.remove('is-file-drop-over');
+  _bunkoUploadFilesToFolder(_bunkoState.currentFolderId, e.dataTransfer.files);
 }
 
 async function _bunkoLoadAll() {
@@ -46512,13 +46624,16 @@ function _bunkoRenderItems() {
     ? items.filter(i => (i.title||'').toLowerCase().includes(query) || (i.preview||'').toLowerCase().includes(query))
     : items;
 
+  // Sincroniza UI dos botões de view com state (caso veio do localStorage)
+  document.querySelectorAll('.bunko-view-btn').forEach(b => b.classList.toggle('is-active', b.dataset.view === _bunkoState.viewMode));
+
   if (filtered.length === 0) {
     const isTrash = _bunkoState.filter === 'trash';
     const isArchived = _bunkoState.filter === 'archived';
     el.innerHTML = `<div class="bunko-empty">
       <div class="bunko-empty-ic">${isTrash ? '🗑' : isArchived ? '📦' : '📁'}</div>
       <h3>${isTrash ? 'Lixeira vazia' : isArchived ? 'Sem itens arquivados' : 'Nada por aqui ainda'}</h3>
-      <p>${isTrash ? 'Itens deletados aparecem aqui (recuperáveis).' : isArchived ? 'Você pode arquivar itens pra tirar da vista sem deletar.' : 'Crie uma pasta, página ou grave uma chamada no Tatami.'}</p>
+      <p>${isTrash ? 'Itens deletados aparecem aqui (recuperáveis).' : isArchived ? 'Você pode arquivar itens pra tirar da vista sem deletar.' : 'Crie uma pasta, página, grave uma chamada no Tatami, ou arraste arquivos aqui.'}</p>
       ${!isTrash && !isArchived ? `<div style="display:flex;gap:10px;justify-content:center;">
         <button class="bunko-btn is-primary" onclick="_bunkoCreatePage(_bunkoState.currentFolderId)">+ Nova página</button>
         <button class="bunko-btn" onclick="_bunkoCreateFolder(_bunkoState.currentFolderId)">+ Nova pasta</button>
@@ -46527,7 +46642,72 @@ function _bunkoRenderItems() {
     return;
   }
 
-  el.innerHTML = `<div class="bunko-grid">${filtered.map(it => _bunkoCardHTML(it)).join('')}</div>`;
+  if (_bunkoState.viewMode === 'list') {
+    el.innerHTML = `<div class="bunko-list">
+      <div class="bunko-list-head">
+        <div class="col-icon"></div>
+        <div class="col-name">Nome</div>
+        <div class="col-type">Tipo</div>
+        <div class="col-size">Tamanho</div>
+        <div class="col-date">Modificado</div>
+        <div class="col-actions"></div>
+      </div>
+      ${filtered.map(it => _bunkoListRowHTML(it)).join('')}
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="bunko-grid">${filtered.map(it => _bunkoCardHTML(it)).join('')}</div>`;
+  }
+}
+
+// Renderiza linha de item no modo lista
+function _bunkoListRowHTML(it) {
+  const isPage = it.kind === 'page';
+  const isFile = it.kind === 'file';
+  const isRec  = it.kind === 'recording';
+  const isReady = it.status === 'ready';
+  const fmtDur = (s) => {
+    if (!s) return '';
+    const m = Math.floor(s/60), x = s%60;
+    if (m < 60) return `${m}m ${x}s`;
+    return `${Math.floor(m/60)}h ${m%60}m`;
+  };
+  const dt = (iso) => new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+
+  let icon, typeLabel, size, onClickAttr, menuOnClick;
+  if (isPage) {
+    icon = it.icon || '📄';
+    typeLabel = 'Página';
+    size = '—';
+    onClickAttr = `_bunkoOpenPage('${_esc(it.id)}')`;
+    menuOnClick = `_bunkoItemMenu(event, 'page', '${_esc(it.id)}', '${_esc((it.title||'').replace(/'/g,'\\\''))}')`;
+  } else if (isFile) {
+    const fi = _bunkoFileIcon(it.title, it.status || '');
+    icon = fi.icon;
+    typeLabel = 'Arquivo';
+    size = _bunkoFormatSize(it.actions_count || 0);
+    onClickAttr = `_bunkoDownloadFile('${_esc(it.url)}','${_esc(it.source_kind||'bunko-files')}','${_esc(it.title)}')`;
+    menuOnClick = `_bunkoFileMenu(event, '${_esc(it.id)}','${_esc(it.url)}','${_esc(it.source_kind||'bunko-files')}','${_esc((it.title||'').replace(/'/g,'\\\''))}')`;
+  } else {
+    icon = '🎬';
+    typeLabel = 'Gravação';
+    size = it.duration_sec ? fmtDur(it.duration_sec) : '—';
+    onClickAttr = isReady ? `_bunkoOpenRecording('${_esc(it.id)}')` : '';
+    menuOnClick = `_bunkoItemMenu(event, 'recording', '${_esc(it.id)}', '${_esc((it.title||'').replace(/'/g,'\\\''))}')`;
+  }
+
+  return `<div class="bunko-list-row"
+    draggable="true"
+    ondragstart="_bunkoDragStart(event, '${it.kind}', '${_esc(it.id)}')"
+    onclick="${onClickAttr}">
+    <div class="col-icon"><span class="ic">${_esc(icon)}</span></div>
+    <div class="col-name">${_esc(it.title || 'sem título')}${it.archived ? ' <span class="badge-archived">arquivado</span>' : ''}${!isReady && isRec ? ` <span class="badge-status ${it.status||''}">${it.status||'pendente'}</span>` : ''}</div>
+    <div class="col-type">${typeLabel}</div>
+    <div class="col-size">${size}</div>
+    <div class="col-date">${dt(it.updated_at || it.created_at)}</div>
+    <div class="col-actions">
+      <button class="row-menu" onclick="event.stopPropagation(); ${menuOnClick}">⋯</button>
+    </div>
+  </div>`;
 }
 
 function _bunkoCardHTML(it) {
@@ -46541,6 +46721,36 @@ function _bunkoCardHTML(it) {
   };
   const dt = (iso) => new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
   const onClick = isPage ? `_bunkoOpenPage('${_esc(it.id)}')` : (isReady ? `_bunkoOpenRecording('${_esc(it.id)}')` : '');
+  // ARQUIVO solto (drag-drop em pasta)
+  const isFile = it.kind === 'file';
+  if (isFile) {
+    // No SQL os campos foram empacotados em colunas existentes:
+    //   status = mime_type, url = storage_path, source_kind = storage_bucket,
+    //   actions_count = size_bytes (gambiarra pra reuso de schema)
+    const fileMime = it.status || '';
+    const filePath = it.url || '';
+    const fileBucket = it.source_kind || 'bunko-files';
+    const fileSize = it.actions_count || 0;
+    const fi = _bunkoFileIcon(it.title, fileMime);
+    return `<div class="bunko-card is-file-card"
+      draggable="true"
+      ondragstart="_bunkoDragStart(event, 'file', '${_esc(it.id)}')"
+      onclick="_bunkoDownloadFile('${_esc(filePath)}','${_esc(fileBucket)}','${_esc(it.title)}')">
+      <div class="bunko-card-menu">
+        <button class="bunko-card-menu-btn" onclick="event.stopPropagation(); _bunkoFileMenu(event, '${_esc(it.id)}','${_esc(filePath)}','${_esc(fileBucket)}','${_esc((it.title||'').replace(/'/g,'\\\''))}')">⋯</button>
+      </div>
+      <div class="bunko-card-file-thumb" style="background:${fi.color}1a;color:${fi.color};">
+        <span class="ic">${fi.icon}</span>
+      </div>
+      <div class="bunko-card-body">
+        <div class="bunko-card-title">
+          <span class="bunko-card-name">${_esc(it.title||'sem nome')}</span>
+        </div>
+        <div class="bunko-card-meta">${_bunkoFormatSize(fileSize)} · ${dt(it.created_at)}</div>
+      </div>
+    </div>`;
+  }
+
   // PÁGINAS: thumb mostra o RESUMO (summary). Se vazio, mostra placeholder convidativo.
   // GRAVAÇÕES: thumb mostra ícone grande + duração + status.
   const summaryText = (it.preview || '').slice(0, 180);
@@ -46665,6 +46875,13 @@ function _bunkoSetFilter(f) {
   _bunkoState.filter = f;
   document.querySelectorAll('.bunko-filter-tab').forEach(b => b.classList.toggle('is-active', b.dataset.filter === f));
   _bunkoLoadAll();
+}
+
+function _bunkoSetViewMode(mode) {
+  _bunkoState.viewMode = mode;
+  try { localStorage.setItem('synkan_bunko_view', mode); } catch(_){}
+  document.querySelectorAll('.bunko-view-btn').forEach(b => b.classList.toggle('is-active', b.dataset.view === mode));
+  _bunkoRenderItems();
 }
 
 function _bunkoOnSearchInput(v) {
@@ -46847,9 +47064,11 @@ function _bunkoDragStart(e, kind, id) {
   try { e.dataTransfer.setData('text/plain', JSON.stringify({kind,id})); } catch(_){}
 }
 function _bunkoDragOver(e, el) {
-  if (!_bunkoDragData) return;
+  // Aceita BOTH: items internos (com _bunkoDragData) E arquivos do desktop (dataTransfer.types contém 'Files')
+  const isFileFromDesktop = e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+  if (!_bunkoDragData && !isFileFromDesktop) return;
   e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
+  e.dataTransfer.dropEffect = isFileFromDesktop ? 'copy' : 'move';
   if (el) el.classList.add('is-drop-over');
 }
 function _bunkoDragLeave(e, el) {
@@ -46858,16 +47077,27 @@ function _bunkoDragLeave(e, el) {
 async function _bunkoDrop(e, targetFolderId) {
   e.preventDefault();
   document.querySelectorAll('.is-drop-over').forEach(el => el.classList.remove('is-drop-over'));
+
+  // CASO 1: arquivos do desktop → upload pra pasta
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    _bunkoDragData = null;
+    await _bunkoUploadFilesToFolder(targetFolderId, e.dataTransfer.files);
+    return;
+  }
+
+  // CASO 2: item interno (folder, page, recording, file) → move pra outra pasta
   if (!_bunkoDragData) return;
   const { kind, id } = _bunkoDragData;
   _bunkoDragData = null;
-  // Evita drop em si mesmo (folder em si mesmo)
   if (kind === 'folder' && id === targetFolderId) return;
   const c = await _chatGetClient();
   try {
     if (kind === 'folder') {
-      // Move pasta — UPDATE direto (não tem RPC dedicado)
       const { error } = await c.from('bunko_folders').update({ parent_id: targetFolderId }).eq('id', id);
+      if (error) throw error;
+    } else if (kind === 'file') {
+      // Arquivo solto — update direto (move_to_folder não cobre 'file')
+      const { error } = await c.from('bunko_files').update({ folder_id: targetFolderId }).eq('id', id);
       if (error) throw error;
     } else {
       const { error } = await c.rpc('move_to_folder', { p_kind: kind, p_item_id: id, p_folder_id: targetFolderId });
@@ -47063,6 +47293,102 @@ function _bunkoUpdateAttachIndicator(pageId, count) {
   }
 }
 
+// Menu (⋯) dos arquivos soltos em pasta
+function _bunkoFileMenu(evt, fileId, storagePath, bucket, name) {
+  _bunkoClosePopover();
+  const pop = document.createElement('div');
+  pop.className = 'bunko-popover';
+  pop.id = 'bunko-popover';
+  pop.innerHTML = `
+    <button onclick="_bunkoClosePopover(); _bunkoRenameFile('${_esc(fileId)}','${_esc(name)}','__refresh__')">✏️ Renomear</button>
+    <button onclick="_bunkoClosePopover(); _bunkoMoveFilePrompt('${_esc(fileId)}')">📂 Mover pra...</button>
+    <button onclick="_bunkoClosePopover(); _bunkoDownloadFile('${_esc(storagePath)}','${_esc(bucket)}','${_esc(name)}')">⬇ Baixar</button>
+    <div class="divider"></div>
+    <button class="is-danger" onclick="_bunkoClosePopover(); _bunkoDeleteFile('${_esc(fileId)}','${_esc(storagePath)}','${_esc(bucket)}','__refresh__')">🗑 Excluir</button>`;
+  _bunkoShowPopover(pop, evt);
+}
+
+// Mover arquivo pra outra pasta
+function _bunkoMoveFilePrompt(fileId) {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  const opts = [
+    `<button class="bunko-btn" style="text-align:left;width:100%;" onclick="_bunkoDoMoveFile('${_esc(fileId)}', null)">📦 Raiz</button>`,
+    ..._bunkoState.folders.map(f => `<button class="bunko-btn" style="text-align:left;width:100%;" onclick="_bunkoDoMoveFile('${_esc(fileId)}','${_esc(f.id)}')">${_esc(f.icon||'📁')} ${_esc(f.name)}</button>`)
+  ];
+  ov.innerHTML = `<div style="background:#FFFCF5;border:1px solid #B8A878;border-radius:12px;padding:20px;max-width:380px;width:90%;max-height:70vh;overflow:auto;">
+    <h3 style="margin:0 0 12px;font-family:var(--tatami-mincho,serif);font-size:18px;color:#3A2410;">Mover arquivo pra qual pasta?</h3>
+    <div style="display:flex;flex-direction:column;gap:6px;">${opts.join('')}</div>
+  </div>`;
+  document.body.appendChild(ov);
+  window._bunkoMoveFileOv = ov;
+}
+window._bunkoDoMoveFile = async function(fileId, folderId) {
+  if (window._bunkoMoveFileOv) { window._bunkoMoveFileOv.remove(); window._bunkoMoveFileOv = null; }
+  const c = await _chatGetClient();
+  try {
+    // Update direto (não tem RPC dedicada)
+    const { error } = await c.from('bunko_files').update({ folder_id: folderId }).eq('id', fileId);
+    if (error) throw error;
+    await _bunkoLoadAll();
+  } catch(e) { appAlert('Erro ao mover', e?.message || String(e), { icon:'⚠️' }); }
+};
+
+// Upload arquivos do desktop direto numa pasta (sem precisar abrir página)
+async function _bunkoUploadFilesToFolder(folderId, fileList) {
+  if (!fileList || !fileList.length) return;
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c || !supaUser) {
+    appAlert('Sem cliente', 'Modo Cloud não está ativo.', { icon:'⚠️' });
+    return;
+  }
+  const total = fileList.length;
+  let done = 0, errors = 0;
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Enviando arquivos', `0 de ${total}…`, 'info');
+  }
+  for (const file of fileList) {
+    if (file.size > 25 * 1024 * 1024) {
+      errors++;
+      console.warn('[bunko-files] arquivo grande demais:', file.name);
+      continue;
+    }
+    try {
+      const safeName = file.name.replace(/[^\w\s.-]/g, '_');
+      // Pasta no storage: {user_id}/folder/{folder_id_or_root}/{timestamp}_{filename}
+      const path = `${supaUser.id}/folder/${folderId || 'root'}/${Date.now()}_${safeName}`;
+      const { error: upErr } = await c.storage.from('bunko-files').upload(path, file, {
+        contentType: file.type || 'application/octet-stream',
+        upsert: false,
+      });
+      if (upErr) throw upErr;
+      const { error: regErr } = await c.rpc('register_bunko_file', {
+        p_page_id: null,                     // ← arquivo solto, não anexo de página
+        p_folder_id: folderId,
+        p_name: file.name,
+        p_size_bytes: file.size,
+        p_mime_type: file.type || null,
+        p_storage_path: path,
+        p_storage_bucket: 'bunko-files',
+      });
+      if (regErr) throw regErr;
+      done++;
+    } catch(e) {
+      console.warn('[bunko-files] upload pasta falhou:', file.name, e?.message);
+      errors++;
+    }
+  }
+  if (typeof _showKanWarning === 'function') {
+    if (errors === 0) {
+      _showKanWarning('Arquivos salvos ✓', `${done} arquivo(s) na pasta.`, 'success');
+    } else {
+      _showKanWarning('Upload parcial', `${done} OK, ${errors} falharam.`, 'warning');
+    }
+  }
+  await _bunkoLoadAll();
+}
+
 // Renomeia anexo (sem mexer no arquivo físico — só no nome de exibição/download)
 async function _bunkoRenameFile(fileId, currentName, pageId) {
   const newName = await appPrompt('Renomear anexo', {
@@ -47076,7 +47402,8 @@ async function _bunkoRenameFile(fileId, currentName, pageId) {
   try {
     const { error } = await c.rpc('rename_bunko_file', { p_id: fileId, p_name: newName });
     if (error) throw error;
-    _bunkoLoadFiles(pageId);
+    if (pageId === '__refresh__') await _bunkoLoadAll();
+    else _bunkoLoadFiles(pageId);
     if (typeof _showKanWarning === 'function') {
       _showKanWarning('Renomeado ✓', `Agora chama "${_esc(newName)}".`, 'info');
     }
@@ -47173,7 +47500,8 @@ async function _bunkoDeleteFile(fileId, storagePath, bucket, pageId) {
     await c.rpc('delete_bunko_file', { p_id: fileId });
     // Hard delete no Storage
     await c.storage.from(bucket).remove([storagePath]);
-    _bunkoLoadFiles(pageId);
+    if (pageId === '__refresh__') await _bunkoLoadAll();
+    else _bunkoLoadFiles(pageId);
     if (typeof _showKanWarning === 'function') _showKanWarning('Excluído', 'Arquivo removido.', 'info');
   } catch(e) {
     appAlert('Erro', e?.message || String(e), { icon:'⚠️' });
