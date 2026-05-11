@@ -5543,14 +5543,12 @@ body.density-compact .col{padding:7px;}
 .lk-ctrl-kan:hover{background:linear-gradient(135deg,rgba(107,93,200,.32) 0%,rgba(107,93,200,.18) 100%);}
 .lk-ctrl-kan.is-active{background:#6B5DC8;border-color:rgba(181,168,255,.6);font-style:normal;font-weight:600;}
 
-/* Botão "Efeitos de câmera" — usa ícone PNG da katana mágica (já tem frame
-   vermelho desenhado nele), então o botão fica transparente.
-   ::after dele do .is-muted seria duplicado — desativado pra esse botão. */
-.lk-ctrl.lk-ctrl-fx{background:transparent !important;border:none !important;padding:0;overflow:visible;}
-.lk-ctrl.lk-ctrl-fx::after{display:none !important;}
-.lk-ctrl-fx img{width:46px;height:46px;display:block;object-fit:contain;transition:transform .15s ease,filter .15s ease;}
-.lk-ctrl-fx:hover img{transform:scale(1.08);filter:brightness(1.12);}
-.lk-ctrl-fx.is-active img{transform:scale(1.05);filter:drop-shadow(0 0 8px rgba(255,80,100,.8)) drop-shadow(0 0 2px rgba(255,255,255,.5));}
+/* Botão "Efeitos de câmera" — katana mágica como ícone branco, segue o
+   mesmo padrão visual dos outros botões da barra (fundo translúcido,
+   vermelho quando ativo). */
+.lk-ctrl-fx img{width:22px;height:22px;display:block;object-fit:contain;transition:transform .15s ease,filter .15s ease;}
+.lk-ctrl-fx:hover img{transform:scale(1.10);}
+.lk-ctrl-fx.is-active img{filter:drop-shadow(0 0 3px rgba(255,255,255,.6));}
 
 /* ── Efeitos de câmera (modal seletor) ──────────────────────────────── */
 .lk-fx-ov{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;z-index:10001;}
@@ -49976,7 +49974,7 @@ function _lkRenderControls() {
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="0.8" fill="currentColor"/><circle cx="15" cy="10" r="0.8" fill="currentColor"/><path d="M8 14 q 4 4 8 0"/></svg>
     </button>
     <button type="button" class="lk-ctrl lk-ctrl-fx ${_lkGetCurrentEffect()!=='none'?'is-active':''}" onclick="_lkOpenEffectsModal()" title="Efeitos de câmera">
-      <img src="katana-magica-icon.png?v=2" alt="Efeitos de câmera" draggable="false"/>
+      <img src="katana-magica-icon.png?v=3" alt="Efeitos de câmera" draggable="false"/>
     </button>
     <button type="button" class="lk-ctrl lk-ctrl-rec ${ext.lk.recording?'is-recording':''}" onclick="_lkToggleRecording()" title="${ext.lk.recording?'Parar gravação':'Iniciar gravação'}">
       ${ext.lk.recording
