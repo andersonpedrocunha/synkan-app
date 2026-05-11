@@ -44380,7 +44380,7 @@ function _lkCanRecord() {
 }
 
 // Pede token ao endpoint (com timeout pra não pendurar)
-async function _lkFetchToken(channelId, identity, name) {
+async function _lkFetchToken(channelId, identity, name, roomName) {
   const ep = window.LIVEKIT_TOKEN_ENDPOINT;
   if (!ep) throw new Error('Configure window.LIVEKIT_TOKEN_ENDPOINT');
   // Pega JWT via cache (rápido) ou getSession com timeout curto
@@ -44400,13 +44400,18 @@ async function _lkFetchToken(channelId, identity, name) {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), 8000);
   try {
+    // room_name é CRÍTICO: o banco gera nome com timestamp (tatami-xxx-1234),
+    // mas o token endpoint por default gera sem (tatami-xxx). Sem passar
+    // room_name aqui, a sala do token não bate com a do Egress → gravação 404.
+    const reqBody = { channel_id: channelId, identity, name };
+    if (roomName) reqBody.room_name = roomName;
     const r = await fetch(ep, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(jwt ? { 'Authorization': 'Bearer ' + jwt } : {}),
       },
-      body: JSON.stringify({ channel_id: channelId, identity, name }),
+      body: JSON.stringify(reqBody),
       signal: ctrl.signal,
     });
     clearTimeout(tid);
@@ -44501,8 +44506,10 @@ async function _lkStart() {
   let token;
   try {
     const userName = (supaUser?.user_metadata?.full_name || supaUser?.email || 'usuário');
-    token = await _lkFetchToken(ext.channelId, supaUser.id, userName);
-    console.log('[lk] token obtido (primeiros 20 chars):', token?.slice(0,20)+'…');
+    // Passa session.livekit_room pro token usar o MESMO nome de sala que tá no banco
+    // (senão o Egress não acha a sala na hora de gravar)
+    token = await _lkFetchToken(ext.channelId, supaUser.id, userName, session.livekit_room);
+    console.log('[lk] token obtido pra sala:', session.livekit_room, '(token:', token?.slice(0,20)+'…)');
   } catch(e) {
     console.error('[lk] token fetch falhou:', e);
     appAlert('Erro no token endpoint',
@@ -45764,11 +45771,21 @@ async function _lkStartRecording() {
     const r = await fetch(startUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
-      body: JSON.stringify({ recording_id: recordingId, room_name: ext.lk.livekitRoom }),
+      // Usa room.name (nome real conectado no LK servers) — fallback pra valor armazenado
+      body: JSON.stringify({
+        recording_id: recordingId,
+        room_name: ext.lk.room?.name || ext.lk.livekitRoom,
+      }),
     });
     if (!r.ok) {
       const errText = await r.text().catch(()=>'');
-      throw new Error(`Edge Function ${r.status}: ${errText}`);
+      const isRoomNotFound = /not_found|requested room does not exist/i.test(errText);
+      const hint = isRoomNotFound
+        ? '\n\n🔧 Sala não encontrada no LiveKit. Possíveis causas:\n• A região do projeto LiveKit não bate com a região configurada\n• A sala foi destruída antes do Egress começar\n• Aguarde 5s após entrar na call antes de gravar'
+        : (/unauthenticated|permission/i.test(errText)
+          ? '\n\n🔑 Edge Function precisa ser redeployada com o fix do JWT (roomRecord:true):\nsupabase functions deploy livekit-recording --no-verify-jwt'
+          : '');
+      throw new Error(`Edge Function ${r.status}: ${errText}${hint}`);
     }
     const result = await r.json();
     ext.lk.recording = { id: recordingId, egressId: result.egress_id, startedAt: Date.now() };
