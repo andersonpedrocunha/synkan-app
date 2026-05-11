@@ -6895,8 +6895,8 @@ body.tx-active .belt-ring::after{
       <span class="sb-icon" style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:-.04em;color:#BC002D;">財</span><span>Zai</span></button>
     <button class="sb-item" id="sb-chat" onclick="switchTab('chat')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1 -1.5 1.5h-6L4 14v-2H3a1.5 1.5 0 0 1 -1.5 -1.5v-5.5A1.5 1.5 0 0 1 3 3.5z"/><line x1="5" y1="6.4" x2="11" y2="6.4"/><line x1="5" y1="8.7" x2="9" y2="8.7"/></svg></span><span>Tatami</span><span class="sb-chat-badge" id="sb-chat-badge" style="display:none;"></span></button>
-    <button class="sb-item" id="sb-acervo" onclick="switchTab('acervo')">
-      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><rect x="2" y="3" width="12" height="10" rx="1.4"/><path d="M7 7l3 1.5l-3 1.5z" fill="currentColor"/><line x1="2" y1="6" x2="14" y2="6" opacity=".4"/><circle cx="3.5" cy="4.5" r=".4" fill="currentColor" opacity=".5"/><circle cx="12.5" cy="4.5" r=".4" fill="currentColor" opacity=".5"/></svg></span><span>Replay</span></button>
+    <button class="sb-item" id="sb-bunko" onclick="switchTab('bunko')">
+      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M2 4 L 8 1.5 L 14 4 L 14 12 L 8 14.5 L 2 12 Z"/><path d="M2 4 L 8 6.5 L 14 4" opacity=".7"/><path d="M8 6.5 L 8 14.5" opacity=".5"/><path d="M5 5.2 L 5 12.7" opacity=".3"/><path d="M11 5.2 L 11 12.7" opacity=".3"/></svg></span><span>Bunko Box</span></button>
     <button class="sb-item" id="sb-okrs" onclick="switchTab('okrs')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></span><span>OKRs</span></button>
     <button class="sb-item" id="sb-registry" onclick="switchTab('registry')">
@@ -7056,8 +7056,8 @@ body.tx-active .belt-ring::after{
     <div id="chat-root"></div>
   </div>
 
-  <div id="view-acervo" style="display:none;">
-    <div id="acervo-root"></div>
+  <div id="view-bunko" style="display:none;">
+    <div id="bunko-root"></div>
   </div>
 
   <div id="view-dojo" style="display:none;">
@@ -18101,8 +18101,8 @@ function switchTab(tab) {
   document.getElementById('view-okrs').style.display      = tab==='okrs'      ? '' : 'none';
   document.getElementById('view-zai').style.display       = tab==='zai'       ? '' : 'none';
   document.getElementById('view-chat').style.display      = tab==='chat'      ? '' : 'none';
-  const acervoEl = document.getElementById('view-acervo');
-  if (acervoEl) acervoEl.style.display = tab==='acervo' ? '' : 'none';
+  const bunkoEl = document.getElementById('view-bunko');
+  if (bunkoEl) bunkoEl.style.display = tab==='bunko' ? '' : 'none';
   document.getElementById('view-dojo').style.display      = tab==='dojo'      ? '' : 'none';
   document.getElementById('view-settings').style.display  = tab==='settings'  ? '' : 'none';
   document.getElementById('view-kanban').style.display    = tab==='kanban'    ? '' : 'none';
@@ -18132,7 +18132,7 @@ function switchTab(tab) {
   if (tab==='okrs') renderOKRs();
   if (tab==='zai') renderZaiHub();
   if (tab==='chat') renderChat();
-  if (tab==='acervo' && typeof renderAcervo === 'function') renderAcervo();
+  if (tab==='bunko' && typeof renderBunko === 'function') renderBunko();
   // Limpa subscription realtime do chat ao sair da aba (pra não vazar conexões)
   if (tab !== 'chat' && typeof _chatUnsubscribeRealtime === 'function') _chatUnsubscribeRealtime();
   // Tatame: ao sair do chat, minimiza pra não ocupar a tela; ao entrar, reativa monitor.
@@ -45991,10 +45991,10 @@ async function _lkCleanupStaleRecordings() {
   return 0;
 }
 
-// Botão "Limpar presas" do Replay
-async function _acervoCleanupStale() {
+// Botão "Limpar presas" do Bunko Box (mesmo da gravação)
+async function _bunkoCleanupStale() {
   const ok = await appConfirm('Limpar gravações presas?',
-    'Vai marcar como "falhou" todas as suas gravações que ficaram presas em "gravando" (quando o stop não funcionou). Isso só atualiza o status — não apaga nada.',
+    'Vai marcar como "falhou" todas as suas gravações que ficaram presas em "gravando". Isso só atualiza o status — não apaga nada.',
     { okLabel: 'Limpar', cancelLabel: 'Cancelar' });
   if (!ok) return;
   const count = await _lkCleanupStaleRecordings();
@@ -46003,201 +46003,844 @@ async function _acervoCleanupStale() {
       count > 0 ? `${count} gravação(ões) marcadas como falha.` : 'Nenhuma gravação presa encontrada.',
       'info');
   }
-  if (typeof renderAcervo === 'function') renderAcervo();
+  if (typeof renderBunko === 'function') renderBunko();
 }
 
 // ════════════════════════════════════════════════════════════════════
-// Replay de Gravações — módulo separado (não fica no Tatami)
+// BUNKO BOX — Workspace de conhecimento (substitui Replay)
 // ════════════════════════════════════════════════════════════════════
-async function renderAcervo() {
-  const root = document.getElementById('acervo-root');
+// Estrutura de árvore (pastas aninhadas) + páginas + gravações.
+// Estilo Notion: sidebar à esquerda com tree, conteúdo à direita.
+// ════════════════════════════════════════════════════════════════════
+
+const _bunkoState = {
+  folders: [],           // lista flat retornada do RPC
+  folderTree: [],        // árvore aninhada construída de folders
+  items: [],             // items da pasta atual
+  currentFolderId: null, // null = raiz
+  filter: 'active',      // 'active' | 'archived' | 'trash'
+  searchQuery: '',
+  expandedFolders: new Set(),
+  selectedItemIds: new Set(),
+  rtSub: null,
+};
+
+// Constrói árvore aninhada a partir da lista flat
+function _bunkoBuildTree(folders) {
+  const byId = new Map();
+  folders.forEach(f => { f.children = []; byId.set(f.id, f); });
+  const roots = [];
+  folders.forEach(f => {
+    if (f.parent_id && byId.has(f.parent_id)) {
+      byId.get(f.parent_id).children.push(f);
+    } else {
+      roots.push(f);
+    }
+  });
+  return roots;
+}
+
+async function renderBunko() {
+  const root = document.getElementById('bunko-root');
   if (!root) return;
   if (getStorageMode() !== 'supabase' || !supaUser) {
     root.innerHTML = `<div style="padding:48px 24px;text-align:center;color:var(--color-text-secondary);">
-      <h2 style="margin:0 0 8px;font-size:20px;color:var(--color-text-primary);">Acervo requer modo Cloud</h2>
+      <h2 style="margin:0 0 8px;font-size:20px;color:var(--color-text-primary);">Bunko Box requer modo Cloud</h2>
       <p style="margin:0 0 16px;font-size:13px;line-height:1.6;max-width:380px;margin-left:auto;margin-right:auto;">
-        O Acervo guarda as gravações das chamadas do Tatami. Funciona em conjunto com Supabase.
+        O Bunko Box é seu armazém de conhecimento — gravações, transcrições, contratos. Precisa do Supabase pra funcionar.
       </p>
       <button class="btn-s" onclick="switchTab('settings');setSettingsTab('sync');">Configurar conta</button>
     </div>`;
     return;
   }
 
-  // Loading inicial
-  root.innerHTML = `<div style="padding:60px 24px;text-align:center;font-family:var(--tatami-mincho,serif);font-style:italic;color:var(--color-text-tertiary);">Carregando suas gravações…</div>`;
+  // Layout base — só renderiza uma vez
+  if (!root.querySelector('.bunko-shell')) {
+    root.innerHTML = `
+      <style>
+        .bunko-shell { display:flex; height: calc(100vh - 60px); background: var(--tatami-cream, #F5E8C8); font-family: var(--font-sans); }
+        .bunko-sidebar { width: 280px; flex-shrink:0; background: linear-gradient(180deg, #F5E8C8 0%, #E8D29A 100%); border-right: 1px solid #B8A878; padding: 18px 12px 12px; overflow-y: auto; }
+        .bunko-sidebar-h { display:flex; align-items:center; gap:10px; margin-bottom: 14px; padding: 0 4px; }
+        .bunko-sidebar-h-ic { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #6B4825 0%, #A88150 100%); display:flex; align-items:center; justify-content:center; }
+        .bunko-sidebar-h-ic svg { width: 18px; height: 18px; stroke: #F5E8C8; fill:none; stroke-width:1.5; }
+        .bunko-sidebar-h-title { font-family: var(--tatami-mincho,serif); font-size: 18px; font-weight: 700; color: #3A2410; }
+        .bunko-sidebar-h-sub { font-family: var(--tatami-mincho,serif); font-style: italic; font-size: 10.5px; color: #6B4825; }
+        .bunko-search { width: 100%; padding: 7px 10px; border: 1px solid #B8A878; background: rgba(255,255,255,.6); border-radius: 8px; font-size: 12.5px; color: #3A2410; outline: none; margin-bottom: 12px; }
+        .bunko-search::placeholder { color: #8B7250; }
+        .bunko-filter-tabs { display:flex; gap:4px; margin-bottom: 12px; padding: 3px; background: rgba(0,0,0,.06); border-radius: 8px; }
+        .bunko-filter-tab { flex:1; padding: 5px 6px; font-size: 10.5px; font-family: var(--tatami-mincho,serif); background:transparent; border:none; cursor:pointer; color: #6B4825; border-radius: 6px; transition: all .15s; }
+        .bunko-filter-tab.is-active { background: #6B4825; color: #F5E8C8; font-weight: 600; }
+        .bunko-folder-actions { display:flex; gap: 6px; margin-bottom: 8px; padding: 0 4px; }
+        .bunko-folder-actions button { flex:1; padding: 6px 8px; background: rgba(107,72,37,.10); border: 1px dashed #8B6634; color: #6B4825; border-radius: 6px; cursor:pointer; font-size: 11px; font-family: var(--tatami-mincho,serif); font-style: italic; transition: all .15s; }
+        .bunko-folder-actions button:hover { background: #6B4825; color: #F5E8C8; border-style: solid; }
+        .bunko-tree { list-style:none; padding:0; margin:0; }
+        .bunko-tree-node { user-select: none; }
+        .bunko-tree-row { display:flex; align-items:center; gap:6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; transition: background .12s; color: #3A2410; font-size: 12.5px; }
+        .bunko-tree-row:hover { background: rgba(107,72,37,.10); }
+        .bunko-tree-row.is-active { background: #6B4825; color: #F5E8C8; }
+        .bunko-tree-row.is-drop-over { background: rgba(193,154,58,.4); outline: 2px dashed #C19A3A; }
+        .bunko-tree-chevron { width: 14px; height: 14px; display:inline-flex; align-items:center; justify-content:center; font-size: 10px; color: inherit; opacity:.7; transition: transform .15s; flex-shrink:0; }
+        .bunko-tree-chevron.is-expanded { transform: rotate(90deg); }
+        .bunko-tree-chevron.is-empty { visibility: hidden; }
+        .bunko-tree-icon { font-size: 14px; flex-shrink:0; }
+        .bunko-tree-name { flex:1; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bunko-tree-count { font-size: 10px; opacity: .55; background: rgba(0,0,0,.06); padding: 1px 6px; border-radius: 999px; }
+        .bunko-tree-row.is-active .bunko-tree-count { background: rgba(255,255,255,.15); opacity: .9; }
+        .bunko-tree-actions { display:none; gap: 2px; margin-left: 4px; }
+        .bunko-tree-row:hover .bunko-tree-actions { display: inline-flex; }
+        .bunko-tree-actions button { background: transparent; border: none; color: inherit; cursor: pointer; padding: 2px 4px; font-size: 11px; opacity: .65; border-radius: 4px; }
+        .bunko-tree-actions button:hover { background: rgba(0,0,0,.10); opacity: 1; }
+        .bunko-tree-children { padding-left: 16px; margin-left: 6px; border-left: 1px dashed rgba(107,72,37,.20); }
 
-  // Busca gravações com timeout — usa cliente isolado pra evitar GoTrueClient lock
-  let recordings = [];
+        .bunko-main { flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden; background: #F8F2E0; }
+        .bunko-main-h { padding: 18px 26px 12px; border-bottom: 1px solid rgba(184,168,120,.4); background: linear-gradient(180deg, #F5E8C8 0%, #F8F2E0 100%); }
+        .bunko-breadcrumb { display:flex; align-items:center; gap: 6px; font-size: 12.5px; font-family: var(--tatami-mincho,serif); color: #6B4825; flex-wrap: wrap; }
+        .bunko-breadcrumb a { color: #6B4825; cursor: pointer; text-decoration: none; }
+        .bunko-breadcrumb a:hover { color: #BC002D; text-decoration: underline; }
+        .bunko-breadcrumb .sep { color: rgba(107,72,37,.4); }
+        .bunko-breadcrumb .current { color: #3A2410; font-weight: 600; font-style: normal; }
+        .bunko-main-title-row { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+        .bunko-main-title { font-family: var(--tatami-mincho,serif); font-size: 24px; font-weight: 700; color: #3A2410; display: inline-flex; align-items: center; gap: 10px; flex:1; }
+        .bunko-main-title-icon { font-size: 24px; }
+        .bunko-toolbar { display:flex; gap: 8px; }
+        .bunko-btn { padding: 7px 12px; border-radius: 7px; cursor: pointer; font-size: 12px; font-family: var(--font-sans); border: 1px solid #B8A878; background: rgba(255,255,255,.5); color: #3A2410; display: inline-flex; align-items: center; gap: 5px; transition: all .15s; }
+        .bunko-btn:hover { background: #6B4825; color: #F5E8C8; border-color: #6B4825; }
+        .bunko-btn.is-primary { background: linear-gradient(135deg,#6B4825,#A88150); color: #F5E8C8; border-color: #6B4825; }
+        .bunko-btn.is-primary:hover { background: linear-gradient(135deg,#5A3818,#8B6634); }
+        .bunko-btn.is-danger { background: rgba(188,0,45,.08); color: #8B0020; border-color: rgba(188,0,45,.25); }
+        .bunko-btn.is-danger:hover { background: #BC002D; color: #fff; border-color: #BC002D; }
+        .bunko-main-content { flex:1; overflow-y: auto; padding: 22px 26px 60px; }
+
+        .bunko-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+        .bunko-card { background: #FFFCF5; border: 1px solid #B8A878; border-radius: 10px; overflow: hidden; cursor: pointer; transition: all .15s; position: relative; }
+        .bunko-card:hover { border-color: #6B4825; transform: translateY(-2px); box-shadow: 0 10px 24px rgba(107,72,37,.15); }
+        .bunko-card.is-drop-over { border-color: #C19A3A; outline: 2px dashed #C19A3A; }
+        .bunko-card-thumb { aspect-ratio: 16/9; background: linear-gradient(135deg, #6B4825 0%, #3A2410 100%); display:flex; align-items:center; justify-content:center; color: #F5E8C8; position: relative; }
+        .bunko-card-thumb.is-page { background: linear-gradient(135deg, #F5E8C8 0%, #D4B888 100%); color: #3A2410; }
+        .bunko-card-thumb img { width:100%; height:100%; object-fit: cover; }
+        .bunko-card-thumb .ic { font-size: 36px; }
+        .bunko-card-thumb .status { position: absolute; top: 8px; left: 8px; font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+        .bunko-card-thumb .status.recording { background: #BC002D; color: #fff; }
+        .bunko-card-thumb .status.processing { background: #C19A3A; color: #3A2410; }
+        .bunko-card-thumb .status.failed { background: #666; color: #fff; }
+        .bunko-card-thumb .duration { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,.7); color: #fff; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+        .bunko-card-thumb .play-overlay { position: absolute; inset: 0; display:flex; align-items:center; justify-content:center; opacity: 0; transition: opacity .15s; background: rgba(0,0,0,.25); }
+        .bunko-card:hover .play-overlay { opacity: 1; }
+        .bunko-card-thumb .play-overlay::after { content: ''; width: 0; height: 0; border-left: 18px solid #fff; border-top: 12px solid transparent; border-bottom: 12px solid transparent; margin-left: 4px; }
+        .bunko-card-body { padding: 12px 14px; }
+        .bunko-card-title { font-family: var(--tatami-mincho,serif); font-size: 14.5px; font-weight: 600; color: #1A1611; margin-bottom: 4px; line-height:1.35; display: inline-flex; align-items: center; gap: 6px; }
+        .bunko-card-meta { font-size: 11px; color: #6B4825; font-family: var(--tatami-mincho,serif); font-style:italic; line-height:1.45; }
+        .bunko-card-preview { font-size: 11.5px; color: #5C4F3F; margin-top: 6px; line-height: 1.4; max-height: 38px; overflow: hidden; }
+        .bunko-card-tags { display:flex; gap: 6px; margin-top: 8px; flex-wrap:wrap; }
+        .bunko-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: #EDE5D0; color: #3A2410; font-weight: 500; }
+        .bunko-tag.is-decisions { background: rgba(193,154,58,.20); color: #8F6E1F; }
+        .bunko-tag.is-actions { background: rgba(188,0,45,.10); color: #BC002D; }
+        .bunko-tag.is-archived { background: rgba(107,72,37,.15); color: #6B4825; }
+        .bunko-card-menu { position: absolute; top: 8px; right: 8px; opacity: 0; transition: opacity .15s; }
+        .bunko-card:hover .bunko-card-menu { opacity: 1; }
+        .bunko-card-menu-btn { width: 28px; height: 28px; border-radius: 50%; background: rgba(0,0,0,.5); border: none; color: #fff; cursor: pointer; font-size: 16px; display:flex; align-items:center; justify-content:center; }
+        .bunko-card-menu-btn:hover { background: rgba(0,0,0,.8); }
+
+        .bunko-empty { padding: 60px 24px; text-align: center; color: #6B4825; font-family: var(--tatami-mincho,serif); font-style: italic; }
+        .bunko-empty-ic { width: 72px; height: 72px; border-radius: 50%; background: rgba(107,72,37,.10); display:flex; align-items:center; justify-content:center; margin: 0 auto 18px; font-size: 32px; }
+        .bunko-empty h3 { font-size: 18px; font-weight: 600; color: #3A2410; font-style: normal; margin-bottom: 6px; }
+        .bunko-empty p { font-size: 13px; max-width: 380px; margin: 0 auto 18px; }
+
+        /* Popover menu (3 dots) */
+        .bunko-popover { position: fixed; z-index: 10000; background: #FFFCF5; border: 1px solid #B8A878; border-radius: 8px; box-shadow: 0 14px 32px rgba(107,72,37,.20); padding: 5px; min-width: 180px; }
+        .bunko-popover button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px; background: transparent; border: none; cursor: pointer; font-size: 12.5px; color: #3A2410; border-radius: 5px; font-family: inherit; text-align: left; }
+        .bunko-popover button:hover { background: #F5E8C8; }
+        .bunko-popover button.is-danger { color: #BC002D; }
+        .bunko-popover button.is-danger:hover { background: rgba(188,0,45,.08); }
+        .bunko-popover .divider { height: 1px; background: rgba(184,168,120,.5); margin: 4px 6px; }
+
+        /* Page editor */
+        .bunko-page-editor { padding: 30px 60px; max-width: 800px; margin: 0 auto; }
+        .bunko-page-icon-input { font-size: 56px; cursor: pointer; background: transparent; border: none; padding: 0; margin-bottom: 10px; line-height: 1; }
+        .bunko-page-title-input { width: 100%; font-family: var(--tatami-mincho,serif); font-size: 36px; font-weight: 700; color: #1A1611; background: transparent; border: none; outline: none; padding: 0; margin-bottom: 18px; }
+        .bunko-page-toolbar { display: flex; flex-wrap:wrap; gap: 3px; padding: 8px 10px; background: rgba(245,232,200,.7); border: 1px solid #D4B888; border-radius: 8px; margin-bottom: 12px; position: sticky; top: 0; z-index: 10; backdrop-filter: blur(6px); }
+        .bunko-page-toolbar button { background: transparent; border: none; cursor: pointer; padding: 5px 8px; font-size: 12px; color: #3A2410; border-radius: 5px; min-width: 28px; font-weight: 600; }
+        .bunko-page-toolbar button:hover { background: rgba(107,72,37,.12); }
+        .bunko-page-toolbar .divider { width: 1px; background: rgba(107,72,37,.18); margin: 2px 4px; }
+        .bunko-page-content { min-height: 400px; font-size: 15px; line-height: 1.65; color: #2A1F18; outline: none; padding: 6px 0; }
+        .bunko-page-content h1 { font-family: var(--tatami-mincho,serif); font-size: 26px; font-weight: 700; margin: 18px 0 8px; }
+        .bunko-page-content h2 { font-family: var(--tatami-mincho,serif); font-size: 21px; font-weight: 700; margin: 16px 0 7px; }
+        .bunko-page-content h3 { font-family: var(--tatami-mincho,serif); font-size: 17px; font-weight: 700; margin: 14px 0 6px; }
+        .bunko-page-content blockquote { border-left: 3px solid #C19A3A; padding-left: 14px; margin: 10px 0; font-style: italic; color: #5C4F3F; }
+        .bunko-page-content code { background: rgba(107,72,37,.10); padding: 1.5px 5px; border-radius: 3px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .9em; }
+        .bunko-page-content pre { background: #1A1611; color: #F5E8C8; padding: 14px 18px; border-radius: 8px; overflow: auto; }
+        .bunko-page-content pre code { background: transparent; color: inherit; padding: 0; }
+        .bunko-page-content ul, .bunko-page-content ol { padding-left: 26px; margin: 8px 0; }
+        .bunko-page-content li { margin: 3px 0; }
+        .bunko-page-savestatus { font-size: 11px; color: #8B7250; font-style: italic; font-family: var(--tatami-mincho,serif); margin-left: auto; }
+
+        /* Player */
+        .bunko-player-ov { position: fixed; inset: 0; background: rgba(0,0,0,.92); backdrop-filter: blur(20px); z-index: 10000; display:flex; flex-direction: column; }
+        .bunko-player-ov header { padding: 14px 22px; display:flex; align-items:center; gap:14px; border-bottom: 1px solid rgba(255,255,255,.07); color: #fff; }
+        .bunko-player-ov header .title { font-family: var(--tatami-mincho,serif); font-size: 17px; font-weight: 600; flex:1; }
+        .bunko-player-ov header .meta { font-family: var(--tatami-mincho,serif); font-style: italic; font-size: 12px; color: rgba(255,255,255,.6); }
+        .bunko-player-ov header .close { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); color:#fff; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 12.5px; }
+        .bunko-player-ov .body { flex:1; display:flex; min-height: 0; }
+        .bunko-player-ov .body .video-wrap { flex:1; display:flex; align-items: center; justify-content: center; padding: 20px; background:#000; }
+        .bunko-player-ov .body .video-wrap video { max-width:100%; max-height:100%; border-radius: 8px; background:#000; }
+      </style>
+      <div class="bunko-shell">
+        <aside class="bunko-sidebar">
+          <div class="bunko-sidebar-h">
+            <div class="bunko-sidebar-h-ic"><svg viewBox="0 0 24 24"><path d="M3 6 L 12 2 L 21 6 L 21 18 L 12 22 L 3 18 Z"/><path d="M3 6 L 12 10 L 21 6" opacity=".7"/><path d="M12 10 L 12 22" opacity=".5"/></svg></div>
+            <div><div class="bunko-sidebar-h-title">Bunko Box</div><div class="bunko-sidebar-h-sub">seu armazém de conhecimento</div></div>
+          </div>
+          <input type="text" class="bunko-search" id="bunko-search-input" placeholder="🔎 Buscar pasta, página, gravação..." oninput="_bunkoOnSearchInput(this.value)"/>
+          <div class="bunko-filter-tabs">
+            <button class="bunko-filter-tab is-active" data-filter="active" onclick="_bunkoSetFilter('active')">Ativos</button>
+            <button class="bunko-filter-tab" data-filter="archived" onclick="_bunkoSetFilter('archived')">📦</button>
+            <button class="bunko-filter-tab" data-filter="trash" onclick="_bunkoSetFilter('trash')">🗑</button>
+          </div>
+          <div class="bunko-folder-actions">
+            <button onclick="_bunkoCreateFolder(null)">+ Pasta</button>
+            <button onclick="_bunkoCreatePage(null)">+ Página</button>
+          </div>
+          <ul class="bunko-tree" id="bunko-tree"></ul>
+        </aside>
+        <main class="bunko-main">
+          <div class="bunko-main-h">
+            <div class="bunko-breadcrumb" id="bunko-breadcrumb"></div>
+            <div class="bunko-main-title-row">
+              <div class="bunko-main-title" id="bunko-main-title"><span class="bunko-main-title-icon">📁</span><span>Bunko Box</span></div>
+              <div class="bunko-toolbar">
+                <button class="bunko-btn" onclick="_bunkoCreatePage(_bunkoState.currentFolderId)">+ Nova página</button>
+                <button class="bunko-btn" onclick="_bunkoCreateFolder(_bunkoState.currentFolderId)">+ Nova subpasta</button>
+                <button class="bunko-btn is-danger" onclick="_bunkoCleanupStale()" title="Limpar gravações presas">↺ Limpar</button>
+              </div>
+            </div>
+          </div>
+          <div class="bunko-main-content" id="bunko-main-content"></div>
+        </main>
+      </div>`;
+  }
+
+  await _bunkoLoadAll();
+}
+
+async function _bunkoLoadAll() {
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c) return;
   try {
-    const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
-    if (!c) throw new Error('sem cliente Supabase');
-    const rpcPromise = c.rpc('list_recordings', { p_channel_id: null, p_limit: 100, p_offset: 0 });
-    const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (10s) — Supabase não respondeu')), 10000));
-    const result = await Promise.race([rpcPromise, timeoutPromise]);
-    if (result.error) throw result.error;
-    recordings = result.data || [];
+    const [foldersRes, itemsRes] = await Promise.all([
+      Promise.race([
+        c.rpc('list_bunko_folders'),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout folders')), 8000))
+      ]),
+      Promise.race([
+        c.rpc('list_bunko_items', { p_folder_id: _bunkoState.currentFolderId, p_filter: _bunkoState.filter }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout items')), 8000))
+      ])
+    ]);
+    if (foldersRes.error) throw foldersRes.error;
+    if (itemsRes.error) throw itemsRes.error;
+    _bunkoState.folders = foldersRes.data || [];
+    _bunkoState.folderTree = _bunkoBuildTree(_bunkoState.folders);
+    _bunkoState.items = itemsRes.data || [];
+    _bunkoRenderTree();
+    _bunkoRenderBreadcrumb();
+    _bunkoRenderItems();
   } catch(e) {
-    console.warn('[replay] list:', e);
-    const msg = String(e?.message||e);
-    const isMissing = /relation .* does not exist|function .* does not exist|list_recordings/i.test(msg);
-    const isAuth    = /JWT|expired|401|PGRST301/i.test(msg);
-    root.innerHTML = `<div style="padding:48px 24px;text-align:center;color:var(--color-text-secondary);">
-      <div style="font-size:36px;margin-bottom:14px;">📼</div>
-      <h2 style="margin:0 0 8px;font-size:18px;color:var(--color-text-primary);">Replay ainda não está pronto</h2>
-      <p style="font-size:13px;line-height:1.5;max-width:460px;margin:0 auto 14px;">
-        ${isMissing ? `Rode a migration <code style="background:var(--color-background-secondary);padding:2px 6px;border-radius:4px;">billing/MIGRATION_TATAME_RECORDINGS.sql</code> no Supabase SQL Editor pra criar a tabela das gravações.` : isAuth ? 'Sua sessão expirou — recarregue a página (Cmd/Ctrl+R) pra renovar o login.' : 'Não consegui falar com o Supabase. Verifique conexão e modo Cloud em Settings → Sync.'}
-      </p>
-      <p style="font-size:11px;color:var(--color-text-tertiary);">Detalhe técnico: ${_esc(msg)}</p>
-      <button class="btn-c" style="margin-top:14px;" onclick="renderAcervo()">↻ Tentar de novo</button>
+    console.warn('[bunko] load:', e);
+    const main = document.getElementById('bunko-main-content');
+    if (main) {
+      const msg = String(e?.message || e);
+      const isMissing = /relation .* does not exist|function .* does not exist|list_bunko/i.test(msg);
+      main.innerHTML = `<div class="bunko-empty"><div class="bunko-empty-ic">⚠️</div>
+        <h3>Bunko Box ainda não está pronto</h3>
+        <p>${isMissing ? `Rode a migration <code>billing/MIGRATION_BUNKO_BOX.sql</code> no Supabase SQL Editor.` : 'Não consegui falar com o Supabase.'}</p>
+        <p style="font-size:11px;color:#8B7250;">Detalhe: ${_esc(msg)}</p>
+        <button class="bunko-btn" onclick="renderBunko()">↻ Tentar de novo</button>
+      </div>`;
+    }
+  }
+}
+
+function _bunkoRenderTree() {
+  const el = document.getElementById('bunko-tree');
+  if (!el) return;
+  const renderNode = (folder, depth=0) => {
+    const isExpanded = _bunkoState.expandedFolders.has(folder.id);
+    const isActive = _bunkoState.currentFolderId === folder.id;
+    const hasChildren = folder.children && folder.children.length > 0;
+    const totalCount = (folder.page_count|0) + (folder.recording_count|0);
+    return `<li class="bunko-tree-node">
+      <div class="bunko-tree-row ${isActive?'is-active':''}"
+           data-folder-id="${_esc(folder.id)}"
+           draggable="true"
+           ondragstart="_bunkoDragStart(event, 'folder', '${_esc(folder.id)}')"
+           ondragover="_bunkoDragOver(event, this)"
+           ondragleave="_bunkoDragLeave(event, this)"
+           ondrop="_bunkoDrop(event, '${_esc(folder.id)}')"
+           onclick="_bunkoOpenFolder('${_esc(folder.id)}')">
+        <span class="bunko-tree-chevron ${hasChildren?'':'is-empty'} ${isExpanded?'is-expanded':''}" onclick="event.stopPropagation(); _bunkoToggleExpand('${_esc(folder.id)}')">›</span>
+        <span class="bunko-tree-icon">${_esc(folder.icon||'📁')}</span>
+        <span class="bunko-tree-name">${_esc(folder.name)}</span>
+        ${totalCount > 0 ? `<span class="bunko-tree-count">${totalCount}</span>` : ''}
+        <span class="bunko-tree-actions">
+          <button onclick="event.stopPropagation(); _bunkoFolderMenu(event, '${_esc(folder.id)}')" title="Mais opções">⋯</button>
+        </span>
+      </div>
+      ${hasChildren && isExpanded ? `<ul class="bunko-tree-children">${folder.children.map(c => renderNode(c, depth+1)).join('')}</ul>` : ''}
+    </li>`;
+  };
+
+  const rootRow = `<li class="bunko-tree-node">
+    <div class="bunko-tree-row ${_bunkoState.currentFolderId===null?'is-active':''}"
+         ondragover="_bunkoDragOver(event, this)"
+         ondragleave="_bunkoDragLeave(event, this)"
+         ondrop="_bunkoDrop(event, null)"
+         onclick="_bunkoOpenFolder(null)">
+      <span class="bunko-tree-chevron is-empty"></span>
+      <span class="bunko-tree-icon">📦</span>
+      <span class="bunko-tree-name">Raiz</span>
+    </div>
+  </li>`;
+
+  el.innerHTML = rootRow + _bunkoState.folderTree.map(f => renderNode(f, 0)).join('');
+}
+
+function _bunkoToggleExpand(folderId) {
+  if (_bunkoState.expandedFolders.has(folderId)) _bunkoState.expandedFolders.delete(folderId);
+  else _bunkoState.expandedFolders.add(folderId);
+  _bunkoRenderTree();
+}
+
+function _bunkoOpenFolder(folderId) {
+  _bunkoState.currentFolderId = folderId;
+  // Expand path to this folder
+  if (folderId) {
+    let f = _bunkoState.folders.find(x => x.id === folderId);
+    while (f && f.parent_id) {
+      _bunkoState.expandedFolders.add(f.parent_id);
+      f = _bunkoState.folders.find(x => x.id === f.parent_id);
+    }
+  }
+  _bunkoLoadAll();
+}
+
+function _bunkoRenderBreadcrumb() {
+  const el = document.getElementById('bunko-breadcrumb');
+  const titleEl = document.getElementById('bunko-main-title');
+  if (!el) return;
+  const path = [];
+  if (_bunkoState.currentFolderId) {
+    let f = _bunkoState.folders.find(x => x.id === _bunkoState.currentFolderId);
+    while (f) {
+      path.unshift(f);
+      f = f.parent_id ? _bunkoState.folders.find(x => x.id === f.parent_id) : null;
+    }
+  }
+  const parts = [`<a onclick="_bunkoOpenFolder(null)">📦 Raiz</a>`];
+  path.forEach((f, i) => {
+    parts.push('<span class="sep">›</span>');
+    if (i === path.length - 1) parts.push(`<span class="current">${_esc(f.icon||'📁')} ${_esc(f.name)}</span>`);
+    else parts.push(`<a onclick="_bunkoOpenFolder('${_esc(f.id)}')">${_esc(f.icon||'📁')} ${_esc(f.name)}</a>`);
+  });
+  el.innerHTML = parts.join(' ');
+
+  if (titleEl) {
+    const current = path[path.length - 1];
+    titleEl.innerHTML = `<span class="bunko-main-title-icon">${_esc(current?.icon || '📦')}</span><span>${_esc(current?.name || 'Bunko Box')}</span>`;
+  }
+}
+
+function _bunkoRenderItems() {
+  const el = document.getElementById('bunko-main-content');
+  if (!el) return;
+  const items = _bunkoState.items;
+  const query = (_bunkoState.searchQuery||'').toLowerCase().trim();
+  const filtered = query
+    ? items.filter(i => (i.title||'').toLowerCase().includes(query) || (i.preview||'').toLowerCase().includes(query))
+    : items;
+
+  if (filtered.length === 0) {
+    const isTrash = _bunkoState.filter === 'trash';
+    const isArchived = _bunkoState.filter === 'archived';
+    el.innerHTML = `<div class="bunko-empty">
+      <div class="bunko-empty-ic">${isTrash ? '🗑' : isArchived ? '📦' : '📁'}</div>
+      <h3>${isTrash ? 'Lixeira vazia' : isArchived ? 'Sem itens arquivados' : 'Nada por aqui ainda'}</h3>
+      <p>${isTrash ? 'Itens deletados aparecem aqui (recuperáveis).' : isArchived ? 'Você pode arquivar itens pra tirar da vista sem deletar.' : 'Crie uma pasta, página ou grave uma chamada no Tatami.'}</p>
+      ${!isTrash && !isArchived ? `<div style="display:flex;gap:10px;justify-content:center;">
+        <button class="bunko-btn is-primary" onclick="_bunkoCreatePage(_bunkoState.currentFolderId)">+ Nova página</button>
+        <button class="bunko-btn" onclick="_bunkoCreateFolder(_bunkoState.currentFolderId)">+ Nova pasta</button>
+      </div>` : ''}
     </div>`;
     return;
   }
 
-  // Agrupa por canal
-  const byChannel = {};
-  recordings.forEach(r => {
-    const key = r.channel_name || 'sem nome';
-    (byChannel[key] = byChannel[key] || []).push(r);
-  });
+  el.innerHTML = `<div class="bunko-grid">${filtered.map(it => _bunkoCardHTML(it)).join('')}</div>`;
+}
 
-  const fmt = (sec) => {
-    if (!sec) return '—';
-    const m = Math.floor(sec/60), s = sec%60;
-    if (m < 60) return `${m}m ${s}s`;
+function _bunkoCardHTML(it) {
+  const isPage = it.kind === 'page';
+  const isReady = it.status === 'ready';
+  const fmtDur = (s) => {
+    if (!s) return '';
+    const m = Math.floor(s/60), x = s%60;
+    if (m < 60) return `${m}m ${x}s`;
     return `${Math.floor(m/60)}h ${m%60}m`;
   };
   const dt = (iso) => new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
-
-  const empty = recordings.length === 0 ? `<div style="padding:60px 24px;text-align:center;font-family:var(--tatami-mincho,serif);font-style:italic;color:var(--tatami-ink-soft,#5C4F3F);">
-    <div style="width:72px;height:72px;border-radius:50%;background:rgba(188,0,45,.08);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;border:1px solid rgba(188,0,45,.15);">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#BC002D" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M10 11l4 2l-4 2z" fill="#BC002D"/><line x1="3" y1="9.5" x2="21" y2="9.5" opacity=".3"/><circle cx="5" cy="7.5" r=".5" fill="#BC002D" opacity=".4"/><circle cx="19" cy="7.5" r=".5" fill="#BC002D" opacity=".4"/></svg>
+  const onClick = isPage ? `_bunkoOpenPage('${_esc(it.id)}')` : (isReady ? `_bunkoOpenRecording('${_esc(it.id)}')` : '');
+  return `<div class="bunko-card"
+    draggable="true"
+    ondragstart="_bunkoDragStart(event, '${it.kind}', '${_esc(it.id)}')"
+    onclick="${onClick}">
+    <div class="bunko-card-menu">
+      <button class="bunko-card-menu-btn" onclick="event.stopPropagation(); _bunkoItemMenu(event, '${it.kind}', '${_esc(it.id)}', '${_esc((it.title||'').replace(/'/g,'\\\''))}')">⋯</button>
     </div>
-    <h2 style="font-family:var(--tatami-mincho,serif);font-size:22px;font-style:normal;font-weight:600;color:var(--tatami-sumi,#1A1611);margin-bottom:8px;">Nenhuma gravação ainda</h2>
-    <p style="max-width:420px;margin:0 auto;line-height:1.55;font-size:13.5px;">As gravações das suas chamadas do Tatami aparecem aqui. Pra gravar, abra um tatame ao vivo, ative <strong style="font-style:normal;">Vídeo + Mestre Kan</strong> e clique no botão <strong style="font-style:normal;">REC</strong> ● na barra de controles.</p>
-  </div>` : '';
-
-  root.innerHTML = `
-    <style>
-      .acervo-wrap { padding: 32px 32px 60px; max-width: 1200px; margin: 0 auto; }
-      .acervo-h { font-family: var(--tatami-mincho); font-size: 32px; font-weight: 600; margin-bottom: 6px; display:flex; align-items:center; gap:14px; color: var(--tatami-sumi); }
-      .acervo-h .ic { width: 38px; height: 38px; border-radius: 9px; background: linear-gradient(135deg, #FFFCF5 0%, #FFE9D9 100%); border: 1px solid rgba(188,0,45,.18); display:inline-flex; align-items:center; justify-content:center; }
-      .acervo-h .ic svg { width: 22px; height: 22px; stroke: var(--tatami-hinomaru); fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
-      .acervo-h .ic svg .play { fill: var(--tatami-hinomaru); stroke: none; }
-      .acervo-sub { font-family: var(--tatami-mincho); font-style:italic; font-size: 14px; color: var(--tatami-ink-soft); margin-bottom: 36px; max-width: 620px; line-height:1.55; }
-      .acervo-folder { margin-bottom: 36px; }
-      .acervo-folder-h {
-        font-family: var(--tatami-mincho); font-size: 13px; color: var(--tatami-ink-soft);
-        font-style: italic; margin-bottom: 12px; display:flex; align-items:center; gap:10px;
+    <div class="bunko-card-thumb ${isPage?'is-page':''}">
+      ${isPage
+        ? `<div class="ic">${_esc(it.icon||'📄')}</div>`
+        : (isReady
+            ? `<div class="ic">🎬</div><div class="play-overlay"></div>${it.duration_sec ? `<div class="duration">${fmtDur(it.duration_sec)}</div>` : ''}`
+            : `<div class="ic">${it.status==='recording'?'●':'⏳'}</div><div class="status ${it.status||''}">${it.status||'pendente'}</div>`)
       }
-      .acervo-folder-h::before { content:'#'; color: var(--tatami-hinomaru); font-style: normal; }
-      .acervo-folder-h .count { background: var(--tatami-cream); padding:1px 8px; border-radius:999px; font-size:11px; color:var(--tatami-sumi); margin-left:auto; }
-      .acervo-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-      .acervo-card { background: #FFFCF5; border: 1px solid var(--tatami-tan); border-radius: 12px; overflow:hidden; cursor:pointer; transition: all .15s; }
-      .acervo-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(0,0,0,.08); border-color: var(--tatami-hinomaru); }
-      .acervo-thumb { aspect-ratio: 16/9; background: linear-gradient(135deg, #6B5DC8 0%, #322B5F 100%); position:relative; display:flex; align-items:center; justify-content:center; color: #fff; }
-      .acervo-thumb img { width:100%; height:100%; object-fit:cover; }
-      .acervo-thumb .play { width: 50px; height:50px; border-radius:50%; background: rgba(255,255,255,.95); display:flex; align-items:center; justify-content:center; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
-      .acervo-thumb .play::after { content:''; border-style:solid; border-width: 9px 0 9px 14px; border-color: transparent transparent transparent #BC002D; margin-left:3px; }
-      .acervo-thumb .duration { position:absolute; bottom: 8px; right: 8px; background:rgba(0,0,0,.7); color:#fff; font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; }
-      .acervo-thumb .status-bad { position:absolute; top:8px; left:8px; background:#FFB840; color:#5C3F08; font-size:10px; padding:2px 8px; border-radius:999px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
-      .acervo-card-body { padding: 12px 14px; }
-      .acervo-card-title { font-family: var(--tatami-mincho); font-size: 14.5px; font-weight: 600; color: var(--tatami-sumi); margin-bottom: 4px; line-height:1.35; }
-      .acervo-card-meta { font-size: 11px; color: var(--tatami-ink-soft); font-family: var(--tatami-mincho); font-style:italic; line-height:1.55; }
-      .acervo-card-tags { display:flex; gap: 6px; margin-top: 8px; flex-wrap:wrap; }
-      .acervo-card-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: var(--tatami-cream); color: var(--tatami-ink); font-weight:500; }
-      .acervo-card-tag.is-actions { background: rgba(188,0,45,.10); color: var(--tatami-hinomaru); }
-      .acervo-card-tag.is-decisions { background: rgba(193,154,58,.18); color: #8F6E1F; }
-    </style>
-    <div class="acervo-wrap">
-      <div class="acervo-h" style="display:flex;align-items:center;gap:14px;">
-        <span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path class="play" d="M10 11l4 2l-4 2z"/><line x1="3" y1="9.5" x2="21" y2="9.5" opacity=".3"/></svg></span>
-        <span style="flex:1;">Replay</span>
-        <button class="btn-c" style="font-size:11.5px;padding:5px 11px;background:rgba(188,0,45,.08);border-color:rgba(188,0,45,.25);color:#8B0020;" onclick="_acervoCleanupStale()" title="Marca como falha as gravações presas em 'gravando' (botão SOS quando uma gravação não para corretamente)">↺ Limpar presas</button>
-      </div>
-      <div class="acervo-sub">Cada chamada gravada no Tatami fica aqui — organizadas por canal, com transcrição e ações capturadas pelo Mestre Kan. Click no card pra rever.</div>
-      ${empty}
-      ${Object.entries(byChannel).map(([channelName, recs]) => `
-        <div class="acervo-folder">
-          <div class="acervo-folder-h">${_esc(channelName)}<span class="count">${recs.length} ${recs.length===1?'gravação':'gravações'}</span></div>
-          <div class="acervo-grid">
-            ${recs.map(r => `
-              <div class="acervo-card" onclick="${r.status==='ready'?`_acervoOpenPlayer('${_esc(r.id)}')`:''}">
-                <div class="acervo-thumb">
-                  ${r.thumbnail_url ? `<img src="${_esc(r.thumbnail_url)}" alt=""/>` : ''}
-                  ${r.status === 'ready' ? `<div class="play"></div>` : ''}
-                  ${r.status === 'recording' ? `<div class="status-bad" style="background:#BC002D;color:#fff;">● gravando</div>` : ''}
-                  ${r.status === 'processing' ? `<div class="status-bad">processando</div>` : ''}
-                  ${r.status === 'failed' ? `<div class="status-bad" style="background:#666;color:#fff;">falhou</div>` : ''}
-                  ${r.duration_sec ? `<div class="duration">${fmt(r.duration_sec)}</div>` : ''}
-                </div>
-                <div class="acervo-card-body">
-                  <div class="acervo-card-title">${_esc(r.title || 'sem título')}</div>
-                  <div class="acervo-card-meta">${dt(r.started_at)} · ${r.participants_count||0} ${r.participants_count===1?'pessoa':'pessoas'}</div>
-                  ${(r.decisions_count > 0 || r.actions_count > 0) ? `
-                    <div class="acervo-card-tags">
-                      ${r.decisions_count > 0 ? `<span class="acervo-card-tag is-decisions">${r.decisions_count} ${r.decisions_count===1?'decisão':'decisões'}</span>` : ''}
-                      ${r.actions_count > 0 ? `<span class="acervo-card-tag is-actions">${r.actions_count} ${r.actions_count===1?'ação':'ações'}</span>` : ''}
-                      ${r.has_transcript ? `<span class="acervo-card-tag">transcrição</span>` : ''}
-                    </div>
-                  ` : ''}
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `).join('')}
-    </div>`;
+      ${it.archived ? `<div class="status" style="top:8px;right:8px;left:auto;background:rgba(107,72,37,.85);color:#F5E8C8;">arquivado</div>` : ''}
+    </div>
+    <div class="bunko-card-body">
+      <div class="bunko-card-title">${isPage?_esc(it.icon||'📄'):''} ${_esc(it.title||'sem título')}</div>
+      <div class="bunko-card-meta">${dt(it.updated_at || it.created_at)}${!isPage && it.duration_sec ? ' · '+fmtDur(it.duration_sec) : ''}</div>
+      ${it.preview ? `<div class="bunko-card-preview">${_esc(it.preview)}…</div>` : ''}
+      ${(!isPage && (it.decisions_count > 0 || it.actions_count > 0 || it.has_transcript)) ? `<div class="bunko-card-tags">
+        ${it.decisions_count > 0 ? `<span class="bunko-tag is-decisions">${it.decisions_count} decis${it.decisions_count===1?'ão':'ões'}</span>` : ''}
+        ${it.actions_count > 0 ? `<span class="bunko-tag is-actions">${it.actions_count} aç${it.actions_count===1?'ão':'ões'}</span>` : ''}
+        ${it.has_transcript ? `<span class="bunko-tag">transcrição</span>` : ''}
+      </div>` : ''}
+      ${isPage && it.source_kind === 'kan_transcript' ? `<div class="bunko-card-tags"><span class="bunko-tag is-decisions">🧘 Mestre Kan</span></div>` : ''}
+    </div>
+  </div>`;
 }
 
-async function _acervoOpenPlayer(recordingId) {
+function _bunkoSetFilter(f) {
+  _bunkoState.filter = f;
+  document.querySelectorAll('.bunko-filter-tab').forEach(b => b.classList.toggle('is-active', b.dataset.filter === f));
+  _bunkoLoadAll();
+}
+
+function _bunkoOnSearchInput(v) {
+  _bunkoState.searchQuery = v;
+  _bunkoRenderItems();
+}
+
+// ── CRUD pastas ─────────────────────────────────────────────────────
+async function _bunkoCreateFolder(parentId) {
+  const name = await appPrompt('Nova pasta', { message:'Como vai chamar?', placeholder:'Ex: Contratos 2026', okLabel:'Criar' });
+  if (!name) return;
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('create_bunko_folder', {
+      p_name: name, p_parent_id: parentId, p_icon: '📁', p_color: '#8B6634'
+    });
+    if (error) throw error;
+    if (parentId) _bunkoState.expandedFolders.add(parentId);
+    await _bunkoLoadAll();
+  } catch(e) {
+    appAlert('Erro ao criar pasta', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+async function _bunkoRenameFolder(folderId) {
+  const folder = _bunkoState.folders.find(f => f.id === folderId);
+  const newName = await appPrompt('Renomear pasta', { message:'Novo nome:', defaultValue: folder?.name || '', okLabel:'Renomear' });
+  if (!newName) return;
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('rename_bunko_folder', { p_id: folderId, p_name: newName });
+    if (error) throw error;
+    await _bunkoLoadAll();
+  } catch(e) {
+    appAlert('Erro ao renomear', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+async function _bunkoDeleteFolder(folderId) {
+  const folder = _bunkoState.folders.find(f => f.id === folderId);
+  const subfolderCount = folder?.subfolder_count || 0;
+  const itemCount = (folder?.page_count || 0) + (folder?.recording_count || 0);
+  const ok = await appConfirm('Excluir pasta?',
+    `<strong>${_esc(folder?.name||'pasta')}</strong> ${subfolderCount + itemCount > 0 ? `contém ${itemCount} item(ns) e ${subfolderCount} subpasta(s). Tudo dentro vai pra lixeira (recuperável depois).` : 'será movida pra lixeira.'}`,
+    { okLabel: 'Excluir', cancelLabel: 'Cancelar', danger: true });
+  if (!ok) return;
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('delete_bunko_folder', { p_id: folderId });
+    if (error) throw error;
+    if (_bunkoState.currentFolderId === folderId) _bunkoState.currentFolderId = null;
+    await _bunkoLoadAll();
+  } catch(e) {
+    appAlert('Erro ao excluir', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+// ── Menu popover para folder + items ────────────────────────────────
+function _bunkoFolderMenu(evt, folderId) {
+  _bunkoClosePopover();
+  const folder = _bunkoState.folders.find(f => f.id === folderId);
+  if (!folder) return;
+  const pop = document.createElement('div');
+  pop.className = 'bunko-popover';
+  pop.id = 'bunko-popover';
+  pop.innerHTML = `
+    <button onclick="_bunkoClosePopover(); _bunkoRenameFolder('${_esc(folderId)}')">✏️ Renomear</button>
+    <button onclick="_bunkoClosePopover(); _bunkoCreateFolder('${_esc(folderId)}')">+ Nova subpasta</button>
+    <button onclick="_bunkoClosePopover(); _bunkoCreatePage('${_esc(folderId)}')">+ Nova página</button>
+    <div class="divider"></div>
+    <button class="is-danger" onclick="_bunkoClosePopover(); _bunkoDeleteFolder('${_esc(folderId)}')">🗑 Excluir pasta</button>`;
+  _bunkoShowPopover(pop, evt);
+}
+
+function _bunkoItemMenu(evt, kind, itemId, title) {
+  _bunkoClosePopover();
+  const item = _bunkoState.items.find(i => i.id === itemId && i.kind === kind);
+  if (!item) return;
+  const archived = item.archived;
+  const pop = document.createElement('div');
+  pop.className = 'bunko-popover';
+  pop.id = 'bunko-popover';
+  pop.innerHTML = `
+    <button onclick="_bunkoClosePopover(); _bunkoRenameItem('${kind}', '${_esc(itemId)}')">✏️ Renomear</button>
+    <button onclick="_bunkoClosePopover(); _bunkoMoveItemPrompt('${kind}', '${_esc(itemId)}')">📂 Mover pra...</button>
+    ${kind==='page' ? `<button onclick="_bunkoClosePopover(); _bunkoExportPageDocx('${_esc(itemId)}')">💾 Baixar Word</button>` : ''}
+    <div class="divider"></div>
+    <button onclick="_bunkoClosePopover(); _bunkoArchiveItem('${kind}', '${_esc(itemId)}', ${!archived})">${archived?'↺ Desarquivar':'📦 Arquivar'}</button>
+    <button class="is-danger" onclick="_bunkoClosePopover(); _bunkoDeleteItem('${kind}', '${_esc(itemId)}')">🗑 Excluir</button>`;
+  _bunkoShowPopover(pop, evt);
+}
+
+function _bunkoShowPopover(pop, evt) {
+  document.body.appendChild(pop);
+  const x = evt.clientX, y = evt.clientY;
+  const popW = pop.offsetWidth || 200;
+  const popH = pop.offsetHeight || 200;
+  pop.style.left = Math.min(window.innerWidth - popW - 8, x) + 'px';
+  pop.style.top  = Math.min(window.innerHeight - popH - 8, y) + 'px';
+  setTimeout(() => {
+    document.addEventListener('click', _bunkoClosePopover, { once: true });
+  }, 50);
+}
+function _bunkoClosePopover() {
+  const p = document.getElementById('bunko-popover');
+  if (p) p.remove();
+}
+
+// ── CRUD items (recording + page) ────────────────────────────────────
+async function _bunkoRenameItem(kind, itemId) {
+  const item = _bunkoState.items.find(i => i.id === itemId && i.kind === kind);
+  const newTitle = await appPrompt('Renomear', { message:'Novo nome:', defaultValue: item?.title || '', okLabel:'Renomear' });
+  if (!newTitle) return;
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('rename_bunko_item', { p_kind: kind, p_item_id: itemId, p_title: newTitle });
+    if (error) throw error;
+    await _bunkoLoadAll();
+  } catch(e) {
+    appAlert('Erro', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+async function _bunkoMoveItemPrompt(kind, itemId) {
+  // Modal simples: lista folders + opção "raiz"
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  const folderOptions = [
+    `<button class="bunko-btn" style="text-align:left;width:100%;" onclick="_bunkoDoMove('${kind}','${_esc(itemId)}', null)">📦 Raiz</button>`,
+    ..._bunkoState.folders.map(f => `<button class="bunko-btn" style="text-align:left;width:100%;" onclick="_bunkoDoMove('${kind}','${_esc(itemId)}','${_esc(f.id)}')">${_esc(f.icon||'📁')} ${_esc(f.name)}</button>`)
+  ];
+  ov.innerHTML = `<div style="background:#FFFCF5;border:1px solid #B8A878;border-radius:12px;padding:20px;max-width:380px;width:90%;max-height:70vh;overflow:auto;">
+    <h3 style="margin:0 0 12px;font-family:var(--tatami-mincho,serif);font-size:18px;color:#3A2410;">Mover pra qual pasta?</h3>
+    <div style="display:flex;flex-direction:column;gap:6px;">${folderOptions.join('')}</div>
+  </div>`;
+  document.body.appendChild(ov);
+  window._bunkoMoveOv = ov;
+}
+window._bunkoDoMove = async function(kind, itemId, folderId) {
+  if (window._bunkoMoveOv) { window._bunkoMoveOv.remove(); window._bunkoMoveOv = null; }
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('move_to_folder', { p_kind: kind, p_item_id: itemId, p_folder_id: folderId });
+    if (error) throw error;
+    await _bunkoLoadAll();
+  } catch(e) {
+    appAlert('Erro ao mover', e?.message || String(e), { icon:'⚠️' });
+  }
+};
+
+async function _bunkoArchiveItem(kind, itemId, archived) {
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('archive_bunko_item', { p_kind: kind, p_item_id: itemId, p_archived: archived });
+    if (error) throw error;
+    await _bunkoLoadAll();
+  } catch(e) { console.warn(e); }
+}
+
+async function _bunkoDeleteItem(kind, itemId) {
+  const item = _bunkoState.items.find(i => i.id === itemId && i.kind === kind);
+  const ok = await appConfirm('Excluir item?',
+    `<strong>${_esc(item?.title||'item')}</strong> vai pra lixeira. Você pode recuperar depois.`,
+    { okLabel: 'Excluir', cancelLabel: 'Cancelar', danger: true });
+  if (!ok) return;
+  const c = await _chatGetClient();
+  try {
+    const { error } = await c.rpc('delete_bunko_item', { p_kind: kind, p_item_id: itemId });
+    if (error) throw error;
+    await _bunkoLoadAll();
+  } catch(e) { appAlert('Erro ao excluir', e?.message || String(e), { icon:'⚠️' }); }
+}
+
+// ── Drag-and-drop ───────────────────────────────────────────────────
+let _bunkoDragData = null;
+function _bunkoDragStart(e, kind, id) {
+  _bunkoDragData = { kind, id };
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', JSON.stringify({kind,id})); } catch(_){}
+}
+function _bunkoDragOver(e, el) {
+  if (!_bunkoDragData) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  if (el) el.classList.add('is-drop-over');
+}
+function _bunkoDragLeave(e, el) {
+  if (el) el.classList.remove('is-drop-over');
+}
+async function _bunkoDrop(e, targetFolderId) {
+  e.preventDefault();
+  document.querySelectorAll('.is-drop-over').forEach(el => el.classList.remove('is-drop-over'));
+  if (!_bunkoDragData) return;
+  const { kind, id } = _bunkoDragData;
+  _bunkoDragData = null;
+  // Evita drop em si mesmo (folder em si mesmo)
+  if (kind === 'folder' && id === targetFolderId) return;
+  const c = await _chatGetClient();
+  try {
+    if (kind === 'folder') {
+      // Move pasta — UPDATE direto (não tem RPC dedicado)
+      const { error } = await c.from('bunko_folders').update({ parent_id: targetFolderId }).eq('id', id);
+      if (error) throw error;
+    } else {
+      const { error } = await c.rpc('move_to_folder', { p_kind: kind, p_item_id: id, p_folder_id: targetFolderId });
+      if (error) throw error;
+    }
+    await _bunkoLoadAll();
+  } catch(err) { appAlert('Erro ao mover', err?.message || String(err), { icon:'⚠️' }); }
+}
+
+// ── Páginas: criar, editor ──────────────────────────────────────────
+async function _bunkoCreatePage(folderId) {
+  const c = await _chatGetClient();
+  try {
+    const { data, error } = await c.rpc('create_bunko_page', {
+      p_title: 'Sem título', p_folder_id: folderId,
+      p_content_html: '<p></p>', p_content_text: '',
+      p_icon: '📄', p_source_kind: 'manual', p_source_recording_id: null
+    });
+    if (error) throw error;
+    await _bunkoLoadAll();
+    _bunkoOpenPage(data.page_id);
+  } catch(e) {
+    appAlert('Erro ao criar página', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+async function _bunkoOpenPage(pageId) {
+  const c = await _chatGetClient();
+  let page;
+  try {
+    const { data, error } = await c.rpc('get_bunko_page', { p_id: pageId });
+    if (error) throw error;
+    page = data;
+  } catch(e) {
+    appAlert('Erro', 'Não consegui abrir essa página: ' + (e?.message || e), { icon:'⚠️' });
+    return;
+  }
+  // Renderiza editor na main content
+  const main = document.getElementById('bunko-main-content');
+  if (!main) return;
+  main.innerHTML = `
+    <div class="bunko-page-editor">
+      <button class="bunko-btn" style="margin-bottom:18px;" onclick="renderBunko()">← Voltar</button>
+      <button class="bunko-page-icon-input" onclick="_bunkoChangePageIcon('${_esc(pageId)}')" title="Trocar ícone">${_esc(page.icon || '📄')}</button>
+      <input class="bunko-page-title-input" id="bunko-page-title-${_esc(pageId)}" value="${_esc(page.title)}" placeholder="Sem título" />
+      <div class="bunko-page-toolbar">
+        <button onclick="_bunkoExec('bold')" title="Bold (Cmd+B)"><b>B</b></button>
+        <button onclick="_bunkoExec('italic')" title="Italic"><i>I</i></button>
+        <button onclick="_bunkoExec('underline')" title="Underline"><u>U</u></button>
+        <button onclick="_bunkoExec('strikeThrough')" title="Strike"><s>S</s></button>
+        <span class="divider"></span>
+        <button onclick="_bunkoExecFormat('h1')" title="H1">H1</button>
+        <button onclick="_bunkoExecFormat('h2')" title="H2">H2</button>
+        <button onclick="_bunkoExecFormat('h3')" title="H3">H3</button>
+        <button onclick="_bunkoExecFormat('p')" title="Parágrafo">P</button>
+        <span class="divider"></span>
+        <button onclick="_bunkoExec('insertUnorderedList')" title="Lista">• Lista</button>
+        <button onclick="_bunkoExec('insertOrderedList')" title="Numerada">1. Num</button>
+        <button onclick="_bunkoExecFormat('blockquote')" title="Citação">❝</button>
+        <button onclick="_bunkoExecFormat('pre')" title="Code">{ }</button>
+        <span class="divider"></span>
+        <button onclick="_bunkoInsertLink()" title="Link">🔗</button>
+        <button onclick="_bunkoExportPageDocx('${_esc(pageId)}')" title="Baixar Word" class="bunko-btn" style="padding:4px 10px;">💾 Word</button>
+        <span class="bunko-page-savestatus" id="bunko-page-savestatus">Salvo</span>
+      </div>
+      <div class="bunko-page-content" id="bunko-page-content-${_esc(pageId)}"
+           contenteditable="true"
+           oninput="_bunkoOnPageInput('${_esc(pageId)}')">${page.content_html || '<p></p>'}</div>
+    </div>`;
+  // Set up auto-save
+  const titleInp = document.getElementById('bunko-page-title-'+pageId);
+  if (titleInp) titleInp.addEventListener('input', () => _bunkoOnPageInput(pageId));
+}
+
+let _bunkoSaveTimer = null;
+function _bunkoOnPageInput(pageId) {
+  const statusEl = document.getElementById('bunko-page-savestatus');
+  if (statusEl) statusEl.textContent = 'editando...';
+  if (_bunkoSaveTimer) clearTimeout(_bunkoSaveTimer);
+  _bunkoSaveTimer = setTimeout(() => _bunkoSavePage(pageId), 800);
+}
+
+async function _bunkoSavePage(pageId) {
+  const titleEl = document.getElementById('bunko-page-title-'+pageId);
+  const contentEl = document.getElementById('bunko-page-content-'+pageId);
+  if (!titleEl || !contentEl) return;
+  const title = titleEl.value || 'Sem título';
+  const html = contentEl.innerHTML;
+  const text = contentEl.innerText;
+  const c = await _chatGetClient();
+  const statusEl = document.getElementById('bunko-page-savestatus');
+  try {
+    if (statusEl) statusEl.textContent = 'salvando...';
+    const { error } = await c.rpc('update_bunko_page', {
+      p_id: pageId, p_title: title, p_content_html: html, p_content_text: text, p_icon: null
+    });
+    if (error) throw error;
+    if (statusEl) statusEl.textContent = 'Salvo ✓';
+    setTimeout(() => { if (statusEl) statusEl.textContent = 'Salvo'; }, 1500);
+  } catch(e) {
+    if (statusEl) statusEl.textContent = 'erro ao salvar';
+    console.warn('[bunko] save page:', e);
+  }
+}
+
+function _bunkoExec(cmd) {
+  try { document.execCommand(cmd, false, null); } catch(_){}
+}
+function _bunkoExecFormat(tag) {
+  try { document.execCommand('formatBlock', false, tag); } catch(_){}
+}
+function _bunkoInsertLink() {
+  const url = prompt('URL:');
+  if (!url) return;
+  try { document.execCommand('createLink', false, url); } catch(_){}
+}
+
+async function _bunkoChangePageIcon(pageId) {
+  const icons = ['📄','📑','📋','📊','📈','📒','📕','📗','📘','📙','📚','📰','🗒','📓','🗓','📝','✍️','💡','⭐','🎯','🧘','💼','🏯','🎴','📌'];
+  const choice = await new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;';
+    ov.onclick = (e) => { if (e.target === ov) { ov.remove(); resolve(null); } };
+    ov.innerHTML = `<div style="background:#FFFCF5;border:1px solid #B8A878;border-radius:12px;padding:18px;max-width:340px;">
+      <h3 style="margin:0 0 12px;font-family:var(--tatami-mincho,serif);font-size:16px;">Escolha um ícone</h3>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;">
+        ${icons.map(i => `<button style="background:#F5E8C8;border:1px solid #D4B888;border-radius:6px;padding:8px;font-size:22px;cursor:pointer;" data-icon="${i}">${i}</button>`).join('')}
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.querySelectorAll('button[data-icon]').forEach(b => {
+      b.onclick = () => { ov.remove(); resolve(b.dataset.icon); };
+    });
+  });
+  if (!choice) return;
+  const c = await _chatGetClient();
+  await c.rpc('update_bunko_page', { p_id: pageId, p_title: null, p_content_html: null, p_content_text: null, p_icon: choice });
+  _bunkoOpenPage(pageId);
+}
+
+// ── Export como .docx (truque HTML wrapped pra MS Office) ───────────
+async function _bunkoExportPageDocx(pageId) {
+  const c = await _chatGetClient();
+  try {
+    const { data, error } = await c.rpc('get_bunko_page', { p_id: pageId });
+    if (error) throw error;
+    const page = data;
+    const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>${_esc(page.title)}</title>
+<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5;color:#1A1611;}
+h1{font-size:24pt;font-weight:bold;margin:18pt 0 8pt;}
+h2{font-size:18pt;font-weight:bold;margin:14pt 0 6pt;}
+h3{font-size:14pt;font-weight:bold;margin:12pt 0 5pt;}
+blockquote{margin:8pt 0;padding-left:14pt;border-left:3pt solid #C19A3A;font-style:italic;color:#5C4F3F;}
+code{font-family:Consolas,monospace;background:#F0E8D4;padding:1pt 4pt;}
+pre{background:#1A1611;color:#F5E8C8;padding:10pt;font-family:Consolas,monospace;}
+ul,ol{padding-left:24pt;}</style></head>
+<body><h1>${_esc(page.title)}</h1>${page.content_html || ''}</body></html>`;
+    const blob = new Blob(['﻿', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (page.title || 'pagina').replace(/[^\w\s-]/g,'').trim() + '.doc';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    if (typeof _showKanWarning === 'function') _showKanWarning('Word baixado', `<strong>${_esc(page.title)}.doc</strong> salvo nos seus downloads.`, 'info');
+  } catch(e) {
+    appAlert('Erro ao exportar', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+
+// ── Player de gravação (abre overlay com vídeo) ─────────────────────
+async function _bunkoOpenRecording(recordingId) {
   const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
   if (!c) return;
   let rec;
   try {
-    const queryPromise = c.from('tatame_recordings').select('*').eq('id', recordingId).single();
-    const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (8s)')), 8000));
-    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+    const q = c.from('tatame_recordings').select('*').eq('id', recordingId).single();
+    const t = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (8s)')), 8000));
+    const { data, error } = await Promise.race([q, t]);
     if (error) throw error;
     rec = data;
   } catch(e) {
     appAlert('Erro', 'Não consegui carregar essa gravação: ' + (e?.message || e), { icon: '⚠️' });
     return;
   }
-
-  // Cria player overlay
-  let ov = document.getElementById('acervo-player-ov');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'acervo-player-ov';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);backdrop-filter:blur(20px);z-index:10000;display:flex;flex-direction:column;animation:fadeIn .2s;';
-    document.body.appendChild(ov);
-  }
+  // Cria overlay
+  let ov = document.getElementById('bunko-player-ov');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'bunko-player-ov';
+  ov.className = 'bunko-player-ov';
   ov.innerHTML = `
-    <div style="padding:14px 22px;display:flex;align-items:center;gap:14px;border-bottom:1px solid rgba(255,255,255,.07);color:#fff;">
-      <div style="font-family:var(--tatami-mincho,serif);font-size:17px;font-weight:600;flex:1;">${_esc(rec.title)}</div>
-      <div style="font-family:var(--tatami-mincho,serif);font-style:italic;font-size:12px;color:rgba(255,255,255,.6);">
-        ${new Date(rec.started_at).toLocaleString('pt-BR')}
-      </div>
-      <button onclick="document.getElementById('acervo-player-ov').remove()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12.5px;">✕ Fechar</button>
-    </div>
-    <div style="flex:1;display:flex;min-height:0;">
-      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px;background:#000;">
-        ${rec.url ? `<video src="${_esc(rec.url)}" controls autoplay style="max-width:100%;max-height:100%;border-radius:8px;background:#000;"></video>` : `<div style="color:#fff;font-family:var(--tatami-mincho,serif);font-style:italic;">Vídeo ainda processando…</div>`}
+    <header>
+      <div class="title">${_esc(rec.title || 'Gravação')}</div>
+      <div class="meta">${new Date(rec.started_at || rec.created_at).toLocaleString('pt-BR')}</div>
+      <button class="close" onclick="document.getElementById('bunko-player-ov').remove()">✕ Fechar</button>
+    </header>
+    <div class="body">
+      <div class="video-wrap">
+        ${rec.url ? `<video src="${_esc(rec.url)}" controls autoplay></video>` : `<div style="color:#fff;font-family:var(--tatami-mincho,serif);font-style:italic;">Vídeo ainda processando…</div>`}
       </div>
       <div style="width:340px;background:rgba(20,16,12,.95);border-left:1px solid rgba(193,154,58,.20);padding:18px;overflow-y:auto;color:#fff;">
         <div style="font-family:var(--tatami-mincho,serif);font-style:italic;font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Detalhes</div>
         <div style="font-size:12.5px;line-height:1.6;color:rgba(255,255,255,.85);">
           <div style="margin-bottom:6px;">📍 #${_esc(rec.channel_name||'sem nome')}</div>
           <div style="margin-bottom:6px;">⏱ ${rec.duration_sec ? Math.round(rec.duration_sec/60)+' min' : '—'}</div>
-          <div style="margin-bottom:6px;">👥 ${rec.participants_count||0} pessoas</div>
+          <div style="margin-bottom:6px;">👥 ${rec.participants_count||0} pessoa(s)</div>
           ${rec.decisions_count > 0 ? `<div style="margin-bottom:6px;">📌 ${rec.decisions_count} decisões</div>` : ''}
           ${rec.actions_count > 0 ? `<div>⚡ ${rec.actions_count} ações criadas</div>` : ''}
         </div>
-        <div style="margin-top:24px;padding-top:18px;border-top:1px dashed rgba(255,255,255,.12);font-family:var(--tatami-mincho,serif);font-style:italic;font-size:11.5px;color:rgba(255,255,255,.55);line-height:1.5;">
-          ✦ Em breve: pular pra um momento da decisão, busca semântica na transcrição, e cards das ações vinculados.
-        </div>
       </div>
     </div>`;
+  document.body.appendChild(ov);
 }
 
 // CSS da animação injetado dinamicamente uma vez
@@ -46241,10 +46884,11 @@ function _lkNotasHTML() {
 
   let html = `<div class="lk-kan-h">
     <img src="${_LK_KAN_AVATAR}" alt=""/>
-    <div>
+    <div style="flex:1;">
       <div class="lk-kan-h-title">Mestre Kan · Notas</div>
       <div class="lk-kan-h-sub">capturando decisões e ações em tempo real</div>
     </div>
+    <button type="button" onclick="_lkSaveKanToBunko()" title="Salvar notas como página no Bunko Box" style="background:linear-gradient(135deg,#6B4825,#A88150);border:none;color:#F5E8C8;padding:6px 11px;border-radius:7px;cursor:pointer;font-size:11.5px;font-family:var(--tatami-mincho,serif);display:inline-flex;align-items:center;gap:5px;font-weight:600;">📦 Salvar</button>
   </div>`;
 
   if (decisions.length > 0) {
@@ -46275,6 +46919,81 @@ function _lkNotasHTML() {
   }
 
   return html;
+}
+
+// Salva as notas do Mestre Kan da call atual como página no Bunko Box
+async function _lkSaveKanToBunko() {
+  const ext = _chatState.extended;
+  if (!ext?.lk?.sessionId) {
+    appAlert('Sem sessão', 'Não tem call ativa no momento.', { icon:'⚠️' });
+    return;
+  }
+  const decisions = ext.lk.decisions || [];
+  const actions = ext.lk.actions || [];
+  const chat = ext.lk.chatMessages || [];
+  if (decisions.length === 0 && actions.length === 0 && chat.length === 0) {
+    appAlert('Nada pra salvar', 'O Mestre Kan ainda não capturou decisões, ações ou mensagens nessa call.', { icon:'🧘' });
+    return;
+  }
+  // Pede título
+  const ch = _chatState.channels.find(x => x.id === ext.channelId) || {};
+  const defaultTitle = `Tatame ${ch.name || 'sem nome'} · ${new Date().toLocaleDateString('pt-BR')}`;
+  const title = await appPrompt('Salvar no Bunko Box', {
+    message:'Como vai chamar essa página?', defaultValue: defaultTitle, okLabel: 'Salvar'
+  });
+  if (!title) return;
+
+  // Compõe HTML
+  const now = new Date();
+  let html = `<p><em>Tatame · ${_esc(ch.name || 'sem nome')} · ${now.toLocaleString('pt-BR')}</em></p>`;
+  if (decisions.length > 0) {
+    html += `<h2>📌 Decisões tomadas</h2><ul>`;
+    decisions.forEach(d => {
+      const u = d.attributed_to ? _chatState.userMap?.[d.attributed_to] : null;
+      html += `<li>${_esc(d.content)}${u ? ` <em>— ${_esc(u.name)}</em>` : ''}</li>`;
+    });
+    html += `</ul>`;
+  }
+  if (actions.length > 0) {
+    html += `<h2>⚡ Ações capturadas</h2><ul>`;
+    actions.forEach(a => {
+      const u = a.assignee_user_id ? _chatState.userMap?.[a.assignee_user_id] : null;
+      const dl = a.deadline ? ` <em>(${a.deadline})</em>` : '';
+      html += `<li>${_esc(a.content)}${u ? ` — <strong>${_esc(u.name)}</strong>` : ''}${dl}</li>`;
+    });
+    html += `</ul>`;
+  }
+  if (chat.length > 0) {
+    html += `<h2>💬 Chat da chamada</h2>`;
+    chat.forEach(m => {
+      const u = _chatState.userMap?.[m.user_id];
+      const name = u?.name || 'alguém';
+      const t = new Date(m.created_at).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+      html += `<p><strong>${_esc(name)}</strong> <em>(${t})</em>: ${_esc(m.body)}</p>`;
+    });
+  }
+
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  try {
+    const { data, error } = await c.rpc('create_bunko_page', {
+      p_title: title,
+      p_folder_id: null,
+      p_content_html: html,
+      p_content_text: text,
+      p_icon: '🧘',
+      p_source_kind: 'kan_transcript',
+      p_source_recording_id: null,
+    });
+    if (error) throw error;
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Salvo no Bunko Box ✓',
+        `<strong>${_esc(title)}</strong> · página criada com ${decisions.length} decis${decisions.length===1?'ão':'ões'} e ${actions.length} aç${actions.length===1?'ão':'ões'}.`,
+        'success');
+    }
+  } catch(e) {
+    appAlert('Erro ao salvar', e?.message || String(e), { icon:'⚠️' });
+  }
 }
 
 function _lkPessoasHTML() {
