@@ -48215,30 +48215,62 @@ window._bunkoExtractActionsRun = async function(pageId) {
     return;
   }
   const url = `${cfg.url}/functions/v1/kan-transcribe/extract-actions-page`;
-  let jwt = null;
-  if (typeof _capReadJWTFromStorage === 'function') jwt = _capReadJWTFromStorage();
-  if (!jwt) {
+
+  // Helper: pega JWT mais novo possível, refrescando se necessário.
+  // Cobre o caso "JWT expired" — sessão antiga no storage. Tenta refresh
+  // automático antes de mandar pra Edge Function.
+  const getFreshJwt = async (forceRefresh = false) => {
     try {
       const c = await _chatGetClient();
+      if (forceRefresh && c?.auth?.refreshSession) {
+        const { data, error } = await c.auth.refreshSession();
+        if (!error && data?.session?.access_token) return data.session.access_token;
+      }
       const { data } = await c.auth.getSession();
-      jwt = data?.session?.access_token;
+      if (data?.session?.access_token) return data.session.access_token;
     } catch(_){}
-  }
+    // Fallback: lê do storage
+    if (typeof _capReadJWTFromStorage === 'function') return _capReadJWTFromStorage();
+    return null;
+  };
+
+  let jwt = await getFreshJwt(false);
   let actions = [];
-  try {
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
-      body: JSON.stringify({ page_id: pageId, content: plain, title: page.title || '' })
-    });
-    const result = await r.json();
-    if (!r.ok) throw new Error(result.error || `HTTP ${r.status}`);
-    actions = result.actions || [];
-  } catch(e) {
-    statusEl.innerHTML = `⚠️ Erro: ${_esc(e?.message || String(e))}<br/><small>Verifique se o edge function <code>kan-transcribe</code> está atualizado e tem ANTHROPIC_API_KEY configurado.</small>`;
-    runBtn.disabled = false;
-    runBtn.textContent = '🧘 Extrair ações';
-    return;
+  // Tenta até 2x: 1ª com JWT cacheado, 2ª com refresh forçado se a 1ª der 401/expired
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+        body: JSON.stringify({ page_id: pageId, content: plain, title: page.title || '' })
+      });
+      const result = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const errMsg = (result?.error || `HTTP ${r.status}`).toString();
+        const isExpired = r.status === 401 || /jwt.*expir|expired|unauthorized|invalid.*token/i.test(errMsg);
+        if (isExpired && attempt === 1) {
+          console.log('[bunko-extract] JWT expirado, fazendo refresh e tentando de novo...');
+          jwt = await getFreshJwt(true);
+          if (!jwt) throw new Error('Não consegui renovar a sessão. Recarregue a página.');
+          continue;  // 2ª tentativa
+        }
+        throw new Error(errMsg);
+      }
+      actions = result.actions || [];
+      break;  // sucesso
+    } catch(e) {
+      if (attempt === 2) {
+        statusEl.innerHTML = `⚠️ Erro: ${_esc(e?.message || String(e))}<br/><small>Verifique se a Edge Function <code>kan-transcribe</code> está atualizada e tem <code>ANTHROPIC_API_KEY</code>. Se o erro for de sessão, recarregue a página.</small>`;
+        runBtn.disabled = false;
+        runBtn.textContent = '🧘 Extrair ações';
+        return;
+      }
+      // Se chegou aqui no attempt 1, o erro não era de JWT — não tenta de novo
+      statusEl.innerHTML = `⚠️ Erro: ${_esc(e?.message || String(e))}<br/><small>Verifique se a Edge Function <code>kan-transcribe</code> está atualizada e tem <code>ANTHROPIC_API_KEY</code>.</small>`;
+      runBtn.disabled = false;
+      runBtn.textContent = '🧘 Extrair ações';
+      return;
+    }
   }
   if (!actions.length) {
     statusEl.innerHTML = '🧘 Mestre Kan não encontrou ações concretas nessa página.';
@@ -50646,11 +50678,23 @@ async function _txAutoPostOpen() {
 function _txClose() {
   const ext = _chatState.extended;
   if (!ext || !ext.open) return;
+
+  // Se tem sessão LiveKit ativa, delega pro _lkLeave PRIMEIRO. Ele faz toda
+  // a parada de câmera/mic/Mestre Kan e, ao final, chama _txClose de novo —
+  // na 2ª passada ext.lk será null e cai no teardown normal. Sem isso, fechar
+  // pelo botão "Encerrar" ou tecla ESC deixava a webcam ligada.
+  if (ext.lk && typeof _lkLeave === 'function') {
+    _lkLeave().catch(e => console.warn('[tx-close] _lkLeave falhou:', e));
+    return;
+  }
+
   // Audit
   try { _chatAudit(ext.channelId, 'tatame.closed', {
     duration_sec: Math.floor((Date.now() - (ext.startedAt||Date.now()))/1000),
     voice_was_joined: !!ext.voiceJoined,
   }); } catch(_){}
+  // Defesa em profundidade: garante Mestre Kan parado mesmo se _lkLeave não rodou
+  try { if (typeof _kanStopTranscription === 'function') _kanStopTranscription(); } catch(_){}
   try { _txUnmountEmbed(); } catch(e){}
   try { _txLeaveVoice(); } catch(e){}
   try { _txStopPresence(); } catch(e){}
