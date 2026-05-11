@@ -47529,16 +47529,36 @@ async function _bunkoSavePage(pageId) {
   const statusEl = document.getElementById('bunko-page-savestatus');
   try {
     if (statusEl) statusEl.textContent = 'salvando...';
-    const { error } = await c.rpc('update_bunko_page', {
+    // Tenta com p_summary (versão nova da RPC)
+    let { error } = await c.rpc('update_bunko_page', {
       p_id: pageId, p_title: title, p_content_html: html, p_content_text: text, p_icon: null, p_summary: summary
     });
+    // Se a RPC antiga não aceita p_summary, cai pra versão sem summary
+    if (error && /p_summary|function .* does not exist|column .* does not exist|summary/i.test(error.message || '')) {
+      console.warn('[bunko] RPC antiga detectada, retentando sem p_summary:', error.message);
+      const fallback = await c.rpc('update_bunko_page', {
+        p_id: pageId, p_title: title, p_content_html: html, p_content_text: text, p_icon: null
+      });
+      error = fallback.error;
+      if (!error && statusEl) {
+        statusEl.innerHTML = 'Salvo (sem assunto — rode SQL novo) <a href="#" onclick="event.preventDefault();_bunkoShowMigrationHint()" style="color:#BC002D;text-decoration:underline;font-style:normal;">?</a>';
+        setTimeout(() => { if (statusEl) statusEl.textContent = 'Salvo'; }, 4000);
+        return;
+      }
+    }
     if (error) throw error;
     if (statusEl) statusEl.textContent = 'Salvo ✓';
     setTimeout(() => { if (statusEl) statusEl.textContent = 'Salvo'; }, 1500);
   } catch(e) {
-    if (statusEl) statusEl.textContent = 'erro ao salvar';
+    if (statusEl) statusEl.innerHTML = `erro: ${_esc((e?.message||'desconhecido').slice(0,60))}`;
     console.warn('[bunko] save page:', e);
   }
+}
+
+function _bunkoShowMigrationHint() {
+  appAlert('Migration desatualizada',
+    'A RPC update_bunko_page no Supabase ainda não tem o parâmetro p_summary.\n\nSolução:\n1. Abre o SQL Editor do Supabase\n2. Cola o conteúdo de billing/MIGRATION_BUNKO_BOX.sql\n3. Run\n\nO CREATE OR REPLACE atualiza sem perder dados.',
+    { icon:'⚠️' });
 }
 
 // Pede ao Mestre Kan (Claude via edge function) pra resumir a página
@@ -47600,8 +47620,11 @@ async function _bunkoSummarizeWithKan(pageId) {
   } catch(e) {
     let hint = '';
     const msg = e?.message || String(e);
-    if (/ANTHROPIC_API_KEY/i.test(msg)) hint = ' Configure ANTHROPIC_API_KEY no Supabase.';
-    else if (/404/.test(msg)) hint = ' Redeploy kan-transcribe (novo endpoint /summarize-page).';
+    if (/ANTHROPIC_API_KEY/i.test(msg)) {
+      hint = '\n\nConfigure ANTHROPIC_API_KEY no Supabase secrets.';
+    } else if (/session_id obrigat/i.test(msg) || /404/.test(msg)) {
+      hint = '\n\nA Edge Function kan-transcribe está com a versão ANTIGA (sem /summarize-page).\nFaça o redeploy:\n\ncp "billing/kan-transcribe-edge-function.ts" "supabase/functions/kan-transcribe/index.ts"\nsupabase functions deploy kan-transcribe --no-verify-jwt';
+    }
     appAlert('Mestre Kan não respondeu', msg + hint, { icon:'⚠️' });
   } finally {
     if (btn && originalHtml) { btn.disabled = false; btn.innerHTML = originalHtml; }
