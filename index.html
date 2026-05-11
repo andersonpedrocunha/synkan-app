@@ -46444,7 +46444,7 @@ async function renderBunko() {
                 </div>
                 <button class="bunko-btn" onclick="_bunkoCreatePage(_bunkoState.currentFolderId)">+ Nova página</button>
                 <button class="bunko-btn" onclick="_bunkoCreateFolder(_bunkoState.currentFolderId)">+ Nova subpasta</button>
-                <button class="bunko-btn" id="bunko-btn-download-zip" onclick="_bunkoDownloadFolderZip(_bunkoState.currentFolderId)" title="Baixar todos arquivos da pasta zipados" style="display:none;">📦 Baixar pasta (.zip)</button>
+                <button class="bunko-btn" id="bunko-btn-download-zip" onclick="_bunkoDownloadFolderZip(_bunkoState.currentFolderId)" title="Baixar todos arquivos da pasta atual zipados">📦 Baixar (.zip)</button>
                 <button class="bunko-btn is-danger" onclick="_bunkoCleanupStale()" title="Limpar gravações presas">↺ Limpar</button>
               </div>
             </div>
@@ -46606,9 +46606,6 @@ function _bunkoRenderBreadcrumb() {
     const current = path[path.length - 1];
     titleEl.innerHTML = `<span class="bunko-main-title-icon">${_esc(current?.icon || '📦')}</span><span>${_esc(current?.name || 'Bunko Box')}</span>`;
   }
-  // Mostra botão de baixar ZIP só quando dentro de uma pasta
-  const zipBtn = document.getElementById('bunko-btn-download-zip');
-  if (zipBtn) zipBtn.style.display = _bunkoState.currentFolderId ? '' : 'none';
 }
 
 function _bunkoRenderItems() {
