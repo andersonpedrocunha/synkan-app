@@ -5502,7 +5502,15 @@ body.density-compact .col{padding:7px;}
 .lk-kan-h{display:flex;align-items:center;gap:10px;padding:12px 0 14px;border-bottom:1px dashed rgba(255,255,255,.10);margin-bottom:14px;}
 .lk-kan-h img{width:36px;height:36px;border-radius:50%;}
 .lk-kan-h-title{font-family:var(--tatami-mincho,serif);font-size:14px;font-weight:600;}
-.lk-kan-h-sub{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:10.5px;color:rgba(255,255,255,.55);}
+.lk-kan-h-sub{font-family:var(--tatami-mincho,serif);font-style:italic;font-size:10.5px;color:rgba(255,255,255,.55);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.lk-kan-listening-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3DD68C;box-shadow:0 0 0 0 rgba(61,214,140,.6);animation:lkKanPulse 1.4s ease-out infinite;}
+@keyframes lkKanPulse { 0%{box-shadow:0 0 0 0 rgba(61,214,140,.55);} 70%{box-shadow:0 0 0 8px rgba(61,214,140,0);} 100%{box-shadow:0 0 0 0 rgba(61,214,140,0);} }
+.lk-kan-toggle{background:transparent;border:1px solid rgba(255,255,255,.20);color:rgba(255,255,255,.85);padding:6px 11px;border-radius:7px;cursor:pointer;font-size:11.5px;font-family:var(--tatami-mincho,serif);font-weight:600;transition:background .15s,border-color .15s,color .15s;white-space:nowrap;}
+.lk-kan-toggle:hover{background:rgba(255,255,255,.08);}
+.lk-kan-toggle.is-off{border-color:rgba(188,0,45,.55);color:#FF4666;background:rgba(188,0,45,.12);}
+.lk-kan-toggle.is-off:hover{background:rgba(188,0,45,.22);}
+.lk-kan-toggle.is-on{border-color:rgba(61,214,140,.55);color:#5EE6A8;background:rgba(61,214,140,.10);}
+.lk-kan-toggle.is-on:hover{background:rgba(61,214,140,.20);}
 .lk-kan-section{font-family:var(--tatami-mincho,serif);font-size:10.5px;color:rgba(255,255,255,.55);letter-spacing:.08em;text-transform:uppercase;font-weight:600;margin:18px 0 8px;display:flex;align-items:center;gap:8px;}
 .lk-kan-section::before{content:'·';color:#BC002D;font-size:18px;}
 .lk-kan-decision{padding:10px 12px;background:rgba(255,255,255,.04);border-left:2px solid #C19A3A;border-radius:0 8px 8px 0;margin-bottom:8px;font-size:12px;line-height:1.5;color:rgba(255,255,255,.92);}
@@ -44537,6 +44545,31 @@ async function _lkFetchToken(channelId, identity, name, roomName) {
   }
 }
 
+// ── Overlay "Entrando no tatame…" (feedback imediato no clique) ──────
+function _lkShowConnecting() {
+  if (document.getElementById('lk-connecting-ov')) return;
+  const ov = document.createElement('div');
+  ov.id = 'lk-connecting-ov';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(58,36,16,.72);backdrop-filter:blur(8px);z-index:9998;display:flex;align-items:center;justify-content:center;animation:lkFadeIn .15s ease;';
+  ov.innerHTML = `
+    <div style="background:#FFFCF5;border:1px solid #B8A878;border-radius:14px;padding:24px 28px;box-shadow:0 20px 60px rgba(58,36,16,.40);display:flex;align-items:center;gap:14px;min-width:260px;">
+      <div style="width:32px;height:32px;border:3px solid rgba(184,168,120,.30);border-top-color:#BC002D;border-radius:50%;animation:lkSpin .8s linear infinite;"></div>
+      <div>
+        <div style="font-family:var(--tatami-mincho,serif);font-size:15px;font-weight:600;color:#3A2410;">Entrando no tatame…</div>
+        <div style="font-size:12px;color:#6B5840;margin-top:2px;font-style:italic;">câmera + microfone</div>
+      </div>
+    </div>
+    <style>
+      @keyframes lkSpin { to { transform: rotate(360deg); } }
+      @keyframes lkFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>`;
+  document.body.appendChild(ov);
+}
+function _lkHideConnecting() {
+  const ov = document.getElementById('lk-connecting-ov');
+  if (ov) ov.remove();
+}
+
 // ── Inicia LiveKit (entra na sala) ───────────────────────────────────
 async function _lkStart() {
   console.log('[lk] _lkStart() chamado');
@@ -44559,69 +44592,92 @@ async function _lkStart() {
     return;
   }
 
-  console.log('[lk] carregando SDK…');
-  let LK;
+  // ── PARALELIZAÇÃO: SDK load + cliente Supabase + RPC start_session ────
+  // Antes essas etapas rodavam em sequência (~3-4s total). Agora rodam em
+  // paralelo (max ~1.5s). getUserMedia roda em segundo plano também.
+  console.log('[lk] iniciando em paralelo: SDK + cliente + RPC + mic preview…');
+
+  // Mostra UI imediata de "conectando" pra feedback visual rápido
+  try { _lkShowConnecting(); } catch(_){}
+
+  // 0a) SDK load
+  const sdkPromise = _lkLoadSDK().catch(e => ({ __error: e }));
+
+  // 0b) Cliente Supabase (resolve quase instantâneo se já cacheado)
+  const clientPromise = (typeof _chatGetClient === 'function'
+    ? Promise.resolve(_chatGetClient()).catch(() => _ensureSupaClient())
+    : Promise.resolve(_ensureSupaClient())
+  );
+
+  if (!supaUser) {
+    appAlert('Não logado', 'Faça login antes de subir no tatame.', { icon:'⚠️' });
+    try { _lkHideConnecting(); } catch(_){}
+    return;
+  }
+
+  // Resolve SDK + cliente em paralelo
+  let LK, c;
   try {
-    LK = await _lkLoadSDK();
-    console.log('[lk] SDK pronto, versão:', LK?.version || 'desconhecida');
+    const [sdkRes, clientRes] = await Promise.all([sdkPromise, clientPromise]);
+    if (sdkRes && sdkRes.__error) throw sdkRes.__error;
+    LK = sdkRes;
+    c = clientRes;
+    if (!c) c = _ensureSupaClient();
+    console.log('[lk] ✓ SDK + cliente prontos em paralelo');
   } catch(e) {
     console.error('[lk] SDK load:', e);
+    try { _lkHideConnecting(); } catch(_){}
     appAlert('Não consegui carregar o vídeo', e?.message || 'Erro desconhecido.', { icon:'⚠️' });
     return;
   }
 
-  // Usa cliente ISOLADO pra evitar lock do GoTrueClient (issue conhecido
-  // que faz RPC ficar pendurado quando o cliente principal tá ocupado).
-  let c;
-  try {
-    c = (typeof _chatGetClient === 'function')
-      ? await _chatGetClient()
-      : _ensureSupaClient();
-  } catch(e) {
-    console.error('[lk] chatGetClient falhou:', e);
-    c = _ensureSupaClient();
-  }
-  if (!c || !supaUser) {
-    console.error('[lk] supabase ou user ausente:', { c: !!c, user: !!supaUser });
-    appAlert('Não logado', 'Faça login antes de subir no tatame.', { icon:'⚠️' });
-    return;
-  }
-  console.log('[lk] cliente isolado pronto');
+  // 0c) Em paralelo: cria sessão no banco (RPC)
+  // p_with_kan: false — Mestre Kan é OPT-IN (usuário liga manualmente depois)
+  console.log('[lk] criando sessão no banco (em paralelo)…');
+  const rpcSessionPromise = Promise.race([
+    c.rpc('start_video_session', {
+      p_channel_id: ext.channelId,
+      p_with_kan: false,
+    }),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('RPC timeout (10s)')), 10000))
+  ]);
 
-  // 1) Cria/recupera sessão no banco (com timeout pra não pendurar)
-  console.log('[lk] criando sessão no banco…');
+  // 0d) Em paralelo: pede getUserMedia ANTES do connect — assim o browser
+  // pede permissão imediatamente e quando connect rolar o stream já tá pronto
+  // (LiveKit aceita stream pré-obtido via setCameraEnabled após connect)
+  let preMicStream = null;
+  const userMediaPromise = navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    video: { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 24 } },
+  }).then(s => { preMicStream = s; return s; })
+    .catch(err => { console.warn('[lk] getUserMedia pré-fetch falhou:', err?.message); return null; });
+
+  // Aguarda a RPC (necessária pra ter session.livekit_room antes do token)
   let session;
   try {
-    const rpcPromise = c.rpc('start_video_session', {
-      p_channel_id: ext.channelId,
-      p_with_kan: true,
-    });
-    const timeoutPromise = new Promise((_, rej) =>
-      setTimeout(() => rej(new Error('RPC timeout (10s)')), 10000)
-    );
-    const result = await Promise.race([rpcPromise, timeoutPromise]);
+    const result = await rpcSessionPromise;
     if (result.error) throw result.error;
     session = result.data;
-    console.log('[lk] sessão criada:', session);
+    console.log('[lk] ✓ sessão criada:', session.session_id);
   } catch(e) {
     console.error('[lk] start session falhou:', e);
+    try { _lkHideConnecting(); } catch(_){}
     appAlert('Erro ao iniciar sessão',
       `RPC start_video_session falhou: ${e?.message || e}. Verifique se a MIGRATION_TATAME_VIDEO.sql atualizada foi executada no Supabase.`,
       { icon:'⚠️' });
     return;
   }
 
-  // 2) Pega token do endpoint
+  // 2) Pega token (depende da room name vinda da RPC)
   console.log('[lk] buscando token em', window.LIVEKIT_TOKEN_ENDPOINT);
   let token;
   try {
     const userName = (supaUser?.user_metadata?.full_name || supaUser?.email || 'usuário');
-    // Passa session.livekit_room pro token usar o MESMO nome de sala que tá no banco
-    // (senão o Egress não acha a sala na hora de gravar)
     token = await _lkFetchToken(ext.channelId, supaUser.id, userName, session.livekit_room);
-    console.log('[lk] token obtido pra sala:', session.livekit_room, '(token:', token?.slice(0,20)+'…)');
+    console.log('[lk] ✓ token obtido pra sala:', session.livekit_room);
   } catch(e) {
     console.error('[lk] token fetch falhou:', e);
+    try { _lkHideConnecting(); } catch(_){}
     appAlert('Erro no token endpoint',
       `Edge Function 'livekit-token' falhou: ${e?.message || e}. Verifique se foi deployada e os secrets configurados.`,
       { icon:'⚙️' });
@@ -44665,24 +44721,40 @@ async function _lkStart() {
     await room.connect(window.LIVEKIT_WS_URL, token);
     ext.lk.connected = true;
     console.log('[lk] ✓ conectado!');
-    // Auto-enable câmera + microfone (browser pede permissão na primeira vez)
-    // Câmera em 540p (não 720p) = menos pixels pro MediaPipe processar
-    // → menos jitter de borda + menos CPU/GPU + menos bandwidth
+    // Aguarda o getUserMedia pré-fetch terminar (pode já estar pronto)
+    try { await userMediaPromise; } catch(_){}
+    // Auto-enable câmera + microfone.
+    // Se o pré-fetch deu certo, passa tracks prontas (zero delay).
     try {
-      await room.localParticipant.setMicrophoneEnabled(true);
-      const camOpts = LK.VideoPresets?.h540 ? {
-        resolution: LK.VideoPresets.h540.resolution,
-      } : { resolution: { width: 960, height: 540, frameRate: 24 } };
-      await room.localParticipant.setCameraEnabled(true, camOpts);
-      console.log('[lk] mic + camera ativados (540p pra performance)');
-      // Re-aplica efeito de câmera salvo (em background — não bloqueia)
+      if (preMicStream) {
+        const audioTrack = preMicStream.getAudioTracks()[0];
+        const videoTrack = preMicStream.getVideoTracks()[0];
+        const pubs = [];
+        if (audioTrack) pubs.push(room.localParticipant.publishTrack(audioTrack));
+        if (videoTrack) pubs.push(room.localParticipant.publishTrack(videoTrack));
+        await Promise.all(pubs);
+        console.log('[lk] ✓ tracks pré-obtidas publicadas (zero delay)');
+      } else {
+        // Fallback: pede via SDK
+        await room.localParticipant.setMicrophoneEnabled(true);
+        const camOpts = LK.VideoPresets?.h540 ? { resolution: LK.VideoPresets.h540.resolution }
+                                              : { resolution: { width: 960, height: 540, frameRate: 24 } };
+        await room.localParticipant.setCameraEnabled(true, camOpts);
+        console.log('[lk] mic + camera ativados via SDK');
+      }
+      // Re-aplica efeito de câmera salvo em background (não bloqueia)
       try { _lkApplyStoredEffect(); } catch(_){}
     } catch(permErr) {
       console.warn('[lk] permissão de câmera/mic negada — user pode ativar manualmente:', permErr?.message);
     }
-    await c.rpc('join_video_session', { p_session_id: session.session_id, p_with_camera: true });
+    // Esconde overlay de "conectando" — vídeo já tá entrando
+    try { _lkHideConnecting(); } catch(_){}
+    // RPC join_video_session — não bloqueia (fire and forget)
+    c.rpc('join_video_session', { p_session_id: session.session_id, p_with_camera: true })
+      .catch(e => console.warn('[lk] join_video_session falhou (não-crítico):', e?.message));
   } catch(e) {
     console.error('[lk] connect falhou:', e);
+    try { _lkHideConnecting(); } catch(_){}
     appAlert('Erro de conexão LiveKit',
       `Não consegui entrar na sala: ${e?.message || e}. Verifique LIVEKIT_WS_URL (${window.LIVEKIT_WS_URL}).`,
       { icon:'⚠️' });
@@ -44695,10 +44767,9 @@ async function _lkStart() {
   // Inicia refresh periódico do JWT (evita expiração mid-call)
   _lkStartJwtRefresh();
 
-  // Auto-inicia transcrição do Mestre Kan se foi convocado
-  if (ext.lk.hasKan) {
-    try { _kanStartTranscription(); } catch(e) { console.warn('[kan] auto-start:', e); }
-  }
+  // Mestre Kan agora é OPT-IN — usuário liga manualmente via botão no painel Notas.
+  // (antes era auto-start quando session.has_kan_assist=true, mas isso
+  //  consumia créditos OpenAI mesmo quando não queria transcrever.)
 
   // Carrega estado atual da sessão (decisões/ações de quem entrou antes).
   // NÃO restaura shared_item automaticamente — se o presenter saiu sem clicar
@@ -49560,29 +49631,38 @@ function _lkNotasHTML() {
   const decisions = ext.lk.decisions || [];
   const actions = ext.lk.actions || [];
   const noNotes = decisions.length === 0 && actions.length === 0;
+  // Estado real do Mestre Kan: tá rodando? Conta chunks ouvidos
+  const isListening = !!(window._kanWantRunning && window._kanRecognition?.active);
+  const chunksHeard = window._kanChunkSeq || 0;
+  const subStatus = isListening
+    ? `<span class="lk-kan-listening-dot"></span> ouvindo · ${chunksHeard} chunk${chunksHeard===1?'':'s'} processado${chunksHeard===1?'':'s'}`
+    : 'desligado · clique pra começar a transcrever';
 
-  if (noNotes) {
-    return `<div class="lk-kan-h">
-      <img src="${_LK_KAN_AVATAR}" alt=""/>
-      <div>
-        <div class="lk-kan-h-title">Mestre Kan · Notas</div>
-        <div class="lk-kan-h-sub">${ext.lk.hasKan ? 'em meditação · pronto pra capturar' : 'desativado'}</div>
-      </div>
-    </div>
-    <div class="lk-kan-empty">
-      <div class="lk-kan-empty-icon"><img src="${_LK_KAN_AVATAR}" alt=""/></div>
-      <div>Mestre Kan está em <em>zazen</em>.<br/>Vai começar a capturar decisões e ações conforme o time fala.</div>
-    </div>`;
-  }
+  // Botão de toggle (visualmente claro o estado)
+  const toggleBtn = `<button type="button" onclick="_lkToggleKan()" title="${isListening?'Parar transcrição':'Iniciar transcrição com Mestre Kan'}" class="lk-kan-toggle ${isListening?'is-on':'is-off'}">${isListening?'⏸ Parar':'▶ Ligar Mestre Kan'}</button>`;
 
-  let html = `<div class="lk-kan-h">
+  // Header sempre com toggle
+  const headerHTML = `<div class="lk-kan-h">
     <img src="${_LK_KAN_AVATAR}" alt=""/>
     <div style="flex:1;">
       <div class="lk-kan-h-title">Mestre Kan · Notas</div>
-      <div class="lk-kan-h-sub">capturando decisões e ações em tempo real</div>
+      <div class="lk-kan-h-sub">${subStatus}</div>
     </div>
-    <button type="button" onclick="_lkSaveKanToBunko()" title="Salvar notas como página no Bunko Box" style="background:linear-gradient(135deg,#6B4825,#A88150);border:none;color:#F5E8C8;padding:6px 11px;border-radius:7px;cursor:pointer;font-size:11.5px;font-family:var(--tatami-mincho,serif);display:inline-flex;align-items:center;gap:5px;font-weight:600;">📦 Salvar</button>
+    ${toggleBtn}
+    ${(!noNotes) ? `<button type="button" onclick="_lkSaveKanToBunko()" title="Salvar notas como página no Bunko Box" style="background:linear-gradient(135deg,#6B4825,#A88150);border:none;color:#F5E8C8;padding:6px 11px;border-radius:7px;cursor:pointer;font-size:11.5px;font-family:var(--tatami-mincho,serif);display:inline-flex;align-items:center;gap:5px;font-weight:600;margin-left:6px;">📦 Salvar</button>` : ''}
   </div>`;
+
+  if (noNotes) {
+    return headerHTML + `<div class="lk-kan-empty">
+      <div class="lk-kan-empty-icon"><img src="${_LK_KAN_AVATAR}" alt=""/></div>
+      ${isListening
+        ? `<div>Ouvindo… ${chunksHeard > 0 ? `processados <strong>${chunksHeard}</strong> trechos de áudio.<br/><small style="opacity:.7;">Mestre Kan só captura <em>decisões</em> e <em>ações concretas</em> — frases tipo "alô, testando" são ignoradas. Fale algo tipo:<br/>"<em>vou abrir um ticket pra Maria revisar o contrato até sexta</em>".</small>` : 'ainda esperando o primeiro chunk de áudio (8s)…'}</div>`
+        : `<div>Mestre Kan está em <em>zazen</em>.<br/>Clique em <strong>“▶ Ligar Mestre Kan”</strong> acima pra começar a transcrever e capturar decisões/ações da reunião.</div>`
+      }
+    </div>`;
+  }
+
+  let html = headerHTML;
 
   if (decisions.length > 0) {
     html += `<div class="lk-kan-section">decisões tomadas</div>`;
@@ -49849,6 +49929,38 @@ async function _lkToggleKan() {
       console.log('[lk] kan toggle sincronizado:', newVal);
     }
   } catch(e) { console.warn('[lk] kan toggle sync falhou:', e?.message||e); }
+}
+
+// Toggle do Mestre Kan no painel Notas (Liga/Desliga sob demanda)
+async function _lkToggleKan() {
+  const ext = _chatState.extended;
+  if (!ext?.lk?.connected) {
+    appAlert('Não conectado', 'Entre no tatame primeiro pra ligar o Mestre Kan.', { icon:'⚠️' });
+    return;
+  }
+  const isOn = !!(window._kanWantRunning && window._kanRecognition?.active);
+  if (isOn) {
+    _kanStopTranscription();
+    ext.lk.hasKan = false;
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Mestre Kan desligado', 'Transcrição parada. Você pode religar a qualquer momento.', 'info');
+    }
+  } else {
+    ext.lk.hasKan = true;
+    // Atualiza sessão no banco pra marcar que tem Kan (fire and forget)
+    try {
+      const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+      c.from('tatame_video_sessions').update({ has_kan_assist: true }).eq('id', ext.lk.sessionId).then(()=>{}).catch(()=>{});
+    } catch(_){}
+    _kanStartTranscription();
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Mestre Kan ouvindo', '✓ Transcrição funcionando! Decisões e ações aparecem em "📝 Notas" no painel direito.', 'success');
+    }
+  }
+  // Re-render do painel (atualiza o estado do botão)
+  try { _lkRenderSidepanel(); } catch(_){}
+  // Re-render do mini Kan (avatar no canto)
+  try { _lkRenderKanMini && _lkRenderKanMini(); } catch(_){}
 }
 
 // ── Mestre Kan · transcrição via Web Speech API ──────────────────────
