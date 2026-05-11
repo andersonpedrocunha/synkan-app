@@ -44351,11 +44351,14 @@ class _SynkanBgProcessor {
     this._video.autoplay = true;
     await this._video.play().catch(()=>{});
 
-    // Canvas de saída (alpha:false = mais rápido + sem sangrar)
+    // Canvas de saída — ALPHA OBRIGATÓRIO. As operações de composição
+    // (source-in pra recortar a pessoa, destination-over pra empilhar o fundo)
+    // dependem de canal alpha funcional. Com alpha:false todo o efeito vira
+    // identidade (mostra vídeo bruto), então NÃO mudar de volta.
     this._canvas = document.createElement('canvas');
     this._canvas.width = w;
     this._canvas.height = h;
-    this._ctx = this._canvas.getContext('2d', { alpha: false, desynchronized: true });
+    this._ctx = this._canvas.getContext('2d', { alpha: true, desynchronized: true });
 
     // Canvas auxiliar pro mask (em resolução do MediaPipe)
     this._maskCanvas = document.createElement('canvas');
@@ -44402,6 +44405,9 @@ class _SynkanBgProcessor {
       const mw = res.categoryMask.width;
       const mh = res.categoryMask.height;
       const maskU8 = res.categoryMask.getAsUint8Array();
+      // Libera o MPMask imediatamente pra evitar leak ("creating MPMask
+      // instances without invoking .close()"). Já temos uma cópia em maskU8.
+      try { res.categoryMask.close(); } catch(_){}
 
       // Constrói canvas de máscara: branco onde é pessoa, transparente onde é fundo
       if (this._maskCanvas.width !== mw || this._maskCanvas.height !== mh) {
