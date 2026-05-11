@@ -44765,16 +44765,18 @@ async function _lkStart() {
     // Se o pré-fetch deu certo, passa tracks prontas (zero delay).
     try {
       if (preMicStream) {
+        // CRÍTICO: guarda referência do stream ANTES de tentar publicar.
+        // Se publishTrack falhar (insufficient permissions, network, etc), o
+        // catch dispara mas o MediaStream do getUserMedia continua vivo (LED
+        // aceso). Sem essa linha aqui, _lkLeave não consegue alcançar o stream
+        // pra parar — esse foi o bug "camera não fecha ao sair".
+        ext.lk._preStream = preMicStream;
         const audioTrack = preMicStream.getAudioTracks()[0];
         const videoTrack = preMicStream.getVideoTracks()[0];
         const pubs = [];
         if (audioTrack) pubs.push(room.localParticipant.publishTrack(audioTrack));
         if (videoTrack) pubs.push(room.localParticipant.publishTrack(videoTrack));
         await Promise.all(pubs);
-        // GUARDA referência do stream original — setCameraEnabled(false) só
-        // unpublica, NÃO chama .stop() em tracks criadas externamente. Sem isso
-        // a LED da webcam fica acesa pra sempre depois de sair do tatame.
-        ext.lk._preStream = preMicStream;
         console.log('[lk] ✓ tracks pré-obtidas publicadas (zero delay)');
       } else {
         // Fallback: pede via SDK
