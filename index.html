@@ -147,6 +147,11 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .sb-item.sb-sub .sb-icon{font-size:13px;}
 .sb-item.sb-sub:hover{color:var(--color-text-primary);}
 .sb-item.sb-sub.active{padding-left:28px;}
+/* Toggle de My Boards (dropdown) */
+.sb-chevron{font-size:10px;color:var(--color-text-tertiary);transition:transform .18s ease;width:14px;text-align:center;}
+.sb-item.sb-has-children.is-open .sb-chevron{transform:rotate(90deg);}
+.sb-children{overflow:hidden;max-height:0;transition:max-height .22s ease;}
+.sb-children.is-open{max-height:600px;}
 .sb-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0;line-height:1;}
 .sb-divider{height:0.5px;background:var(--color-border-tertiary);margin:8px 6px;}
 .sb-foot{padding:8px 10px;font-size:10px;color:var(--color-text-tertiary);text-align:center;border-top:0.5px solid var(--color-border-tertiary);}
@@ -6891,14 +6896,17 @@ body.tx-active .belt-ring::after{
     </button>
     <button class="sb-item" id="sb-chat" onclick="switchTab('chat')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M3 3.5h10a1.5 1.5 0 0 1 1.5 1.5v5.5a1.5 1.5 0 0 1 -1.5 1.5h-6L4 14v-2H3a1.5 1.5 0 0 1 -1.5 -1.5v-5.5A1.5 1.5 0 0 1 3 3.5z"/><line x1="5" y1="6.4" x2="11" y2="6.4"/><line x1="5" y1="8.7" x2="9" y2="8.7"/></svg></span><span>Tatami</span><span class="sb-chat-badge" id="sb-chat-badge" style="display:none;"></span></button>
-    <button class="sb-item" id="sb-boards" onclick="switchTab('boards')">
-      <span class="sb-icon">▤</span><span>My boards</span>
+    <button class="sb-item sb-has-children" id="sb-boards" onclick="_sbToggleBoards(event)">
+      <span class="sb-icon">▤</span><span style="flex:1;">My boards</span>
+      <span class="sb-chevron" id="sb-boards-chevron">▸</span>
     </button>
-    <button class="sb-item sb-sub" id="sb-zai" onclick="switchTab('zai')">
-      <span class="sb-icon" style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:-.04em;color:#BC002D;">財</span><span>Zai</span></button>
-    <button class="sb-item sb-sub" id="sb-gallery" onclick="switchTab('gallery')">
-      <span class="sb-icon">✦</span><span>Gallery</span>
-    </button>
+    <div class="sb-children" id="sb-boards-children">
+      <button class="sb-item sb-sub" id="sb-zai" onclick="switchTab('zai')">
+        <span class="sb-icon" style="font-family:'Hiragino Mincho ProN','Yu Mincho','Songti SC',Georgia,serif;font-size:13px;font-weight:600;letter-spacing:-.04em;color:#BC002D;">財</span><span>Zai</span></button>
+      <button class="sb-item sb-sub" id="sb-gallery" onclick="switchTab('gallery')">
+        <span class="sb-icon">✦</span><span>Gallery</span>
+      </button>
+    </div>
     <button class="sb-item" id="sb-canvas" onclick="switchTab('canvas')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M6.4 1.8h3.2"/><path d="M6.8 1.8v4.4L3.4 12.6a1.4 1.4 0 0 0 1.2 2H11.4a1.4 1.4 0 0 0 1.2-2L9.2 6.2V1.8"/><path d="M5.4 9.4h5.2"/><circle cx="6.5" cy="11.4" r="0.55" fill="currentColor"/><circle cx="9.2" cy="12.2" r="0.45" fill="currentColor"/></svg></span><span>Lab</span></button>
     <button class="sb-item" id="sb-okrs" onclick="switchTab('okrs')">
@@ -18078,7 +18086,53 @@ document.addEventListener('click', e => {
 
 // ── Tabs ──
 const VIEW_TABS = ['kanban','table','checklist','gantt','calendar','dashboard','tracker'];
+// Toggle do menu "My boards" — expande/colapsa sub-itens (Zai, Gallery)
+function _sbToggleBoards(evt) {
+  if (evt) evt.stopPropagation();
+  const btn = document.getElementById('sb-boards');
+  const kids = document.getElementById('sb-boards-children');
+  if (!btn || !kids) return;
+  const isOpen = kids.classList.toggle('is-open');
+  btn.classList.toggle('is-open', isOpen);
+  try { localStorage.setItem('synkan_sb_boards_open', isOpen ? '1' : '0'); } catch(_){}
+  // Se clicou no botão E ainda não estava na aba boards, switcha pra boards
+  if (isOpen && (typeof currentTab === 'undefined' || currentTab !== 'boards')) {
+    try { switchTab('boards'); } catch(_){}
+  }
+}
+// Inicializa o estado do collapse na hora de carregar
+(function _sbBoardsInit(){
+  const apply = () => {
+    const btn = document.getElementById('sb-boards');
+    const kids = document.getElementById('sb-boards-children');
+    if (!btn || !kids) return;
+    let saved;
+    try { saved = localStorage.getItem('synkan_sb_boards_open'); } catch(_){}
+    // Default: aberto na primeira vez
+    const isOpen = saved === null || saved === undefined ? true : saved === '1';
+    kids.classList.toggle('is-open', isOpen);
+    btn.classList.toggle('is-open', isOpen);
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', apply);
+  } else {
+    apply();
+  }
+})();
+
 function switchTab(tab) {
+  // Auto-expande My boards se navegar pra Zai ou Gallery (filhos)
+  try {
+    if (tab === 'zai' || tab === 'gallery') {
+      const btn = document.getElementById('sb-boards');
+      const kids = document.getElementById('sb-boards-children');
+      if (btn && kids && !kids.classList.contains('is-open')) {
+        kids.classList.add('is-open');
+        btn.classList.add('is-open');
+        try { localStorage.setItem('synkan_sb_boards_open', '1'); } catch(_){}
+      }
+    }
+  } catch(_){}
   // Gating de convidado puro: bloqueia abas pessoais do owner
   try {
     if (window._isGuestUser) {
@@ -46179,6 +46233,23 @@ async function renderBunko() {
         .bunko-page-content li { margin: 3px 0; }
         .bunko-page-savestatus { font-size: 11px; color: #8B7250; font-style: italic; font-family: var(--tatami-mincho,serif); margin-left: auto; }
 
+        /* Indicador de anexos no topo da página (clica pra rolar) */
+        .bunko-attach-indicator {
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 4px 11px; margin-top: 4px;
+          background: linear-gradient(135deg, rgba(193,154,58,.15), rgba(193,154,58,.08));
+          border: 1px solid rgba(193,154,58,.45);
+          border-radius: 999px; cursor: pointer;
+          font-size: 11.5px; font-family: var(--tatami-mincho,serif); font-style: italic;
+          color: #6B4825; font-weight: 600; letter-spacing: .02em;
+          transition: all .15s;
+        }
+        .bunko-attach-indicator:hover {
+          background: #C19A3A; color: #fff; transform: translateY(-1px);
+          box-shadow: 0 3px 10px rgba(193,154,58,.35);
+        }
+        .bunko-attach-indicator .count { font-style: normal; font-weight: 700; }
+
         /* Anexos (estilo Notion-ish com cara Synkan) */
         .bunko-attach-section { margin-top: 36px; padding-top: 22px; border-top: 1px dashed rgba(107,72,37,.25); }
         .bunko-attach-h { display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px; }
@@ -46772,8 +46843,15 @@ async function _bunkoOpenPage(pageId) {
   main.innerHTML = `
     <div class="bunko-page-editor">
       <button class="bunko-btn" style="margin-bottom:18px;" onclick="renderBunko()">← Voltar</button>
-      <button class="bunko-page-icon-input" onclick="_bunkoChangePageIcon('${_esc(pageId)}')" title="Trocar ícone">${_esc(page.icon || '📄')}</button>
-      <input class="bunko-page-title-input" id="bunko-page-title-${_esc(pageId)}" value="${_esc(page.title)}" placeholder="Sem título" />
+      <div style="display:flex;align-items:flex-start;gap:14px;">
+        <button class="bunko-page-icon-input" onclick="_bunkoChangePageIcon('${_esc(pageId)}')" title="Trocar ícone">${_esc(page.icon || '📄')}</button>
+        <div style="flex:1;min-width:0;">
+          <input class="bunko-page-title-input" id="bunko-page-title-${_esc(pageId)}" value="${_esc(page.title)}" placeholder="Sem título" />
+          <button class="bunko-attach-indicator" id="bunko-attach-indicator-${_esc(pageId)}" onclick="document.getElementById('bunko-attach-${_esc(pageId)}').scrollIntoView({behavior:'smooth',block:'start'})" style="display:none;">
+            📎 <span class="count">0</span> anexo(s)
+          </button>
+        </div>
+      </div>
       <div class="bunko-page-toolbar">
         <button onclick="_bunkoExec('bold')" title="Bold (Cmd+B)"><b>B</b></button>
         <button onclick="_bunkoExec('italic')" title="Italic"><i>I</i></button>
@@ -46875,15 +46953,53 @@ function _bunkoRenderFiles(pageId, files) {
   };
   el.innerHTML = files.map(f => {
     const { icon, color } = _bunkoFileIcon(f.name, f.mime_type);
+    const safeName = (f.name||'').replace(/'/g, "\\'");
     return `<div class="bunko-file-item" onclick="_bunkoDownloadFile('${_esc(f.storage_path)}','${_esc(f.storage_bucket)}','${_esc(f.name)}')">
       <div class="bunko-file-icon" style="background:${color}1a;color:${color};">${icon}</div>
       <div class="bunko-file-info">
         <div class="bunko-file-name">${_esc(f.name)}</div>
         <div class="bunko-file-meta">${_bunkoFormatSize(f.size_bytes)} · ${fmtDate(f.uploaded_at)}</div>
       </div>
+      <button class="bunko-file-action" onclick="event.stopPropagation(); _bunkoRenameFile('${_esc(f.id)}','${_esc(safeName)}','${_esc(pageId)}')" title="Renomear">✏️</button>
       <button class="bunko-file-action" onclick="event.stopPropagation(); _bunkoDeleteFile('${_esc(f.id)}','${_esc(f.storage_path)}','${_esc(f.storage_bucket)}','${_esc(pageId)}')" title="Excluir">🗑</button>
     </div>`;
   }).join('');
+  // Atualiza indicador no topo da página
+  _bunkoUpdateAttachIndicator(pageId, files.length);
+}
+
+// Mostra "📎 N" próximo ao título da página
+function _bunkoUpdateAttachIndicator(pageId, count) {
+  const indicator = document.getElementById('bunko-attach-indicator-' + pageId);
+  if (!indicator) return;
+  if (count > 0) {
+    indicator.style.display = 'inline-flex';
+    indicator.querySelector('.count').textContent = count;
+  } else {
+    indicator.style.display = 'none';
+  }
+}
+
+// Renomeia anexo (sem mexer no arquivo físico — só no nome de exibição/download)
+async function _bunkoRenameFile(fileId, currentName, pageId) {
+  const newName = await appPrompt('Renomear anexo', {
+    message: 'Novo nome (use a extensão correta pra abrir certo, ex: relatorio.pdf):',
+    defaultValue: currentName,
+    okLabel: 'Renomear'
+  });
+  if (!newName || newName === currentName) return;
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c) return;
+  try {
+    const { error } = await c.rpc('rename_bunko_file', { p_id: fileId, p_name: newName });
+    if (error) throw error;
+    _bunkoLoadFiles(pageId);
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Renomeado ✓', `Agora chama "${_esc(newName)}".`, 'info');
+    }
+  } catch(e) {
+    appAlert('Erro ao renomear', e?.message || String(e), { icon:'⚠️' });
+  }
 }
 
 async function _bunkoUploadFiles(pageId, fileList) {
