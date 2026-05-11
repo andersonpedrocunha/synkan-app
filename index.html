@@ -46474,6 +46474,22 @@ async function _bunkoCheckRecording(recordingId) {
         _showKanWarning(`Gravação falhou no LiveKit`,
           `Status: <strong>${status}</strong>${result.error_msg ? '<br/>Erro: '+_esc(result.error_msg) : ''}<br/><br/>Verifique se os secrets do R2 estão configurados corretamente no Supabase.`,
           'warning');
+      } else if (status === 'unknown') {
+        // LiveKit não acha mais esse egress — provavelmente foi descartado.
+        // Oferece marcar como failed pra limpar.
+        const ok = await appConfirm('Gravação não encontrada na LiveKit',
+          `A LiveKit Cloud não tem mais registro dessa gravação (egress_id <code>${_esc(rec.livekit_egress_id.slice(0,16))}…</code>). Isso geralmente significa que:<br/><br/>
+          • O upload pro R2 falhou e foi descartado<br/>
+          • Os secrets do R2 (bucket/endpoint/keys) podem estar incorretos<br/>
+          • O Egress passou tempo demais sem completar<br/><br/>
+          Marcar essa gravação como <strong>failed</strong> pra liberar?`,
+          { okLabel: 'Marcar como failed', cancelLabel: 'Manter', danger: true });
+        if (ok) {
+          await c.from('tatame_recordings')
+            .update({ status: 'failed', ended_at: new Date().toISOString() })
+            .eq('id', recordingId);
+          _showKanWarning('Marcado', 'Gravação marcada como falha. Pode arquivar ou excluir.', 'info');
+        }
       } else {
         _showKanWarning('Ainda processando',
           `Status atual: <strong>${status}</strong>. Tente de novo em alguns minutos.`,
