@@ -47931,14 +47931,29 @@ async function _bunkoExtractActionsPrompt(pageId) {
     appAlert('Erro', e?.message || String(e), { icon:'⚠️' });
     return;
   }
-  // Lista boards do usuário pra escolher
+  // Lista boards do usuário pra escolher.
+  // No Synkan: tabela `boards`, campo `archived` é boolean OU NULL (legacy).
+  // As colunas do Kanban ficam num campo `cols` (array JSON) do próprio board.
   let boards = [];
   try {
-    const { data, error } = await c.from('boards').select('id, name, icon').eq('archived', false).order('updated_at', { ascending: false }).limit(40);
+    // Tenta filtrando archived primeiro
+    const { data, error } = await c.from('boards')
+      .select('id, name, icon, cols')
+      .or('archived.is.null,archived.eq.false')
+      .order('updated_at', { ascending: false })
+      .limit(60);
     if (!error) boards = data || [];
-  } catch(_){}
+    // Fallback: alguns schemas legacy não têm `archived` — busca tudo
+    if (!boards.length) {
+      const { data: d2, error: e2 } = await c.from('boards')
+        .select('id, name, icon, cols')
+        .order('updated_at', { ascending: false })
+        .limit(60);
+      if (!e2) boards = d2 || [];
+    }
+  } catch(e) { console.warn('[bunko-extract] list boards:', e?.message); }
   if (!boards.length) {
-    appAlert('Sem boards', 'Você precisa ter pelo menos um board ativo pra extrair ações pra cards.', { icon:'📌' });
+    appAlert('Sem boards', 'Você precisa ter pelo menos um board criado no “My boards” pra extrair ações pra cards. Crie um primeiro e tenta de novo.', { icon:'📌' });
     return;
   }
   const ov = document.createElement('div');
@@ -47964,6 +47979,7 @@ async function _bunkoExtractActionsPrompt(pageId) {
   document.body.appendChild(ov);
   window._bunkoExtractOv = ov;
   window._bunkoExtractPage = page;
+  window._bunkoExtractBoards = boards;  // guarda os boards (com cols) pra usar no commit
 }
 
 window._bunkoExtractActionsRun = async function(pageId) {
@@ -48059,45 +48075,76 @@ window._bunkoExtractCommitCards = async function(pageId, boardId) {
   if (runBtn) { runBtn.disabled = true; runBtn.textContent = '⏳ Criando…'; }
   if (statusEl) statusEl.innerHTML = `🧘 Criando ${selected.length} card(s) no board…`;
   const c = await _chatGetClient();
-  // Busca primeira coluna do board (Backlog/A fazer)
-  let columnId = null;
+
+  // No Synkan as colunas ficam num campo `cols` (array JSON) do próprio board.
+  // Cada coluna tem { id: 'todo', title: 'A fazer', wipLimit?: 5 }
+  const board = (window._bunkoExtractBoards || []).find(b => b.id === boardId);
+  const cols = (board && Array.isArray(board.cols)) ? board.cols : [];
+  if (!cols.length) {
+    if (statusEl) statusEl.innerHTML = `⚠️ Esse board não tem colunas no campo <code>cols</code>. Abra o board no Kanban primeiro pra inicializar.`;
+    if (runBtn) { runBtn.disabled = false; runBtn.textContent = '+ Tentar de novo'; }
+    return;
+  }
+  const firstColId = cols[0].id;
+
+  // Busca o próximo local_id (único por board)
+  let nextLocalId = 1;
   try {
-    const { data, error } = await c.from('board_columns').select('id, name, position').eq('board_id', boardId).order('position', { ascending: true }).limit(1);
-    if (error) throw error;
-    columnId = data?.[0]?.id;
-  } catch(e) {
-    if (statusEl) statusEl.innerHTML = `⚠️ Não consegui achar colunas no board: ${_esc(e?.message)}`;
-    if (runBtn) { runBtn.disabled = false; runBtn.textContent = '+ Tentar de novo'; }
-    return;
-  }
-  if (!columnId) {
-    if (statusEl) statusEl.innerHTML = `⚠️ Esse board não tem colunas. Crie uma coluna primeiro.`;
-    if (runBtn) { runBtn.disabled = false; runBtn.textContent = '+ Tentar de novo'; }
-    return;
-  }
+    const { data: maxData } = await c.from('cards')
+      .select('local_id').eq('board_id', boardId)
+      .order('local_id', { ascending: false }).limit(1);
+    nextLocalId = ((maxData?.[0]?.local_id) || 0) + 1;
+  } catch(_){}
+
+  const nowIso = new Date().toISOString();
   let created = 0, failed = 0;
+  const sourceNote = `\n\n— Extraído pelo Mestre Kan da página Bunko Box.`;
+
   for (const a of selected) {
     try {
       const title = (typeof a === 'string') ? a : (a.title || '');
-      const desc = (typeof a === 'object' && a.description) ? a.description : '';
-      const fullDesc = `${desc}${desc ? '\n\n' : ''}— Extraído pelo Mestre Kan da página Bunko Box.`;
-      const { error } = await c.from('cards').insert({
-        board_id: boardId, column_id: columnId,
-        title: title.slice(0, 200),
-        description: fullDesc,
+      const desc  = (typeof a === 'object' && a.description) ? a.description : '';
+      const assignee = (typeof a === 'object' && a.assignee) ? a.assignee : null;
+      const fullDesc = (desc + sourceNote).trim();
+      // Schema real do Synkan (snake_case)
+      const row = {
+        board_id: boardId,
+        local_id: nextLocalId++,
+        name: title.slice(0, 200),
+        priority: 'media',
+        col: firstColId,
+        tag_ids: [],
+        responsavel: assignee,
+        deadline: null,
+        custom_field_values: {},
+        threads: fullDesc ? [{
+          id: Date.now() + Math.random(),
+          text: fullDesc,
+          date: nowIso,
+          type: 'auto'
+        }] : [],
+        attachments: [],
+        subtasks: [],
         position: created * 1024,
-      });
+        created_at: nowIso,
+        done_at: null,
+      };
+      const { error } = await c.from('cards').insert(row);
       if (error) throw error;
       created++;
-    } catch(e) { failed++; console.warn('[extract] card insert:', e?.message); }
+    } catch(e) { failed++; console.warn('[extract] card insert:', e?.message, e); }
   }
   if (statusEl) {
-    statusEl.innerHTML = `✓ <strong>${created} card(s)</strong> criado(s)${failed ? ` · ${failed} falharam` : ''}.`;
+    if (created === 0) {
+      statusEl.innerHTML = `⚠️ Nenhum card foi criado (${failed} falhas). Verifique o console pra detalhes.`;
+    } else {
+      statusEl.innerHTML = `✓ <strong>${created} card(s)</strong> criado(s) na coluna <em>“${_esc(cols[0].title || firstColId)}”</em>${failed ? ` · ${failed} falharam` : ''}.`;
+    }
   }
   if (runBtn) { runBtn.style.display = 'none'; }
   setTimeout(() => {
-    if (window._bunkoExtractOv) { window._bunkoExtractOv.remove(); window._bunkoExtractOv = null; }
-  }, 1800);
+    if (window._bunkoExtractOv && created > 0) { window._bunkoExtractOv.remove(); window._bunkoExtractOv = null; }
+  }, 2400);
 };
 
 function _bunkoShowPopover(pop, evt) {
