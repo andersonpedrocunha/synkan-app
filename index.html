@@ -44707,6 +44707,35 @@ async function _lkStart() {
     rtSub: null,
   };
 
+  // Safety net: fechar a aba/janela durante uma call → garante que tracks
+  // de câmera/mic sejam parados antes de o browser descartar a página.
+  // Sem isso, o LED da webcam pode ficar aceso até o user reabrir o browser.
+  // beforeunload é síncrono, então só dá pra fazer cleanup imediato.
+  const beforeUnloadHandler = () => {
+    try {
+      const lp = room?.localParticipant;
+      const LK = window.LivekitClient;
+      const stopMst = (t) => { try { if (t && t.readyState !== 'ended') t.stop(); } catch(_){} };
+      // Tenta todas as fontes conhecidas
+      [LK?.Track?.Source?.Camera, LK?.Track?.Source?.Microphone, LK?.Track?.Source?.ScreenShare].forEach(src => {
+        if (!src) return;
+        try {
+          const pub = lp?.getTrackPublication?.(src);
+          stopMst(pub?.track?.mediaStreamTrack);
+          stopMst(pub?.videoTrack?.mediaStreamTrack);
+          stopMst(pub?.audioTrack?.mediaStreamTrack);
+        } catch(_){}
+      });
+      // Para Mestre Kan mic separado também
+      if (typeof _kanMicStream !== 'undefined' && _kanMicStream) {
+        try { _kanMicStream.getTracks().forEach(t => t.stop()); } catch(_){}
+      }
+    } catch(_){}
+  };
+  window.addEventListener('beforeunload', beforeUnloadHandler);
+  window.addEventListener('pagehide', beforeUnloadHandler);
+  ext.lk._beforeUnloadHandler = beforeUnloadHandler; // pra remover no leave
+
   // Listeners do LiveKit
   room.on(LK.RoomEvent.ParticipantConnected, _lkOnParticipantConnected);
   room.on(LK.RoomEvent.ParticipantDisconnected, _lkOnParticipantDisconnected);
@@ -50429,8 +50458,15 @@ async function _lkLeave() {
   const remoteCount = room?.remoteParticipants?.size || 0;
   const recording = ext.lk.recording;
 
-  // 0) Para JWT refresh timer
+  // 0) Para JWT refresh timer + remove handler de beforeunload (sem leak)
   try { _lkStopJwtRefresh(); } catch(_){}
+  try {
+    const h = ext.lk._beforeUnloadHandler;
+    if (h) {
+      window.removeEventListener('beforeunload', h);
+      window.removeEventListener('pagehide', h);
+    }
+  } catch(_){}
 
   // 1) Para transcrição do Mestre Kan
   try { _kanStopTranscription(); } catch(e){ console.warn('[lk-leave] kan:', e); }
@@ -50453,12 +50489,42 @@ async function _lkLeave() {
   }
 
   // 3) Para track processor + DESLIGA câmera/mic e libera devices (CRÍTICO — sem
-  //    isso o LED da webcam fica aceso, navegador acha que ainda tá em call)
+  //    isso o LED da webcam fica aceso, navegador acha que ainda tá em call).
+  //    Estratégia em camadas: cada uma é independente, então mesmo se uma falhar
+  //    as outras compensam.
   try {
     const LK = window.LivekitClient;
     const lp = room?.localParticipant;
+    console.log('[lk-leave] iniciando shutdown de tracks. lp:', !!lp);
 
-    const camPub = lp?.getTrackPublication?.(LK?.Track?.Source?.Camera);
+    // Camada 1: pega publications via getTrackPublication (API estável)
+    const sources = LK?.Track?.Source ? [LK.Track.Source.Camera, LK.Track.Source.Microphone, LK.Track.Source.ScreenShare, LK.Track.Source.ScreenShareAudio] : [];
+    const pubsByGetter = sources.map(s => {
+      try { return lp?.getTrackPublication?.(s); } catch(_) { return null; }
+    }).filter(Boolean);
+
+    // Camada 2: também pega de propriedades expostas (varia entre versões do LK)
+    const collectFromProp = (prop) => {
+      const v = lp?.[prop];
+      if (!v) return [];
+      if (typeof v.forEach === 'function') {
+        const arr = [];
+        v.forEach((item) => arr.push(item));
+        return arr;
+      }
+      if (Array.isArray(v)) return v;
+      return [];
+    };
+    const allPubs = [
+      ...pubsByGetter,
+      ...collectFromProp('trackPublications'),
+      ...collectFromProp('tracks'),
+      ...collectFromProp('audioTrackPublications'),
+      ...collectFromProp('videoTrackPublications'),
+    ];
+
+    // Para processor da câmera (background blur etc) — precisa ser antes do stop
+    const camPub = pubsByGetter[0]; // primeiro era Camera
     const camTrack = camPub?.videoTrack || camPub?.track;
     if (camTrack && typeof camTrack.stopProcessor === 'function') {
       await Promise.race([
@@ -50467,30 +50533,43 @@ async function _lkLeave() {
       ]);
     }
 
-    // Desliga publishing (avisa servidor)
-    if (lp?.setCameraEnabled) {
-      await Promise.race([lp.setCameraEnabled(false), new Promise(r => setTimeout(r, 800))]);
-    }
-    if (lp?.setMicrophoneEnabled) {
-      await Promise.race([lp.setMicrophoneEnabled(false), new Promise(r => setTimeout(r, 800))]);
-    }
-    if (lp?.setScreenShareEnabled) {
-      try { await lp.setScreenShareEnabled(false); } catch(_){}
-    }
+    // Avisa o servidor que tá desligando (publicação)
+    if (lp?.setCameraEnabled)     await Promise.race([lp.setCameraEnabled(false), new Promise(r => setTimeout(r, 800))]);
+    if (lp?.setMicrophoneEnabled) await Promise.race([lp.setMicrophoneEnabled(false), new Promise(r => setTimeout(r, 800))]);
+    if (lp?.setScreenShareEnabled) try { await Promise.race([lp.setScreenShareEnabled(false), new Promise(r => setTimeout(r, 800))]); } catch(_){}
 
-    // Para tracks brutas (libera o MediaStream do browser → apaga LED)
+    // Para TODAS as tracks brutas (libera o MediaStream do browser → apaga LED)
+    let stoppedCount = 0;
     const stopTrack = (track) => {
       try {
+        // LiveKit LocalTrack tem .mediaStreamTrack (raw) e .stop()
         const mst = track?.mediaStreamTrack;
-        if (mst && mst.readyState !== 'ended') mst.stop();
+        if (mst && mst.readyState !== 'ended') { mst.stop(); stoppedCount++; }
         if (typeof track?.stop === 'function') track.stop();
       } catch(_){}
     };
-    if (lp?.tracks) {
-      lp.tracks.forEach(pub => stopTrack(pub.track || pub.videoTrack || pub.audioTrack));
+    allPubs.forEach(pub => {
+      // Cada Publication pode ter: .track, .videoTrack, .audioTrack
+      stopTrack(pub?.track);
+      stopTrack(pub?.videoTrack);
+      stopTrack(pub?.audioTrack);
+      // E o próprio .mediaStreamTrack na publication às vezes
+      if (pub?.mediaStreamTrack) {
+        try { if (pub.mediaStreamTrack.readyState !== 'ended') { pub.mediaStreamTrack.stop(); stoppedCount++; } } catch(_){}
+      }
+    });
+
+    // Camada 3: força unpublish (algumas versões do LK só liberam mic/cam ao unpublish)
+    if (lp?.unpublishTrack && typeof lp.unpublishTrack === 'function') {
+      for (const pub of allPubs) {
+        const t = pub?.track || pub?.videoTrack || pub?.audioTrack;
+        if (t) {
+          try { await Promise.race([lp.unpublishTrack(t, true), new Promise(r => setTimeout(r, 400))]); } catch(_){}
+        }
+      }
     }
-    if (lp?.audioTrackPublications) lp.audioTrackPublications.forEach(p => stopTrack(p.track || p.audioTrack));
-    if (lp?.videoTrackPublications) lp.videoTrackPublications.forEach(p => stopTrack(p.track || p.videoTrack));
+
+    console.log(`[lk-leave] tracks parados: ${stoppedCount}, publications encontradas: ${allPubs.length}`);
   } catch(e){ console.warn('[lk-leave] tracks:', e); }
 
   // 4) Disconnect do LiveKit (com timeout)
