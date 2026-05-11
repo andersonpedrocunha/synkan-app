@@ -49913,7 +49913,7 @@ function _lkRenderControls() {
     <button type="button" class="lk-ctrl ${micOn?'is-active':'is-muted'}" onclick="_lkToggleMic()" title="${micOn?'Mute':'Unmute'}">
       <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 12 a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
     </button>
-    <button type="button" class="lk-ctrl ${camOn?'is-active':''}" onclick="_lkToggleCamera()" title="Câmera">
+    <button type="button" class="lk-ctrl ${camOn?'is-active':'is-muted'}" onclick="_lkToggleCamera()" title="${camOn?'Desligar câmera':'Ligar câmera'}">
       <svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 11 L 22 7 L 22 17 L 16 13 Z"/></svg>
     </button>
     <div style="width:1px;height:22px;background:rgba(255,255,255,.12);"></div>
