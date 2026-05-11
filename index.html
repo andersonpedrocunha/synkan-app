@@ -44749,8 +44749,10 @@ async function _lkStart() {
     }
     // Esconde overlay de "conectando" — vídeo já tá entrando
     try { _lkHideConnecting(); } catch(_){}
-    // RPC join_video_session — não bloqueia (fire and forget)
-    c.rpc('join_video_session', { p_session_id: session.session_id, p_with_camera: true })
+    // RPC join_video_session — não bloqueia (fire and forget).
+    // c.rpc() retorna um PostgrestBuilder thenable — só Promise.resolve(builder).catch() funciona.
+    Promise.resolve(c.rpc('join_video_session', { p_session_id: session.session_id, p_with_camera: true }))
+      .then(res => { if (res?.error) console.warn('[lk] join_video_session erro:', res.error.message); })
       .catch(e => console.warn('[lk] join_video_session falhou (não-crítico):', e?.message));
   } catch(e) {
     console.error('[lk] connect falhou:', e);
@@ -49947,10 +49949,12 @@ async function _lkToggleKan() {
     }
   } else {
     ext.lk.hasKan = true;
-    // Atualiza sessão no banco pra marcar que tem Kan (fire and forget)
+    // Atualiza sessão no banco pra marcar que tem Kan (fire and forget).
+    // Wraps em Promise.resolve pq Supabase builders são thenable mas não têm .catch
     try {
       const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
-      c.from('tatame_video_sessions').update({ has_kan_assist: true }).eq('id', ext.lk.sessionId).then(()=>{}).catch(()=>{});
+      Promise.resolve(c.from('tatame_video_sessions').update({ has_kan_assist: true }).eq('id', ext.lk.sessionId))
+        .catch(()=>{});
     } catch(_){}
     _kanStartTranscription();
     if (typeof _showKanWarning === 'function') {
