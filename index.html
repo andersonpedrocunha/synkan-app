@@ -46188,14 +46188,36 @@ async function renderBunko() {
         .bunko-card:hover .play-overlay { opacity: 1; }
         .bunko-card-thumb .play-overlay::after { content: ''; width: 0; height: 0; border-left: 18px solid #fff; border-top: 12px solid transparent; border-bottom: 12px solid transparent; margin-left: 4px; }
         .bunko-card-body { padding: 12px 14px; }
-        .bunko-card-title { font-family: var(--tatami-mincho,serif); font-size: 14.5px; font-weight: 600; color: #1A1611; margin-bottom: 4px; line-height:1.35; display: inline-flex; align-items: center; gap: 6px; }
-        .bunko-card-meta { font-size: 11px; color: #6B4825; font-family: var(--tatami-mincho,serif); font-style:italic; line-height:1.45; }
-        .bunko-card-preview { font-size: 11.5px; color: #5C4F3F; margin-top: 6px; line-height: 1.4; max-height: 38px; overflow: hidden; }
-        .bunko-card-tags { display:flex; gap: 6px; margin-top: 8px; flex-wrap:wrap; }
-        .bunko-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: #EDE5D0; color: #3A2410; font-weight: 500; }
-        .bunko-tag.is-decisions { background: rgba(193,154,58,.20); color: #8F6E1F; }
-        .bunko-tag.is-actions { background: rgba(188,0,45,.10); color: #BC002D; }
-        .bunko-tag.is-archived { background: rgba(107,72,37,.15); color: #6B4825; }
+        .bunko-card-title { font-family: var(--tatami-mincho,serif); font-size: 14.5px; font-weight: 600; color: #1A1611; line-height:1.35; display: flex; align-items: center; gap: 8px; }
+        .bunko-card-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
+        .bunko-card-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bunko-card-meta { font-size: 11px; color: #6B4825; font-family: var(--tatami-mincho,serif); font-style:italic; line-height:1.45; margin-top: 4px; }
+        /* Card de página: summary substitui o thumb gigante */
+        .bunko-card.is-page-card .bunko-card-summary {
+          aspect-ratio: 16/9; padding: 18px 16px; position: relative;
+          background: linear-gradient(135deg, #F5E8C8 0%, #E8D29A 100%);
+          border-bottom: 1px solid rgba(184,168,120,.5);
+          color: #3A2410; display: flex; flex-direction: column; justify-content: center;
+        }
+        .bunko-card-summary-text {
+          font-family: var(--tatami-mincho,serif); font-size: 14px; line-height: 1.55;
+          color: #3A2410; font-style: italic;
+          display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .bunko-card-summary-empty {
+          font-family: var(--tatami-mincho,serif); font-size: 13px; line-height: 1.5;
+          color: #8B7250; text-align: center;
+        }
+        .bunko-card-summary-empty em { color: #6B4825; font-weight: 600; font-style: italic; }
+        .bunko-card-summary-empty .hint { font-size: 11px; opacity: .85; }
+        .bunko-card-source-tag {
+          position: absolute; top: 8px; left: 8px;
+          background: rgba(107,93,200,.85); color: #fff;
+          font-size: 10px; padding: 2px 8px; border-radius: 999px;
+          font-weight: 600; letter-spacing: .04em;
+          font-family: var(--tatami-mincho,serif); font-style: normal;
+        }
         .bunko-card-menu { position: absolute; top: 8px; right: 8px; opacity: 1; z-index: 5; }
         .bunko-card-menu-btn { width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.65); border: 1px solid rgba(255,255,255,.18); color: #fff; cursor: pointer; font-size: 18px; line-height: 1; display:flex; align-items:center; justify-content:center; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,.25); transition: all .15s; }
         .bunko-card-menu-btn:hover { background: rgba(0,0,0,.9); transform: scale(1.08); }
@@ -46233,7 +46255,7 @@ async function renderBunko() {
         .bunko-page-content li { margin: 3px 0; }
         .bunko-page-savestatus { font-size: 11px; color: #8B7250; font-style: italic; font-family: var(--tatami-mincho,serif); margin-left: auto; }
 
-        /* Indicador de anexos no topo da página (clica pra rolar) */
+        /* Indicador de anexos no topo da página (sempre visível, clica pra rolar) */
         .bunko-attach-indicator {
           display: inline-flex; align-items: center; gap: 6px;
           padding: 4px 11px; margin-top: 4px;
@@ -46249,6 +46271,42 @@ async function renderBunko() {
           box-shadow: 0 3px 10px rgba(193,154,58,.35);
         }
         .bunko-attach-indicator .count { font-style: normal; font-weight: 700; }
+        .bunko-attach-indicator.is-empty { opacity: .65; }
+        .bunko-attach-indicator.is-empty:hover { opacity: 1; }
+
+        /* Caixa de Resumo / Assunto da página */
+        .bunko-page-summary-box {
+          margin: 14px 0 22px; padding: 12px 14px;
+          background: linear-gradient(135deg, rgba(193,154,58,.08), rgba(193,154,58,.03));
+          border: 1px solid rgba(193,154,58,.30); border-radius: 10px;
+        }
+        .bunko-page-summary-h {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-bottom: 8px; gap: 10px; flex-wrap: wrap;
+        }
+        .bunko-page-summary-label {
+          font-family: var(--tatami-mincho,serif); font-size: 11.5px; font-weight: 600;
+          color: #6B4825; letter-spacing: .04em; text-transform: uppercase;
+        }
+        .bunko-page-summary-kan {
+          display: inline-flex; align-items: center; gap: 7px;
+          padding: 5px 11px 5px 6px;
+          background: linear-gradient(135deg, rgba(107,93,200,.18) 0%, rgba(107,93,200,.08) 100%);
+          border: 1px solid rgba(107,93,200,.45);
+          border-radius: 999px; cursor: pointer;
+          font-size: 11.5px; font-family: var(--tatami-mincho,serif); font-style: italic;
+          color: #3A2F70; font-weight: 600; transition: all .15s;
+        }
+        .bunko-page-summary-kan img { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }
+        .bunko-page-summary-kan:hover { background: #6B5DC8; color: #fff; border-color: rgba(181,168,255,.6); }
+        .bunko-page-summary-kan:disabled { cursor: wait; opacity: .8; }
+        .bunko-page-summary-input {
+          width: 100%; border: none; background: transparent; outline: none;
+          font-family: var(--tatami-mincho,serif); font-size: 13.5px; line-height: 1.55;
+          color: #3A2410; font-style: italic; resize: vertical; min-height: 38px;
+          padding: 0;
+        }
+        .bunko-page-summary-input::placeholder { color: #8B7250; opacity: .85; }
 
         /* Anexos (estilo Notion-ish com cara Synkan) */
         .bunko-attach-section { margin-top: 36px; padding-top: 22px; border-top: 1px dashed rgba(107,72,37,.25); }
@@ -46483,32 +46541,42 @@ function _bunkoCardHTML(it) {
   };
   const dt = (iso) => new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
   const onClick = isPage ? `_bunkoOpenPage('${_esc(it.id)}')` : (isReady ? `_bunkoOpenRecording('${_esc(it.id)}')` : '');
-  return `<div class="bunko-card"
+  // PÁGINAS: thumb mostra o RESUMO (summary). Se vazio, mostra placeholder convidativo.
+  // GRAVAÇÕES: thumb mostra ícone grande + duração + status.
+  const summaryText = (it.preview || '').slice(0, 180);
+  const hasSummary = isPage && summaryText && summaryText.trim().length > 0;
+  return `<div class="bunko-card ${isPage?'is-page-card':''}"
     draggable="true"
     ondragstart="_bunkoDragStart(event, '${it.kind}', '${_esc(it.id)}')"
     onclick="${onClick}">
     <div class="bunko-card-menu">
       <button class="bunko-card-menu-btn" onclick="event.stopPropagation(); _bunkoItemMenu(event, '${it.kind}', '${_esc(it.id)}', '${_esc((it.title||'').replace(/'/g,'\\\''))}')">⋯</button>
     </div>
-    <div class="bunko-card-thumb ${isPage?'is-page':''}">
-      ${isPage
-        ? `<div class="ic">${_esc(it.icon||'📄')}</div>`
-        : (isReady
-            ? `<div class="ic">🎬</div><div class="play-overlay"></div>${it.duration_sec ? `<div class="duration">${fmtDur(it.duration_sec)}</div>` : ''}`
-            : `<div class="ic">${it.status==='recording'?'●':'⏳'}</div><div class="status ${it.status||''}">${it.status||'pendente'}</div>`)
-      }
-      ${it.archived ? `<div class="status" style="top:8px;right:8px;left:auto;background:rgba(107,72,37,.85);color:#F5E8C8;">arquivado</div>` : ''}
-    </div>
+    ${isPage ? `
+      <div class="bunko-card-summary">
+        ${hasSummary
+          ? `<div class="bunko-card-summary-text">${_esc(summaryText)}${summaryText.length >= 180 ? '…' : ''}</div>`
+          : `<div class="bunko-card-summary-empty">
+              <em>Sem resumo ainda.</em><br/>
+              <span class="hint">Abra a página pra escrever ou pedir resumo ao 🧘 Mestre Kan.</span>
+            </div>`}
+        ${it.source_kind === 'kan_transcript' ? `<div class="bunko-card-source-tag">🧘 Mestre Kan</div>` : ''}
+        ${it.archived ? `<div class="bunko-card-source-tag" style="background:rgba(107,72,37,.85);color:#F5E8C8;">arquivado</div>` : ''}
+      </div>
+    ` : `
+      <div class="bunko-card-thumb">
+        ${isReady
+          ? `<div class="ic">🎬</div><div class="play-overlay"></div>${it.duration_sec ? `<div class="duration">${fmtDur(it.duration_sec)}</div>` : ''}`
+          : `<div class="ic">${it.status==='recording'?'●':'⏳'}</div><div class="status ${it.status||''}">${it.status||'pendente'}</div>`}
+        ${it.archived ? `<div class="status" style="top:8px;right:8px;left:auto;background:rgba(107,72,37,.85);color:#F5E8C8;">arquivado</div>` : ''}
+      </div>
+    `}
     <div class="bunko-card-body">
-      <div class="bunko-card-title">${isPage?_esc(it.icon||'📄'):''} ${_esc(it.title||'sem título')}</div>
-      <div class="bunko-card-meta">${dt(it.updated_at || it.created_at)}${!isPage && it.duration_sec ? ' · '+fmtDur(it.duration_sec) : ''}</div>
-      ${it.preview ? `<div class="bunko-card-preview">${_esc(it.preview)}…</div>` : ''}
-      ${(!isPage && (it.decisions_count > 0 || it.actions_count > 0 || it.has_transcript)) ? `<div class="bunko-card-tags">
-        ${it.decisions_count > 0 ? `<span class="bunko-tag is-decisions">${it.decisions_count} decis${it.decisions_count===1?'ão':'ões'}</span>` : ''}
-        ${it.actions_count > 0 ? `<span class="bunko-tag is-actions">${it.actions_count} aç${it.actions_count===1?'ão':'ões'}</span>` : ''}
-        ${it.has_transcript ? `<span class="bunko-tag">transcrição</span>` : ''}
-      </div>` : ''}
-      ${isPage && it.source_kind === 'kan_transcript' ? `<div class="bunko-card-tags"><span class="bunko-tag is-decisions">🧘 Mestre Kan</span></div>` : ''}
+      <div class="bunko-card-title">
+        <span class="bunko-card-icon">${_esc(it.icon || (isPage?'📄':'🎬'))}</span>
+        <span class="bunko-card-name">${_esc(it.title||'sem título')}</span>
+      </div>
+      <div class="bunko-card-meta">${dt(it.updated_at || it.created_at)}</div>
       ${!isPage && (it.status === 'processing' || it.status === 'recording' || it.status === 'failed') ? `<div style="margin-top:8px;"><button onclick="event.stopPropagation(); _bunkoCheckRecording('${_esc(it.id)}')" style="background:rgba(107,72,37,.10);border:1px solid #8B6634;color:#6B4825;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--tatami-mincho,serif);font-style:italic;">↻ Verificar status no LiveKit</button></div>` : ''}
     </div>
   </div>`;
@@ -46847,10 +46915,22 @@ async function _bunkoOpenPage(pageId) {
         <button class="bunko-page-icon-input" onclick="_bunkoChangePageIcon('${_esc(pageId)}')" title="Trocar ícone">${_esc(page.icon || '📄')}</button>
         <div style="flex:1;min-width:0;">
           <input class="bunko-page-title-input" id="bunko-page-title-${_esc(pageId)}" value="${_esc(page.title)}" placeholder="Sem título" />
-          <button class="bunko-attach-indicator" id="bunko-attach-indicator-${_esc(pageId)}" onclick="document.getElementById('bunko-attach-${_esc(pageId)}').scrollIntoView({behavior:'smooth',block:'start'})" style="display:none;">
+          <button class="bunko-attach-indicator" id="bunko-attach-indicator-${_esc(pageId)}" onclick="document.getElementById('bunko-attach-${_esc(pageId)}').scrollIntoView({behavior:'smooth',block:'start'})">
             📎 <span class="count">0</span> anexo(s)
           </button>
         </div>
+      </div>
+
+      <!-- Summary / Assunto (aparece como preview no card) -->
+      <div class="bunko-page-summary-box">
+        <div class="bunko-page-summary-h">
+          <span class="bunko-page-summary-label">📌 Assunto / Resumo</span>
+          <button class="bunko-page-summary-kan" onclick="_bunkoSummarizeWithKan('${_esc(pageId)}')" title="Pedir ao Mestre Kan pra resumir a página"><img src="${_LK_KAN_AVATAR}" alt=""/>Resumir com Mestre Kan</button>
+        </div>
+        <textarea class="bunko-page-summary-input" id="bunko-page-summary-${_esc(pageId)}"
+                  placeholder="Escreva uma linha sobre o que essa página é... (ou peça pro Mestre Kan resumir)"
+                  rows="2"
+                  oninput="_bunkoOnPageInput('${_esc(pageId)}')">${_esc(page.summary || '')}</textarea>
       </div>
       <div class="bunko-page-toolbar">
         <button onclick="_bunkoExec('bold')" title="Bold (Cmd+B)"><b>B</b></button>
@@ -46940,6 +47020,7 @@ function _bunkoRenderFiles(pageId, files) {
   if (!el) return;
   if (!files || files.length === 0) {
     el.innerHTML = `<div class="bunko-attach-empty">Arraste arquivos aqui ou clique em <em>+ Adicionar arquivo</em></div>`;
+    _bunkoUpdateAttachIndicator(pageId, 0);
     return;
   }
   const fmtDate = (iso) => {
@@ -46968,15 +47049,17 @@ function _bunkoRenderFiles(pageId, files) {
   _bunkoUpdateAttachIndicator(pageId, files.length);
 }
 
-// Mostra "📎 N" próximo ao título da página
+// Mostra "📎 N anexo(s)" próximo ao título — sempre visível, mesmo com 0.
 function _bunkoUpdateAttachIndicator(pageId, count) {
   const indicator = document.getElementById('bunko-attach-indicator-' + pageId);
   if (!indicator) return;
-  if (count > 0) {
-    indicator.style.display = 'inline-flex';
-    indicator.querySelector('.count').textContent = count;
+  indicator.style.display = 'inline-flex';
+  const c = count || 0;
+  indicator.classList.toggle('is-empty', c === 0);
+  if (c === 0) {
+    indicator.innerHTML = '📎 + Adicionar anexo';
   } else {
-    indicator.style.display = 'none';
+    indicator.innerHTML = `📎 <span class="count">${c}</span> anexo${c===1?'':'s'}`;
   }
 }
 
@@ -47108,16 +47191,18 @@ function _bunkoOnPageInput(pageId) {
 async function _bunkoSavePage(pageId) {
   const titleEl = document.getElementById('bunko-page-title-'+pageId);
   const contentEl = document.getElementById('bunko-page-content-'+pageId);
+  const summaryEl = document.getElementById('bunko-page-summary-'+pageId);
   if (!titleEl || !contentEl) return;
   const title = titleEl.value || 'Sem título';
   const html = contentEl.innerHTML;
   const text = contentEl.innerText;
+  const summary = summaryEl ? (summaryEl.value || '') : null;
   const c = await _chatGetClient();
   const statusEl = document.getElementById('bunko-page-savestatus');
   try {
     if (statusEl) statusEl.textContent = 'salvando...';
     const { error } = await c.rpc('update_bunko_page', {
-      p_id: pageId, p_title: title, p_content_html: html, p_content_text: text, p_icon: null
+      p_id: pageId, p_title: title, p_content_html: html, p_content_text: text, p_icon: null, p_summary: summary
     });
     if (error) throw error;
     if (statusEl) statusEl.textContent = 'Salvo ✓';
@@ -47125,6 +47210,73 @@ async function _bunkoSavePage(pageId) {
   } catch(e) {
     if (statusEl) statusEl.textContent = 'erro ao salvar';
     console.warn('[bunko] save page:', e);
+  }
+}
+
+// Pede ao Mestre Kan (Claude via edge function) pra resumir a página
+async function _bunkoSummarizeWithKan(pageId) {
+  const contentEl = document.getElementById('bunko-page-content-'+pageId);
+  const summaryEl = document.getElementById('bunko-page-summary-'+pageId);
+  if (!contentEl || !summaryEl) return;
+  const text = (contentEl.innerText || '').trim();
+  if (text.length < 30) {
+    appAlert('Pouca coisa pra resumir',
+      'Escreve um pouco mais na página antes de pedir resumo ao Mestre Kan. Mínimo 30 caracteres.',
+      { icon: '🧘' });
+    return;
+  }
+  const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+  if (!cfg?.url) { appAlert('Sem Supabase', 'Modo Cloud não está ativo.', { icon:'⚠️' }); return; }
+
+  // JWT do cache
+  let jwt = null;
+  if (typeof _capReadJWTFromStorage === 'function') jwt = _capReadJWTFromStorage();
+  if (!jwt) {
+    const c = await _chatGetClient();
+    try {
+      const { data } = await Promise.race([
+        c.auth.getSession(),
+        new Promise(res => setTimeout(() => res({ data: { session: null } }), 2000))
+      ]);
+      jwt = data?.session?.access_token;
+    } catch(_){}
+  }
+  if (!jwt) { appAlert('Sem auth', 'Sessão expirou. Recarregue a página.', { icon:'⚠️' }); return; }
+
+  // Marca botão como "pensando"
+  const btn = document.querySelector(`button.bunko-page-summary-kan[onclick*="${pageId}"]`);
+  const originalHtml = btn ? btn.innerHTML : null;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<img src="${_LK_KAN_AVATAR}" alt=""/><span style="opacity:.8;">Em zazen...</span>`;
+  }
+
+  try {
+    const r = await fetch(`${cfg.url}/functions/v1/kan-transcribe/summarize-page`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ content: text.slice(0, 6000) }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+    const summary = (j.summary || '').trim();
+    if (!summary) throw new Error('Resumo vazio');
+    summaryEl.value = summary;
+    // Salva imediatamente
+    _bunkoOnPageInput(pageId);
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Mestre Kan resumiu ✓',
+        `"${_esc(summary.slice(0, 100))}${summary.length > 100 ? '…' : ''}"`,
+        'success');
+    }
+  } catch(e) {
+    let hint = '';
+    const msg = e?.message || String(e);
+    if (/ANTHROPIC_API_KEY/i.test(msg)) hint = ' Configure ANTHROPIC_API_KEY no Supabase.';
+    else if (/404/.test(msg)) hint = ' Redeploy kan-transcribe (novo endpoint /summarize-page).';
+    appAlert('Mestre Kan não respondeu', msg + hint, { icon:'⚠️' });
+  } finally {
+    if (btn && originalHtml) { btn.disabled = false; btn.innerHTML = originalHtml; }
   }
 }
 
