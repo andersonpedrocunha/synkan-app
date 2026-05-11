@@ -45302,9 +45302,9 @@ function _lkRenderKanMini() {
   if (!stage || !ext?.lk) return;
   let mini = document.getElementById('lk-kan-mini');
   // Estado real: tá rodando? (não basta hasKan — esse só marca "convocado")
-  const isListening = !!(window._kanWantRunning && window._kanRecognition?.active && ext.lk.connected);
-  const isProbing = !!window._kanProbing;
-  const lastErr = window._kanLastError;
+  const isListening = !!(_kanWantRunning && _kanRecognition?.active && ext.lk.connected);
+  const isProbing = !!_kanProbing;
+  const lastErr = _kanLastError;
   // Esconde o mini se o Kan não foi convocado, não tá ouvindo, não tá conectando e não há erro
   if (!ext.lk.hasKan && !isListening && !isProbing && !lastErr) {
     if (mini) mini.remove();
@@ -49644,10 +49644,10 @@ function _lkNotasHTML() {
   const actions = ext.lk.actions || [];
   const noNotes = decisions.length === 0 && actions.length === 0;
   // Estado real do Mestre Kan: tá rodando? Conta chunks ouvidos
-  const isListening = !!(window._kanWantRunning && window._kanRecognition?.active);
-  const isProbing = !!window._kanProbing;
-  const lastErr = window._kanLastError;
-  const chunksHeard = window._kanChunkSeq || 0;
+  const isListening = !!(_kanWantRunning && _kanRecognition?.active);
+  const isProbing = !!_kanProbing;
+  const lastErr = _kanLastError;
+  const chunksHeard = _kanChunkSeq || 0;
   const subStatus = isProbing
     ? `<span class="lk-kan-listening-dot" style="background:#FBE7A4;"></span> conectando com kan-transcribe…`
     : isListening
@@ -49892,9 +49892,9 @@ function _lkRenderControls() {
       <svg viewBox="0 0 24 24"><path d="M3 7h18v10H3z"/><line x1="8" y1="11" x2="8" y2="13"/><line x1="12" y1="11" x2="12" y2="13"/><line x1="16" y1="11" x2="16" y2="13"/><path d="M3 7 L 7 3 L 21 3 L 21 7"/></svg>
       <span>compartilhar Synkan</span>
     </button>
-    <button type="button" class="lk-ctrl lk-ctrl-kan ${(window._kanWantRunning && window._kanRecognition?.active)?'is-active':''}" onclick="_lkToggleKan()" title="${(window._kanWantRunning && window._kanRecognition?.active)?'Mestre Kan ouvindo · clique pra parar':'Convocar Mestre Kan pra transcrever'}">
+    <button type="button" class="lk-ctrl lk-ctrl-kan ${(_kanWantRunning && _kanRecognition?.active)?'is-active':''}" onclick="_lkToggleKan()" title="${(_kanWantRunning && _kanRecognition?.active)?'Mestre Kan ouvindo · clique pra parar':'Convocar Mestre Kan pra transcrever'}">
       <img src="${_LK_KAN_AVATAR}" alt=""/>
-      <span>${(window._kanWantRunning && window._kanRecognition?.active)?'Mestre Kan · ouvindo':'Mestre Kan'}</span>
+      <span>${(_kanWantRunning && _kanRecognition?.active)?'Mestre Kan · ouvindo':'Mestre Kan'}</span>
     </button>
     <button type="button" class="lk-ctrl ${screenOn?'is-active':''}" onclick="_lkToggleScreenShare()" title="Compartilhar tela do navegador">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="17" x2="12" y2="20"/></svg>
@@ -49928,7 +49928,7 @@ async function _lkToggleKan() {
     appAlert('Não conectado', 'Entre no tatame primeiro pra ligar o Mestre Kan.', { icon:'⚠️' });
     return;
   }
-  const isOn = !!(window._kanWantRunning && window._kanRecognition?.active);
+  const isOn = !!(_kanWantRunning && _kanRecognition?.active);
 
   // ── Desligando ────────────────────────────────────────────────────
   if (isOn) {
