@@ -44414,28 +44414,30 @@ class _SynkanBgProcessor {
         this._maskCanvas.width = mw;
         this._maskCanvas.height = mh;
       }
-      // ── Temporal smoothing per-pixel (CORRETO desta vez) ────────────────
-      // Mantém um Uint8Array "prevMask" e faz média ponderada exata:
-      //   prevMask[i] = α * new + (1-α) * prevMask[i]
-      // α baixo = bordas estáveis (lenta); α alto = responsivo (treme).
-      // 0.35 é o sweet spot que o Meet/Zoom usa empiricamente.
+      // ── Temporal smoothing per-pixel ─────────────────────────────────────
+      // Média móvel exponencial: prevMask[i] = α * new + (1-α) * prevMask[i]
+      // α=0.22 → ~4-5 frames de inércia (~200ms), bom equilíbrio responsividade/estabilidade.
+      // Threshold clamping nos extremos elimina pixels "quase-transparentes"
+      // que flickeram entre 5-20 e somam jitter visual.
       const N = maskU8.length;
       if (!this._prevMaskRaw || this._prevMaskRaw.length !== N) {
         this._prevMaskRaw = new Uint8Array(N);
-        // Inicializa com a máscara atual (sem ghost frame zero)
         for (let i = 0; i < N; i++) {
           this._prevMaskRaw[i] = (maskU8[i] === 0) ? 255 : 0;
         }
       } else {
-        const ALPHA = 0.35;
+        const ALPHA = 0.22;
         const ONE_MINUS_ALPHA = 1 - ALPHA;
+        const prev = this._prevMaskRaw;
         for (let i = 0; i < N; i++) {
           const newVal = (maskU8[i] === 0) ? 255 : 0;
-          this._prevMaskRaw[i] = (ALPHA * newVal + ONE_MINUS_ALPHA * this._prevMaskRaw[i]) | 0;
+          const v = (ALPHA * newVal + ONE_MINUS_ALPHA * prev[i]) | 0;
+          // Threshold cleanup: corta ruído baixo e cola em 255 quando já é quase-opaco
+          prev[i] = v < 12 ? 0 : (v > 240 ? 255 : v);
         }
       }
 
-      // Constrói ImageData com alpha gradual (já vem suavizado do blend acima)
+      // ImageData com alpha gradual
       const maskImg = this._maskCtx.createImageData(mw, mh);
       const px = maskImg.data;
       for (let i = 0; i < N; i++) {
@@ -44448,10 +44450,11 @@ class _SynkanBgProcessor {
       // Composição:
       // 1) Limpa canvas de saída
       ctx.clearRect(0, 0, w, h);
-      // 2) Desenha máscara escalada + leve blur pras bordas (feathering)
+      // 2) Desenha máscara escalada + blur mais generoso (4px) — esconde
+      //    micro-jitter porque a borda já está naturalmente difusa
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      ctx.filter = 'blur(2px)';
+      ctx.filter = 'blur(4px)';
       ctx.drawImage(this._maskCanvas, 0, 0, w, h);
       ctx.filter = 'none';
       // 3) source-in: vídeo aparece SÓ onde a máscara é opaca (pessoa)
