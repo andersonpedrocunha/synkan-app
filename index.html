@@ -3229,6 +3229,68 @@ body.density-compact .col{padding:7px;}
 @keyframes kan-toast-in{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
 
 /* Cadastros (registry) */
+/* ── Synconnect CRM · Pipeline Kanban ─────────────────────────────── */
+.syn-pipeline{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 24px;align-items:flex-start;}
+.syn-stage{flex:0 0 280px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;display:flex;flex-direction:column;max-height:74vh;}
+.syn-stage-h{padding:11px 14px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.syn-stage-h-l{display:flex;align-items:center;gap:8px;min-width:0;}
+.syn-stage-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.syn-stage-name{font-weight:500;font-size:13px;color:var(--color-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.syn-stage-count{font-size:11px;color:var(--color-text-tertiary);background:var(--color-background-primary);padding:2px 8px;border-radius:999px;flex-shrink:0;}
+.syn-stage-total{font-size:11px;color:var(--color-text-secondary);padding:4px 14px 8px;font-variant-numeric:tabular-nums;}
+.syn-stage-body{flex:1;overflow-y:auto;padding:6px 8px 10px;display:flex;flex-direction:column;gap:6px;min-height:60px;}
+.syn-stage-body.is-drop-target{background:rgba(127,119,221,.08);}
+.syn-stage-add{padding:7px 10px;margin:4px 8px 10px;background:transparent;border:0.5px dashed var(--color-border-secondary);border-radius:8px;font-size:12px;color:var(--color-text-tertiary);cursor:pointer;font-family:inherit;}
+.syn-stage-add:hover{border-color:var(--color-text-primary);color:var(--color-text-primary);background:var(--color-background-primary);}
+.syn-deal{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:10px 11px;cursor:grab;font-size:12.5px;transition:border-color .12s,box-shadow .12s;}
+.syn-deal:hover{border-color:var(--color-text-secondary);box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.syn-deal.is-dragging{opacity:.45;cursor:grabbing;}
+.syn-deal-title{font-weight:500;color:var(--color-text-primary);margin-bottom:4px;line-height:1.35;}
+.syn-deal-meta{display:flex;gap:8px;align-items:center;font-size:11px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;flex-wrap:wrap;}
+.syn-deal-value{color:#3B6D11;font-weight:500;}
+.syn-deal-contact{font-style:italic;}
+.syn-deal-followup{padding:2px 6px;background:rgba(186,117,23,.12);color:#854F0B;border-radius:4px;font-size:10px;font-weight:500;}
+.syn-deal-followup.is-due{background:rgba(163,45,45,.15);color:#791F1F;}
+.syn-deal-empty{padding:18px 12px;text-align:center;color:var(--color-text-tertiary);font-size:11.5px;font-style:italic;}
+/* Pipeline header / KPIs */
+.syn-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;}
+.syn-kpi{background:var(--color-background-secondary);border-radius:8px;padding:11px 14px;}
+.syn-kpi-label{font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;}
+.syn-kpi-value{font-size:18px;font-weight:500;color:var(--color-text-primary);margin-top:2px;font-variant-numeric:tabular-nums;}
+.syn-kpi-sub{font-size:11px;color:var(--color-text-tertiary);margin-top:2px;}
+/* Botão "+ Nova oportunidade" */
+.syn-new-deal-btn{background:#3B6D11;color:#fff;border:none;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;}
+.syn-new-deal-btn:hover{background:#27500A;}
+/* Modal de deal */
+.syn-modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:9800;}
+.syn-modal-ov.is-open{display:flex;}
+.syn-modal{background:var(--color-background-primary);border-radius:14px;width:94%;max-width:520px;max-height:90vh;overflow-y:auto;border:0.5px solid var(--color-border-secondary);box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.syn-modal-h{padding:18px 22px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;justify-content:space-between;align-items:center;}
+.syn-modal-h h3{margin:0;font-size:16px;font-weight:500;}
+.syn-modal-x{background:transparent;border:none;font-size:18px;color:var(--color-text-tertiary);cursor:pointer;padding:4px 8px;border-radius:6px;}
+.syn-modal-x:hover{background:var(--color-background-secondary);}
+.syn-modal-body{padding:18px 22px;display:flex;flex-direction:column;gap:12px;}
+.syn-field{display:flex;flex-direction:column;gap:4px;}
+.syn-field label{font-size:11.5px;color:var(--color-text-secondary);font-weight:500;}
+.syn-field input,.syn-field select,.syn-field textarea{border:0.5px solid var(--color-border-secondary);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-primary);color:var(--color-text-primary);width:100%;box-sizing:border-box;}
+.syn-field textarea{min-height:60px;resize:vertical;}
+.syn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.syn-modal-f{padding:14px 22px 18px;display:flex;justify-content:space-between;gap:8px;border-top:0.5px solid var(--color-border-tertiary);}
+.syn-btn-secondary{background:transparent;border:0.5px solid var(--color-border-secondary);color:var(--color-text-primary);padding:8px 14px;border-radius:7px;font-size:13px;cursor:pointer;font-family:inherit;}
+.syn-btn-primary{background:#3B6D11;color:#fff;border:none;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}
+.syn-btn-primary:hover{background:#27500A;}
+.syn-btn-danger{background:transparent;border:0.5px solid #A32D2D;color:#A32D2D;padding:8px 14px;border-radius:7px;font-size:13px;cursor:pointer;font-family:inherit;}
+.syn-btn-danger:hover{background:#A32D2D;color:#fff;}
+/* Timeline */
+.syn-timeline{display:flex;flex-direction:column;gap:8px;}
+.syn-tl-item{display:flex;gap:10px;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;font-size:12.5px;line-height:1.4;}
+.syn-tl-icon{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--color-background-primary);display:flex;align-items:center;justify-content:center;font-size:13px;}
+.syn-tl-body{flex:1;min-width:0;}
+.syn-tl-title{font-weight:500;color:var(--color-text-primary);}
+.syn-tl-text{color:var(--color-text-secondary);margin-top:2px;}
+.syn-tl-when{font-size:10.5px;color:var(--color-text-tertiary);margin-top:3px;font-variant-numeric:tabular-nums;}
+.syn-tl-empty{padding:24px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12.5px;}
+
 .reg-wrap{padding:.5rem 0 2rem;display:flex;flex-direction:column;gap:18px;}
 .reg-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
 .reg-title{font-size:24px;font-weight:600;color:var(--color-text-primary);line-height:1.2;}
@@ -32268,31 +32330,630 @@ function _saveContacts() { try { localStorage.setItem(CONTACTS_KEY, JSON.stringi
 function _saveDocuments() { try { localStorage.setItem(DOCS_KEY, JSON.stringify(_documents)); } catch(e){} }
 function _genRegId(prefix) { return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
 
+// ════════════════════════════════════════════════════════════════════
+// SYNCONNECT CRM · camada cloud (Supabase)
+// ────────────────────────────────────────────────────────────────────
+// Versão CRM-grade: contatos saem do localStorage, ganham deals, pipeline
+// de estágios e timeline de atividades. localStorage continua como cache
+// pra carregamento instantâneo enquanto a cloud responde.
+// Requer: rodar MIGRATIONS_SYNCONNECT_CRM.sql no Supabase SQL Editor.
+// ════════════════════════════════════════════════════════════════════
+let _synDeals      = [];
+let _synStages     = [];
+let _synActivities = [];   // todas do user; filtra por contact_id/deal_id na UI
+let _synCloudReady = false;
+let _synCloudLoadPromise = null;
+
+async function _synGetClient() {
+  return (typeof _chatGetClient === 'function') ? await _chatGetClient()
+       : (typeof _ensureSupaClient === 'function' ? _ensureSupaClient() : null);
+}
+
+function _synFromCloudContact(row) {
+  return {
+    id:        row.id,
+    legacy_id: row.legacy_id,
+    name:      row.name,
+    type:      row.type,
+    taxId:     row.tax_id || '',
+    email:     row.email || '',
+    phone:     row.phone || '',
+    address:   row.address || '',
+    notes:     row.notes || '',
+    score:     row.score || 'warm',
+    source:    row.source || 'manual',
+    tags:      row.tags || [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function _synInitCloud(opts) {
+  opts = opts || {};
+  if (_synCloudReady && !opts.force) return true;
+  if (_synCloudLoadPromise && !opts.force) return _synCloudLoadPromise;
+  _synCloudLoadPromise = (async () => {
+    try {
+      const c = await _synGetClient(); if (!c) return false;
+      const { data: { user } } = await c.auth.getUser();
+      if (!user) return false;
+      // 1) Garante estágios default existentes (idempotente — só insere se 0)
+      try { await c.rpc('synconnect_seed_default_stages'); } catch(e){ console.warn('[syn] seed stages:', e?.message); }
+      // 2) Carrega tudo em paralelo
+      const [stagesR, contactsR, dealsR, actsR] = await Promise.all([
+        c.from('synconnect_pipeline_stages').select('*').order('position'),
+        c.from('synconnect_contacts').select('*').order('updated_at', { ascending: false }),
+        c.from('synconnect_deals').select('*').order('updated_at', { ascending: false }),
+        c.from('synconnect_activities').select('*').order('occurred_at', { ascending: false }).limit(500),
+      ]);
+      if (stagesR.data)  _synStages     = stagesR.data;
+      if (dealsR.data)   _synDeals      = dealsR.data;
+      if (actsR.data)    _synActivities = actsR.data;
+      // 3) Mescla contatos: cloud é fonte da verdade. Migra os local-only.
+      const cloudContacts = (contactsR.data || []).map(_synFromCloudContact);
+      const cloudLegacy = new Set(cloudContacts.map(x => x.legacy_id).filter(Boolean));
+      const localOnly = _contacts.filter(lc => !cloudLegacy.has(lc.id));
+      if (localOnly.length > 0) {
+        console.log(`[syn] migrando ${localOnly.length} contato(s) do localStorage pra cloud...`);
+        for (const lc of localOnly) {
+          await _synSaveContactCloud(lc, true);
+        }
+        const re = await c.from('synconnect_contacts').select('*').order('updated_at', { ascending: false });
+        if (re.data) cloudContacts.splice(0, cloudContacts.length, ...re.data.map(_synFromCloudContact));
+      }
+      _contacts = cloudContacts;
+      _saveContacts();
+      _synCloudReady = true;
+      console.log(`[syn] ✓ cloud carregada: ${_contacts.length} contatos, ${_synDeals.length} deals, ${_synStages.length} estágios, ${_synActivities.length} atividades`);
+      return true;
+    } catch(e) {
+      console.warn('[syn] init cloud falhou (modo offline):', e?.message);
+      return false;
+    } finally {
+      _synCloudLoadPromise = null;
+    }
+  })();
+  return _synCloudLoadPromise;
+}
+
+async function _synSaveContactCloud(contact, isMigration) {
+  try {
+    const c = await _synGetClient(); if (!c) return null;
+    const { data: { user } } = await c.auth.getUser(); if (!user) return null;
+    const payload = {
+      user_id:   user.id,
+      legacy_id: isMigration ? contact.id : (contact.legacy_id || null),
+      name:      contact.name,
+      type:      contact.type || 'lead',
+      tax_id:    contact.taxId || null,
+      email:     contact.email || null,
+      phone:     contact.phone || null,
+      address:   contact.address || null,
+      notes:     contact.notes || null,
+      score:     contact.score || 'warm',
+      source:    contact.source || 'manual',
+      tags:      contact.tags || [],
+    };
+    const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(contact.id || '');
+    let result;
+    if (looksLikeUuid) {
+      result = await c.from('synconnect_contacts').update(payload).eq('id', contact.id).select().single();
+    } else {
+      result = await c.from('synconnect_contacts').insert(payload).select().single();
+    }
+    if (result.error) { console.warn('[syn] save contact:', result.error.message); return null; }
+    // Atualiza cache local
+    const cleaned = _synFromCloudContact(result.data);
+    const idx = _contacts.findIndex(x => x.id === cleaned.id || (cleaned.legacy_id && x.id === cleaned.legacy_id));
+    if (idx >= 0) _contacts[idx] = cleaned;
+    else _contacts.unshift(cleaned);
+    _saveContacts();
+    return cleaned;
+  } catch(e) { console.warn('[syn] save contact ex:', e?.message); return null; }
+}
+
+async function _synDeleteContactCloud(contactId) {
+  try {
+    const c = await _synGetClient(); if (!c) return false;
+    const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(contactId);
+    if (looksLikeUuid) {
+      const { error } = await c.from('synconnect_contacts').delete().eq('id', contactId);
+      if (error) { console.warn('[syn] delete contact:', error.message); return false; }
+    } else {
+      // Legacy id — tenta achar pela coluna legacy_id
+      await c.from('synconnect_contacts').delete().eq('legacy_id', contactId);
+    }
+    return true;
+  } catch(e) { console.warn('[syn] delete contact ex:', e?.message); return false; }
+}
+
+async function _synSaveDeal(deal) {
+  try {
+    const c = await _synGetClient(); if (!c) return null;
+    const { data: { user } } = await c.auth.getUser(); if (!user) return null;
+    const payload = {
+      user_id:           user.id,
+      contact_id:        deal.contact_id || null,
+      stage_id:          deal.stage_id || null,
+      title:             deal.title,
+      value_cents:       Math.round((parseFloat(deal.value_brl) || 0) * 100),
+      currency:          'BRL',
+      probability:       (deal.probability !== undefined && deal.probability !== null && deal.probability !== '') ? parseInt(deal.probability, 10) : null,
+      expected_close_at: deal.expected_close_at || null,
+      status:            deal.status || 'open',
+      follow_up_at:      deal.follow_up_at || null,
+      notes:             deal.notes || null,
+      tags:              deal.tags || [],
+    };
+    let result;
+    if (deal.id) {
+      result = await c.from('synconnect_deals').update(payload).eq('id', deal.id).select().single();
+    } else {
+      result = await c.from('synconnect_deals').insert(payload).select().single();
+      // Log activity de criação
+      if (!result.error && result.data) {
+        await _synLogActivity({ deal_id: result.data.id, contact_id: result.data.contact_id, kind: 'created', title: 'Deal criado: ' + deal.title });
+      }
+    }
+    if (result.error) { console.warn('[syn] save deal:', result.error.message); return null; }
+    const idx = _synDeals.findIndex(d => d.id === result.data.id);
+    if (idx >= 0) _synDeals[idx] = result.data;
+    else _synDeals.unshift(result.data);
+    return result.data;
+  } catch(e) { console.warn('[syn] save deal ex:', e?.message); return null; }
+}
+
+async function _synMoveDealToStage(dealId, newStageId) {
+  const deal = _synDeals.find(d => d.id === dealId); if (!deal) return null;
+  const newStage = _synStages.find(s => s.id === newStageId);
+  // Se virou stage won/lost, marca status apropriado
+  const patch = { stage_id: newStageId };
+  if (newStage?.kind === 'won')      patch.status = 'won';
+  else if (newStage?.kind === 'lost') patch.status = 'lost';
+  else if (deal.status !== 'open')    patch.status = 'open';
+  const c = await _synGetClient(); if (!c) return null;
+  if (patch.status === 'won' || patch.status === 'lost') patch.closed_at = new Date().toISOString();
+  const r = await c.from('synconnect_deals').update(patch).eq('id', dealId).select().single();
+  if (r.error) { console.warn('[syn] move deal:', r.error.message); return null; }
+  Object.assign(deal, r.data);
+  // Refetch das atividades pra capturar a auto-criada pelo trigger
+  try {
+    const ar = await c.from('synconnect_activities').select('*').eq('deal_id', dealId).order('occurred_at', { ascending: false }).limit(20);
+    if (ar.data) {
+      const ids = new Set(ar.data.map(a => a.id));
+      _synActivities = [...ar.data, ..._synActivities.filter(a => !ids.has(a.id))];
+    }
+  } catch(_){}
+  return r.data;
+}
+
+async function _synDeleteDeal(dealId) {
+  const c = await _synGetClient(); if (!c) return false;
+  const { error } = await c.from('synconnect_deals').delete().eq('id', dealId);
+  if (error) { console.warn('[syn] delete deal:', error.message); return false; }
+  _synDeals = _synDeals.filter(d => d.id !== dealId);
+  return true;
+}
+
+async function _synLogActivity(activity) {
+  try {
+    const c = await _synGetClient(); if (!c) return null;
+    const { data: { user } } = await c.auth.getUser(); if (!user) return null;
+    const payload = {
+      user_id:     user.id,
+      contact_id:  activity.contact_id || null,
+      deal_id:     activity.deal_id || null,
+      kind:        activity.kind,
+      title:       activity.title || null,
+      body:        activity.body || null,
+      meta:        activity.meta || {},
+      occurred_at: activity.occurred_at || new Date().toISOString(),
+    };
+    const r = await c.from('synconnect_activities').insert(payload).select().single();
+    if (r.error) { console.warn('[syn] log activity:', r.error.message); return null; }
+    _synActivities.unshift(r.data);
+    return r.data;
+  } catch(e) { console.warn('[syn] log activity ex:', e?.message); return null; }
+}
+
+async function _synDeleteActivity(actId) {
+  const c = await _synGetClient(); if (!c) return false;
+  const { error } = await c.from('synconnect_activities').delete().eq('id', actId);
+  if (error) { console.warn('[syn] delete activity:', error.message); return false; }
+  _synActivities = _synActivities.filter(a => a.id !== actId);
+  return true;
+}
+
+// Helpers de formatação
+function _synFmtMoney(cents) {
+  if (cents == null) return 'R$ 0';
+  const v = (cents/100);
+  return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: v % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 });
+}
+function _synFmtDate(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('pt-BR'); } catch(_) { return '—'; }
+}
+function _synStageById(id)   { return _synStages.find(s => s.id === id); }
+function _synContactById(id) { return _contacts.find(c => c.id === id); }
+
 function setRegistryTab(t) { _registryTab = t; _registrySearch = ''; _registryFilter = ''; renderRegistry(); }
 
 function renderRegistry() {
   const root = document.getElementById('registry-root'); if (!root) return;
   const tabBtn = (id, label, count) =>
     `<button class="reg-tab${_registryTab===id?' active':''}" onclick="setRegistryTab('${id}')">${label}${count!==undefined && count!==''?` <span style="opacity:.6;font-weight:400;">${count}</span>`:''}</button>`;
+  // Pipeline summary — total e número de deals abertos
+  const openDeals = _synDeals.filter(d => d.status === 'open');
+  const totalPipelineCents = openDeals.reduce((s, d) => s + (d.value_cents || 0), 0);
+  const pipelineLabel = openDeals.length > 0
+    ? `🎯 Pipeline <span style="opacity:.6;font-weight:400;">${openDeals.length} · ${_synFmtMoney(totalPipelineCents)}</span>`
+    : `🎯 Pipeline`;
   root.innerHTML = `
     <div class="reg-wrap">
       <div class="reg-head">
         <div>
-          <div class="reg-title">Synconnect</div>
-          <div class="reg-sub">Conecte e sincronize seus <strong>leads</strong>, <strong>clientes</strong>, <strong>fornecedores</strong>, <strong>contratos</strong>, notas fiscais e <strong>captação</strong> num só lugar — vinculados a qualquer card sem reescrever.</div>
+          <div class="reg-title">Synconnect <span style="font-size:11px;font-weight:500;background:#3B6D11;color:#fff;padding:2px 8px;border-radius:999px;vertical-align:middle;margin-left:6px;font-family:var(--font-sans);">CRM</span></div>
+          <div class="reg-sub">Pipeline de vendas, contatos, contratos e captação num só lugar — vinculados ao seu Kanban sem reescrever.</div>
         </div>
       </div>
       <div class="reg-tabs">
-        ${tabBtn('contacts',  '👥 Leads, Clientes & Fornecedores', _contacts.length)}
-        ${tabBtn('documents', '📄 Contratos & Documentos',  _documents.length)}
+        ${tabBtn('pipeline',  pipelineLabel, '')}
+        ${tabBtn('contacts',  '👥 Contatos', _contacts.length)}
+        ${tabBtn('documents', '📄 Documentos',  _documents.length)}
         ${tabBtn('capture',   '🌐 Captação',  '')}
       </div>
       <div id="reg-body"></div>
     </div>
   `;
-  if (_registryTab === 'contacts') renderContactsTab();
+  // Dispara init cloud (não bloqueia render — quando carregar, faz re-render)
+  if (!_synCloudReady) {
+    _synInitCloud().then(ok => { if (ok) renderRegistry(); });
+  }
+  if (_registryTab === 'pipeline') renderPipelineTab();
+  else if (_registryTab === 'contacts') renderContactsTab();
   else if (_registryTab === 'documents') renderDocumentsTab();
   else if (_registryTab === 'capture') renderCaptureInRegistry();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SYNCONNECT CRM · Pipeline Kanban (tab "Pipeline")
+// ════════════════════════════════════════════════════════════════════
+function renderPipelineTab() {
+  const body = document.getElementById('reg-body'); if (!body) return;
+  if (!_synCloudReady) {
+    body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--color-text-tertiary);">
+      <div style="font-size:24px;margin-bottom:8px;">🎯</div>
+      <div style="font-size:13px;">Carregando pipeline da cloud…</div>
+      <div style="font-size:11.5px;margin-top:6px;opacity:.7;">Se for a primeira vez, rode a migration <code>MIGRATIONS_SYNCONNECT_CRM.sql</code> no Supabase.</div>
+    </div>`;
+    return;
+  }
+  const openDeals = _synDeals.filter(d => d.status === 'open');
+  const wonDeals  = _synDeals.filter(d => d.status === 'won' && d.closed_at && new Date(d.closed_at) > new Date(Date.now() - 30*24*60*60*1000));
+  const totalCents = openDeals.reduce((s,d) => s + (d.value_cents||0), 0);
+  const weightedCents = openDeals.reduce((s,d) => {
+    const stage = _synStageById(d.stage_id);
+    const prob = (d.probability != null) ? d.probability : (stage?.default_probability || 50);
+    return s + (d.value_cents||0) * prob / 100;
+  }, 0);
+  const wonCents = wonDeals.reduce((s,d) => s + (d.value_cents||0), 0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dueToday = openDeals.filter(d => d.follow_up_at && new Date(d.follow_up_at) <= new Date(today.getTime() + 24*60*60*1000));
+
+  const kpis = `
+    <div class="syn-kpis">
+      <div class="syn-kpi">
+        <div class="syn-kpi-label">Em aberto</div>
+        <div class="syn-kpi-value">${_synFmtMoney(totalCents)}</div>
+        <div class="syn-kpi-sub">${openDeals.length} oportunidade${openDeals.length===1?'':'s'}</div>
+      </div>
+      <div class="syn-kpi">
+        <div class="syn-kpi-label">Forecast (ponderado)</div>
+        <div class="syn-kpi-value">${_synFmtMoney(weightedCents)}</div>
+        <div class="syn-kpi-sub">por probabilidade × valor</div>
+      </div>
+      <div class="syn-kpi">
+        <div class="syn-kpi-label">Ganhos · últimos 30d</div>
+        <div class="syn-kpi-value" style="color:#3B6D11;">${_synFmtMoney(wonCents)}</div>
+        <div class="syn-kpi-sub">${wonDeals.length} fechamento${wonDeals.length===1?'':'s'}</div>
+      </div>
+      <div class="syn-kpi">
+        <div class="syn-kpi-label">Follow-ups vencendo</div>
+        <div class="syn-kpi-value" style="color:${dueToday.length>0?'#A32D2D':'var(--color-text-primary)'};">${dueToday.length}</div>
+        <div class="syn-kpi-sub">hoje ou atrasado</div>
+      </div>
+    </div>`;
+
+  const stages = _synStages.slice().sort((a,b) => a.position - b.position);
+  const cols = stages.map(s => {
+    const deals = openDeals.filter(d => d.stage_id === s.id);
+    if (s.kind === 'won' || s.kind === 'lost') {
+      // Para won/lost, mostra os fechados recentemente
+      const closed = _synDeals.filter(d => d.stage_id === s.id);
+      deals.length = 0;
+      deals.push(...closed.slice(0, 20));
+    }
+    const stageTotal = deals.reduce((s2,d) => s2 + (d.value_cents||0), 0);
+    return `<div class="syn-stage" data-stage-id="${_esc(s.id)}">
+      <div class="syn-stage-h">
+        <div class="syn-stage-h-l">
+          <span class="syn-stage-dot" style="background:${_esc(s.color)};"></span>
+          <span class="syn-stage-name">${_esc(s.name)}</span>
+        </div>
+        <span class="syn-stage-count">${deals.length}</span>
+      </div>
+      <div class="syn-stage-total">${_synFmtMoney(stageTotal)}</div>
+      <div class="syn-stage-body" ondragover="_synDragOver(event)" ondragleave="_synDragLeave(event)" ondrop="_synDrop(event,'${_esc(s.id)}')">
+        ${deals.length === 0
+          ? `<div class="syn-deal-empty">Solta um deal aqui</div>`
+          : deals.map(d => _synRenderDealCard(d)).join('')}
+      </div>
+      ${(s.kind !== 'won' && s.kind !== 'lost')
+        ? `<button class="syn-stage-add" onclick="_synOpenDealModal(null,'${_esc(s.id)}')">+ Nova oportunidade</button>`
+        : ''}
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `
+    ${kpis}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-size:13px;color:var(--color-text-secondary);">Arraste cards entre os estágios. Mover pra <strong>Ganho</strong>/<strong>Perdido</strong> fecha o deal.</div>
+      <button class="syn-new-deal-btn" onclick="_synOpenDealModal()">+ Nova oportunidade</button>
+    </div>
+    <div class="syn-pipeline">${cols}</div>`;
+}
+
+function _synRenderDealCard(d) {
+  const stage = _synStageById(d.stage_id);
+  const contact = _synContactById(d.contact_id);
+  const prob = (d.probability != null) ? d.probability : (stage?.default_probability || 50);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const due = d.follow_up_at ? new Date(d.follow_up_at) : null;
+  const isDue = due && due <= new Date(today.getTime() + 24*60*60*1000);
+  const followLabel = due ? (
+    isDue
+      ? `⚠ follow-up ${due < today ? 'atrasado' : 'hoje'}`
+      : `⏱ ${due.toLocaleDateString('pt-BR')}`
+  ) : '';
+  return `<div class="syn-deal" draggable="true" data-deal-id="${_esc(d.id)}" ondragstart="_synDragStart(event,'${_esc(d.id)}')" ondragend="_synDragEnd(event)" onclick="_synOpenDealModal('${_esc(d.id)}')">
+    <div class="syn-deal-title">${_esc(d.title)}</div>
+    <div class="syn-deal-meta">
+      ${d.value_cents ? `<span class="syn-deal-value">${_synFmtMoney(d.value_cents)}</span>` : ''}
+      ${d.value_cents ? `<span style="opacity:.5;">·</span>` : ''}
+      <span>${prob}%</span>
+      ${contact ? `<span style="opacity:.5;">·</span><span class="syn-deal-contact">${_esc(contact.name)}</span>` : ''}
+      ${followLabel ? `<span class="syn-deal-followup ${isDue?'is-due':''}">${followLabel}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+// Drag & drop
+let _synDraggingId = null;
+function _synDragStart(e, dealId) {
+  _synDraggingId = dealId;
+  e.currentTarget.classList.add('is-dragging');
+  try { e.dataTransfer.setData('text/plain', dealId); e.dataTransfer.effectAllowed = 'move'; } catch(_){}
+}
+function _synDragEnd(e) {
+  _synDraggingId = null;
+  e.currentTarget.classList.remove('is-dragging');
+  document.querySelectorAll('.syn-stage-body.is-drop-target').forEach(el => el.classList.remove('is-drop-target'));
+}
+function _synDragOver(e) {
+  if (!_synDraggingId) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('is-drop-target');
+}
+function _synDragLeave(e) {
+  e.currentTarget.classList.remove('is-drop-target');
+}
+async function _synDrop(e, stageId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('is-drop-target');
+  const dealId = _synDraggingId || (e.dataTransfer.getData('text/plain') || '');
+  if (!dealId) return;
+  const deal = _synDeals.find(d => d.id === dealId); if (!deal || deal.stage_id === stageId) return;
+  const stage = _synStageById(stageId);
+  // Se for won/lost, confirma
+  if (stage?.kind === 'lost') {
+    const reason = await appPrompt('Motivo da perda?', { message: 'Por que esse deal foi perdido? (opcional)', defaultValue: '', okLabel: 'Marcar como perdido' });
+    if (reason === null) return; // cancelou
+    await _synGetClient().then(c => c.from('synconnect_deals').update({ lost_reason: reason || null }).eq('id', dealId));
+  }
+  await _synMoveDealToStage(dealId, stageId);
+  renderPipelineTab();
+}
+
+// Quando clica "+ Deal" na linha de um contato, prefilla o select de contato
+function _synPrefillContactInDeal(contactId) {
+  setTimeout(() => {
+    const sel = document.getElementById('syn-d-contact');
+    if (sel) sel.value = contactId;
+  }, 100);
+}
+
+// ── Modal de Deal ─────────────────────────────────────────────────────
+async function _synOpenDealModal(dealId, presetStageId) {
+  await _synInitCloud();
+  let ov = document.getElementById('syn-deal-modal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'syn-deal-modal';
+    ov.className = 'syn-modal-ov';
+    document.body.appendChild(ov);
+  }
+  const deal = dealId ? _synDeals.find(d => d.id === dealId) : null;
+  const isEdit = !!deal;
+  const stages = _synStages.slice().sort((a,b) => a.position - b.position);
+  const contacts = _contacts.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  const defaultStageId = deal?.stage_id || presetStageId || stages[0]?.id || '';
+  const followLocal = deal?.follow_up_at ? new Date(deal.follow_up_at).toISOString().slice(0,16) : '';
+  ov.innerHTML = `
+    <div class="syn-modal" onclick="event.stopPropagation()">
+      <div class="syn-modal-h">
+        <h3>${isEdit ? 'Editar oportunidade' : 'Nova oportunidade'}</h3>
+        <button class="syn-modal-x" onclick="_synCloseDealModal()">×</button>
+      </div>
+      <div class="syn-modal-body">
+        <div class="syn-field">
+          <label>Título da oportunidade *</label>
+          <input id="syn-d-title" type="text" value="${_esc(deal?.title || '')}" placeholder="Ex: Implantação Synkan na empresa X" autofocus />
+        </div>
+        <div class="syn-row">
+          <div class="syn-field">
+            <label>Valor (R$)</label>
+            <input id="syn-d-value" type="number" step="0.01" min="0" value="${deal?.value_cents ? (deal.value_cents/100) : ''}" placeholder="0,00" />
+          </div>
+          <div class="syn-field">
+            <label>Probabilidade (%)</label>
+            <input id="syn-d-prob" type="number" min="0" max="100" value="${deal?.probability ?? ''}" placeholder="usa do estágio" />
+          </div>
+        </div>
+        <div class="syn-row">
+          <div class="syn-field">
+            <label>Estágio</label>
+            <select id="syn-d-stage">
+              ${stages.map(s => `<option value="${_esc(s.id)}" ${s.id === defaultStageId ? 'selected' : ''}>${_esc(s.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="syn-field">
+            <label>Contato</label>
+            <select id="syn-d-contact">
+              <option value="">— sem contato —</option>
+              ${contacts.map(c => `<option value="${_esc(c.id)}" ${c.id === deal?.contact_id ? 'selected' : ''}>${_esc(c.name)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="syn-row">
+          <div class="syn-field">
+            <label>Fechamento previsto</label>
+            <input id="syn-d-close" type="date" value="${deal?.expected_close_at || ''}" />
+          </div>
+          <div class="syn-field">
+            <label>Próximo follow-up</label>
+            <input id="syn-d-followup" type="datetime-local" value="${_esc(followLocal)}" />
+          </div>
+        </div>
+        <div class="syn-field">
+          <label>Notas</label>
+          <textarea id="syn-d-notes" placeholder="Histórico, observações, próximos passos…">${_esc(deal?.notes || '')}</textarea>
+        </div>
+        ${isEdit ? `<div style="margin-top:6px;border-top:0.5px dashed var(--color-border-tertiary);padding-top:12px;">
+          <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Timeline</div>
+          <div id="syn-d-timeline"></div>
+          <div style="margin-top:10px;display:flex;gap:6px;">
+            <input id="syn-d-newact" type="text" placeholder="Adicionar nota rápida (ligação feita, email enviado…)" style="flex:1;border:0.5px solid var(--color-border-secondary);border-radius:7px;padding:7px 10px;font-size:12.5px;font-family:inherit;" onkeydown="if(event.key==='Enter'){_synAddQuickNote('${_esc(deal.id)}','${_esc(deal.contact_id||'')}')}" />
+            <select id="syn-d-actkind" style="border:0.5px solid var(--color-border-secondary);border-radius:7px;padding:7px 8px;font-size:12px;font-family:inherit;background:var(--color-background-primary);">
+              <option value="note">📝 Nota</option>
+              <option value="call">📞 Call</option>
+              <option value="email_sent">📤 Email enviado</option>
+              <option value="email_received">📥 Email recebido</option>
+              <option value="meeting">👥 Reunião</option>
+            </select>
+            <button class="syn-btn-secondary" onclick="_synAddQuickNote('${_esc(deal.id)}','${_esc(deal.contact_id||'')}')">+</button>
+          </div>
+        </div>` : ''}
+      </div>
+      <div class="syn-modal-f">
+        ${isEdit ? `<button class="syn-btn-danger" onclick="_synDeleteDealConfirm('${_esc(deal.id)}')">Excluir</button>` : '<div></div>'}
+        <div style="display:flex;gap:6px;">
+          <button class="syn-btn-secondary" onclick="_synCloseDealModal()">Cancelar</button>
+          <button class="syn-btn-primary" onclick="_synSaveDealFromModal(${isEdit ? `'${_esc(deal.id)}'` : 'null'})">${isEdit ? 'Salvar' : 'Criar'}</button>
+        </div>
+      </div>
+    </div>`;
+  ov.classList.add('is-open');
+  ov.onclick = (e) => { if (e.target === ov) _synCloseDealModal(); };
+  if (isEdit) _synRenderDealTimeline(deal.id);
+  setTimeout(() => document.getElementById('syn-d-title')?.focus(), 50);
+}
+
+function _synCloseDealModal() {
+  document.getElementById('syn-deal-modal')?.classList.remove('is-open');
+}
+
+async function _synSaveDealFromModal(dealId) {
+  const title = (document.getElementById('syn-d-title').value || '').trim();
+  if (!title) { alert('Título é obrigatório.'); return; }
+  const valueStr = document.getElementById('syn-d-value').value.replace(',', '.');
+  const probStr  = document.getElementById('syn-d-prob').value;
+  const followLocal = document.getElementById('syn-d-followup').value;
+  const data = {
+    id: dealId,
+    title,
+    value_brl:   parseFloat(valueStr) || 0,
+    probability: probStr === '' ? null : parseInt(probStr, 10),
+    stage_id:    document.getElementById('syn-d-stage').value,
+    contact_id:  document.getElementById('syn-d-contact').value || null,
+    expected_close_at: document.getElementById('syn-d-close').value || null,
+    follow_up_at: followLocal ? new Date(followLocal).toISOString() : null,
+    notes: document.getElementById('syn-d-notes').value,
+  };
+  const saved = await _synSaveDeal(data);
+  if (saved) {
+    _synCloseDealModal();
+    renderPipelineTab();
+  } else {
+    alert('Falha ao salvar deal. Verifique se a migration foi aplicada.');
+  }
+}
+
+async function _synDeleteDealConfirm(dealId) {
+  const ok = await appConfirm('Excluir oportunidade?', 'Esta ação não pode ser desfeita. Atividades e histórico também serão removidos.', { danger: true, okLabel: 'Excluir' });
+  if (!ok) return;
+  const removed = await _synDeleteDeal(dealId);
+  if (removed) {
+    _synCloseDealModal();
+    renderPipelineTab();
+  }
+}
+
+async function _synAddQuickNote(dealId, contactId) {
+  const input = document.getElementById('syn-d-newact');
+  const kindSel = document.getElementById('syn-d-actkind');
+  const txt = (input.value || '').trim(); if (!txt) return;
+  const kind = kindSel.value || 'note';
+  const titleByKind = { note: 'Nota', call: 'Ligação', email_sent: 'Email enviado', email_received: 'Email recebido', meeting: 'Reunião' };
+  await _synLogActivity({ deal_id: dealId, contact_id: contactId || null, kind, title: titleByKind[kind] || 'Atividade', body: txt });
+  input.value = '';
+  _synRenderDealTimeline(dealId);
+}
+
+function _synRenderDealTimeline(dealId) {
+  const tlEl = document.getElementById('syn-d-timeline'); if (!tlEl) return;
+  const items = _synActivities.filter(a => a.deal_id === dealId).slice(0, 30);
+  if (items.length === 0) {
+    tlEl.innerHTML = `<div class="syn-tl-empty">Sem atividades ainda. Adicione uma nota, call ou email abaixo.</div>`;
+    return;
+  }
+  const iconMap = {
+    note: '📝', call: '📞', email_sent: '📤', email_received: '📥',
+    meeting: '👥', stage_change: '🎯', created: '✨', won: '🏆',
+    lost: '❌', follow_up: '⏰', tatame_mention: '🎙'
+  };
+  tlEl.innerHTML = `<div class="syn-timeline">${items.map(a => {
+    const ago = (() => {
+      const diff = Date.now() - new Date(a.occurred_at).getTime();
+      const min = Math.floor(diff/60000);
+      if (min < 1) return 'agora';
+      if (min < 60) return `há ${min} min`;
+      const h = Math.floor(min/60);
+      if (h < 24) return `há ${h}h`;
+      const d = Math.floor(h/24);
+      if (d < 7) return `há ${d} dia${d===1?'':'s'}`;
+      return new Date(a.occurred_at).toLocaleDateString('pt-BR');
+    })();
+    return `<div class="syn-tl-item">
+      <div class="syn-tl-icon">${iconMap[a.kind] || '•'}</div>
+      <div class="syn-tl-body">
+        <div class="syn-tl-title">${_esc(a.title || a.kind)}</div>
+        ${a.body ? `<div class="syn-tl-text">${_esc(a.body)}</div>` : ''}
+        <div class="syn-tl-when">${ago}</div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 // Renderiza a Captação dentro do reg-body (tab do CRM)
@@ -32327,20 +32988,42 @@ function renderContactsTab() {
     ${list.length ? `
     <table class="reg-table">
       <thead><tr>
-        <th>Lead / Cliente / Fornecedor</th><th style="width:130px;">Tipo</th><th>CNPJ/CPF</th><th>Contato</th><th style="width:80px;"></th>
+        <th>Lead / Cliente / Fornecedor</th><th style="width:120px;">Tipo</th><th style="width:130px;">Pipeline</th><th>Última atividade</th><th style="width:100px;"></th>
       </tr></thead>
       <tbody>
-        ${list.map(c=>`
+        ${list.map(c=>{
+          const myDeals = _synDeals.filter(d => d.contact_id === c.id);
+          const openMy = myDeals.filter(d => d.status === 'open');
+          const totalOpenCents = openMy.reduce((s,d) => s + (d.value_cents||0), 0);
+          const lastAct = _synActivities.find(a => a.contact_id === c.id);
+          const lastAgo = lastAct ? (() => {
+            const diff = Date.now() - new Date(lastAct.occurred_at).getTime();
+            const d = Math.floor(diff/86400000);
+            if (d === 0) return 'hoje';
+            if (d === 1) return 'ontem';
+            if (d < 30) return `${d} dias atrás`;
+            return new Date(lastAct.occurred_at).toLocaleDateString('pt-BR');
+          })() : null;
+          return `
           <tr onclick="openContactModal('${c.id}')">
-            <td><strong style="color:var(--color-text-primary);">${_esc(c.name||'Sem nome')}</strong>${c.notes?`<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">${_esc((c.notes||'').slice(0,60))}${(c.notes||'').length>60?'…':''}</div>`:''}</td>
-            <td><span class="reg-pill ${c.type||'cliente'}">${({lead:'Lead',cliente:'Cliente',fornecedor:'Fornecedor',ambos:'Ambos'}[c.type]||'Cliente')}</span>${(()=>{const s=_computeLeadScore(c.id); return s?` <span class="score-pill ${s.level}" title="${_esc(s.reason||'')}">${s.level==='hot'?'🔥':s.level==='warm'?'🌤':'❄'} ${s.level}</span>`:'';})()}</td>
-            <td style="font-variant-numeric:tabular-nums;">${_esc(c.taxId||'—')}</td>
-            <td style="font-size:12px;color:var(--color-text-secondary);">${[c.email,c.phone].filter(Boolean).map(_esc).join(' · ')||'—'}</td>
+            <td><strong style="color:var(--color-text-primary);">${_esc(c.name||'Sem nome')}</strong>${c.email||c.phone?`<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">${[c.email,c.phone].filter(Boolean).map(_esc).join(' · ')}</div>`:''}</td>
+            <td><span class="reg-pill ${c.type||'cliente'}">${({lead:'Lead',cliente:'Cliente',fornecedor:'Fornecedor',ambos:'Ambos'}[c.type]||'Cliente')}</span></td>
+            <td style="font-size:12px;">
+              ${openMy.length > 0
+                ? `<div style="color:var(--color-text-primary);font-weight:500;">${openMy.length} aberto${openMy.length===1?'':'s'}</div><div style="font-size:11px;color:#3B6D11;font-variant-numeric:tabular-nums;">${_synFmtMoney(totalOpenCents)}</div>`
+                : myDeals.length > 0
+                  ? `<span style="color:var(--color-text-tertiary);">${myDeals.length} fechado${myDeals.length===1?'':'s'}</span>`
+                  : `<span style="color:var(--color-text-tertiary);">—</span>`}
+            </td>
+            <td style="font-size:12px;color:var(--color-text-secondary);">
+              ${lastAct ? `<div>${_esc(lastAct.title || lastAct.kind)}</div><div style="font-size:11px;color:var(--color-text-tertiary);">${lastAgo}</div>` : '<span style="color:var(--color-text-tertiary);">—</span>'}
+            </td>
             <td onclick="event.stopPropagation();" style="text-align:right;white-space:nowrap;">
-              <button class="reg-action-btn" onclick="openCustomer360('${c.id}')" title="Ver histórico (Customer 360)">📊</button>
+              <button class="reg-action-btn" onclick="_synOpenDealModal(null,null);_synPrefillContactInDeal('${c.id}')" title="Criar deal" style="color:#3B6D11;">+ Deal</button>
               <button class="reg-action-btn danger" onclick="deleteContact('${c.id}')" title="Excluir">×</button>
             </td>
-          </tr>`).join('')}
+          </tr>`;
+        }).join('')}
       </tbody>
     </table>` : `
     <div class="reg-empty">
@@ -32512,6 +33195,15 @@ function saveContact(id, isEdit) {
     _contacts.push(data);
   }
   _saveContacts();
+  // Sync com Supabase em background — se falhar, fica só local (degradação graciosa)
+  _synSaveContactCloud(_contacts.find(x => x.id === id) || data, !isEdit).then(saved => {
+    if (saved && !isEdit) {
+      // Log activity de criação
+      _synLogActivity({ contact_id: saved.id, kind: 'created', title: `Contato criado: ${name}` });
+    }
+    // Re-render se a UI estiver visível
+    if (typeof renderRegistry === 'function' && _registryTab === 'contacts') renderRegistry();
+  });
   audit('contact.'+(isEdit?'updated':'created'), { id, name });
   // XP só na criação (não em edits)
   if (!isEdit && typeof _gamifAwardContactCreated === 'function') _gamifAwardContactCreated(name, data.type);
@@ -32535,6 +33227,7 @@ async function deleteContact(id) {
   if (!ok) return;
   _contacts = _contacts.filter(x=>x.id!==id);
   _saveContacts();
+  _synDeleteContactCloud(id); // fire-and-forget — local já tá atualizado
   audit('contact.deleted', { id, name: c.name });
   renderRegistry();
 }
