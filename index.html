@@ -46452,6 +46452,7 @@ async function renderBunko() {
                 </div>
                 <button class="bunko-btn" onclick="_bunkoCreatePage(_bunkoState.currentFolderId)">+ Nova página</button>
                 <button class="bunko-btn" onclick="_bunkoCreateFolder(_bunkoState.currentFolderId)">+ Nova subpasta</button>
+                <button class="bunko-btn" id="bunko-btn-download-zip" onclick="_bunkoDownloadFolderZip(_bunkoState.currentFolderId)" title="Baixar todos arquivos da pasta zipados" style="display:none;">📦 Baixar pasta (.zip)</button>
                 <button class="bunko-btn is-danger" onclick="_bunkoCleanupStale()" title="Limpar gravações presas">↺ Limpar</button>
               </div>
             </div>
@@ -46613,6 +46614,9 @@ function _bunkoRenderBreadcrumb() {
     const current = path[path.length - 1];
     titleEl.innerHTML = `<span class="bunko-main-title-icon">${_esc(current?.icon || '📦')}</span><span>${_esc(current?.name || 'Bunko Box')}</span>`;
   }
+  // Mostra botão de baixar ZIP só quando dentro de uma pasta
+  const zipBtn = document.getElementById('bunko-btn-download-zip');
+  if (zipBtn) zipBtn.style.display = _bunkoState.currentFolderId ? '' : 'none';
 }
 
 function _bunkoRenderItems() {
@@ -46673,22 +46677,22 @@ function _bunkoListRowHTML(it) {
   };
   const dt = (iso) => new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit' });
 
-  let icon, typeLabel, size, onClickAttr, menuOnClick;
+  let iconHtml, typeLabel, size, onClickAttr, menuOnClick;
   if (isPage) {
-    icon = it.icon || '📄';
+    iconHtml = `<span style="font-size:1em;line-height:1;">${_esc(it.icon || '📄')}</span>`;
     typeLabel = 'Página';
     size = '—';
     onClickAttr = `_bunkoOpenPage('${_esc(it.id)}')`;
     menuOnClick = `_bunkoItemMenu(event, 'page', '${_esc(it.id)}', '${_esc((it.title||'').replace(/'/g,'\\\''))}')`;
   } else if (isFile) {
     const fi = _bunkoFileIcon(it.title, it.status || '');
-    icon = fi.icon;
+    iconHtml = fi.icon;
     typeLabel = 'Arquivo';
     size = _bunkoFormatSize(it.actions_count || 0);
     onClickAttr = `_bunkoDownloadFile('${_esc(it.url)}','${_esc(it.source_kind||'bunko-files')}','${_esc(it.title)}')`;
     menuOnClick = `_bunkoFileMenu(event, '${_esc(it.id)}','${_esc(it.url)}','${_esc(it.source_kind||'bunko-files')}','${_esc((it.title||'').replace(/'/g,'\\\''))}')`;
   } else {
-    icon = '🎬';
+    iconHtml = `<span style="font-size:1em;line-height:1;">🎬</span>`;
     typeLabel = 'Gravação';
     size = it.duration_sec ? fmtDur(it.duration_sec) : '—';
     onClickAttr = isReady ? `_bunkoOpenRecording('${_esc(it.id)}')` : '';
@@ -46699,7 +46703,7 @@ function _bunkoListRowHTML(it) {
     draggable="true"
     ondragstart="_bunkoDragStart(event, '${it.kind}', '${_esc(it.id)}')"
     onclick="${onClickAttr}">
-    <div class="col-icon"><span class="ic">${_esc(icon)}</span></div>
+    <div class="col-icon"><span class="ic">${iconHtml}</span></div>
     <div class="col-name">${_esc(it.title || 'sem título')}${it.archived ? ' <span class="badge-archived">arquivado</span>' : ''}${!isReady && isRec ? ` <span class="badge-status ${it.status||''}">${it.status||'pendente'}</span>` : ''}</div>
     <div class="col-type">${typeLabel}</div>
     <div class="col-size">${size}</div>
@@ -47209,20 +47213,68 @@ async function _bunkoOpenPage(pageId) {
 }
 
 // ── Anexos (Supabase Storage) ───────────────────────────────────────
+// Retorna { icon: html, color, ext }. icon é HTML-safe (SVG ou emoji wrapped).
 function _bunkoFileIcon(name, mime) {
   const ext = (name||'').toLowerCase().split('.').pop();
-  if (/^(pdf)$/i.test(ext)) return { icon:'📕', color:'#BC002D' };
-  if (/^(xlsx|xls|csv|ods|tsv)$/i.test(ext)) return { icon:'📊', color:'#1E7A3E' };
-  if (/^(doc|docx|odt|rtf|pages)$/i.test(ext)) return { icon:'📝', color:'#2A6FBC' };
-  if (/^(ppt|pptx|key|odp)$/i.test(ext)) return { icon:'📊', color:'#E68224' };
-  if (/^(png|jpg|jpeg|gif|webp|svg|bmp|heic|heif)$/i.test(ext)) return { icon:'🖼', color:'#9C5BC8' };
-  if (/^(mp4|mov|avi|mkv|webm|m4v)$/i.test(ext)) return { icon:'🎬', color:'#BC002D' };
-  if (/^(mp3|wav|m4a|aac|flac|ogg)$/i.test(ext)) return { icon:'🎵', color:'#C19A3A' };
-  if (/^(zip|tar|gz|rar|7z)$/i.test(ext)) return { icon:'🗜', color:'#6B4825' };
-  if (/^(txt|md|json|xml|yaml|yml)$/i.test(ext)) return { icon:'📄', color:'#5C4F3F' };
-  if (/^(ofx|qfx|qif)$/i.test(ext)) return { icon:'💰', color:'#1E7A3E' };  // extratos bancários
-  if (/^(js|ts|tsx|jsx|html|css|py|sql|sh|go|rs|rb|java|c|cpp)$/i.test(ext)) return { icon:'⚙️', color:'#3A2410' };
-  return { icon:'📎', color:'#6B4825' };
+  // PDF: SVG real estilo "arquivo PDF" com badge vermelho
+  if (/^(pdf)$/i.test(ext)) {
+    return {
+      icon: `<svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg" style="width:1em;height:1em;display:block;">
+        <defs><linearGradient id="pdfPg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F0E8D4"/></linearGradient></defs>
+        <path d="M6 2.5 L 18 2.5 L 23.5 8 L 23.5 25 C 23.5 25.5 23 26 22.5 26 L 6 26 C 5.5 26 5 25.5 5 25 L 5 3.5 C 5 3 5.5 2.5 6 2.5 Z" fill="url(#pdfPg)" stroke="#3A2410" stroke-width="0.7" stroke-linejoin="round"/>
+        <path d="M18 2.5 L 18 7.5 C 18 7.8 18.2 8 18.5 8 L 23.5 8 Z" fill="#E8D29A" stroke="#3A2410" stroke-width="0.7" stroke-linejoin="round"/>
+        <rect x="6" y="14.5" width="16" height="7" rx="1.2" fill="#BC002D"/>
+        <text x="14" y="19.5" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="4.6" font-weight="900" text-anchor="middle" fill="#fff" letter-spacing="0.08em">PDF</text>
+      </svg>`,
+      color: '#BC002D', ext
+    };
+  }
+  // Excel/Sheet: SVG verde
+  if (/^(xlsx|xls|csv|ods|tsv)$/i.test(ext)) {
+    return {
+      icon: `<svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg" style="width:1em;height:1em;display:block;">
+        <path d="M6 2.5 L 18 2.5 L 23.5 8 L 23.5 25 C 23.5 25.5 23 26 22.5 26 L 6 26 C 5.5 26 5 25.5 5 25 L 5 3.5 C 5 3 5.5 2.5 6 2.5 Z" fill="#FFFCF5" stroke="#3A2410" stroke-width="0.7"/>
+        <path d="M18 2.5 L 18 7.5 C 18 7.8 18.2 8 18.5 8 L 23.5 8 Z" fill="#E8D29A" stroke="#3A2410" stroke-width="0.7"/>
+        <rect x="6" y="14.5" width="16" height="7" rx="1.2" fill="#1E7A3E"/>
+        <text x="14" y="19.4" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="4.2" font-weight="900" text-anchor="middle" fill="#fff" letter-spacing="0.04em">${ext.toUpperCase()}</text>
+      </svg>`,
+      color: '#1E7A3E', ext
+    };
+  }
+  // Word/Doc: SVG azul
+  if (/^(doc|docx|odt|rtf|pages)$/i.test(ext)) {
+    return {
+      icon: `<svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg" style="width:1em;height:1em;display:block;">
+        <path d="M6 2.5 L 18 2.5 L 23.5 8 L 23.5 25 C 23.5 25.5 23 26 22.5 26 L 6 26 C 5.5 26 5 25.5 5 25 L 5 3.5 C 5 3 5.5 2.5 6 2.5 Z" fill="#FFFCF5" stroke="#3A2410" stroke-width="0.7"/>
+        <path d="M18 2.5 L 18 7.5 C 18 7.8 18.2 8 18.5 8 L 23.5 8 Z" fill="#E8D29A" stroke="#3A2410" stroke-width="0.7"/>
+        <rect x="6" y="14.5" width="16" height="7" rx="1.2" fill="#2A6FBC"/>
+        <text x="14" y="19.4" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="4.2" font-weight="900" text-anchor="middle" fill="#fff" letter-spacing="0.04em">${ext.length<=4?ext.toUpperCase():'DOC'}</text>
+      </svg>`,
+      color: '#2A6FBC', ext
+    };
+  }
+  // OFX/QFX (extratos bancários): SVG dourado
+  if (/^(ofx|qfx|qif)$/i.test(ext)) {
+    return {
+      icon: `<svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg" style="width:1em;height:1em;display:block;">
+        <path d="M6 2.5 L 18 2.5 L 23.5 8 L 23.5 25 C 23.5 25.5 23 26 22.5 26 L 6 26 C 5.5 26 5 25.5 5 25 L 5 3.5 C 5 3 5.5 2.5 6 2.5 Z" fill="#FFFCF5" stroke="#3A2410" stroke-width="0.7"/>
+        <path d="M18 2.5 L 18 7.5 C 18 7.8 18.2 8 18.5 8 L 23.5 8 Z" fill="#E8D29A" stroke="#3A2410" stroke-width="0.7"/>
+        <rect x="6" y="14.5" width="16" height="7" rx="1.2" fill="#C19A3A"/>
+        <text x="14" y="19.5" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="4.4" font-weight="900" text-anchor="middle" fill="#3A2410" letter-spacing="0.04em">${ext.toUpperCase()}</text>
+      </svg>`,
+      color: '#C19A3A', ext
+    };
+  }
+  // Outros tipos com emoji (mais fácil de manter)
+  const wrap = (e) => `<span style="font-size:1em;line-height:1;">${e}</span>`;
+  if (/^(ppt|pptx|key|odp)$/i.test(ext)) return { icon: wrap('📊'), color:'#E68224', ext };
+  if (/^(png|jpg|jpeg|gif|webp|svg|bmp|heic|heif)$/i.test(ext)) return { icon: wrap('🖼'), color:'#9C5BC8', ext };
+  if (/^(mp4|mov|avi|mkv|webm|m4v)$/i.test(ext)) return { icon: wrap('🎬'), color:'#BC002D', ext };
+  if (/^(mp3|wav|m4a|aac|flac|ogg)$/i.test(ext)) return { icon: wrap('🎵'), color:'#C19A3A', ext };
+  if (/^(zip|tar|gz|rar|7z)$/i.test(ext)) return { icon: wrap('🗜'), color:'#6B4825', ext };
+  if (/^(txt|md|json|xml|yaml|yml)$/i.test(ext)) return { icon: wrap('📄'), color:'#5C4F3F', ext };
+  if (/^(js|ts|tsx|jsx|html|css|py|sql|sh|go|rs|rb|java|c|cpp)$/i.test(ext)) return { icon: wrap('⚙️'), color:'#3A2410', ext };
+  return { icon: wrap('📎'), color:'#6B4825', ext };
 }
 
 function _bunkoFormatSize(bytes) {
@@ -47290,6 +47342,136 @@ function _bunkoUpdateAttachIndicator(pageId, count) {
     indicator.innerHTML = '📎 + Adicionar anexo';
   } else {
     indicator.innerHTML = `📎 <span class="count">${c}</span> anexo${c===1?'':'s'}`;
+  }
+}
+
+// Baixa todos os arquivos da pasta atual zipados (.zip)
+let _bunkoJsZipLoading = null;
+async function _bunkoLoadJsZip() {
+  if (window.JSZip) return window.JSZip;
+  if (_bunkoJsZipLoading) return _bunkoJsZipLoading;
+  _bunkoJsZipLoading = (async () => {
+    const urls = [
+      'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm',
+      'https://esm.sh/jszip@3.10.1',
+    ];
+    for (const url of urls) {
+      try {
+        const mod = await import(/* @vite-ignore */ url);
+        if (mod?.default || mod?.JSZip) {
+          window.JSZip = mod.default || mod.JSZip;
+          return window.JSZip;
+        }
+      } catch(_){}
+    }
+    throw new Error('JSZip não carregou via CDN');
+  })();
+  return _bunkoJsZipLoading;
+}
+
+async function _bunkoDownloadFolderZip(folderId) {
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c || !supaUser) return;
+
+  // Resolve nome da pasta pra usar no nome do zip
+  const folder = folderId ? _bunkoState.folders.find(f => f.id === folderId) : null;
+  const folderName = folder ? folder.name : 'Bunko';
+
+  // Lista arquivos: arquivos soltos NA pasta (page_id NULL) + anexos das páginas dessa pasta
+  let files = [];
+  try {
+    // 1) Loose files nessa pasta
+    const { data: looseFiles, error: e1 } = await c
+      .from('bunko_files')
+      .select('id, name, storage_path, storage_bucket, size_bytes')
+      .eq('owner_id', supaUser.id)
+      .is('deleted_at', null)
+      .is('page_id', null)
+      .eq('folder_id', folderId);
+    if (e1) throw e1;
+    files = files.concat((looseFiles || []).map(f => ({ ...f, subpath: '' })));
+
+    // 2) Pages dessa pasta + seus anexos
+    const { data: pages, error: e2 } = await c
+      .from('bunko_pages')
+      .select('id, title')
+      .eq('owner_id', supaUser.id)
+      .is('deleted_at', null)
+      .eq('folder_id', folderId);
+    if (e2) throw e2;
+    if (pages && pages.length) {
+      const pageIds = pages.map(p => p.id);
+      const { data: pageFiles, error: e3 } = await c
+        .from('bunko_files')
+        .select('id, name, storage_path, storage_bucket, size_bytes, page_id')
+        .eq('owner_id', supaUser.id)
+        .is('deleted_at', null)
+        .in('page_id', pageIds);
+      if (e3) throw e3;
+      const pageById = Object.fromEntries(pages.map(p => [p.id, p.title]));
+      files = files.concat((pageFiles || []).map(f => ({
+        ...f,
+        subpath: (pageById[f.page_id] || 'pagina').replace(/[^\w\s.-]/g,'_') + '/'
+      })));
+    }
+  } catch(e) {
+    appAlert('Erro ao listar', e?.message || String(e), { icon:'⚠️' });
+    return;
+  }
+
+  if (!files.length) {
+    appAlert('Pasta vazia',
+      'Nenhum arquivo nessa pasta pra baixar. Adicione anexos primeiro (arraste arquivos pra cá ou cole em uma página).',
+      { icon:'📦' });
+    return;
+  }
+
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Preparando ZIP', `Baixando ${files.length} arquivo(s)…`, 'info');
+  }
+
+  let JSZip;
+  try { JSZip = await _bunkoLoadJsZip(); }
+  catch(e) { appAlert('JSZip falhou', 'Não consegui carregar a biblioteca de ZIP. Verifique conexão.', { icon:'⚠️' }); return; }
+
+  const zip = new JSZip();
+  let success = 0, fail = 0;
+  for (const f of files) {
+    try {
+      const { data, error } = await c.storage.from(f.storage_bucket || 'bunko-files').download(f.storage_path);
+      if (error) throw error;
+      // Trata nome: prefixa com pasta da página (se for anexo de página)
+      const safeName = f.name.replace(/[\/\\]/g, '_');
+      zip.file((f.subpath || '') + safeName, data);
+      success++;
+    } catch(e) {
+      console.warn('[bunko-zip] falha em', f.name, e?.message);
+      fail++;
+    }
+  }
+  if (success === 0) {
+    appAlert('Nenhum arquivo baixado', 'Todos os downloads falharam. Verifique se os arquivos ainda existem.', { icon:'⚠️' });
+    return;
+  }
+
+  try {
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const dt = new Date().toISOString().slice(0,10);
+    a.download = `${folderName.replace(/[^\w\s.-]/g,'_')}_${dt}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('ZIP pronto ✓',
+        `${success} arquivo(s) baixado(s)${fail > 0 ? ` (${fail} falharam)` : ''}.`,
+        'success');
+    }
+  } catch(e) {
+    appAlert('Erro ao gerar ZIP', e?.message || String(e), { icon:'⚠️' });
   }
 }
 
