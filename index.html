@@ -46516,6 +46516,42 @@ async function renderBunko() {
 
         /* ── Bunko popover divider (was missing) ────────────────── */
         .bunko-popover .divider { height: 1px; background: rgba(184,168,120,.40); margin: 4px 0; }
+
+        /* ── Toolbar redesign — hierarquia visual ──────────────────── */
+        .bunko-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .bunko-toolbar-group { display: flex; align-items: center; gap: 6px; }
+        .bunko-toolbar-spacer { flex: 1; min-width: 4px; }
+
+        /* Ícone-botão compacto (sort, overflow, view) — ações secundárias */
+        .bunko-ic-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-size: 12.5px; color: #6B5840; font-family: inherit; transition: background .15s, border-color .15s, color .15s; line-height: 1; }
+        .bunko-ic-btn:hover { background: rgba(184,168,120,.18); color: #3A2410; border-color: rgba(184,168,120,.40); }
+        .bunko-ic-btn-glyph { font-size: 13px; opacity: .85; }
+        .bunko-ic-btn-lbl { font-weight: 500; }
+        .bunko-overflow-btn { padding: 6px 10px; font-size: 18px; line-height: 1; color: #6B5840; font-weight: 600; }
+        .bunko-overflow-btn:hover { background: rgba(184,168,120,.20); color: #3A2410; }
+
+        /* Split-button "+ Nova página ▾" — ação primária Synkan red */
+        .bunko-split-btn { display: inline-flex; align-items: stretch; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(188,0,45,.18); border: 1px solid #BC002D; }
+        .bunko-split-main, .bunko-split-caret { background: #BC002D; color: #FFFCF5; border: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; line-height: 1; transition: background .15s; }
+        .bunko-split-caret { padding: 7px 9px; font-size: 11px; border-left: 1px solid rgba(255,252,245,.25); }
+        .bunko-split-main:hover, .bunko-split-caret:hover { background: #9E0028; }
+        .bunko-split-plus { display: inline-block; font-size: 14px; font-weight: 700; margin-right: 2px; }
+
+        /* Popover de criar (com glyph + título + sub) — visual rico */
+        .bunko-popover-create { min-width: 280px; padding: 4px; }
+        .bunko-popover-create button { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; text-align: left; }
+        .bunko-pop-ic { font-size: 18px; line-height: 1.2; flex-shrink: 0; width: 22px; text-align: center; }
+        .bunko-pop-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .bunko-pop-txt strong { font-weight: 600; color: #3A2410; font-size: 13px; }
+        .bunko-pop-txt small { color: #8B6634; font-size: 11px; font-weight: normal; }
+        .bunko-popover button.is-danger .bunko-pop-txt strong,
+        .bunko-popover button.is-danger .bunko-pop-txt { color: #BC002D; }
+        .bunko-popover button .bunko-pop-ic + .bunko-pop-txt { gap: 0; }
+
+        @media (max-width: 720px) {
+          .bunko-ic-btn-lbl { display: none; }
+          .bunko-split-main { padding: 7px 12px; }
+        }
       </style>
       <div class="bunko-shell">
         <aside class="bunko-sidebar">
@@ -46541,16 +46577,28 @@ async function renderBunko() {
             <div class="bunko-main-title-row">
               <div class="bunko-main-title" id="bunko-main-title"><span class="bunko-main-title-icon">📁</span><span>Bunko Box</span></div>
               <div class="bunko-toolbar">
-                <div class="bunko-view-toggle">
-                  <button class="bunko-view-btn" data-view="grid" onclick="_bunkoSetViewMode('grid')" title="Visão de cards">▦</button>
-                  <button class="bunko-view-btn" data-view="list" onclick="_bunkoSetViewMode('list')" title="Visão de lista">☰</button>
+                <!-- Grupo 1: visualização (à esquerda, secundário) -->
+                <div class="bunko-toolbar-group">
+                  <div class="bunko-view-toggle">
+                    <button class="bunko-view-btn" data-view="grid" onclick="_bunkoSetViewMode('grid')" title="Visão de cards">▦</button>
+                    <button class="bunko-view-btn" data-view="list" onclick="_bunkoSetViewMode('list')" title="Visão de lista">☰</button>
+                  </div>
+                  <button class="bunko-ic-btn" onclick="_bunkoOpenSortMenu(event)" title="Ordenar por…">
+                    <span class="bunko-ic-btn-glyph">⇅</span>
+                    <span class="bunko-ic-btn-lbl" id="bunko-sort-label">Modificado</span>
+                  </button>
                 </div>
-                <button class="bunko-btn" onclick="_bunkoOpenSortMenu(event)" title="Ordenar"><span style="font-size:11px;">⇅</span> <span id="bunko-sort-label">Modificado</span></button>
-                <button class="bunko-btn" onclick="_bunkoOpenTemplatePicker()" title="Criar página a partir de template">⚡ Template</button>
-                <button class="bunko-btn" onclick="_bunkoCreatePage(_bunkoState.currentFolderId)">+ Nova página</button>
-                <button class="bunko-btn" onclick="_bunkoCreateFolder(_bunkoState.currentFolderId)">+ Nova subpasta</button>
-                <button class="bunko-btn" id="bunko-btn-download-zip" onclick="_bunkoDownloadFolderZip(_bunkoState.currentFolderId)" title="Baixar todos arquivos da pasta atual zipados">🗜 Baixar (.zip)</button>
-                <button class="bunko-btn is-danger" onclick="_bunkoCleanupStale()" title="Limpar gravações presas">↺ Limpar</button>
+                <!-- Spacer empurra ações primárias pra direita -->
+                <div class="bunko-toolbar-spacer"></div>
+                <!-- Grupo 2: ação primária (split button) -->
+                <div class="bunko-split-btn">
+                  <button class="bunko-split-main" onclick="_bunkoCreatePage(_bunkoState.currentFolderId)" title="Criar nova página em branco (⌘N abre opções)">
+                    <span class="bunko-split-plus">+</span> Nova página
+                  </button>
+                  <button class="bunko-split-caret" onclick="_bunkoOpenCreateMenu(event)" title="Mais opções de criar">▾</button>
+                </div>
+                <!-- Grupo 3: overflow (ações secundárias) -->
+                <button class="bunko-ic-btn bunko-overflow-btn" onclick="_bunkoOpenOverflowMenu(event)" title="Mais ações">⋯</button>
               </div>
             </div>
           </div>
@@ -46600,11 +46648,16 @@ function _bunkoInstallShortcuts() {
       return;
     }
     if (isTyping) return; // outros atalhos respeitam contexto
-    // Cmd+N: nova página
+    // Cmd+N: nova página em branco (consistente com o botão "+ Nova página")
     if (isMeta && !e.shiftKey && e.key.toLowerCase() === 'n') {
       e.preventDefault();
+      _bunkoCreatePage(_bunkoState.currentFolderId);
+      return;
+    }
+    // Cmd+T: abre seletor de templates
+    if (isMeta && !e.shiftKey && e.key.toLowerCase() === 't') {
+      e.preventDefault();
       if (typeof _bunkoOpenTemplatePicker === 'function') _bunkoOpenTemplatePicker();
-      else _bunkoCreatePage(_bunkoState.currentFolderId);
       return;
     }
     // Cmd+Shift+N: nova pasta
@@ -46635,7 +46688,10 @@ function _bunkoShowShortcutsHelp() {
           <span>Buscar</span><kbd style="font-family:Menlo,monospace;font-size:12px;background:#FFFEF8;border:1px solid #B8A878;padding:2px 8px;border-radius:4px;">${meta} K</kbd>
         </div>
         <div style="display:flex;justify-content:space-between;padding:8px 10px;background:rgba(184,168,120,.10);border-radius:6px;">
-          <span>Nova página (com template)</span><kbd style="font-family:Menlo,monospace;font-size:12px;background:#FFFEF8;border:1px solid #B8A878;padding:2px 8px;border-radius:4px;">${meta} N</kbd>
+          <span>Nova página em branco</span><kbd style="font-family:Menlo,monospace;font-size:12px;background:#FFFEF8;border:1px solid #B8A878;padding:2px 8px;border-radius:4px;">${meta} N</kbd>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 10px;background:rgba(184,168,120,.10);border-radius:6px;">
+          <span>Página com template</span><kbd style="font-family:Menlo,monospace;font-size:12px;background:#FFFEF8;border:1px solid #B8A878;padding:2px 8px;border-radius:4px;">${meta} T</kbd>
         </div>
         <div style="display:flex;justify-content:space-between;padding:8px 10px;background:rgba(184,168,120,.10);border-radius:6px;">
           <span>Nova pasta</span><kbd style="font-family:Menlo,monospace;font-size:12px;background:#FFFEF8;border:1px solid #B8A878;padding:2px 8px;border-radius:4px;">${meta} ⇧ N</kbd>
@@ -47140,6 +47196,55 @@ function _bunkoOpenSortMenu(evt) {
     { mode:'size',    label:'Tamanho' },
   ];
   pop.innerHTML = opts.map(o => `<button class="bunko-sort-opt ${_bunkoState.sortMode === o.mode ? 'is-active' : ''}" data-sort="${o.mode}" onclick="_bunkoSetSort('${o.mode}')">${_bunkoState.sortMode === o.mode ? '✓ ' : '&nbsp;&nbsp;&nbsp;'}${_esc(o.label)}</button>`).join('');
+  _bunkoShowPopover(pop, evt);
+}
+
+// Menu "+ Novo" (caret do split-button): página em branco / com template / subpasta
+function _bunkoOpenCreateMenu(evt) {
+  evt?.stopPropagation();
+  _bunkoClosePopover();
+  const pop = document.createElement('div');
+  pop.className = 'bunko-popover bunko-popover-create';
+  pop.id = 'bunko-popover';
+  pop.innerHTML = `
+    <button onclick="_bunkoClosePopover(); _bunkoCreatePage(_bunkoState.currentFolderId)">
+      <span class="bunko-pop-ic">✨</span>
+      <span class="bunko-pop-txt"><strong>Página em branco</strong><small>Começa do zero</small></span>
+    </button>
+    <button onclick="_bunkoClosePopover(); _bunkoOpenTemplatePicker()">
+      <span class="bunko-pop-ic">⚡</span>
+      <span class="bunko-pop-txt"><strong>Página com template</strong><small>Reunião 1:1, Contrato, OKR…</small></span>
+    </button>
+    <div class="divider"></div>
+    <button onclick="_bunkoClosePopover(); _bunkoCreateFolder(_bunkoState.currentFolderId)">
+      <span class="bunko-pop-ic">📁</span>
+      <span class="bunko-pop-txt"><strong>Subpasta</strong><small>Organize itens em pastas aninhadas</small></span>
+    </button>
+    <button onclick="_bunkoClosePopover(); document.getElementById('bunko-main-content').dispatchEvent(new Event('click'))" style="display:none;"></button>`;
+  _bunkoShowPopover(pop, evt);
+}
+
+// Menu overflow (⋯): ações utilitárias e destrutivas
+function _bunkoOpenOverflowMenu(evt) {
+  evt?.stopPropagation();
+  _bunkoClosePopover();
+  const pop = document.createElement('div');
+  pop.className = 'bunko-popover';
+  pop.id = 'bunko-popover';
+  pop.innerHTML = `
+    <button onclick="_bunkoClosePopover(); _bunkoDownloadFolderZip(_bunkoState.currentFolderId)">
+      <span class="bunko-pop-ic">⤓</span>
+      <span class="bunko-pop-txt">Baixar pasta como <strong>.zip</strong></span>
+    </button>
+    <button onclick="_bunkoClosePopover(); _bunkoShowShortcutsHelp()">
+      <span class="bunko-pop-ic">⌨</span>
+      <span class="bunko-pop-txt">Atalhos do teclado</span>
+    </button>
+    <div class="divider"></div>
+    <button class="is-danger" onclick="_bunkoClosePopover(); _bunkoCleanupStale()" title="Marca como falhas as gravações que ficaram presas em ‘processando’">
+      <span class="bunko-pop-ic">↺</span>
+      <span class="bunko-pop-txt">Limpar gravações presas</span>
+    </button>`;
   _bunkoShowPopover(pop, evt);
 }
 
