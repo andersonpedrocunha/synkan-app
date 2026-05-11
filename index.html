@@ -7654,12 +7654,29 @@ async function _settingsResyncPlan() {
 
 // Cache do status raw da assinatura (active/incomplete/past_due/etc) pra UI
 let _currentSubscriptionStatus = null;
+
+// Emails internos com Faixa Preta automática (time Synkan, devs, contas demo).
+// Tem prioridade sobre o subscriptions table — override pra ter acesso total.
+const _INTERNAL_FAIXA_PRETA_EMAILS = [
+  'contato@synkan.com.br',
+];
+
 async function loadPlanFromSupabase() {
   if (typeof supaClient === 'undefined' || !supaClient || !supaUser) {
     _currentPlan = 'trial';
     _currentSubscriptionStatus = null;
     return _currentPlan;
   }
+  // Override pra emails internos — Faixa Preta automática, ignora subscriptions
+  try {
+    const email = (supaUser?.email || '').toLowerCase().trim();
+    if (email && _INTERNAL_FAIXA_PRETA_EMAILS.includes(email)) {
+      _currentPlan = 'faixa_preta';
+      _currentSubscriptionStatus = 'active';
+      console.log(`[plan] email interno detectado (${email}) — Faixa Preta automática`);
+      return _currentPlan;
+    }
+  } catch(_){}
   // Usa fetch REST direto em vez de supaClient.from() pra evitar o "auth-token
   // lock contention" do supabase-js (Promise fica pending indefinidamente em
   // múltiplas tabs ou após sessões longas).
