@@ -44414,24 +44414,59 @@ class _SynkanBgProcessor {
         this._maskCanvas.width = mw;
         this._maskCanvas.height = mh;
       }
+      // Constrói máscara: branco+opaco onde é PESSOA. No selfie_segmenter
+      // landscape, valor 0 = pessoa (foreground), 255 (ou !=0) = bg. Tinha
+      // tava invertido — o efeito aparecia DENTRO da pessoa em vez do fundo.
       const maskImg = this._maskCtx.createImageData(mw, mh);
       const px = maskImg.data;
       for (let i = 0; i < maskU8.length; i++) {
         const o = i * 4;
-        // selfie_segmenter_landscape: 0 = bg, 1 = pessoa
-        const isPerson = maskU8[i] !== 0;
+        const isPerson = maskU8[i] === 0;
         if (isPerson) { px[o] = 255; px[o+1] = 255; px[o+2] = 255; px[o+3] = 255; }
         else          { px[o] = 0;   px[o+1] = 0;   px[o+2] = 0;   px[o+3] = 0;   }
       }
       this._maskCtx.putImageData(maskImg, 0, 0);
 
-      // Composição em 3 passos:
-      // 1) Limpa
+      // ── Temporal smoothing ─────────────────────────────────────────────
+      // Sem isso, cada frame o MediaPipe entrega máscara um pouco diferente
+      // (borda treme/pisca como gelatina). Mistura 70% da máscara ANTERIOR
+      // + 30% da NOVA — bordas ficam estáveis sem perder responsividade.
+      if (!this._smoothCanvas) {
+        this._smoothCanvas = document.createElement('canvas');
+        this._smoothCtx = this._smoothCanvas.getContext('2d');
+      }
+      if (this._smoothCanvas.width !== w || this._smoothCanvas.height !== h) {
+        this._smoothCanvas.width = w;
+        this._smoothCanvas.height = h;
+      }
+      // Desenha a máscara nova em alta resolução (escala bilinear suaviza)
+      const sctx = this._smoothCtx;
+      sctx.globalAlpha = 1;
+      sctx.globalCompositeOperation = 'source-over';
+      // Se já tem máscara anterior, mantém 70% e mistura 30% da nova
+      if (this._hasPrevMask) {
+        sctx.globalAlpha = 0.30;
+      } else {
+        // primeiro frame: 100% da nova
+        sctx.clearRect(0, 0, w, h);
+        sctx.globalAlpha = 1;
+      }
+      sctx.imageSmoothingEnabled = true;
+      sctx.imageSmoothingQuality = 'high';
+      sctx.drawImage(this._maskCanvas, 0, 0, w, h);
+      sctx.globalAlpha = 1;
+      this._hasPrevMask = true;
+
+      // Composição final usando a máscara suavizada (smoothCanvas):
+      // 1) Limpa o canvas de saída
       ctx.clearRect(0, 0, w, h);
-      // 2) Desenha máscara (escala bilinear suaviza bordas naturalmente)
+      // 2) Desenha máscara suavizada
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(this._maskCanvas, 0, 0, w, h);
+      // Aplica blur leve nas bordas pra feathering (igual Meet/Zoom)
+      ctx.filter = 'blur(2px)';
+      ctx.drawImage(this._smoothCanvas, 0, 0, w, h);
+      ctx.filter = 'none';
       // 3) Usa máscara como alpha → desenha video só onde a pessoa está
       ctx.globalCompositeOperation = 'source-in';
       ctx.drawImage(v, 0, 0, w, h);
@@ -44477,6 +44512,10 @@ class _SynkanBgProcessor {
       try { this._video.srcObject = null; } catch(_){}
       this._video = null;
     }
+    // Reseta smoothing — próximo processor começa do zero, sem máscara residual
+    this._smoothCanvas = null;
+    this._smoothCtx = null;
+    this._hasPrevMask = false;
     this.processedTrack = null;
   }
 
