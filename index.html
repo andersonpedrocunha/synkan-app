@@ -45806,15 +45806,18 @@ async function _lkStartRecording() {
     const startUrl = `${cfg?.url}/functions/v1/livekit-recording/start`;
     const session = await c.auth.getSession();
     const jwt = session?.data?.session?.access_token;
+    // Pega o nome real da sala que LK retornou após connect
+    const roomName = ext.lk.room?.name || ext.lk.livekitRoom;
+    console.log('[lk-rec] START Egress — recordingId:', recordingId, 'roomName:', roomName, '(room.name:', ext.lk.room?.name, '/ stored:', ext.lk.livekitRoom, ')');
     const r = await fetch(startUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
-      // Usa room.name (nome real conectado no LK servers) — fallback pra valor armazenado
       body: JSON.stringify({
         recording_id: recordingId,
-        room_name: ext.lk.room?.name || ext.lk.livekitRoom,
+        room_name: roomName,
       }),
     });
+    console.log('[lk-rec] resposta Egress:', r.status, r.statusText);
     if (!r.ok) {
       const errText = await r.text().catch(()=>'');
       const isRoomNotFound = /not_found|requested room does not exist/i.test(errText);
