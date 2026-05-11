@@ -45771,8 +45771,20 @@ function _lkCloseRecConsent() {
 }
 
 async function _lkStartRecording() {
+  console.log('🎬 [lk-rec] _lkStartRecording() chamado!');
   _lkCloseRecConsent();
-  const ext = _chatState.extended; if (!ext?.lk?.connected) return;
+  const ext = _chatState.extended;
+  console.log('🎬 [lk-rec] state check — ext.lk:', !!ext?.lk, 'connected:', ext?.lk?.connected, 'sessionId:', ext?.lk?.sessionId, 'channelId:', ext?.channelId);
+  if (!ext?.lk) {
+    appAlert('Estado perdido', 'A sessão LiveKit não está mais ativa. Saia e entre de novo no tatame.', { icon:'⚠️' });
+    return;
+  }
+  if (!ext.lk.connected) {
+    appAlert('Não conectado',
+      'A chamada não está conectada no momento (talvez tenha caído). Verifique a conexão e tente novamente.',
+      { icon:'⚠️' });
+    return;
+  }
   if (!_lkCanRecord()) {
     appAlert('Gravação requer Faixa Preta',
       'A gravação de chamadas é feature do plano Faixa Preta. Faça upgrade em Configurações → Plano.',
@@ -45780,9 +45792,14 @@ async function _lkStartRecording() {
     return;
   }
 
-  const c = _ensureSupaClient(); if (!c) return;
+  const c = _ensureSupaClient();
+  if (!c) {
+    appAlert('Sem Supabase', 'Cliente Supabase não disponível. Recarregue a página.', { icon:'⚠️' });
+    return;
+  }
   const ch = _chatState.channels.find(x => x.id === ext.channelId) || {};
   // 1) Cria recording pendente no banco
+  console.log('🎬 [lk-rec] criando recording no banco — session:', ext.lk.sessionId, 'channel:', ext.channelId);
   let recordingId;
   try {
     const { data, error } = await c.rpc('create_recording_pending', {
@@ -45794,9 +45811,12 @@ async function _lkStartRecording() {
     });
     if (error) throw error;
     recordingId = data.recording_id;
+    console.log('🎬 [lk-rec] ✓ recording criado no banco, id:', recordingId);
   } catch(e) {
-    console.error('[lk] create recording:', e);
-    appAlert('Erro', 'Não consegui registrar a gravação: ' + (e?.message || e), { icon: '⚠️' });
+    console.error('🎬 [lk-rec] create recording:', e);
+    appAlert('Erro ao criar recording',
+      'Falhou no banco: ' + (e?.message || e) + '\n\nA migration MIGRATION_TATAME_RECORDINGS.sql foi executada?',
+      { icon: '⚠️' });
     return;
   }
 
