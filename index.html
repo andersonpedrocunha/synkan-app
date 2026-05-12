@@ -50860,31 +50860,26 @@ async function _bunkoDownloadRecording(recordingId) {
     const dtStr = `${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')}-${dt.getFullYear()}`;
     const safeTitle = (rec?.title || 'gravacao').replace(/[^\w\s\-]/g,'').replace(/\s+/g,'_').slice(0,60);
     const filename = `${safeTitle}_${dtStr}.mp4`;
-    // Trigger download via <a download>. Como a URL é cross-origin (R2), o atributo download
-    // pode não funcionar em todos os browsers — então a gente cai pra fetch+blob como fallback.
-    try {
-      const a = document.createElement('a');
-      a.href = j.url;
-      a.download = filename;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      if (typeof _showKanWarning === 'function') {
-        _showKanWarning('Download iniciado ✓', 'Se o navegador apenas abrir o vídeo em vez de baixar, clique direito → Salvar como.', 'success');
-      }
-    } catch(e) {
-      // Fallback: fetch + blob
-      const blob = await (await fetch(j.url)).blob();
-      const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = objUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(objUrl), 60000);
+    // ━━ fetch + blob ━━
+    // Cross-origin sem `target=_blank`. Browser baixa direto, sem abrir aba.
+    // Mostra "Baixando..." durante o fetch.
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Baixando vídeo…', 'Aguarde, isso pode levar alguns segundos.', 'info');
+    }
+    const resp = await fetch(j.url);
+    if (!resp.ok) throw new Error(`R2 retornou HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 60000);
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Download iniciado ✓', `Salvando como <strong>${_esc(filename)}</strong>.`, 'success');
     }
   } catch(e) {
     appAlert('Erro ao baixar', e?.message || String(e), { icon:'⚠️' });
