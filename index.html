@@ -33013,10 +33013,11 @@ async function _synOpenDealModal(dealId, presetStageId) {
             </select>
           </div>
           <div class="syn-field">
-            <label>Contato</label>
-            <select id="syn-d-contact">
+            <label>Contato <span style="font-weight:400;color:var(--color-text-tertiary);font-size:11px;">· cliente/lead vinculado</span></label>
+            <select id="syn-d-contact" onchange="if(this.value==='__new__'){_synCreateContactInline('syn-d-contact')}">
               <option value="">— sem contato —</option>
-              ${contacts.map(c => `<option value="${_esc(c.id)}" ${c.id === deal?.contact_id ? 'selected' : ''}>${_esc(c.name)}</option>`).join('')}
+              ${contacts.map(c => `<option value="${_esc(c.id)}" ${c.id === deal?.contact_id ? 'selected' : ''}>${_esc(c.name)}${c.type==='lead'?' · lead':c.type==='cliente'?' · cliente':''}</option>`).join('')}
+              <option value="__new__" style="font-weight:600;color:#3B6D11;">+ Criar novo contato…</option>
             </select>
           </div>
         </div>
@@ -33112,16 +33113,56 @@ async function _synRenderDealContacts(dealId) {
       }).join('')}
     </div>
     <div style="display:flex;gap:6px;align-items:center;">
-      <select id="syn-d-addcontact" style="flex:1;border:0.5px solid var(--color-border-secondary);border-radius:7px;padding:7px 10px;font-size:12.5px;font-family:inherit;background:var(--color-background-primary);">
+      <select id="syn-d-addcontact" style="flex:1;border:0.5px solid var(--color-border-secondary);border-radius:7px;padding:7px 10px;font-size:12.5px;font-family:inherit;background:var(--color-background-primary);" onchange="if(this.value==='__new__'){_synCreateContactInline('syn-d-addcontact','${_esc(dealId)}')}">
         <option value="">+ Adicionar pessoa…</option>
         ${others.map(c => `<option value="${_esc(c.id)}">${_esc(c.name)}${c.email?` · ${_esc(c.email)}`:''}</option>`).join('')}
+        <option value="__new__" style="font-weight:600;color:#3B6D11;">+ Criar novo contato…</option>
       </select>
       <select id="syn-d-addrole" style="border:0.5px solid var(--color-border-secondary);border-radius:7px;padding:7px 8px;font-size:12px;font-family:inherit;background:var(--color-background-primary);">
         ${roleOptions.filter(r=>r!=='principal').map(r => `<option value="${r}">${r}</option>`).join('')}
       </select>
-      <button class="syn-btn-secondary" onclick="(async()=>{const id=document.getElementById('syn-d-addcontact').value;const role=document.getElementById('syn-d-addrole').value;if(id){await _synAddDealContact('${_esc(dealId)}',id,role);_synRenderDealContacts('${_esc(dealId)}');}})()">+</button>
+      <button class="syn-btn-secondary" onclick="(async()=>{const id=document.getElementById('syn-d-addcontact').value;const role=document.getElementById('syn-d-addrole').value;if(id && id!=='__new__'){await _synAddDealContact('${_esc(dealId)}',id,role);_synRenderDealContacts('${_esc(dealId)}');}})()">+</button>
+    </div>
+    <div style="margin-top:6px;font-size:10.5px;color:var(--color-text-tertiary);font-style:italic;">
+      💡 Sem contatos? Clica em <strong>"+ Criar novo contato"</strong> no dropdown — abre o cadastro sem sair desse modal.
     </div>
   `;
+}
+
+// Cria um contato inline (sem fechar o modal de deal). Após salvar, pré-seleciona
+// o contato recém-criado no select de origem.
+function _synCreateContactInline(targetSelectId, dealIdForMulti) {
+  // Reset o select pra "sem contato" enquanto o usuário cria
+  const sel = document.getElementById(targetSelectId);
+  if (sel) sel.value = '';
+  // Define callback que vai disparar quando o cadastro salvar
+  _contactSaveCallback = async (newId) => {
+    // Recarrega contatos da cloud pra incluir o recém-criado
+    if (typeof _synInitCloud === 'function') await _synInitCloud({ force: true });
+    // Re-popula o select com o novo
+    if (targetSelectId === 'syn-d-contact') {
+      // Re-render do select principal: encontra o select e adiciona o novo
+      const s = document.getElementById('syn-d-contact');
+      if (s) {
+        // Rebuild options
+        const contacts = (_contacts || []).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+        s.innerHTML = `<option value="">— sem contato —</option>
+          ${contacts.map(c => `<option value="${_esc(c.id)}">${_esc(c.name)}${c.type==='lead'?' · lead':c.type==='cliente'?' · cliente':''}</option>`).join('')}
+          <option value="__new__" style="font-weight:600;color:#3B6D11;">+ Criar novo contato…</option>`;
+        s.value = newId;
+      }
+    } else if (targetSelectId === 'syn-d-addcontact' && dealIdForMulti) {
+      // Multi-contato: re-render da seção inteira (vai mostrar o novo no dropdown)
+      _synRenderDealContacts(dealIdForMulti);
+      // E auto-vincula direto como participante
+      const roleEl = document.getElementById('syn-d-addrole');
+      const role = roleEl?.value || 'outros';
+      await _synAddDealContact(dealIdForMulti, newId, role);
+      _synRenderDealContacts(dealIdForMulti);
+    }
+  };
+  // Abre o modal de cadastro
+  if (typeof openContactModal === 'function') openContactModal();
 }
 
 // ── Renderiza cards do Kanban vinculados ────────────────────────────
