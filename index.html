@@ -33130,13 +33130,20 @@ async function _synRenderDealContacts(dealId) {
 }
 
 // Cria um contato inline (sem fechar o modal de deal). Após salvar, pré-seleciona
-// o contato recém-criado no select de origem.
+// o contato recém-criado no select de origem. Bumpa o z-index do reg-modal
+// pra ele aparecer NA FRENTE do modal de deal (default 9600 < deal 9800).
 function _synCreateContactInline(targetSelectId, dealIdForMulti) {
   // Reset o select pra "sem contato" enquanto o usuário cria
   const sel = document.getElementById(targetSelectId);
   if (sel) sel.value = '';
+  // Bumpa o z-index do reg-modal pra ficar na frente do modal de deal
+  const regModal = document.getElementById('reg-modal');
+  const prevZ = regModal ? regModal.style.zIndex : '';
+  if (regModal) regModal.style.zIndex = '9900';
   // Define callback que vai disparar quando o cadastro salvar
   _contactSaveCallback = async (newId) => {
+    // Restaura z-index
+    if (regModal) regModal.style.zIndex = prevZ;
     // Recarrega contatos da cloud pra incluir o recém-criado
     if (typeof _synInitCloud === 'function') await _synInitCloud({ force: true });
     // Re-popula o select com o novo
@@ -33161,6 +33168,24 @@ function _synCreateContactInline(targetSelectId, dealIdForMulti) {
       _synRenderDealContacts(dealIdForMulti);
     }
   };
+  // Hook adicional: se o usuário CANCELAR o cadastro, restaura z-index também
+  const restoreOnClose = () => {
+    if (regModal && !regModal.classList.contains('open')) {
+      regModal.style.zIndex = prevZ;
+      regModal.removeEventListener('transitionend', restoreOnClose);
+    }
+  };
+  // Observa por algumas tentativas se o modal fechou (cobre cancel/X)
+  let tries = 0;
+  const watchdog = setInterval(() => {
+    tries++;
+    if (!regModal || !regModal.classList.contains('open')) {
+      if (regModal) regModal.style.zIndex = prevZ;
+      clearInterval(watchdog);
+    } else if (tries > 600) { // 10 min — desiste
+      clearInterval(watchdog);
+    }
+  }, 1000);
   // Abre o modal de cadastro
   if (typeof openContactModal === 'function') openContactModal();
 }
