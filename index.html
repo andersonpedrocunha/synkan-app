@@ -7675,10 +7675,16 @@ body.tx-active .belt-ring::after{
 </div>
 
 <div class="ov" id="ov-tour">
-  <div class="modal" style="width:480px;max-width:96vw;text-align:center;padding:32px;">
-    <div id="tour-content"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:24px;">
-      <button class="btn-c" onclick="skipTour()">Pular tour</button>
+  <div class="modal" style="width:540px;max-width:96vw;text-align:center;padding:36px 36px 28px;position:relative;">
+    <!-- Barra de progresso visual no topo (pontinhos) -->
+    <div id="tour-dots" style="display:flex;gap:5px;justify-content:center;margin-bottom:24px;"></div>
+    <div id="tour-content" style="min-height:240px;"></div>
+    <!-- Footer: voltar · progresso textual · próximo -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:24px;padding-top:18px;border-top:1px solid var(--color-border-tertiary);">
+      <div style="display:flex;gap:6px;">
+        <button class="btn-c" id="tour-skip" onclick="skipTour()" style="font-size:12px;">Pular tour</button>
+        <button class="btn-c" id="tour-prev" onclick="tourPrev()" style="font-size:12px;display:none;">← Voltar</button>
+      </div>
       <span id="tour-progress" style="font-size:11px;color:var(--color-text-tertiary);"></span>
       <button class="btn-s" id="tour-next" onclick="tourNext()">Próximo →</button>
     </div>
@@ -27036,57 +27042,72 @@ Card a classificar: "${name}"`;
 }
 
 // ── Tour guiado de onboarding ────────────────────────────────────────
-const TOUR_KEY = 'kanban_v9_tour_done'; // bump pra mostrar tour atualizado
+const TOUR_KEY = 'kanban_v10_tour_done'; // bump v10 — revisão completa + Bunko destacado
 const TOUR_STEPS = [
+  // ━━ ATO 1: BOAS-VINDAS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     icon: '👋',
     title: 'Bem-vindo ao Synkan',
-    body: 'Workspace completo pra rodar seu negócio: kanbans, CRM, OKRs, financeiro, reuniões com IA e base de conhecimento — tudo conectado. Em 2 minutos você vê tudo.',
+    body: 'Workspace completo pra rodar seu negócio sem pular entre 10 ferramentas. Em 2 minutos você conhece o essencial.<br/><br/><em>Pode pular o tour a qualquer momento — sempre dá pra refazer em Configurações.</em>',
   },
+
+  // ━━ ATO 2: ONDE O TRABALHO MORA ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     icon: '⌂',
-    title: 'Home — painel global',
-    body: 'Cards de TODOS os módulos: o que é pra hoje, follow-ups do CRM, gravações pra revisar, metas do mês. É a tela inicial e o seu radar diário.',
+    title: 'Home — seu radar diário',
+    body: 'A tela inicial mostra cards de <strong>TODOS os módulos</strong> no mesmo lugar: o que é pra hoje, follow-ups do CRM, deals esquentando, metas do mês. Comece e termine o dia aqui.',
   },
   {
     icon: '▤',
-    title: 'Boards, OKRs e Zai (financeiro)',
-    body: '<strong>Boards</strong> são seus kanbans (Dev, Marketing, etc). <strong>OKRs</strong> rastreiam objetivos com Key Results numéricos. <strong>Zai</strong> são boards financeiros com valor/categoria por card — fluxo de caixa e DRE visuais.',
+    title: 'Boards · OKRs · Zai (financeiro)',
+    body: '<strong>Boards</strong> são seus kanbans (Dev, Marketing, Vendas).<br/><strong>OKRs</strong> rastreiam objetivos com Key Results numéricos.<br/><strong>Zai</strong> são boards financeiros: cada card tem valor/categoria/tipo, e o sistema calcula burn rate + runway sozinho.',
   },
+
+  // ━━ ATO 3: RELACIONAMENTO COM CLIENTES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     icon: '🤝',
-    title: 'Synconnect — CRM completo',
-    body: 'Pipeline kanban arrastável, deals com múltiplos contatos, atividades automáticas, Customer 360 com tudo vinculado (cards, transcrições, mensagens, deals). Captação vira leads que entram automaticamente no funil. Tem metas mensais, funil visual, workflows, webhooks e exportação CSV.',
+    title: 'Synconnect — seu CRM completo',
+    body: '<strong>Pipeline kanban arrastável</strong> com estágios customizáveis. Deals com múltiplos contatos (decisor + técnico + influenciador). Atividades automáticas. <strong>Customer 360</strong> mostra tudo do contato (cards, transcrições, mensagens, deals) numa tela. Captação de leads cai direto no funil.',
   },
+
+  // ━━ ATO 4: REUNIÕES INTELIGENTES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     icon: '畳',
-    title: 'Tatami — chat + tatame ao vivo + gravação',
-    body: '<strong>Tatami</strong>: canais de equipe, DMs e <strong>tatame ao vivo</strong> (vídeo + voz + workspace compartilhado). Pode <strong>gravar a reunião em MP4</strong>, compartilhar tela do Synkan dentro da gravação, e ter os <strong>efeitos de câmera</strong> (Sumi-ê, Hokusai, Sakura).',
+    title: 'Tatami — chat + reunião ao vivo',
+    body: 'Canais e DMs do time. Pra reunião de verdade: <strong>"Subir no tatame"</strong> abre sala com vídeo HD, voz e workspace compartilhado. <strong>Grava em MP4 1080p</strong> com 1 clique — termina pronto pra assistir no Bunko Box. Tem ainda <strong>efeitos de câmera</strong> Sumi-ê, Hokusai e Sakura.',
   },
   {
-    icon: 'mk', // marker especial — render usa avatar do Mestre Kan
-    title: 'Mestre Kan — transcrição ao vivo',
-    body: 'No tatame, ativa o Mestre Kan: ele <strong>transcreve em tempo real</strong> tudo que é dito. Você assiste a reunião normalmente e no fim sai um <strong>pergaminho com a transcrição completa</strong>, salva automaticamente no Bunko Box. Tudo gratuito.',
+    icon: 'mk', // avatar PNG do Mestre Kan
+    title: 'Mestre Kan transcreve a reunião',
+    body: 'Durante o tatame, ativa o Mestre Kan. Ele <strong>transcreve em tempo real</strong> tudo o que é dito. No fim sai um <strong>pergaminho completo</strong> com a transcrição, salvo automaticamente no Bunko Box.<br/><br/><strong>🧘 Transcrição é gratuita — pode usar à vontade.</strong>',
   },
+
+  // ━━ ATO 5: BASE DE CONHECIMENTO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     icon: '📦',
-    title: 'Bunko Box — base de conhecimento',
-    body: 'Tudo que vira "memória" mora aqui: páginas markdown editáveis, transcrições de reuniões, gravações MP4 pra rever, arquivos arrastados. Pinne com <strong>⚡ Acesso rápido</strong>. Os ⋯ tem opções de baixar, mover, exportar Word — e nas gravações tem <strong>baixar MP4</strong>.',
+    title: 'Bunko Box — a memória do workspace',
+    body: 'Tudo que vale guardar vive aqui:<br/>· <strong>Páginas markdown</strong> editáveis com anexos<br/>· <strong>Transcrições</strong> do Mestre Kan (entram sozinhas)<br/>· <strong>Gravações MP4</strong> com play e download<br/>· <strong>Arquivos arrastados</strong> em pastas<br/><br/>Use <strong>⚡ Acesso rápido</strong> nos ⋯ pra fixar o que abre todo dia no topo.',
   },
+
+  // ━━ ATO 6: IA TRANSPARENTE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     icon: '⚔️',
-    title: 'Onde a katana corta (IA paga)',
-    body: 'Funções que <strong>consomem chamada</strong> do seu pacote: extrair ações da transcrição, resumir página, gerar resumo de contato 360, briefing diário do CRM, próxima ação por deal. Sempre opt-in — você clica explicitamente. Veja a lista completa em <strong>menu → O Caminho do Mestre</strong>.',
+    title: 'IA: o que é grátis e o que consome chamada',
+    body: '<strong>🧘 Grátis (use à vontade):</strong> transcrição, busca, exportar Word, navegação.<br/><br/><strong>⚔️ Consome IA (opt-in, você clica):</strong> extrair ações da transcrição, resumir página, Customer 360 narrativo, daily brief CRM, próxima ação por deal.<br/><br/>Veja a lista completa em <strong>menu → O Caminho do Mestre</strong>.',
   },
+
+  // ━━ ATO 7: PRODUTIVIDADE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     icon: '⌘',
-    title: 'Atalhos de produtividade',
-    body: '<kbd>Cmd+K</kbd> busca global (contatos, deals, páginas, cards, transcrições). <kbd>N</kbd> novo card. <kbd>?</kbd> lista todos os atalhos. <kbd>G S</kbd> abre Configurações.',
+    title: 'Busca global e atalhos',
+    body: '<kbd>Cmd+K</kbd> · busca em <strong>tudo</strong>: contatos, deals, páginas, cards, transcrições.<br/><kbd>N</kbd> · novo card<br/><kbd>?</kbd> · todos os atalhos<br/><kbd>G S</kbd> · Configurações',
   },
+
+  // ━━ ATO 8: COMEÇO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     icon: '🎴',
-    title: 'Pronto pra subir no tatame',
-    body: 'Em <strong>Configurações → Conta</strong> você pode carregar <strong>dados de exemplo</strong> prefixados [Exemplo] — board financeiro, OKR, contatos, leads, transcrição demo. Apague quando quiser. Bons treinos.',
+    title: 'Pronto pra começar',
+    body: 'Pra explorar tudo de uma vez, abre <strong>Configurações → Conta → Carregar dados de exemplo</strong>. Cria 1 board, 1 OKR, 5 contatos, 1 deal, 1 lead, 1 transcrição demo no Bunko — todos prefixados <strong>[Exemplo]</strong>, apagáveis individualmente.<br/><br/>Bons treinos. 🧘',
   },
 ];
 
@@ -27111,13 +27132,30 @@ function renderTourStep() {
   // 'mk' ou '🥋' → mostra a arte oficial do Mestre Kan; senão renderiza o emoji/símbolo
   const useMestreAvatar = s.icon === 'mk' || s.icon === '🥋';
   const iconHTML = useMestreAvatar
-    ? `<div style="display:flex;justify-content:center;margin-bottom:12px;"><img class="kan-avatar xl" src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" style="width:88px;height:88px;border-radius:50%;border:2px solid #BC002D;box-shadow:0 6px 18px rgba(0,0,0,.25);" onerror="this.outerHTML='<div style=\\'font-size:42px;\\'>🧘</div>'"/></div>`
-    : `<div style="font-size:42px;margin-bottom:12px;">${s.icon}</div>`;
+    ? `<div style="display:flex;justify-content:center;margin-bottom:14px;"><img class="kan-avatar xl" src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" style="width:88px;height:88px;border-radius:50%;border:2px solid #BC002D;box-shadow:0 6px 18px rgba(0,0,0,.25);" onerror="this.outerHTML='<div style=\\'font-size:46px;\\'>🧘</div>'"/></div>`
+    : `<div style="font-size:46px;margin-bottom:14px;line-height:1;">${s.icon}</div>`;
   document.getElementById('tour-content').innerHTML = `
     ${iconHTML}
-    <div style="font-size:20px;font-weight:600;margin-bottom:10px;color:var(--color-text-primary);">${s.title}</div>
-    <div style="font-size:14px;color:var(--color-text-secondary);line-height:1.5;">${s.body}</div>
+    <div style="font-size:21px;font-weight:600;margin-bottom:12px;color:var(--color-text-primary);letter-spacing:-.01em;">${s.title}</div>
+    <div style="font-size:14px;color:var(--color-text-secondary);line-height:1.6;text-align:left;max-width:440px;margin:0 auto;">${s.body}</div>
   `;
+  // Pontinhos de progresso visual (atual destacado em vermelho, anteriores cheios, próximos vazios)
+  const dotsEl = document.getElementById('tour-dots');
+  if (dotsEl) {
+    dotsEl.innerHTML = TOUR_STEPS.map((_, i) => {
+      const isCurrent = i === _tourStep;
+      const isPast = i < _tourStep;
+      const w = isCurrent ? '24px' : '8px';
+      const bg = isCurrent ? '#BC002D'
+                : isPast    ? 'var(--color-text-tertiary)'
+                : 'var(--color-border-tertiary)';
+      return `<button type="button" onclick="_tourGoTo(${i})" title="Passo ${i+1}" style="width:${w};height:8px;border-radius:999px;background:${bg};border:none;cursor:pointer;padding:0;transition:all .25s;"></button>`;
+    }).join('');
+  }
+  // Botão voltar só aparece a partir do passo 2
+  const prevBtn = document.getElementById('tour-prev');
+  if (prevBtn) prevBtn.style.display = _tourStep > 0 ? '' : 'none';
+  // Progresso textual + texto do botão próximo
   document.getElementById('tour-progress').textContent = `${_tourStep+1} / ${TOUR_STEPS.length}`;
   document.getElementById('tour-next').textContent = (_tourStep === TOUR_STEPS.length-1) ? 'Começar →' : 'Próximo →';
 }
@@ -27125,6 +27163,18 @@ function renderTourStep() {
 function tourNext() {
   _tourStep++;
   if (_tourStep >= TOUR_STEPS.length) { finishTour(); return; }
+  renderTourStep();
+}
+
+function tourPrev() {
+  if (_tourStep <= 0) return;
+  _tourStep--;
+  renderTourStep();
+}
+
+function _tourGoTo(n) {
+  if (n < 0 || n >= TOUR_STEPS.length) return;
+  _tourStep = n;
   renderTourStep();
 }
 
