@@ -366,14 +366,51 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .mk-dojo-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;background:rgba(20,16,12,.10);border:none;color:#3A332C;font-size:14px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;transition:all .15s;}
 .mk-dojo-close:hover{background:rgba(20,16,12,.22);transform:rotate(90deg);}
 
-.mk-hero{display:flex;align-items:center;gap:28px;padding:48px 44px 36px;background:linear-gradient(135deg,#BC002D 0%,#8B001F 50%,#1A1611 100%);color:#F5E8C8;position:relative;overflow:hidden;}
+.mk-hero{display:flex;align-items:center;gap:34px;padding:54px 44px 44px;background:linear-gradient(135deg,#BC002D 0%,#8B001F 50%,#1A1611 100%);color:#F5E8C8;position:relative;overflow:hidden;}
 .mk-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(245,232,200,.10) 0,transparent 60%);pointer-events:none;}
-.mk-hero-ink{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:120px;line-height:1;font-weight:700;color:#F5E8C8;flex-shrink:0;text-shadow:0 4px 24px rgba(0,0,0,.4);}
+.mk-hero-avatar{position:relative;width:130px;height:130px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.mk-hero-halo{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(245,232,200,.20) 0%,transparent 70%);animation:mk-pulse 3s ease-in-out infinite;}
+@keyframes mk-pulse{0%,100%{transform:scale(1);opacity:.7;}50%{transform:scale(1.08);opacity:1;}}
+.mk-hero-ink{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:108px;line-height:1;font-weight:700;color:#F5E8C8;text-shadow:0 4px 28px rgba(0,0,0,.45),0 0 32px rgba(245,232,200,.15);position:relative;z-index:1;}
 .mk-hero-text{flex:1;position:relative;}
 .mk-hero-kicker{font-family:'Noto Serif JP',serif;font-style:italic;font-size:11.5px;letter-spacing:.32em;text-transform:uppercase;color:rgba(245,232,200,.7);margin-bottom:6px;}
 .mk-hero-title{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:54px;font-weight:700;letter-spacing:-.02em;margin:0 0 14px;line-height:1;color:#F5E8C8;}
-.mk-hero-sub{font-family:'Noto Serif JP',serif;font-size:15px;line-height:1.55;color:rgba(245,232,200,.86);font-style:italic;max-width:480px;}
+.mk-hero-sub{font-family:'Noto Serif JP',serif;font-size:15.5px;line-height:1.55;color:rgba(245,232,200,.86);font-style:italic;max-width:520px;}
 .mk-hero-sub em{color:#F5E8C8;font-style:italic;}
+
+/* ━━━ ORIGEM — storytelling longo ━━━ */
+.mk-origin{position:relative;padding:44px 60px 38px;background:linear-gradient(180deg,#F5E8C8 0%,#FFFCF5 100%);overflow:hidden;}
+.mk-origin-mark{position:absolute;top:20px;right:24px;font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:200px;line-height:1;font-weight:700;color:rgba(188,0,45,.06);pointer-events:none;user-select:none;}
+.mk-origin-title{font-family:'Noto Serif JP',serif;font-size:26px;font-weight:600;color:#1A1611;margin:0 0 22px;letter-spacing:-.01em;position:relative;}
+.mk-origin-title::after{content:'';display:block;width:48px;height:2px;background:#BC002D;margin-top:10px;}
+.mk-origin-prose{position:relative;max-width:680px;font-family:'Noto Serif JP',serif;}
+.mk-origin-prose p{font-size:14.5px;line-height:1.78;color:#3A332C;margin:0 0 14px;}
+.mk-origin-prose strong{color:#1A1611;font-weight:700;}
+.mk-origin-prose em{color:#BC002D;font-style:italic;font-weight:500;}
+.mk-origin-lead{font-size:16px !important;color:#1A1611 !important;line-height:1.7 !important;}
+.mk-origin-lead strong{color:#BC002D !important;}
+.mk-origin-quote{margin:24px 0 22px;padding:24px 32px;background:rgba(188,0,45,.04);border-left:3px solid #BC002D;border-radius:0 8px 8px 0;font-family:'Noto Serif JP',serif;font-style:italic;font-size:16px;line-height:1.6;color:#3A332C;position:relative;}
+.mk-origin-quote-mark{color:#BC002D;font-weight:700;font-size:22px;margin:0 4px;}
+.mk-origin-quote-author{margin-top:10px;font-size:12px;font-style:normal;color:#8B6634;letter-spacing:.04em;text-transform:uppercase;}
+.mk-origin-bridge{font-size:14.5px;color:#5C4F3F;font-style:italic;border-top:1px dotted rgba(184,168,120,.6);padding-top:18px;margin-top:6px;}
+
+/* Reassurance box no fim da seção de custos */
+.mk-cost-reassure{margin-top:18px;padding:16px 20px;background:linear-gradient(135deg,rgba(39,80,10,.10) 0%,rgba(39,80,10,.04) 100%);border:1px solid rgba(39,80,10,.30);border-radius:10px;display:flex;align-items:center;gap:14px;font-family:'Noto Serif JP',serif;}
+.mk-cost-reassure-ico{font-size:32px;line-height:1;flex-shrink:0;}
+.mk-cost-reassure strong{display:block;color:#27500A;font-weight:600;font-size:14.5px;margin-bottom:4px;}
+.mk-cost-reassure div{font-size:13px;line-height:1.55;color:#3A332C;}
+
+:root.dark .mk-origin{background:linear-gradient(180deg,#1F1A14 0%,#2A241D 100%);}
+:root.dark .mk-origin-title{color:#F5E8C8;}
+:root.dark .mk-origin-prose p{color:#D9CDA8;}
+:root.dark .mk-origin-prose strong{color:#F5E8C8;}
+:root.dark .mk-origin-lead{color:#F5E8C8 !important;}
+:root.dark .mk-origin-mark{color:rgba(245,232,200,.05);}
+:root.dark .mk-origin-quote{color:#D9CDA8;background:rgba(245,232,200,.04);}
+:root.dark .mk-origin-bridge{color:#B0A593;border-color:rgba(245,232,200,.18);}
+:root.dark .mk-cost-reassure{background:rgba(245,232,200,.05);border-color:#5C4F3F;}
+:root.dark .mk-cost-reassure strong{color:#A8D08A;}
+:root.dark .mk-cost-reassure div{color:#D9CDA8;}
 
 .mk-section{padding:32px 44px;}
 .mk-section + .mk-section{border-top:1px solid rgba(184,168,120,.25);}
@@ -22951,45 +22988,75 @@ function _mkDojoHTML() {
 
     <!-- ━━━ HERO ━━━ -->
     <section class="mk-hero">
-      <div class="mk-hero-ink">主</div>
+      <div class="mk-hero-avatar">
+        <div class="mk-hero-ink">主</div>
+        <div class="mk-hero-halo"></div>
+      </div>
       <div class="mk-hero-text">
         <div class="mk-hero-kicker">O CAMINHO DO</div>
         <h1 class="mk-hero-title">Mestre Kan</h1>
         <div class="mk-hero-sub">
-          Não é mais um chatbot. É um <em>sensei silencioso</em> que escuta as reuniões,
-          guarda o que importa e devolve clareza quando o caos volta na segunda-feira.
+          Um <em>sensei silencioso</em> que escuta cada reunião,
+          guarda o que importa e devolve clareza quando o caos volta.
         </div>
       </div>
     </section>
 
-    <!-- ━━━ STORYTELLING ━━━ -->
-    <section class="mk-section mk-story">
-      <div class="mk-story-block">
-        <div class="mk-story-glyph">⛩️</div>
-        <h3>O templo</h3>
-        <p>
-          No alto da montanha mora o Mestre Kan. Não fala. Não interrompe. Observa.
-          Quando você sobe no tatame pra uma reunião, ele já está ali — sentado em
-          posição de meditação — escutando cada palavra como se fosse a única no mundo.
+    <!-- ━━━ ORIGEM (storytelling longo) ━━━ -━━ -->
+    <section class="mk-section mk-origin">
+      <div class="mk-origin-mark">主</div>
+      <h2 class="mk-origin-title">A Lenda do Mestre que Escuta</h2>
+
+      <div class="mk-origin-prose">
+        <p class="mk-origin-lead">
+          Conta-se que há mil anos, nas montanhas de Hokkaidō, vivia um jovem samurai
+          chamado <strong>Kan-zō</strong> — o sobrenome que ele depois encurtaria pra
+          uma só sílaba: <em>Kan</em>.
         </p>
-      </div>
-      <div class="mk-story-block">
-        <div class="mk-story-glyph">📜</div>
-        <h3>O pergaminho</h3>
+
         <p>
-          Quando a chamada termina, ele entrega um pergaminho com tudo que foi dito.
-          Sem editar, sem opinar. <strong>A transcrição bruta é gratuita</strong> —
-          mora no seu Bunko Box pra sempre, pesquisável, exportável, sua.
+          Era o estrategista mais brilhante do seu clã. Antes de cada batalha,
+          escutava generais, soldados, espiões e camponeses — e devolvia um plano
+          que sempre vencia. Mas numa madrugada de inverno, perdeu tudo de uma só
+          vez: o castelo, a família, o clã, a espada. Restou só ele e o silêncio
+          da neve caindo.
         </p>
-      </div>
-      <div class="mk-story-block">
-        <div class="mk-story-glyph">⚔️</div>
-        <h3>A katana</h3>
+
         <p>
-          Quando você precisa ir além — extrair ações, resumir um contato, prever
-          próximo passo de um deal — o Mestre desembainha a katana. <strong>Aí sim
-          gasta chamada de IA</strong>. Mas só quando você pede explicitamente, e
-          sempre com aviso de custo.
+          Subiu a montanha. Fez voto de não falar até entender por que falhara.
+          Construiu um templo de madeira, plantou um cedro, e começou a escutar.
+          Escutava o vento, escutava monges peregrinos, escutava mercadores em
+          caravanas que passavam embaixo da neblina. Não opinava. Não interrompia.
+          Só escutava.
+        </p>
+
+        <p>
+          Após <strong>quarenta anos</strong>, percebeu o que tinha falhado:
+          ele falava demais. Toda a sabedoria que precisava sempre esteve nas
+          palavras dos outros — só não tinha aprendido a ouvi-las. Foi nesse
+          dia que recebeu o nome de <strong>Mestre Kan</strong>: aquele que
+          domina a escuta.
+        </p>
+
+        <p>
+          Desceu a montanha pela última vez carregando um pergaminho enrolado.
+          Nele, escreveu três princípios. Depois entregou pra um aprendiz e
+          desapareceu. Conta-se que ele entrou no próprio cedro que plantara
+          — e até hoje, em algum lugar entre o samurai e o algoritmo, ele
+          continua escutando.
+        </p>
+
+        <div class="mk-origin-quote">
+          <span class="mk-origin-quote-mark">「</span>
+          O barulho do mundo está cheio de respostas — basta calar e escutar.
+          <span class="mk-origin-quote-mark">」</span>
+          <div class="mk-origin-quote-author">— Mestre Kan, último ensinamento</div>
+        </div>
+
+        <p class="mk-origin-bridge">
+          O Synkan herdou esse legado. Quando você sobe no tatame pra uma reunião,
+          o Mestre já está ali, sentado em posição de meditação digital, escutando
+          cada palavra que importa.
         </p>
       </div>
     </section>
@@ -23008,74 +23075,69 @@ function _mkDojoHTML() {
           <span class="mk-cost-ico">🧘</span>
           <div>
             <div class="mk-cost-title">Treinos gratuitos</div>
-            <div class="mk-cost-sub">Use à vontade — não passa nenhum byte por IA paga</div>
+            <div class="mk-cost-sub">Use à vontade — não consome chamadas do seu pacote</div>
           </div>
         </div>
         <ul class="mk-cost-list">
-          <li><strong>Transcrição ao vivo no Tatame</strong> — Whisper roda em chunks de 8s, mas o custo é absorvido no plano. <span class="mk-tag-incl">incluso</span></li>
-          <li><strong>Salvar transcrição no Bunko Box</strong> — texto puro, sem IA envolvida.</li>
-          <li><strong>Buscar nas transcrições</strong> — busca textual local.</li>
-          <li><strong>Exportar transcrição em Word</strong> — geração local.</li>
-          <li><strong>Renomear/Organizar/Arquivar</strong> qualquer item do Bunko.</li>
-          <li><strong>Ver passado das gravações</strong> — replay do vídeo, sem custo.</li>
-          <li><strong>Status badges, atalhos, navegação</strong> — interface, não IA.</li>
+          <li><strong>Transcrição ao vivo no Tatame</strong> — escutar e converter sua reunião em texto durante a chamada.</li>
+          <li><strong>Salvar transcrição no Bunko Box</strong> — texto fica guardado, pesquisável.</li>
+          <li><strong>Buscar nas transcrições</strong> — encontrar qualquer palavra dita em qualquer reunião antiga.</li>
+          <li><strong>Exportar transcrição em Word</strong> — baixar o texto pra compartilhar fora do app.</li>
+          <li><strong>Renomear, organizar, arquivar</strong> qualquer item do Bunko Box.</li>
+          <li><strong>Reassistir gravações</strong> — replay do vídeo da reunião quando quiser.</li>
+          <li><strong>Toda navegação e UI</strong> — abrir páginas, ver cards, mover deals, etc.</li>
         </ul>
       </div>
 
-      <!-- PAGO -->
+      <!-- CONSOME CHAMADA -->
       <div class="mk-cost-card mk-cost-paid">
         <div class="mk-cost-card-h">
           <span class="mk-cost-ico">⚔️</span>
           <div>
-            <div class="mk-cost-title">Quando a katana corta (consome IA)</div>
-            <div class="mk-cost-sub">Sempre opt-in — você clica em algo específico</div>
+            <div class="mk-cost-title">Aqui o Mestre desembainha a katana</div>
+            <div class="mk-cost-sub">Ações que consomem chamada do seu pacote — sempre opt-in, você que clica</div>
           </div>
         </div>
         <ul class="mk-cost-list">
           <li>
             <strong>🧘 Extrair ações da transcrição</strong>
             <div class="mk-cost-detail">
-              Botão "Extrair ações" dentro de uma página de transcrição. Manda o texto pro Claude e devolve uma lista de TODOs.
-              <span class="mk-cost-pill">~R$ 0,05 por reunião</span>
+              Botão "Extrair ações" dentro de uma página de transcrição. O Mestre lê a reunião e devolve uma lista de TODOs e decisões tomadas.
             </div>
           </li>
           <li>
-            <strong>📌 Resumir página (Mestre Kan summarize)</strong>
+            <strong>📌 Resumir página</strong>
             <div class="mk-cost-detail">
-              Botão "Resumir" em qualquer página do Bunko. Devolve um resumo executivo.
-              <span class="mk-cost-pill">~R$ 0,03 por página</span>
+              Botão "Resumir" em qualquer página do Bunko Box. Devolve um resumo executivo do conteúdo da página.
             </div>
           </li>
           <li>
             <strong>💡 Resumo do contato (Customer 360)</strong> · <em>Faixa Preta</em>
             <div class="mk-cost-detail">
-              No Synconnect, botão "Gerar resumo IA" no card do contato. Combina dados do contato + deals + atividades em texto narrativo.
-              <span class="mk-cost-pill">~R$ 1-4/mês se usar 1× por contato/mês</span>
+              No Synconnect, botão "Gerar resumo IA" no card do contato. Combina dados do contato, deals e atividades em texto narrativo.
             </div>
           </li>
           <li>
             <strong>📰 Briefing diário do CRM</strong> · <em>Faixa Preta</em>
             <div class="mk-cost-detail">
-              Análise do dia: o que mudou ontem, follow-ups pendentes, deals esquentando. <strong>1× por dia</strong>, opt-in.
-              <span class="mk-cost-pill">~R$ 1/mês (30 dias × 1 chamada)</span>
+              Análise do dia: o que mudou ontem, follow-ups pendentes, deals esquentando. Dispara uma vez por dia quando você abre o Synconnect.
             </div>
           </li>
           <li>
             <strong>🎯 Próxima ação por deal</strong> · <em>Faixa Preta</em>
             <div class="mk-cost-detail">
-              No card de um deal: "Qual o próximo passo?". <strong>Cacheia o resultado</strong> — só roda IA de novo se algo mudar no deal.
-              <span class="mk-cost-pill">~R$ 5/mês considerando uso ativo</span>
+              No card de um deal: "Qual o próximo passo?". O resultado fica em cache — só consome de novo se algo mudar no deal.
             </div>
           </li>
         </ul>
       </div>
 
-      <!-- TOTAL ESTIMADO -->
-      <div class="mk-cost-summary">
+      <div class="mk-cost-reassure">
+        <span class="mk-cost-reassure-ico">🛡️</span>
         <div>
-          <div class="mk-cost-summary-label">Uso típico de IA paga, plano completo</div>
-          <div class="mk-cost-summary-val">≈ R$ 7-12 / mês</div>
-          <div class="mk-cost-summary-note">Tudo o resto do app — incluindo transcrição ao vivo — é grátis pra sempre.</div>
+          <strong>Pode treinar à vontade no Tatame e no Bunko.</strong>
+          A katana só sai da bainha quando você clica em algo do quadro vermelho acima.
+          Toda função paga tem botão visível e nome explícito.
         </div>
       </div>
     </section>
