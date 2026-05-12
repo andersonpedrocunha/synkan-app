@@ -50863,16 +50863,42 @@ async function _bunkoDownloadRecording(recordingId) {
     });
     const j = await r.json();
     if (!r.ok || !j.url) throw new Error(j.error || `HTTP ${r.status}`);
-    // Navega direto pra URL assinada — R2 responde com Content-Disposition: attachment
-    // → browser baixa sem abrir página (porque é attachment).
-    // Usamos location.assign que não cria nova aba.
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = j.url;
-    document.body.appendChild(iframe);
-    setTimeout(() => iframe.remove(), 30000);
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('Download iniciado ✓', `Salvando como <strong>${_esc(filename)}</strong>.`, 'success');
+    // ━━ Tenta fetch+blob primeiro (download silencioso se CORS permitir) ━━
+    let downloaded = false;
+    try {
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning('Baixando vídeo…', 'Aguarde, dependendo do tamanho pode levar alguns segundos.', 'info');
+      }
+      const resp = await fetch(j.url);
+      if (resp.ok) {
+        const blob = await resp.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objUrl;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(objUrl), 60000);
+        downloaded = true;
+        if (typeof _showKanWarning === 'function') {
+          _showKanWarning('Download concluído ✓', `Salvo como <strong>${_esc(filename)}</strong>.`, 'success');
+        }
+      }
+    } catch(corsErr) {
+      console.warn('[bunko] fetch falhou (CORS?), abrindo em nova aba', corsErr);
+    }
+    // ━━ Fallback: nova aba com URL assinada + Content-Disposition: attachment ━━
+    if (!downloaded) {
+      const win = window.open(j.url, '_blank');
+      if (typeof _showKanWarning === 'function') {
+        if (win) {
+          _showKanWarning('Download em nova aba ↗', 'Aguarde a aba abrir e o download começar. Se o vídeo aparecer no player, clica direito → "Salvar vídeo como…".', 'info');
+        } else {
+          _showKanWarning('Popup bloqueado', 'O browser bloqueou abrir nova aba. Permite popups pra este site e tenta de novo.', 'warning');
+        }
+      }
     }
   } catch(e) {
     appAlert('Erro ao baixar', e?.message || String(e), { icon:'⚠️' });
