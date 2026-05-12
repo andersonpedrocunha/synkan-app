@@ -13826,7 +13826,7 @@ const OB_STEPS = [
   {
     type: 'welcome',
     title: '🥋 Boas-vindas ao dojo',
-    body: 'Vou te mostrar o Synkan em <strong>10 passos rápidos</strong> — leva menos de 2 minutos.<br/><br/>A qualquer momento você pode pular e explorar por conta própria.',
+    body: 'Vou te mostrar o Synkan em <strong>12 passos rápidos</strong> — leva uns 2-3 minutos. Cobre todos os módulos: kanban, CRM, financeiro, OKRs, reuniões com gravação e o Mestre Kan IA.<br/><br/>A qualquer momento você pode pular e explorar por conta própria.',
     primary: 'Começar',
   },
   {
@@ -13861,27 +13861,40 @@ const OB_STEPS = [
   {
     target: '#sb-okrs',
     placement: 'right',
-    title: '◎ OKRs + Synconnect',
-    body: '<strong>OKRs</strong> conecta objetivos a key-results e cards reais nos boards — sai do papel e vira execução.<br/><br/><strong>Synconnect</strong> (logo abaixo) é seu módulo de <strong>contatos &amp; leads</strong>: cadastra clientes, fornecedores, prospects, captura leads via formulário público, converte direto em card. Ideal pra vendas e captação.',
+    title: '◎ OKRs · objetivos com KRs numéricos',
+    body: '<strong>OKRs</strong> conecta objetivos a Key Results mensuráveis e cards reais nos boards — sai do papel e vira execução. Filtros por trimestre, % de avanço calculado automático, vinculação com nodes do Lab.',
+    primary: 'Próximo',
+  },
+  {
+    target: '#sb-syncon, [data-tab="synconnect"], #sb-synconnect',
+    placement: 'right',
+    title: '🤝 Synconnect · CRM completo',
+    body: '<strong>Pipeline kanban arrastável</strong> com estágios customizáveis, deals com múltiplos contatos (decisor + técnico + influenciador), atividades automáticas, <strong>Customer 360</strong> (cards, transcrições, mensagens e deals do contato numa tela), <strong>captação de leads</strong> que cai direto no funil, metas mensais, workflows + webhooks, exportação CSV e <strong>IA Faixa Preta</strong> (resumo 360, daily brief, próxima ação por deal). Substitui HubSpot/Pipedrive pra time pequeno/médio.',
     primary: 'Próximo',
   },
   {
     type: 'centered',
-    hero: '<img src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;box-shadow:0 4px 14px rgba(0,0,0,.12);" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{textContent:\'🥋\',style:\'font-size:72px;display:block;text-align:center\'}))" />',
-    title: 'Mestre Kan · IA embarcada',
-    body: 'Em qualquer card, peça pro Mestre Kan: <strong>quebrar em subtarefas</strong>, <strong>redigir e-mail de cobrança</strong>, <strong>resumir thread longa</strong>, <strong>extrair ações de OCR de NF/recibo</strong>, ou pedir um <strong>Daily Brief</strong> com prioridades do dia.<br/><br/>Sábio, conciso, direto ao ponto — sua chave de API está no servidor, sem custo extra pra você.',
+    title: '畳 Tatami · reuniões + gravação MP4',
+    body: 'Canais de equipe, DMs e <strong>tatame ao vivo</strong> (vídeo HD + voz + workspace compartilhado). <strong>Grava em MP4 1080p</strong> com 1 clique — termina pronto pra assistir, <strong>sincronizado automático</strong> no Bunko Box, sem precisar atualizar nada.<br/><br/>Ainda tem <strong>efeitos de câmera</strong> (Sumi-ê, Hokusai, Sakura) e pode <strong>apresentar Board, Lab ou OKR</strong> dentro da chamada — todos navegam juntos e tudo entra na gravação.',
+    primary: 'Próximo',
+  },
+  {
+    type: 'centered',
+    title: '📦 Bunko Box · seu drive + memória',
+    body: 'É <strong>drive de arquivos</strong> (PDF, planilha, contrato, imagem) <em>e</em> base de conhecimento:<br/>• <strong>Páginas markdown</strong> editáveis com anexos<br/>• <strong>Transcrições</strong> do Mestre Kan (entram sozinhas)<br/>• <strong>Gravações MP4</strong> com play e download direto<br/>• <strong>Arquivos arrastados</strong> em pastas<br/><br/>Use <strong>⚡ Acesso rápido</strong> nos ⋯ pra fixar o que abre todo dia. <kbd>Cmd+K</kbd> busca tudo.',
+    primary: 'Próximo',
+  },
+  {
+    type: 'centered',
+    hero: '<img src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;box-shadow:0 4px 14px rgba(0,0,0,.12);" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{textContent:\'🧘\',style:\'font-size:72px;display:block;text-align:center\'}))" />',
+    title: 'Mestre Kan · grátis e transparente',
+    body: 'Um sensei silencioso que escuta cada reunião. <strong>Transcrição é grátis</strong> e roda no Whisper — você fala, ele transcreve, o pergaminho fica no Bunko.<br/><br/><strong>🧘 Grátis (use à vontade):</strong> transcrição ao vivo, busca, exportar Word.<br/><strong>⚔️ Consome chamada (opt-in):</strong> extrair ações, resumir página, Customer 360 narrativo, daily brief CRM, próxima ação por deal.<br/><br/>Veja tudo em <strong>menu → O Caminho do Mestre</strong>.',
     primary: 'Próximo',
   },
   {
     type: 'centered',
     title: '🔌 Integrações & sincronização',
-    body: 'Tudo que você faz no Synkan pode ecoar onde sua equipe já está:<br/><br/>• <strong>Slack</strong> + <strong>WhatsApp</strong> · notificações de cards<br/>• <strong>Google Calendar</strong> / <strong>Outlook</strong> / <strong>iCloud</strong> · cards com deadline viram eventos em tempo real<br/>• <strong>Webhooks</strong> · Zapier, Make, automações próprias<br/>• <strong>Granatum</strong> · lançamentos financeiros bidirecionais',
-    primary: 'Próximo',
-  },
-  {
-    type: 'centered',
-    title: '🎨 Sua marca nos relatórios',
-    body: 'Em <strong>Configurações → Empresa</strong>, suba o logo e o nome da sua empresa.<br/><br/>Eles aparecem em destaque no topo de todos os PDFs gerados — Dashboard, cobrança, documentos. Entregáveis profissionais saem do board direto pro cliente, sem retrabalho.',
+    body: 'Tudo que você faz no Synkan pode ecoar onde sua equipe já está:<br/><br/>• <strong>Slack</strong> + <strong>WhatsApp</strong> · notificações de cards e deals<br/>• <strong>Google Calendar</strong> / <strong>Outlook</strong> / <strong>iCloud</strong> · cards com deadline viram eventos em tempo real<br/>• <strong>Webhooks Synconnect</strong> · Zapier, Make, n8n recebem eventos do CRM<br/>• <strong>Granatum</strong> · lançamentos financeiros bidirecionais',
     primary: 'Próximo',
   },
   {
