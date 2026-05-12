@@ -32407,10 +32407,10 @@ async function _synInitCloud(opts) {
       _saveContacts();
       _synCloudReady = true;
       console.log(`[syn] ✓ cloud carregada: ${_contacts.length} contatos, ${_synDeals.length} deals, ${_synStages.length} estágios, ${_synActivities.length} atividades`);
-      // Carrega features v3 em paralelo (não-bloqueante)
-      Promise.all([_synLoadTemplates(), _synLoadWorkflows(), _synLoadWebhooks()]).catch(()=>{});
-      // Dispara watcher do banner de follow-ups
+      // Carrega features v3 + v4 em paralelo
+      Promise.all([_synLoadTemplates(), _synLoadWorkflows(), _synLoadWebhooks(), _synLoadGoalProgress()]).catch(()=>{});
       try { _synStartFollowupBannerWatcher(); } catch(_){}
+      try { _synInstallSearchHotkey(); } catch(_){}
       return true;
     } catch(e) {
       console.warn('[syn] init cloud falhou (modo offline):', e?.message);
@@ -33293,6 +33293,16 @@ async function renderAnalyticsTab() {
         <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 14px;">Top 8 que não mexem há mais tempo</p>
         ${agHTML || '<div style="padding:18px;text-align:center;color:var(--color-text-tertiary);font-size:12.5px;font-style:italic;">Nenhum deal aberto.</div>'}
       </div>
+
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:18px;grid-column:1 / -1;">
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 4px;">📐 Funil de conversão</h3>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 14px;">Volume em cada estágio do seu pipeline (largura = quantidade de deals)</p>
+        ${_synFunnelSVG() || '<div style="padding:18px;text-align:center;color:var(--color-text-tertiary);font-size:12.5px;font-style:italic;">Crie deals em estágios diferentes pra ver o funil.</div>'}
+      </div>
+    </div>
+    <div style="margin-top:18px;text-align:right;">
+      <button class="syn-btn-secondary" onclick="_synExportCSV('deals')" style="margin-right:6px;">📥 Exportar deals (CSV)</button>
+      <button class="syn-btn-secondary" onclick="_synExportCSV('activities')">📥 Exportar atividades (CSV)</button>
     </div>
   `;
 }
@@ -33301,6 +33311,572 @@ async function renderAnalyticsTab() {
 // SYNCONNECT · Aba Automação (#7 Workflows + #18 Webhooks)
 // ════════════════════════════════════════════════════════════════════
 let _synAutomationSub = 'workflows';
+
+// ════════════════════════════════════════════════════════════════════
+// SYNCONNECT v4 · Pro features
+//   #1 Busca global Cmd+K
+//   #5 Customizar estágios
+//   #9 Merge profundo
+//   #15 Período x período (já no analytics)
+//   #16 Metas mensais
+//   #17 Funil visual
+//   #18 Exportação CSV
+//   #20-24 AI (Faixa Preta gated)
+//   #26 Google Calendar link
+// ════════════════════════════════════════════════════════════════════
+
+// ── Gating: Faixa Preta ─────────────────────────────────────────────
+function _synIsFaixaPreta() {
+  try {
+    const code = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+    return ['faixa_preta','preta','enterprise'].includes(code);
+  } catch(_) { return false; }
+}
+function _synAIGate(action) {
+  if (_synIsFaixaPreta()) return true;
+  if (typeof appAlert === 'function') {
+    appAlert('Recurso exclusivo · Faixa Preta',
+      `${action} é um recurso de IA exclusivo da <strong>Faixa Preta · Empresarial</strong>. Faça upgrade pra liberar o Mestre Kan analisando seu CRM em tempo real.`,
+      { icon: '🔒', okLabel: 'Ver planos', cancelLabel: 'Agora não',
+        onOk: () => { if (typeof getUpgradeURL === 'function') window.open(getUpgradeURL(), '_blank'); } });
+  }
+  return false;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// AI helpers (Faixa Preta only) — chama Edge Function kan-crm-insights
+// ────────────────────────────────────────────────────────────────────
+async function _synAICall(endpoint, body) {
+  const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+  if (!cfg?.url) throw new Error('Supabase não configurado');
+  const c = await _synGetClient();
+  const { data: { session } } = await c.auth.getSession();
+  const jwt = session?.access_token;
+  if (!jwt) throw new Error('Sessão expirada — refaça login');
+  const r = await fetch(`${cfg.url}/functions/v1/kan-crm-insights/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
+    body: JSON.stringify(body),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+  return j;
+}
+
+// ── #21 Resumo do contato (Customer 360) ────────────────────────────
+async function _synAISummarizeContact(contactId, btnEl) {
+  if (!_synAIGate('Resumo automático com IA')) return;
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '<span class="ai-spinner"></span> Mestre Kan analisando…'; }
+  try {
+    const { summary } = await _synAICall('summarize-contact', { contact_id: contactId });
+    const out = document.getElementById('syn-ai-summary-out');
+    if (out) {
+      out.innerHTML = `<div style="display:flex;gap:10px;align-items:flex-start;background:linear-gradient(135deg,rgba(60,52,137,.06),rgba(127,119,221,.04));border:1px solid rgba(60,52,137,.25);border-radius:9px;padding:11px 14px;">
+        <img src="mestre_kan_avatar.png?v=6" style="width:28px;height:28px;border-radius:50%;flex-shrink:0;object-fit:cover;"/>
+        <div style="flex:1;font-size:13px;line-height:1.5;">${_esc(summary)}</div>
+      </div>`;
+    }
+  } catch(e) {
+    if (typeof appAlert === 'function') appAlert('IA não respondeu', String(e.message||e), { icon:'⚠️' });
+    else alert('Erro: ' + (e.message||e));
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '✦ Resumir com IA'; }
+  }
+}
+
+// ── #24 Daily brief ─────────────────────────────────────────────────
+let _synDailyBriefCache = null;
+async function _synAIDailyBrief() {
+  if (!_synAIGate('Daily brief')) return null;
+  try {
+    return await _synAICall('daily-brief', {});
+  } catch(e) {
+    console.warn('[syn] daily brief:', e?.message);
+    return null;
+  }
+}
+
+function _synRenderDailyBriefSlot() {
+  const isPreta = _synIsFaixaPreta();
+  // Cache do dia já carregado?
+  if (_synDailyBriefCache?.brief) {
+    return `<div style="background:linear-gradient(135deg,rgba(60,52,137,.06),rgba(127,119,221,.04));border:1px solid rgba(60,52,137,.30);border-radius:11px;padding:14px 18px;margin-bottom:18px;display:flex;gap:14px;">
+      <img src="mestre_kan_avatar.png?v=6" style="width:42px;height:42px;border-radius:50%;flex-shrink:0;object-fit:cover;"/>
+      <div style="flex:1;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="font-size:11px;font-weight:600;color:#3C3489;text-transform:uppercase;letter-spacing:.04em;">Daily brief · Mestre Kan</div>
+          <span style="font-size:10.5px;color:var(--color-text-tertiary);">${new Date(_synDailyBriefCache.generated_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
+        </div>
+        <div style="font-size:13.5px;line-height:1.55;white-space:pre-wrap;">${_esc(_synDailyBriefCache.brief)}</div>
+      </div>
+    </div>`;
+  }
+  // Botão pra gerar
+  return `<div style="background:var(--color-background-secondary);border-radius:10px;padding:12px 16px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+    <div style="display:flex;gap:11px;align-items:center;min-width:0;">
+      <img src="mestre_kan_avatar.png?v=6" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;object-fit:cover;"/>
+      <div style="font-size:12.5px;color:var(--color-text-secondary);">
+        <strong>Daily brief do Mestre Kan</strong> — leitura do seu pipeline + prioridades do dia. ${isPreta ? '' : '<span style="background:#3C3489;color:#fff;font-size:9px;padding:1px 6px;border-radius:999px;margin-left:5px;font-weight:600;letter-spacing:.04em;">FAIXA PRETA</span>'}
+      </div>
+    </div>
+    <button class="syn-btn-primary" onclick="_synGenerateDailyBrief(this)" style="background:linear-gradient(135deg,#3C3489,#7F77DD);border:none;flex-shrink:0;">✦ Gerar brief de hoje</button>
+  </div>`;
+}
+
+async function _synGenerateDailyBrief(btn) {
+  if (!_synAIGate('Daily brief')) return;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="ai-spinner"></span> Mestre Kan analisando…'; }
+  try {
+    const result = await _synAICall('daily-brief', {});
+    _synDailyBriefCache = result;
+    renderPipelineTab();
+  } catch(e) {
+    if (typeof appAlert === 'function') appAlert('IA não respondeu', String(e.message||e), { icon:'⚠️' });
+    else alert('Erro: ' + (e.message||e));
+    if (btn) { btn.disabled = false; btn.innerHTML = '✦ Gerar brief de hoje'; }
+  }
+}
+
+// ── #20 Próxima ação por deal ───────────────────────────────────────
+async function _synAINextAction(dealId, btnEl, force) {
+  if (!_synAIGate('Sugestão de próxima ação')) return;
+  if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '<span class="ai-spinner"></span> pensando…'; }
+  try {
+    const { next_action, cached } = await _synAICall('next-action', { deal_id: dealId, force: !!force });
+    const out = document.getElementById('syn-ai-nextact-out');
+    if (out) {
+      out.innerHTML = `<div style="display:flex;gap:10px;align-items:flex-start;background:linear-gradient(135deg,rgba(60,52,137,.08),rgba(127,119,221,.04));border:1px solid rgba(60,52,137,.30);border-radius:9px;padding:11px 14px;">
+        <img src="mestre_kan_avatar.png?v=6" style="width:28px;height:28px;border-radius:50%;flex-shrink:0;object-fit:cover;"/>
+        <div style="flex:1;">
+          <div style="font-size:10.5px;font-weight:600;color:#3C3489;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Próxima ação${cached?' · cache':''}</div>
+          <div style="font-size:13px;line-height:1.5;">${_esc(next_action)}</div>
+        </div>
+        ${cached ? `<button onclick="_synAINextAction('${_esc(dealId)}', this.closest('div').querySelector('button'), true)" title="Recalcular agora" style="background:transparent;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:14px;">↻</button>` : ''}
+      </div>`;
+    }
+    // Atualiza cache local no deal
+    const d = (_synDeals||[]).find(x => x.id === dealId);
+    if (d) { d.next_action_text = next_action; d.next_action_generated_at = new Date().toISOString(); }
+  } catch(e) {
+    const out = document.getElementById('syn-ai-nextact-out');
+    if (out) out.innerHTML = `<div style="font-size:12px;color:#A32D2D;padding:8px 12px;background:rgba(163,45,45,.08);border-radius:7px;">⚠ ${_esc(e.message||e)}</div>`;
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '✦ Sugerir próxima ação'; }
+  }
+}
+
+// ── #26 Google Calendar link (sem OAuth) ────────────────────────────
+function _synGoogleCalendarLink(deal) {
+  const contact = _synContactById(deal.contact_id);
+  const title = encodeURIComponent(`[Synkan] ${deal.title}${contact ? ' · ' + contact.name : ''}`);
+  const details = encodeURIComponent([
+    `Deal: ${deal.title}`,
+    deal.value_cents ? `Valor: ${_synFmtMoney(deal.value_cents)}` : '',
+    contact ? `Contato: ${contact.name}${contact.email ? ' (' + contact.email + ')' : ''}` : '',
+    deal.notes ? `\nNotas:\n${deal.notes}` : '',
+  ].filter(Boolean).join('\n'));
+  // Se tiver follow_up_at, usa como data do evento; senão, hoje +1h
+  const start = deal.follow_up_at ? new Date(deal.follow_up_at) : new Date(Date.now() + 60*60*1000);
+  const end   = new Date(start.getTime() + 30*60*1000); // 30min default
+  const fmt = (d) => d.toISOString().replace(/[-:]|\.\d+/g,'').slice(0,15) + 'Z';
+  const dates = `${fmt(start)}/${fmt(end)}`;
+  return `https://calendar.google.com/calendar/r/eventedit?text=${title}&details=${details}&dates=${dates}`;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// #1 BUSCA GLOBAL (Cmd+K)
+// ────────────────────────────────────────────────────────────────────
+let _synSearchKeyListener = null;
+function _synInstallSearchHotkey() {
+  if (_synSearchKeyListener) return;
+  _synSearchKeyListener = (e) => {
+    const isMac = /Mac/.test(navigator.platform);
+    const cmd = isMac ? e.metaKey : e.ctrlKey;
+    if (cmd && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      _synOpenGlobalSearch();
+    }
+  };
+  document.addEventListener('keydown', _synSearchKeyListener);
+}
+
+function _synOpenGlobalSearch() {
+  let ov = document.getElementById('syn-search-ov');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'syn-search-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);z-index:10100;display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;';
+    ov.onclick = (e) => { if (e.target === ov) _synCloseGlobalSearch(); };
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:14px;width:90%;max-width:640px;max-height:75vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.3);">
+      <div style="padding:14px 18px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;gap:10px;">
+        <span style="font-size:16px;color:var(--color-text-tertiary);">🔎</span>
+        <input id="syn-search-input" type="text" placeholder="Buscar deals, contatos, atividades…" autofocus
+          style="flex:1;border:none;outline:none;background:transparent;font-size:15px;font-family:inherit;color:var(--color-text-primary);"
+          oninput="_synGlobalSearch(this.value)" onkeydown="_synSearchKeydown(event)"/>
+        <kbd style="background:var(--color-background-secondary);padding:2px 7px;border-radius:5px;font-size:11px;font-family:Menlo,monospace;color:var(--color-text-tertiary);">esc</kbd>
+      </div>
+      <div id="syn-search-results" style="overflow-y:auto;flex:1;padding:8px;">
+        <div style="padding:30px 20px;text-align:center;color:var(--color-text-tertiary);font-size:13px;">
+          Digite pra buscar em deals, contatos, atividades e formulários.<br/>
+          <small style="opacity:.7;">Atalho: <kbd>${/Mac/.test(navigator.platform)?'⌘':'Ctrl'}+K</kbd></small>
+        </div>
+      </div>
+    </div>
+  `;
+  setTimeout(() => document.getElementById('syn-search-input')?.focus(), 50);
+}
+function _synCloseGlobalSearch() {
+  document.getElementById('syn-search-ov')?.remove();
+}
+function _synGlobalSearch(q) {
+  const results = document.getElementById('syn-search-results'); if (!results) return;
+  const query = (q || '').toLowerCase().trim();
+  if (query.length < 2) {
+    results.innerHTML = `<div style="padding:20px;text-align:center;color:var(--color-text-tertiary);font-size:13px;">Digite ao menos 2 caracteres…</div>`;
+    return;
+  }
+  const hits = [];
+  // Deals
+  (_synDeals||[]).slice(0,500).forEach(d => {
+    if ((d.title||'').toLowerCase().includes(query) || (d.notes||'').toLowerCase().includes(query)) {
+      hits.push({ type:'deal', icon:'🎯', title:d.title, sub: _synStageById(d.stage_id)?.name || '', value: d.value_cents, id:d.id, onClick: () => { _synCloseGlobalSearch(); _synOpenDealModal(d.id); } });
+    }
+  });
+  // Contatos
+  (_contacts||[]).slice(0,500).forEach(c => {
+    const matches = (c.name||'').toLowerCase().includes(query)
+      || (c.contact_person||'').toLowerCase().includes(query)
+      || (c.email||'').toLowerCase().includes(query)
+      || (c.phone||'').replace(/\D/g,'').includes(query.replace(/\D/g,''));
+    if (matches) {
+      hits.push({ type:'contato', icon:'👤', title:c.name, sub: [c.contact_person, c.email].filter(Boolean).join(' · '), id:c.id, onClick: () => { _synCloseGlobalSearch(); openContactModal(c.id); } });
+    }
+  });
+  // Activities
+  (_synActivities||[]).slice(0,200).forEach(a => {
+    if ((a.title||'').toLowerCase().includes(query) || (a.body||'').toLowerCase().includes(query)) {
+      const cName = a.contact_id ? _synContactById(a.contact_id)?.name : null;
+      hits.push({ type:'atividade', icon:({note:'📝',call:'📞',email_sent:'📤',meeting:'👥',tatame_mention:'🎙'})[a.kind]||'•', title:a.title, sub: (a.body||'').slice(0,70) + (cName ? ` · ${cName}` : ''), id:a.id, onClick: () => { _synCloseGlobalSearch(); if (a.deal_id) _synOpenDealModal(a.deal_id); else if (a.contact_id) openCustomer360(a.contact_id); } });
+    }
+  });
+  // Render
+  if (hits.length === 0) {
+    results.innerHTML = `<div style="padding:30px;text-align:center;color:var(--color-text-tertiary);font-size:13px;">Nenhum resultado pra <strong>"${_esc(q)}"</strong></div>`;
+    return;
+  }
+  const grouped = {};
+  hits.slice(0, 60).forEach(h => { grouped[h.type] = grouped[h.type] || []; grouped[h.type].push(h); });
+  results.innerHTML = Object.entries(grouped).map(([type, items]) => `
+    <div style="font-size:10.5px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;padding:8px 14px 4px;">${type}s · ${items.length}</div>
+    ${items.map((h,i) => `<div class="syn-search-row" data-idx="${type}-${i}" onclick="window._synSearchRows[${JSON.stringify(type+'-'+i).slice(1,-1)}]?.onClick()" style="display:flex;align-items:center;gap:12px;padding:9px 14px;cursor:pointer;border-radius:7px;font-size:13px;" onmouseenter="this.style.background='var(--color-background-secondary)'" onmouseleave="this.style.background='transparent'">
+      <span style="font-size:16px;flex-shrink:0;">${h.icon}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(h.title||'sem título')}</div>
+        ${h.sub ? `<div style="font-size:11.5px;color:var(--color-text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(h.sub)}</div>` : ''}
+      </div>
+      ${h.value ? `<span style="font-size:11px;color:#27500A;font-weight:500;font-variant-numeric:tabular-nums;">${_synFmtMoney(h.value)}</span>` : ''}
+    </div>`).join('')}
+  `).join('');
+  // Stash de callbacks
+  window._synSearchRows = {};
+  Object.entries(grouped).forEach(([type, items]) => items.forEach((h,i) => window._synSearchRows[type+'-'+i] = h));
+}
+function _synSearchKeydown(e) {
+  if (e.key === 'Escape') _synCloseGlobalSearch();
+}
+
+// ────────────────────────────────────────────────────────────────────
+// #18 EXPORTAÇÃO CSV
+// ────────────────────────────────────────────────────────────────────
+function _synExportCSV(kind) {
+  let rows = [];
+  let filename = `synconnect_${kind}_${new Date().toISOString().slice(0,10)}.csv`;
+  if (kind === 'contatos') {
+    rows = [['Nome','Pessoa','Cargo','Tipo','Email','Telefone','CPF/CNPJ','Endereço','Notas','Criado','Atualizado']];
+    (_contacts||[]).forEach(c => rows.push([c.name,c.contact_person||'',c.role||'',c.type,c.email||'',c.phone||'',c.taxId||'',c.address||'',c.notes||'',c.createdAt||'',c.updatedAt||'']));
+  } else if (kind === 'deals') {
+    rows = [['Título','Contato','Estágio','Status','Valor (R$)','Probabilidade %','Fechamento previsto','Follow-up','Criado','Atualizado','Notas']];
+    (_synDeals||[]).forEach(d => {
+      const contact = _synContactById(d.contact_id);
+      const stage = _synStageById(d.stage_id);
+      rows.push([d.title, contact?.name||'', stage?.name||'', d.status, ((d.value_cents||0)/100).toFixed(2), d.probability||'', d.expected_close_at||'', d.follow_up_at||'', d.created_at||'', d.updated_at||'', d.notes||'']);
+    });
+  } else if (kind === 'activities') {
+    rows = [['Tipo','Título','Corpo','Contato','Deal','Quando']];
+    (_synActivities||[]).forEach(a => {
+      const c = a.contact_id ? _synContactById(a.contact_id) : null;
+      const d = a.deal_id ? (_synDeals||[]).find(x=>x.id===a.deal_id) : null;
+      rows.push([a.kind, a.title||'', (a.body||'').replace(/\n/g,' '), c?.name||'', d?.title||'', a.occurred_at||'']);
+    });
+  }
+  const csv = rows.map(r => r.map(cell => {
+    const s = String(cell ?? '').replace(/"/g, '""');
+    return /[",\n;]/.test(s) ? `"${s}"` : s;
+  }).join(';')).join('\n');
+  // Adiciona BOM pra Excel reconhecer UTF-8
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  if (typeof _showKanWarning === 'function') _showKanWarning('Exportado ✓', `${rows.length-1} linha${rows.length===2?'':'s'} em ${filename}`, 'success');
+}
+
+// ────────────────────────────────────────────────────────────────────
+// #9 MERGE PROFUNDO de contatos
+// ────────────────────────────────────────────────────────────────────
+async function _synMergeContacts(targetId, sourceId) {
+  const c = await _synGetClient(); if (!c) return null;
+  const { data, error } = await c.rpc('synconnect_merge_contacts', { p_target_id: targetId, p_source_id: sourceId });
+  if (error) { alert('Falha ao mesclar: ' + error.message); return null; }
+  // Recarrega cloud
+  await _synInitCloud({ force: true });
+  return data;
+}
+
+async function _synOpenMergePicker(contactId) {
+  const me = _synContactById(contactId);
+  if (!me) return;
+  // Candidatos: contatos com nome similar OU mesmo email/cnpj
+  const candidates = (_contacts||[]).filter(c => c.id !== contactId);
+  let ov = document.getElementById('syn-merge-modal');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'syn-merge-modal'; ov.className = 'syn-modal-ov'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="syn-modal" onclick="event.stopPropagation()" style="max-width:560px;">
+    <div class="syn-modal-h"><h3>Mesclar contato</h3><button class="syn-modal-x" onclick="document.getElementById('syn-merge-modal').classList.remove('is-open')">×</button></div>
+    <div class="syn-modal-body">
+      <div style="background:var(--color-background-secondary);border-radius:8px;padding:11px 14px;margin-bottom:14px;font-size:13px;">
+        <strong>Manter:</strong> ${_esc(me.name)}<br/>
+        <span style="color:var(--color-text-tertiary);font-size:11.5px;">Este contato vai receber tudo do outro (deals, atividades, páginas vinculadas). O outro será deletado.</span>
+      </div>
+      <div class="syn-field">
+        <label>Mesclar com (deletar este):</label>
+        <select id="syn-merge-source">
+          <option value="">— escolha o contato a deletar —</option>
+          ${candidates.map(c => `<option value="${_esc(c.id)}">${_esc(c.name)}${c.email?` · ${_esc(c.email)}`:''}${c.taxId?` · ${_esc(c.taxId)}`:''}</option>`).join('')}
+        </select>
+      </div>
+      <div style="font-size:11.5px;color:#A32D2D;font-style:italic;margin-top:10px;">⚠ Ação irreversível. Deals, atividades e páginas do contato escolhido vão se juntar a este.</div>
+    </div>
+    <div class="syn-modal-f">
+      <button class="syn-btn-secondary" onclick="document.getElementById('syn-merge-modal').classList.remove('is-open')">Cancelar</button>
+      <button class="syn-btn-danger" onclick="_synConfirmMerge('${_esc(contactId)}')">Mesclar e deletar</button>
+    </div>
+  </div>`;
+  ov.classList.add('is-open');
+}
+async function _synConfirmMerge(targetId) {
+  const sourceId = document.getElementById('syn-merge-source').value;
+  if (!sourceId) { alert('Escolha um contato pra mesclar.'); return; }
+  const result = await _synMergeContacts(targetId, sourceId);
+  if (result?.success) {
+    document.getElementById('syn-merge-modal').classList.remove('is-open');
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Contatos mesclados ✓',
+        `${result.deals_moved} deal${result.deals_moved===1?'':'s'}, ${result.activities_moved} atividades e ${result.pages_moved} páginas movidos.`,
+        'success');
+    }
+    if (typeof renderRegistry === 'function') renderRegistry();
+    closeCustomer360 && closeCustomer360();
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// #5 CUSTOMIZAR ESTÁGIOS do pipeline
+// ────────────────────────────────────────────────────────────────────
+async function _synOpenStageEditor() {
+  await _synInitCloud();
+  let ov = document.getElementById('syn-stages-modal');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'syn-stages-modal'; ov.className = 'syn-modal-ov'; document.body.appendChild(ov); }
+  const stages = (_synStages||[]).slice().sort((a,b)=>a.position-b.position);
+  ov.innerHTML = `<div class="syn-modal" onclick="event.stopPropagation()" style="max-width:560px;">
+    <div class="syn-modal-h"><h3>Customizar estágios do pipeline</h3><button class="syn-modal-x" onclick="document.getElementById('syn-stages-modal').classList.remove('is-open')">×</button></div>
+    <div class="syn-modal-body">
+      <p style="font-size:12px;color:var(--color-text-secondary);margin:0 0 12px;">Renomeie, mude a cor ou ajuste a probabilidade padrão. Use os botões ↑↓ pra reordenar.</p>
+      <div id="syn-stages-list" style="display:flex;flex-direction:column;gap:6px;">
+        ${stages.map((s, i) => `<div data-stage-id="${_esc(s.id)}" data-pos="${i}" style="display:flex;align-items:center;gap:8px;padding:9px 11px;background:var(--color-background-secondary);border-radius:8px;">
+          <input type="color" value="${_esc(s.color || '#888780')}" class="syn-stage-color" style="width:32px;height:32px;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;background:transparent;"/>
+          <input type="text" class="syn-stage-name" value="${_esc(s.name)}" style="flex:1;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px 9px;font-size:13px;font-family:inherit;background:var(--color-background-primary);"/>
+          <input type="number" class="syn-stage-prob" value="${s.default_probability||50}" min="0" max="100" title="Probabilidade %" style="width:64px;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px;font-size:12px;font-variant-numeric:tabular-nums;text-align:center;font-family:inherit;background:var(--color-background-primary);"/>
+          <button onclick="_synMoveStage('${_esc(s.id)}','up')" ${i===0?'disabled':''} style="background:transparent;border:0.5px solid var(--color-border-secondary);border-radius:6px;width:28px;height:28px;cursor:pointer;padding:0;">↑</button>
+          <button onclick="_synMoveStage('${_esc(s.id)}','down')" ${i===stages.length-1?'disabled':''} style="background:transparent;border:0.5px solid var(--color-border-secondary);border-radius:6px;width:28px;height:28px;cursor:pointer;padding:0;">↓</button>
+          <button onclick="_synDeleteStage('${_esc(s.id)}','${_esc(s.name)}')" title="Excluir" style="background:transparent;border:0.5px solid #A32D2D;color:#A32D2D;border-radius:6px;width:28px;height:28px;cursor:pointer;padding:0;font-size:14px;">×</button>
+        </div>`).join('')}
+      </div>
+      <button onclick="_synAddStage()" style="margin-top:10px;background:transparent;border:0.5px dashed var(--color-border-secondary);color:var(--color-text-secondary);border-radius:7px;padding:8px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;width:100%;">+ Adicionar estágio</button>
+    </div>
+    <div class="syn-modal-f">
+      <button class="syn-btn-secondary" onclick="document.getElementById('syn-stages-modal').classList.remove('is-open')">Cancelar</button>
+      <button class="syn-btn-primary" onclick="_synSaveAllStages()">Salvar tudo</button>
+    </div>
+  </div>`;
+  ov.classList.add('is-open');
+}
+async function _synMoveStage(id, dir) {
+  const list = _synStages.slice().sort((a,b)=>a.position-b.position);
+  const idx = list.findIndex(s => s.id === id);
+  if (idx < 0) return;
+  const swap = dir === 'up' ? idx-1 : idx+1;
+  if (swap < 0 || swap >= list.length) return;
+  [list[idx].position, list[swap].position] = [list[swap].position, list[idx].position];
+  const c = await _synGetClient(); if (!c) return;
+  await Promise.all([
+    c.from('synconnect_pipeline_stages').update({ position: list[idx].position }).eq('id', list[idx].id),
+    c.from('synconnect_pipeline_stages').update({ position: list[swap].position }).eq('id', list[swap].id),
+  ]);
+  await _synInitCloud({ force: true });
+  _synOpenStageEditor();
+}
+async function _synAddStage() {
+  const c = await _synGetClient(); if (!c) return;
+  const { data: { user } } = await c.auth.getUser();
+  const maxPos = Math.max(...(_synStages||[]).map(s => s.position || 0));
+  await c.from('synconnect_pipeline_stages').insert({ user_id: user.id, name: 'Novo estágio', position: maxPos + 1, color: '#888780', kind: 'custom', default_probability: 50 });
+  await _synInitCloud({ force: true });
+  _synOpenStageEditor();
+}
+async function _synDeleteStage(id, name) {
+  const stage = _synStages.find(s => s.id === id);
+  if (stage?.kind === 'won' || stage?.kind === 'lost') { alert('Estágios Ganho e Perdido não podem ser excluídos.'); return; }
+  const usedBy = (_synDeals||[]).filter(d => d.stage_id === id).length;
+  const ok = await appConfirm(`Excluir "${name}"?`, usedBy ? `${usedBy} deal(s) ficarão sem estágio. Você pode mover depois manualmente.` : 'Sem deals nesse estágio.', { danger: true, okLabel: 'Excluir' });
+  if (!ok) return;
+  const c = await _synGetClient(); if (!c) return;
+  await c.from('synconnect_pipeline_stages').delete().eq('id', id);
+  await _synInitCloud({ force: true });
+  _synOpenStageEditor();
+}
+async function _synSaveAllStages() {
+  const c = await _synGetClient(); if (!c) return;
+  const items = document.querySelectorAll('#syn-stages-list [data-stage-id]');
+  for (const el of items) {
+    const id = el.getAttribute('data-stage-id');
+    const name = el.querySelector('.syn-stage-name').value.trim();
+    const color = el.querySelector('.syn-stage-color').value;
+    const prob = parseInt(el.querySelector('.syn-stage-prob').value, 10) || 50;
+    if (name) await c.from('synconnect_pipeline_stages').update({ name, color, default_probability: prob }).eq('id', id);
+  }
+  await _synInitCloud({ force: true });
+  document.getElementById('syn-stages-modal').classList.remove('is-open');
+  renderPipelineTab();
+}
+
+// ────────────────────────────────────────────────────────────────────
+// #16 METAS MENSAIS
+// ────────────────────────────────────────────────────────────────────
+let _synGoalProgress = null;
+async function _synLoadGoalProgress() {
+  try {
+    const c = await _synGetClient(); if (!c) return;
+    const { data } = await c.rpc('synconnect_goal_progress');
+    if (data) _synGoalProgress = data;
+  } catch(_){}
+}
+async function _synOpenGoalEditor() {
+  await _synLoadGoalProgress();
+  const period = _synGoalProgress?.period || new Date().toISOString().slice(0,7);
+  const g = _synGoalProgress || {};
+  let ov = document.getElementById('syn-goal-modal');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'syn-goal-modal'; ov.className = 'syn-modal-ov'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="syn-modal" onclick="event.stopPropagation()" style="max-width:440px;">
+    <div class="syn-modal-h"><h3>Meta do mês</h3><button class="syn-modal-x" onclick="document.getElementById('syn-goal-modal').classList.remove('is-open')">×</button></div>
+    <div class="syn-modal-body">
+      <div class="syn-field"><label>Período</label><input id="syn-goal-period" type="month" value="${_esc(period)}"/></div>
+      <div class="syn-field"><label>Meta de receita ganha (R$)</label><input id="syn-goal-value" type="number" min="0" step="100" value="${(g.goal_value_cents||0)/100}" placeholder="50000"/></div>
+      <div class="syn-field"><label>Meta de deals fechados</label><input id="syn-goal-deals" type="number" min="0" value="${g.goal_deal_count||0}" placeholder="5"/></div>
+      <div class="syn-field"><label>Meta de novos leads</label><input id="syn-goal-leads" type="number" min="0" value="${g.goal_new_leads||0}" placeholder="20"/></div>
+    </div>
+    <div class="syn-modal-f">
+      <button class="syn-btn-secondary" onclick="document.getElementById('syn-goal-modal').classList.remove('is-open')">Cancelar</button>
+      <button class="syn-btn-primary" onclick="_synSaveGoal()">Salvar</button>
+    </div>
+  </div>`;
+  ov.classList.add('is-open');
+}
+async function _synSaveGoal() {
+  const c = await _synGetClient(); if (!c) return;
+  const { data: { user } } = await c.auth.getUser();
+  const period = document.getElementById('syn-goal-period').value;
+  const value_brl = parseFloat(document.getElementById('syn-goal-value').value) || 0;
+  const deals = parseInt(document.getElementById('syn-goal-deals').value, 10) || 0;
+  const leads = parseInt(document.getElementById('syn-goal-leads').value, 10) || 0;
+  await c.from('synconnect_goals').upsert({
+    user_id: user.id, period, goal_value_cents: Math.round(value_brl * 100), goal_deal_count: deals, goal_new_leads: leads,
+  }, { onConflict: 'user_id,period' });
+  await _synLoadGoalProgress();
+  document.getElementById('syn-goal-modal').classList.remove('is-open');
+  renderPipelineTab();
+}
+
+function _synGoalProgressHTML() {
+  if (!_synGoalProgress) return '';
+  const g = _synGoalProgress;
+  const pctValue = g.goal_value_cents > 0 ? Math.round(g.actual_value_cents * 100 / g.goal_value_cents) : 0;
+  const pctDeals = g.goal_deal_count > 0 ? Math.round(g.actual_deal_count * 100 / g.goal_deal_count) : 0;
+  const pctLeads = g.goal_new_leads > 0 ? Math.round(g.actual_new_leads * 100 / g.goal_new_leads) : 0;
+  const noGoal = !g.goal_value_cents && !g.goal_deal_count && !g.goal_new_leads;
+  if (noGoal) {
+    return `<div style="background:var(--color-background-secondary);padding:11px 14px;border-radius:8px;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <span style="color:var(--color-text-secondary);">Sem meta definida pra ${_esc(g.period)}.</span>
+      <button class="syn-btn-secondary" onclick="_synOpenGoalEditor()">🎯 Definir meta</button>
+    </div>`;
+  }
+  const bar = (pct, color) => {
+    const w = Math.min(100, pct);
+    return `<div style="background:var(--color-background-secondary);height:8px;border-radius:4px;overflow:hidden;"><div style="height:100%;background:${color};width:${w}%;transition:width .3s;"></div></div>`;
+  };
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px;background:var(--color-background-secondary);padding:12px 14px;border-radius:9px;">
+    ${g.goal_value_cents > 0 ? `<div>
+      <div style="font-size:11px;color:var(--color-text-tertiary);font-weight:500;text-transform:uppercase;letter-spacing:.04em;">Receita ganha</div>
+      <div style="font-size:14px;font-weight:600;margin:3px 0;font-variant-numeric:tabular-nums;">${_synFmtMoney(g.actual_value_cents)} <span style="color:var(--color-text-tertiary);font-weight:400;font-size:11.5px;">de ${_synFmtMoney(g.goal_value_cents)} (${pctValue}%)</span></div>
+      ${bar(pctValue, pctValue>=100?'#3B6D11':pctValue>=66?'#27500A':pctValue>=33?'#854F0B':'#A32D2D')}
+    </div>` : ''}
+    ${g.goal_deal_count > 0 ? `<div>
+      <div style="font-size:11px;color:var(--color-text-tertiary);font-weight:500;text-transform:uppercase;letter-spacing:.04em;">Deals fechados</div>
+      <div style="font-size:14px;font-weight:600;margin:3px 0;font-variant-numeric:tabular-nums;">${g.actual_deal_count} <span style="color:var(--color-text-tertiary);font-weight:400;font-size:11.5px;">de ${g.goal_deal_count} (${pctDeals}%)</span></div>
+      ${bar(pctDeals, pctDeals>=100?'#3B6D11':'#3C3489')}
+    </div>` : ''}
+    ${g.goal_new_leads > 0 ? `<div>
+      <div style="font-size:11px;color:var(--color-text-tertiary);font-weight:500;text-transform:uppercase;letter-spacing:.04em;">Novos leads</div>
+      <div style="font-size:14px;font-weight:600;margin:3px 0;font-variant-numeric:tabular-nums;">${g.actual_new_leads} <span style="color:var(--color-text-tertiary);font-weight:400;font-size:11.5px;">de ${g.goal_new_leads} (${pctLeads}%)</span></div>
+      ${bar(pctLeads, pctLeads>=100?'#3B6D11':'#185FA5')}
+    </div>` : ''}
+    <div style="display:flex;align-items:flex-end;justify-content:flex-end;">
+      <button class="syn-btn-secondary" onclick="_synOpenGoalEditor()" style="font-size:11.5px;padding:5px 11px;">✎ Ajustar</button>
+    </div>
+  </div>`;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// #17 FUNIL VISUAL (SVG)
+// ────────────────────────────────────────────────────────────────────
+function _synFunnelSVG() {
+  const stages = (_synStages||[]).slice().sort((a,b)=>a.position-b.position).filter(s => s.kind !== 'lost');
+  if (stages.length === 0) return '';
+  const counts = stages.map(s => (_synDeals||[]).filter(d => d.stage_id === s.id && d.status === 'open').length);
+  const wonCount = (_synDeals||[]).filter(d => d.status === 'won').length;
+  const lastWon = stages.find(s => s.kind === 'won');
+  if (lastWon) counts[stages.indexOf(lastWon)] = wonCount;
+  const maxCount = Math.max(1, ...counts);
+  const W = 520, H = 280;
+  const padX = 20, padY = 14;
+  const stepH = (H - 2*padY) / stages.length;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:300px;">`;
+  stages.forEach((s, i) => {
+    const ratio = counts[i] / maxCount;
+    const w = Math.max(40, (W - 2*padX) * ratio);
+    const x = (W - w) / 2;
+    const y = padY + i * stepH;
+    const h = stepH - 4;
+    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${_esc(s.color || '#888780')}" opacity="0.85"/>`;
+    svg += `<text x="${W/2}" y="${y + h/2 + 4}" text-anchor="middle" fill="#fff" font-size="13" font-weight="500" font-family="sans-serif">${_esc(s.name)} · ${counts[i]}</text>`;
+  });
+  svg += `</svg>`;
+  return svg;
+}
 async function renderAutomationTab() {
   const body = document.getElementById('reg-body'); if (!body) return;
   if (!_synCloudReady && typeof _synInitCloud === 'function') await _synInitCloud();
@@ -33640,10 +34216,17 @@ function renderPipelineTab() {
   }).join('');
 
   body.innerHTML = `
+    <div id="syn-daily-brief-slot"></div>
+    ${_synRenderDailyBriefSlot()}
     ${kpis}
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    ${_synGoalProgressHTML()}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       <div style="font-size:13px;color:var(--color-text-secondary);">Arraste cards entre os estágios. Mover pra <strong>Ganho</strong>/<strong>Perdido</strong> fecha o deal.</div>
-      <button class="syn-new-deal-btn" onclick="_synOpenDealModal()">+ Nova oportunidade</button>
+      <div style="display:flex;gap:6px;">
+        <button class="syn-btn-secondary" onclick="_synOpenStageEditor()" title="Renomear, reordenar ou criar estágios">⚙ Estágios</button>
+        <button class="syn-btn-secondary" onclick="_synExportCSV('deals')" title="Exportar pipeline em CSV">📥 Exportar</button>
+        <button class="syn-new-deal-btn" onclick="_synOpenDealModal()">+ Nova oportunidade</button>
+      </div>
     </div>
     <div class="syn-pipeline">${cols}</div>`;
 }
@@ -33796,7 +34379,28 @@ async function _synOpenDealModal(dealId, presetStageId) {
           <textarea id="syn-d-notes" placeholder="Histórico, observações, próximos passos…">${_esc(deal?.notes || '')}</textarea>
         </div>
         ${isEdit ? `
-        <div style="margin-top:6px;border-top:0.5px dashed var(--color-border-tertiary);padding-top:14px;">
+        <!-- AI: Próxima ação (Faixa Preta) -->
+        <div style="margin-top:6px;padding:11px 14px;background:rgba(60,52,137,.04);border:0.5px dashed rgba(60,52,137,.30);border-radius:9px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
+            <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">Mestre Kan · Próxima ação ${_synIsFaixaPreta()?'':'<span style="background:#3C3489;color:#fff;font-size:9px;padding:1px 6px;border-radius:999px;margin-left:5px;font-weight:600;letter-spacing:.04em;">FAIXA PRETA</span>'}</div>
+            <button class="syn-btn-secondary" onclick="_synAINextAction('${_esc(deal.id)}', this)" style="font-size:11.5px;padding:5px 10px;">✦ Sugerir próxima ação</button>
+          </div>
+          <div id="syn-ai-nextact-out">
+            ${deal.next_action_text ? `<div style="display:flex;gap:10px;align-items:flex-start;background:linear-gradient(135deg,rgba(60,52,137,.08),rgba(127,119,221,.04));border:1px solid rgba(60,52,137,.30);border-radius:9px;padding:11px 14px;">
+              <img src="mestre_kan_avatar.png?v=6" style="width:28px;height:28px;border-radius:50%;flex-shrink:0;object-fit:cover;"/>
+              <div style="flex:1;">
+                <div style="font-size:10.5px;font-weight:600;color:#3C3489;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Próxima ação · cache</div>
+                <div style="font-size:13px;line-height:1.5;">${_esc(deal.next_action_text)}</div>
+              </div>
+              <button onclick="_synAINextAction('${_esc(deal.id)}', this, true)" title="Recalcular agora" style="background:transparent;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:14px;">↻</button>
+            </div>` : `<div style="font-size:12px;color:var(--color-text-tertiary);font-style:italic;">Clique em "✦ Sugerir próxima ação" pra Mestre Kan analisar timeline e propor o que fazer.</div>`}
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end;">
+            <a href="${_synGoogleCalendarLink(deal)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#1A73E8;text-decoration:none;padding:4px 10px;border:0.5px solid #1A73E8;border-radius:7px;background:transparent;">📅 Adicionar ao Google Calendar</a>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;border-top:0.5px dashed var(--color-border-tertiary);padding-top:14px;">
           <!-- Multi-contato -->
           <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Pessoas envolvidas <span style="font-weight:400;opacity:.65;text-transform:none;letter-spacing:0;">· quem mais participa desse deal</span></div>
           <div id="syn-d-contacts"></div>
@@ -34196,6 +34800,7 @@ function renderContactsTab() {
         <option value="fornecedor" ${filter==='fornecedor'?'selected':''}>Só fornecedores</option>
         <option value="ambos"      ${filter==='ambos'?'selected':''}>Cliente + Fornecedor</option>
       </select>
+      <button class="btn-c" onclick="_synExportCSV('contatos')" title="Baixar lista em CSV">📥 Exportar</button>
       <button class="btn-c" style="background:#111;color:#fff;border-color:#111;" onclick="openContactModal()">+ Novo cadastro</button>
     </div>
     ${list.length ? `
@@ -34714,7 +35319,16 @@ function _renderCustomer360() {
       })()}
     </div>
     <div class="c360-body" id="c360-body"></div>
+    <!-- AI Summary block -->
+    <div id="syn-ai-summary-out" style="padding:0 18px 4px;">
+      ${ct.ai_summary ? `<div style="display:flex;gap:10px;align-items:flex-start;background:linear-gradient(135deg,rgba(60,52,137,.06),rgba(127,119,221,.04));border:1px solid rgba(60,52,137,.25);border-radius:9px;padding:11px 14px;margin-top:8px;">
+        <img src="mestre_kan_avatar.png?v=6" style="width:28px;height:28px;border-radius:50%;flex-shrink:0;object-fit:cover;"/>
+        <div style="flex:1;font-size:13px;line-height:1.5;">${_esc(ct.ai_summary)}</div>
+      </div>` : ''}
+    </div>
     <div class="c360-foot">
+      <button class="btn-c" onclick="_synAISummarizeContact('${_c360ContactId}', this)" title="Mestre Kan analisa e resume tudo sobre este contato em 3 linhas">✦ Resumir com IA${_synIsFaixaPreta()?'':' 🔒'}</button>
+      <button class="btn-c" onclick="_synOpenMergePicker('${_c360ContactId}')" title="Mesclar com outro contato duplicado">⇆ Mesclar</button>
       <button class="btn-c" onclick="closeCustomer360();openContactModal('${_c360ContactId}')">✎ Editar cadastro</button>
       <button class="btn-c" onclick="closeCustomer360()">Fechar</button>
     </div>
