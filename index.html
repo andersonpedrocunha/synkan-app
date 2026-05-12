@@ -37830,17 +37830,24 @@ function _renderCaptureInbox() {
     ).join('');
     const when = new Date(lead.created_at).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
     const isPending = lead.status === 'pending';
+    const hasDeal = !!lead.synconnect_deal_id;
+    const linkedDeal = hasDeal ? (_synDeals||[]).find(d => d.id === lead.synconnect_deal_id) : null;
     return `<div class="cap-lead-row">
       <div class="cap-lead-head">
         <div class="cap-lead-title">${_esc(data.nome || data.name || data.email || '(sem nome)')}<span style="font-weight:400;color:var(--color-text-tertiary);font-size:11.5px;margin-left:8px;">via ${_esc(formName)}</span></div>
         <div style="display:flex;align-items:center;gap:8px;">
+          ${hasDeal ? `<span style="background:rgba(59,109,17,.12);color:#27500A;padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:600;">🎯 NO PIPELINE</span>` : ''}
           <span class="cap-status-pill ${lead.status||'pending'}">${({pending:'novo',converted:'convertido',spam:'spam',dismissed:'descartado'}[lead.status]||'novo')}</span>
           <span class="cap-lead-when">${when}</span>
         </div>
       </div>
       ${dataHTML?`<div class="cap-lead-data">${dataHTML}</div>`:''}
+      ${hasDeal && linkedDeal ? `<div style="font-size:12px;color:var(--color-text-secondary);margin:6px 0;cursor:pointer;" onclick="_synOpenDealModal('${_esc(linkedDeal.id)}')">
+        ↳ Deal: <strong>${_esc(linkedDeal.title)}</strong> em <span style="color:#888780;">Prospecção</span> · clique pra abrir
+      </div>` : ''}
       ${isPending ? `<div class="cap-lead-actions">
-        <button class="btn-c" style="background:#111;color:#fff;border-color:#111;" onclick="convertLead('${lead.id}')">↓ Converter em cadastro + card</button>
+        ${!hasDeal ? `<button class="btn-c" style="background:#3B6D11;color:#fff;border-color:#3B6D11;" onclick="_capPushToPipeline('${lead.id}')">🎯 Trazer pro Pipeline</button>` : ''}
+        <button class="btn-c" style="${hasDeal?'':'background:#111;color:#fff;border-color:#111;'}" onclick="convertLead('${lead.id}')">↓ Criar card no board</button>
         <button class="btn-c" onclick="markLead('${lead.id}','dismissed')">Descartar</button>
         <button class="btn-c" onclick="markLead('${lead.id}','spam')" style="color:#A32D2D;">Marcar spam</button>
       </div>` : `<div class="cap-lead-actions">
@@ -37849,6 +37856,26 @@ function _renderCaptureInbox() {
       </div>`}
     </div>`;
   }).join('');
+}
+
+// Força um lead a virar deal em Prospecção (fallback se o trigger SQL não rodou
+// — ou se a migration ainda não foi aplicada). Idempotente: se já tem deal_id, não duplica.
+async function _capPushToPipeline(leadId) {
+  try {
+    const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+    if (!c) { alert('Supabase não disponível.'); return; }
+    const { data, error } = await c.rpc('synconnect_lead_to_pipeline', { p_lead_id: leadId });
+    if (error) { alert('Falha: ' + error.message); return; }
+    // Recarrega inbox + sync state
+    await _capLoadAll();
+    if (typeof _synInitCloud === 'function') await _synInitCloud({ force: true });
+    _renderCaptureBody();
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Lead no Pipeline ✓', 'Apareceu em <strong>Prospecção</strong>. Clica em Pipeline pra ver.', 'success');
+    }
+  } catch(e) {
+    alert('Erro: ' + (e.message || e));
+  }
 }
 
 function _capShareUrl(formId) {
