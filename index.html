@@ -467,6 +467,9 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .mk-cost-list{list-style:none;padding:8px 0;margin:0;}
 .mk-cost-list li{padding:9px 18px;font-size:13.5px;line-height:1.5;color:#3A332C;border-bottom:1px dotted rgba(184,168,120,.45);}
 .mk-cost-list li:last-child{border-bottom:none;}
+.mk-item-ico{display:inline-block;width:22px;text-align:center;margin-right:8px;font-size:14px;vertical-align:baseline;}
+.mk-cost-free .mk-item-ico{filter:saturate(0.85);}
+.mk-cost-paid .mk-item-ico{filter:saturate(1.15) drop-shadow(0 1px 2px rgba(188,0,45,.3));}
 .mk-cost-list strong{color:#1A1611;font-weight:600;}
 .mk-cost-list em{font-style:italic;color:#5C4F3F;font-size:11.5px;background:rgba(193,154,58,.18);padding:1px 7px;border-radius:4px;margin-left:6px;}
 .mk-cost-detail{margin-top:5px;font-size:12.5px;color:#5C4F3F;line-height:1.55;}
@@ -23105,13 +23108,13 @@ function _mkDojoHTML() {
           </div>
         </div>
         <ul class="mk-cost-list">
-          <li><strong>Transcrição ao vivo no Tatame</strong> — escutar e converter sua reunião em texto durante a chamada.</li>
-          <li><strong>Salvar transcrição no Bunko Box</strong> — texto fica guardado, pesquisável.</li>
-          <li><strong>Buscar nas transcrições</strong> — encontrar qualquer palavra dita em qualquer reunião antiga.</li>
-          <li><strong>Exportar transcrição em Word</strong> — baixar o texto pra compartilhar fora do app.</li>
-          <li><strong>Renomear, organizar, arquivar</strong> qualquer item do Bunko Box.</li>
-          <li><strong>Reassistir gravações</strong> — replay do vídeo da reunião quando quiser.</li>
-          <li><strong>Toda navegação e UI</strong> — abrir páginas, ver cards, mover deals, etc.</li>
+          <li><span class="mk-item-ico">🧘</span><strong>Transcrição ao vivo no Tatame</strong> — escutar e converter sua reunião em texto durante a chamada.</li>
+          <li><span class="mk-item-ico">🧘</span><strong>Salvar transcrição no Bunko Box</strong> — texto fica guardado, pesquisável.</li>
+          <li><span class="mk-item-ico">🧘</span><strong>Buscar nas transcrições</strong> — encontrar qualquer palavra dita em qualquer reunião antiga.</li>
+          <li><span class="mk-item-ico">🧘</span><strong>Exportar transcrição em Word</strong> — baixar o texto pra compartilhar fora do app.</li>
+          <li><span class="mk-item-ico">🧘</span><strong>Renomear, organizar, arquivar</strong> qualquer item do Bunko Box.</li>
+          <li><span class="mk-item-ico">🧘</span><strong>Reassistir gravações</strong> — replay do vídeo da reunião quando quiser.</li>
+          <li><span class="mk-item-ico">🧘</span><strong>Toda navegação e UI</strong> — abrir páginas, ver cards, mover deals, etc.</li>
         </ul>
       </div>
 
@@ -23126,31 +23129,31 @@ function _mkDojoHTML() {
         </div>
         <ul class="mk-cost-list">
           <li>
-            <strong>🧘 Extrair ações da transcrição</strong>
+            <span class="mk-item-ico">⚔️</span><strong>Extrair ações da transcrição</strong>
             <div class="mk-cost-detail">
               Botão "Extrair ações" dentro de uma página de transcrição. O Mestre lê a reunião e devolve uma lista de TODOs e decisões tomadas.
             </div>
           </li>
           <li>
-            <strong>📌 Resumir página</strong>
+            <span class="mk-item-ico">⚔️</span><strong>Resumir página</strong>
             <div class="mk-cost-detail">
               Botão "Resumir" em qualquer página do Bunko Box. Devolve um resumo executivo do conteúdo da página.
             </div>
           </li>
           <li>
-            <strong>💡 Resumo do contato (Customer 360)</strong> · <em>Faixa Preta</em>
+            <span class="mk-item-ico">⚔️</span><strong>Resumo do contato (Customer 360)</strong> · <em>Faixa Preta</em>
             <div class="mk-cost-detail">
               No Synconnect, botão "Gerar resumo IA" no card do contato. Combina dados do contato, deals e atividades em texto narrativo.
             </div>
           </li>
           <li>
-            <strong>📰 Briefing diário do CRM</strong> · <em>Faixa Preta</em>
+            <span class="mk-item-ico">⚔️</span><strong>Briefing diário do CRM</strong> · <em>Faixa Preta</em>
             <div class="mk-cost-detail">
               Análise do dia: o que mudou ontem, follow-ups pendentes, deals esquentando. Dispara uma vez por dia quando você abre o Synconnect.
             </div>
           </li>
           <li>
-            <strong>🎯 Próxima ação por deal</strong> · <em>Faixa Preta</em>
+            <span class="mk-item-ico">⚔️</span><strong>Próxima ação por deal</strong> · <em>Faixa Preta</em>
             <div class="mk-cost-detail">
               No card de um deal: "Qual o próximo passo?". O resultado fica em cache — só consome de novo se algo mudar no deal.
             </div>
@@ -23191,7 +23194,7 @@ function _mkDojoHTML() {
     </section>
 
     <div class="mk-dojo-foot">
-      <button class="mk-dojo-btn-primary" onclick="closeMestreKanDojo()">Voltar ao tatame</button>
+      <button class="mk-dojo-btn-primary" onclick="closeMestreKanDojo()">Voltar</button>
     </div>
   </div>`;
 }
