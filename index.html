@@ -358,6 +358,96 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .sb-account-menu-item.danger{color:#A32D2D;}
 :root.dark .sb-account-menu-item.danger{color:#FF9C9C;}
 
+/* ━━━━━━━━━━ O CAMINHO DO MESTRE KAN — modal épico/dojo ━━━━━━━━━━ */
+.mk-dojo-ov{position:fixed;inset:0;background:rgba(20,16,12,0);backdrop-filter:blur(0);z-index:10005;display:flex;align-items:center;justify-content:center;padding:40px 20px;overflow-y:auto;transition:background .25s,backdrop-filter .25s;}
+.mk-dojo-ov.is-open{background:rgba(20,16,12,.78);backdrop-filter:blur(8px);}
+.mk-dojo{position:relative;max-width:840px;width:100%;background:linear-gradient(180deg,#FFFCF5 0%,#F5E8C8 100%);color:#1A1611;border:1px solid #B8A878;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 0 1px rgba(193,154,58,.18);transform:translateY(8px) scale(.98);opacity:0;transition:all .3s cubic-bezier(.2,.7,.2,1);}
+.mk-dojo-ov.is-open .mk-dojo{transform:translateY(0) scale(1);opacity:1;}
+.mk-dojo-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;background:rgba(20,16,12,.10);border:none;color:#3A332C;font-size:14px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.mk-dojo-close:hover{background:rgba(20,16,12,.22);transform:rotate(90deg);}
+
+.mk-hero{display:flex;align-items:center;gap:28px;padding:48px 44px 36px;background:linear-gradient(135deg,#BC002D 0%,#8B001F 50%,#1A1611 100%);color:#F5E8C8;position:relative;overflow:hidden;}
+.mk-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(245,232,200,.10) 0,transparent 60%);pointer-events:none;}
+.mk-hero-ink{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:120px;line-height:1;font-weight:700;color:#F5E8C8;flex-shrink:0;text-shadow:0 4px 24px rgba(0,0,0,.4);}
+.mk-hero-text{flex:1;position:relative;}
+.mk-hero-kicker{font-family:'Noto Serif JP',serif;font-style:italic;font-size:11.5px;letter-spacing:.32em;text-transform:uppercase;color:rgba(245,232,200,.7);margin-bottom:6px;}
+.mk-hero-title{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:54px;font-weight:700;letter-spacing:-.02em;margin:0 0 14px;line-height:1;color:#F5E8C8;}
+.mk-hero-sub{font-family:'Noto Serif JP',serif;font-size:15px;line-height:1.55;color:rgba(245,232,200,.86);font-style:italic;max-width:480px;}
+.mk-hero-sub em{color:#F5E8C8;font-style:italic;}
+
+.mk-section{padding:32px 44px;}
+.mk-section + .mk-section{border-top:1px solid rgba(184,168,120,.25);}
+.mk-section-h{font-family:'Noto Serif JP',serif;font-size:21px;font-weight:600;margin:0 0 6px;color:#1A1611;letter-spacing:-.01em;}
+.mk-section-sub{font-family:'Noto Serif JP',serif;font-style:italic;font-size:13.5px;color:#5C4F3F;margin:0 0 22px;line-height:1.55;}
+
+/* Storytelling — 3 blocos lado a lado */
+.mk-story{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;}
+.mk-story-block{padding:0;}
+.mk-story-glyph{font-size:38px;line-height:1;margin-bottom:10px;display:block;}
+.mk-story-block h3{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:600;margin:0 0 8px;color:#1A1611;}
+.mk-story-block p{font-size:13.5px;line-height:1.6;color:#3A332C;margin:0;}
+.mk-story-block strong{color:#BC002D;font-weight:600;}
+@media(max-width:720px){.mk-story{grid-template-columns:1fr;gap:18px;}}
+
+/* Tags livres/pagas inline no título */
+.mk-free-tag{color:#27500A;font-weight:600;border-bottom:2px solid #27500A;padding-bottom:1px;}
+.mk-paid-tag{color:#BC002D;font-weight:600;border-bottom:2px solid #BC002D;padding-bottom:1px;}
+
+/* Cards de custo */
+.mk-cost-card{margin-top:14px;background:rgba(255,255,255,.55);border-radius:10px;border:1px solid rgba(184,168,120,.5);overflow:hidden;}
+.mk-cost-card.mk-cost-free{border-left:4px solid #27500A;}
+.mk-cost-card.mk-cost-paid{border-left:4px solid #BC002D;}
+.mk-cost-card-h{display:flex;align-items:center;gap:14px;padding:14px 18px;background:rgba(255,255,255,.5);border-bottom:1px solid rgba(184,168,120,.4);}
+.mk-cost-ico{font-size:28px;line-height:1;}
+.mk-cost-title{font-family:'Noto Serif JP',serif;font-size:16px;font-weight:600;color:#1A1611;}
+.mk-cost-sub{font-size:12px;color:#5C4F3F;font-style:italic;margin-top:1px;}
+.mk-cost-list{list-style:none;padding:8px 0;margin:0;}
+.mk-cost-list li{padding:9px 18px;font-size:13.5px;line-height:1.5;color:#3A332C;border-bottom:1px dotted rgba(184,168,120,.45);}
+.mk-cost-list li:last-child{border-bottom:none;}
+.mk-cost-list strong{color:#1A1611;font-weight:600;}
+.mk-cost-list em{font-style:italic;color:#5C4F3F;font-size:11.5px;background:rgba(193,154,58,.18);padding:1px 7px;border-radius:4px;margin-left:6px;}
+.mk-cost-detail{margin-top:5px;font-size:12.5px;color:#5C4F3F;line-height:1.55;}
+.mk-cost-pill{display:inline-block;margin-top:6px;background:#BC002D;color:#F5E8C8;font-family:'Noto Serif JP',serif;font-style:italic;font-size:11.5px;padding:3px 10px;border-radius:14px;letter-spacing:.01em;}
+.mk-cost-free .mk-cost-pill{background:#27500A;}
+.mk-tag-incl{display:inline-block;background:#27500A;color:#F5E8C8;font-size:10px;font-weight:600;padding:1px 7px;border-radius:4px;margin-left:6px;vertical-align:middle;text-transform:uppercase;letter-spacing:.06em;}
+
+/* Sumário de custo total */
+.mk-cost-summary{margin-top:20px;padding:18px 22px;background:linear-gradient(135deg,#1A1611 0%,#3A332C 100%);color:#F5E8C8;border-radius:10px;display:flex;align-items:center;gap:18px;}
+.mk-cost-summary-label{font-family:'Noto Serif JP',serif;font-style:italic;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,232,200,.65);}
+.mk-cost-summary-val{font-family:'Noto Serif JP',serif;font-size:30px;font-weight:700;color:#F5E8C8;margin:2px 0;}
+.mk-cost-summary-note{font-size:12px;color:rgba(245,232,200,.78);font-style:italic;line-height:1.4;}
+
+/* Princípios */
+.mk-philosophy{background:linear-gradient(180deg,transparent 0%,rgba(193,154,58,.08) 100%);}
+.mk-principles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:16px;}
+.mk-principles > div{padding:14px;background:rgba(255,255,255,.6);border-radius:8px;border:1px solid rgba(184,168,120,.4);}
+.mk-principle-num{font-family:'Noto Serif JP',serif;font-size:22px;font-weight:700;color:#BC002D;margin-bottom:6px;line-height:1;}
+.mk-principles strong{display:block;font-family:'Noto Serif JP',serif;font-size:14px;font-weight:600;margin-bottom:6px;color:#1A1611;}
+.mk-principles p{margin:0;font-size:12.5px;line-height:1.5;color:#3A332C;}
+@media(max-width:720px){.mk-principles{grid-template-columns:1fr;}}
+
+.mk-dojo-foot{padding:18px 44px 32px;display:flex;justify-content:center;}
+.mk-dojo-btn-primary{background:#BC002D;color:#F5E8C8;border:none;padding:12px 32px;border-radius:8px;font-family:'Noto Serif JP',serif;font-size:14px;font-weight:600;letter-spacing:.04em;cursor:pointer;transition:all .15s;box-shadow:0 4px 14px rgba(188,0,45,.35);}
+.mk-dojo-btn-primary:hover{background:#8B001F;transform:translateY(-1px);box-shadow:0 6px 20px rgba(188,0,45,.45);}
+
+:root.dark .mk-dojo{background:linear-gradient(180deg,#2A241D 0%,#1A1611 100%);color:#E8DDC4;border-color:#5C4F3F;}
+:root.dark .mk-dojo-close{background:rgba(245,232,200,.10);color:#E8DDC4;}
+:root.dark .mk-dojo-close:hover{background:rgba(245,232,200,.22);}
+:root.dark .mk-cost-card{background:rgba(245,232,200,.05);border-color:#5C4F3F;}
+:root.dark .mk-cost-card-h{background:rgba(245,232,200,.07);}
+:root.dark .mk-cost-title,
+:root.dark .mk-story-block h3,
+:root.dark .mk-section-h,
+:root.dark .mk-principles strong,
+:root.dark .mk-cost-list strong{color:#F5E8C8;}
+:root.dark .mk-cost-list li,
+:root.dark .mk-story-block p,
+:root.dark .mk-principles p{color:#D9CDA8;}
+:root.dark .mk-cost-sub,
+:root.dark .mk-cost-detail,
+:root.dark .mk-section-sub{color:#B0A593;}
+:root.dark .mk-principles > div{background:rgba(245,232,200,.05);border-color:#5C4F3F;}
+
 /* ── Página de Configurações ── */
 .settings-page{padding:.5rem 0 2rem;display:flex;flex-direction:column;gap:18px;max-width:760px;}
 .settings-head{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
@@ -22732,6 +22822,9 @@ function _refreshAccountUIInternal() {
       <button class="sb-account-menu-item" onclick="closeAccountMenu();switchTab('settings');">
         <span class="sb-icon">⚙</span><span>Configurações</span>
       </button>
+      <button class="sb-account-menu-item" onclick="closeAccountMenu();openMestreKanDojo();">
+        <span class="sb-icon">🧘</span><span>O Caminho do Mestre Kan</span>
+      </button>
       <button class="sb-account-menu-item" onclick="closeAccountMenu();openHelpSupport();">
         <span class="sb-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M5.7 6 a2.3 2.3 0 0 1 4.6 0 c0 1.4 -2.3 1.6 -2.3 3"/><line x1="8" y1="11.6" x2="8" y2="11.7"/></svg></span><span>Ajuda e Suporte</span>
       </button>
@@ -22820,6 +22913,199 @@ function _openNotificationsFromMenu(ev) {
       toggleNotificationsPopover(ev || new Event('click'));
     }
   }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// O CAMINHO DO MESTRE KAN — apresentação épica + custos transparentes
+// ─────────────────────────────────────────────────────────────────────
+// Modal storytelling explicando o Mestre Kan, com tabela clara de
+// o que consome chamada de IA e o que é grátis (pra o user usar à vontade
+// sem medo de queimar API).
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function openMestreKanDojo() {
+  let ov = document.getElementById('mk-dojo-ov');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'mk-dojo-ov';
+  ov.className = 'mk-dojo-ov';
+  ov.innerHTML = _mkDojoHTML();
+  document.body.appendChild(ov);
+  // Animação de entrada
+  requestAnimationFrame(() => ov.classList.add('is-open'));
+  ov.addEventListener('click', e => { if (e.target === ov) closeMestreKanDojo(); });
+}
+
+function closeMestreKanDojo() {
+  const ov = document.getElementById('mk-dojo-ov');
+  if (!ov) return;
+  ov.classList.remove('is-open');
+  setTimeout(() => ov.remove(), 250);
+}
+
+function _mkDojoHTML() {
+  // Custos estimados em USD por uso médio (calculados com base nos preços oficiais Anthropic/OpenAI)
+  return `
+  <div class="mk-dojo">
+    <button class="mk-dojo-close" onclick="closeMestreKanDojo()" aria-label="Fechar">✕</button>
+
+    <!-- ━━━ HERO ━━━ -->
+    <section class="mk-hero">
+      <div class="mk-hero-ink">主</div>
+      <div class="mk-hero-text">
+        <div class="mk-hero-kicker">O CAMINHO DO</div>
+        <h1 class="mk-hero-title">Mestre Kan</h1>
+        <div class="mk-hero-sub">
+          Não é mais um chatbot. É um <em>sensei silencioso</em> que escuta as reuniões,
+          guarda o que importa e devolve clareza quando o caos volta na segunda-feira.
+        </div>
+      </div>
+    </section>
+
+    <!-- ━━━ STORYTELLING ━━━ -->
+    <section class="mk-section mk-story">
+      <div class="mk-story-block">
+        <div class="mk-story-glyph">⛩️</div>
+        <h3>O templo</h3>
+        <p>
+          No alto da montanha mora o Mestre Kan. Não fala. Não interrompe. Observa.
+          Quando você sobe no tatame pra uma reunião, ele já está ali — sentado em
+          posição de meditação — escutando cada palavra como se fosse a única no mundo.
+        </p>
+      </div>
+      <div class="mk-story-block">
+        <div class="mk-story-glyph">📜</div>
+        <h3>O pergaminho</h3>
+        <p>
+          Quando a chamada termina, ele entrega um pergaminho com tudo que foi dito.
+          Sem editar, sem opinar. <strong>A transcrição bruta é gratuita</strong> —
+          mora no seu Bunko Box pra sempre, pesquisável, exportável, sua.
+        </p>
+      </div>
+      <div class="mk-story-block">
+        <div class="mk-story-glyph">⚔️</div>
+        <h3>A katana</h3>
+        <p>
+          Quando você precisa ir além — extrair ações, resumir um contato, prever
+          próximo passo de um deal — o Mestre desembainha a katana. <strong>Aí sim
+          gasta chamada de IA</strong>. Mas só quando você pede explicitamente, e
+          sempre com aviso de custo.
+        </p>
+      </div>
+    </section>
+
+    <!-- ━━━ TABELA: GRÁTIS vs PAGO ━━━ -->
+    <section class="mk-section">
+      <h2 class="mk-section-h">Onde ele <span class="mk-free-tag">treina de graça</span> e onde <span class="mk-paid-tag">desembainha a katana</span></h2>
+      <p class="mk-section-sub">
+        Transparência total: tudo que consome chamada de IA tem ícone ⚔️.
+        Tudo o que é grátis tem ícone 🧘 — pode usar à vontade.
+      </p>
+
+      <!-- GRATUITO -->
+      <div class="mk-cost-card mk-cost-free">
+        <div class="mk-cost-card-h">
+          <span class="mk-cost-ico">🧘</span>
+          <div>
+            <div class="mk-cost-title">Treinos gratuitos</div>
+            <div class="mk-cost-sub">Use à vontade — não passa nenhum byte por IA paga</div>
+          </div>
+        </div>
+        <ul class="mk-cost-list">
+          <li><strong>Transcrição ao vivo no Tatame</strong> — Whisper roda em chunks de 8s, mas o custo é absorvido no plano. <span class="mk-tag-incl">incluso</span></li>
+          <li><strong>Salvar transcrição no Bunko Box</strong> — texto puro, sem IA envolvida.</li>
+          <li><strong>Buscar nas transcrições</strong> — busca textual local.</li>
+          <li><strong>Exportar transcrição em Word</strong> — geração local.</li>
+          <li><strong>Renomear/Organizar/Arquivar</strong> qualquer item do Bunko.</li>
+          <li><strong>Ver passado das gravações</strong> — replay do vídeo, sem custo.</li>
+          <li><strong>Status badges, atalhos, navegação</strong> — interface, não IA.</li>
+        </ul>
+      </div>
+
+      <!-- PAGO -->
+      <div class="mk-cost-card mk-cost-paid">
+        <div class="mk-cost-card-h">
+          <span class="mk-cost-ico">⚔️</span>
+          <div>
+            <div class="mk-cost-title">Quando a katana corta (consome IA)</div>
+            <div class="mk-cost-sub">Sempre opt-in — você clica em algo específico</div>
+          </div>
+        </div>
+        <ul class="mk-cost-list">
+          <li>
+            <strong>🧘 Extrair ações da transcrição</strong>
+            <div class="mk-cost-detail">
+              Botão "Extrair ações" dentro de uma página de transcrição. Manda o texto pro Claude e devolve uma lista de TODOs.
+              <span class="mk-cost-pill">~R$ 0,05 por reunião</span>
+            </div>
+          </li>
+          <li>
+            <strong>📌 Resumir página (Mestre Kan summarize)</strong>
+            <div class="mk-cost-detail">
+              Botão "Resumir" em qualquer página do Bunko. Devolve um resumo executivo.
+              <span class="mk-cost-pill">~R$ 0,03 por página</span>
+            </div>
+          </li>
+          <li>
+            <strong>💡 Resumo do contato (Customer 360)</strong> · <em>Faixa Preta</em>
+            <div class="mk-cost-detail">
+              No Synconnect, botão "Gerar resumo IA" no card do contato. Combina dados do contato + deals + atividades em texto narrativo.
+              <span class="mk-cost-pill">~R$ 1-4/mês se usar 1× por contato/mês</span>
+            </div>
+          </li>
+          <li>
+            <strong>📰 Briefing diário do CRM</strong> · <em>Faixa Preta</em>
+            <div class="mk-cost-detail">
+              Análise do dia: o que mudou ontem, follow-ups pendentes, deals esquentando. <strong>1× por dia</strong>, opt-in.
+              <span class="mk-cost-pill">~R$ 1/mês (30 dias × 1 chamada)</span>
+            </div>
+          </li>
+          <li>
+            <strong>🎯 Próxima ação por deal</strong> · <em>Faixa Preta</em>
+            <div class="mk-cost-detail">
+              No card de um deal: "Qual o próximo passo?". <strong>Cacheia o resultado</strong> — só roda IA de novo se algo mudar no deal.
+              <span class="mk-cost-pill">~R$ 5/mês considerando uso ativo</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- TOTAL ESTIMADO -->
+      <div class="mk-cost-summary">
+        <div>
+          <div class="mk-cost-summary-label">Uso típico de IA paga, plano completo</div>
+          <div class="mk-cost-summary-val">≈ R$ 7-12 / mês</div>
+          <div class="mk-cost-summary-note">Tudo o resto do app — incluindo transcrição ao vivo — é grátis pra sempre.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ━━━ FILOSOFIA / FOOTER ━━━ -->
+    <section class="mk-section mk-philosophy">
+      <h3 class="mk-section-h">Os 3 princípios do Mestre</h3>
+      <div class="mk-principles">
+        <div>
+          <div class="mk-principle-num">壱</div>
+          <strong>Nada acontece sem você pedir</strong>
+          <p>O Mestre nunca dispara IA sozinho. Cada ação paga tem botão e confirmação visível.</p>
+        </div>
+        <div>
+          <div class="mk-principle-num">弐</div>
+          <strong>Aviso antes de cada chamada</strong>
+          <p>Funções pagas mostram o custo estimado antes de rodar. Você decide.</p>
+        </div>
+        <div>
+          <div class="mk-principle-num">参</div>
+          <strong>Resposta vem pra você</strong>
+          <p>O conteúdo gerado é seu. Fica no Bunko, exporta em Word, baixa em CSV. Seu dado, seu controle.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="mk-dojo-foot">
+      <button class="mk-dojo-btn-primary" onclick="closeMestreKanDojo()">Voltar ao tatame</button>
+    </div>
+  </div>`;
 }
 
 // ── Ajuda e Suporte ─────────────────────────────────────────────────────────
@@ -49288,11 +49574,19 @@ async function _lkStopRecording() {
   if (typeof _showKanWarning === 'function') {
     if (stopOk) {
       _showKanWarning('Gravação parada',
-        'Processando o vídeo — vai aparecer no Replay em 1-2 min.', 'info');
+        'Processando o vídeo — vai aparecer pronto pra assistir em segundos.', 'info');
     } else {
       _showKanWarning('Gravação parada (com aviso)',
         'O servidor não confirmou. Marcada como falha no Replay — o LiveKit pode estar processando ainda.', 'warning');
     }
+  }
+
+  // ━━ Polling agressivo: a cada 3s checa se egress completou + URL chegou ━━
+  // Sem isso, a gravação ficaria em "processing" até o user clicar Re-sincronizar.
+  // Com isso, o card vira PRONTO automaticamente assim que o egress finaliza
+  // (geralmente 10-30s depois de parar). Aborta sozinho em 3min.
+  if (recordingId && stopOk) {
+    try { _bunkoPollRecordingAggressive(recordingId, 180); } catch(_){}
   }
 }
 
@@ -50223,7 +50517,7 @@ function _bunkoListRowHTML(it) {
     ondragstart="_bunkoDragStart(event, '${it.kind}', '${_esc(it.id)}')"
     onclick="${onClickAttr}">
     <div class="col-icon"><span class="ic">${iconHtml}</span></div>
-    <div class="col-name">${it.pinned ? '<span class="bunko-pin-mark" title="Fixado">⭐</span>' : ''}${_esc(it.title || 'sem título')}${it.archived ? ' <span class="badge-archived">arquivado</span>' : ''}${!isReady && isRec ? ` <span class="badge-status ${it.status||''}">${it.status||'pendente'}</span>` : ''}</div>
+    <div class="col-name">${it.pinned ? '<span class="bunko-pin-mark" title="Acesso rápido">⚡</span>' : ''}${_esc(it.title || 'sem título')}${it.archived ? ' <span class="badge-archived">arquivado</span>' : ''}${!isReady && isRec ? ` <span class="badge-status ${it.status||''}">${it.status||'pendente'}</span>` : ''}</div>
     <div class="col-type">${typeLabel}</div>
     <div class="col-size">${size}</div>
     <div class="col-date">${dt(it.updated_at || it.created_at)}</div>
@@ -50259,7 +50553,7 @@ function _bunkoCardHTML(it) {
       draggable="true"
       ondragstart="_bunkoDragStart(event, 'file', '${_esc(it.id)}')"
       onclick="_bunkoDownloadFile('${_esc(filePath)}','${_esc(fileBucket)}','${_esc(it.title)}')">
-      ${it.pinned ? '<div class="bunko-card-pin" title="Fixado">⭐</div>' : ''}
+      ${it.pinned ? '<div class="bunko-card-pin" title="Acesso rápido">⚡</div>' : ''}
       <div class="bunko-card-menu">
         <button class="bunko-card-menu-btn" onclick="event.stopPropagation(); _bunkoFileMenu(event, '${_esc(it.id)}','${_esc(filePath)}','${_esc(fileBucket)}','${_esc((it.title||'').replace(/'/g,'\\\''))}')">⋯</button>
       </div>
@@ -50492,7 +50786,9 @@ async function _bunkoCheckRecordingConfig() {
   document.getElementById('bunko-orphan-modal')?.classList.remove('is-open');
 }
 
-// Auto-check periódico: a cada 60s checa recordings em processing há +5min
+// Auto-check periódico (background, leve): a cada 15s varre TODAS as gravações
+// em estado pendente E também as "ready" sem URL (que precisam backfill).
+// Sem cutoff temporal — checa logo que possível. Reload do Bunko se mudou algo.
 let _bunkoAutoCheckTimer = null;
 function _bunkoStartAutoCheck() {
   if (_bunkoAutoCheckTimer) return;
@@ -50500,19 +50796,70 @@ function _bunkoStartAutoCheck() {
     try {
       const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
       if (!c) return;
-      const cutoff = new Date(Date.now() - 5*60*1000).toISOString();
-      const { data } = await c.from('tatame_recordings')
-        .select('id, livekit_egress_id')
-        .in('status', ['processing', 'recording', 'starting'])
+      // 1) Em processo: processing/recording/starting/active/ending → todas precisam de check
+      const { data: pending } = await c.from('tatame_recordings')
+        .select('id, livekit_egress_id, status, url')
+        .in('status', ['processing', 'recording', 'starting', 'active', 'ending'])
         .not('livekit_egress_id', 'is', null)
-        .lt('started_at', cutoff)
-        .limit(5);
-      // Re-checa silenciosamente cada uma
-      for (const rec of (data || [])) {
+        .limit(20);
+      // 2) "ready" sem URL → precisa backfill (LiveKit completou mas DB não pegou file_location)
+      const { data: readyMissingUrl } = await c.from('tatame_recordings')
+        .select('id, livekit_egress_id, status, url')
+        .eq('status', 'ready')
+        .or('url.is.null,url.eq.')
+        .not('livekit_egress_id', 'is', null)
+        .limit(20);
+      const all = [...(pending || []), ...(readyMissingUrl || [])];
+      if (!all.length) return;
+      let anyChanged = false;
+      for (const rec of all) {
+        const before = JSON.stringify({ s: rec.status, u: !!rec.url });
         await _bunkoCheckRecordingSilent(rec.id).catch(()=>{});
+        // Verifica se status/url mudou (re-lê do banco)
+        try {
+          const { data: after } = await c.from('tatame_recordings').select('status, url').eq('id', rec.id).single();
+          const afterKey = JSON.stringify({ s: after?.status, u: !!after?.url });
+          if (afterKey !== before) anyChanged = true;
+        } catch(_){}
+      }
+      // Se alguma mudou e Bunko está visível, recarrega a lista pra atualizar cards
+      if (anyChanged && document.getElementById('bunko-main-content')) {
+        try { await _bunkoLoadAll(); } catch(_){}
       }
     } catch(_){}
-  }, 60 * 1000);
+  }, 15 * 1000);
+}
+
+// Polling AGRESSIVO logo após parar uma gravação — a cada 3s por até 3min.
+// Mais rápido que o auto-check (15s) pra UX percebida ser "ficou pronto na hora".
+function _bunkoPollRecordingAggressive(recordingId, maxSec = 180) {
+  if (!recordingId) return;
+  const deadline = Date.now() + maxSec * 1000;
+  let stop = false;
+  const tick = async () => {
+    if (stop || Date.now() > deadline) return;
+    try {
+      await _bunkoCheckRecordingSilent(recordingId);
+      const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+      if (c) {
+        const { data: r } = await c.from('tatame_recordings').select('status, url').eq('id', recordingId).single();
+        if (r && r.status === 'ready' && r.url) {
+          stop = true;
+          // Atualiza UI se Bunko estiver visível
+          if (document.getElementById('bunko-main-content')) {
+            try { await _bunkoLoadAll(); } catch(_){}
+          }
+          // Toast amigável
+          if (typeof _showKanWarning === 'function') {
+            _showKanWarning('Gravação pronta ✓', 'Já tá disponível no Bunko Box pra assistir.', 'success');
+          }
+          return;
+        }
+      }
+    } catch(_){}
+    if (!stop) setTimeout(tick, 3000);
+  };
+  setTimeout(tick, 5000); // primeira tentativa 5s depois (dá tempo do egress finalizar)
 }
 async function _bunkoCheckRecordingSilent(recordingId) {
   // Versão silenciosa do check — só atualiza o banco, sem modals
@@ -50955,7 +51302,7 @@ function _bunkoItemMenu(evt, kind, itemId, title) {
       <button class="is-danger" onclick="_bunkoClosePopover(); _bunkoPurgeItem('${kind}', '${_esc(itemId)}')">⚠️ Excluir permanente</button>`;
   } else {
     pop.innerHTML = `
-      <button onclick="_bunkoClosePopover(); _bunkoTogglePin('${kind}', '${_esc(itemId)}', ${!pinned})">${pinned?'☆ Desafixar':'⭐ Fixar no topo'}</button>
+      <button onclick="_bunkoClosePopover(); _bunkoTogglePin('${kind}', '${_esc(itemId)}', ${!pinned})">${pinned?'☆ Remover do acesso rápido':'⚡ Adicionar ao acesso rápido'}</button>
       <button onclick="_bunkoClosePopover(); _bunkoRenameItem('${kind}', '${_esc(itemId)}')">✏️ Renomear</button>
       <button onclick="_bunkoClosePopover(); _bunkoMoveItemPrompt('${kind}', '${_esc(itemId)}')">📂 Mover pra...</button>
       ${kind==='page' ? `<button onclick="_bunkoClosePopover(); _bunkoExportPageDocx('${_esc(itemId)}')">💾 Baixar Word</button>` : ''}
@@ -52466,26 +52813,28 @@ async function _bunkoDownloadFolderZip(folderId) {
   const folderName = folder ? folder.name : 'Bunko';
 
   // Lista arquivos: arquivos soltos NA pasta (page_id NULL) + anexos das páginas dessa pasta
+  // CRÍTICO: folderId pode ser null (Raiz). Postgres exige `.is('folder_id', null)` em vez de
+  // `.eq(..., null)` (o cliente serializa null como string "null" → invalid uuid syntax).
   let files = [];
   try {
     // 1) Loose files nessa pasta
-    const { data: looseFiles, error: e1 } = await c
-      .from('bunko_files')
+    let looseQ = c.from('bunko_files')
       .select('id, name, storage_path, storage_bucket, size_bytes')
       .eq('owner_id', supaUser.id)
       .is('deleted_at', null)
-      .is('page_id', null)
-      .eq('folder_id', folderId);
+      .is('page_id', null);
+    looseQ = folderId ? looseQ.eq('folder_id', folderId) : looseQ.is('folder_id', null);
+    const { data: looseFiles, error: e1 } = await looseQ;
     if (e1) throw e1;
     files = files.concat((looseFiles || []).map(f => ({ ...f, subpath: '' })));
 
     // 2) Pages dessa pasta + seus anexos
-    const { data: pages, error: e2 } = await c
-      .from('bunko_pages')
+    let pagesQ = c.from('bunko_pages')
       .select('id, title')
       .eq('owner_id', supaUser.id)
-      .is('deleted_at', null)
-      .eq('folder_id', folderId);
+      .is('deleted_at', null);
+    pagesQ = folderId ? pagesQ.eq('folder_id', folderId) : pagesQ.is('folder_id', null);
+    const { data: pages, error: e2 } = await pagesQ;
     if (e2) throw e2;
     if (pages && pages.length) {
       const pageIds = pages.map(p => p.id);
