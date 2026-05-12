@@ -50247,11 +50247,12 @@ async function _bunkoCheckRecordingConfig() {
   const { data: { session } } = await c.auth.getSession();
   const jwt = session?.access_token;
 
-  // Busca info de config + testa storage em paralelo
+  // Busca info de config + testa storage (HEAD anônimo) + write test (signed PUT) em paralelo
   const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` };
-  const [infoR, storR] = await Promise.all([
+  const [infoR, storR, writeR] = await Promise.all([
     fetch(`${cfg.url}/functions/v1/livekit-recording/config-info`, { method: 'POST', headers, body: '{}' }).then(r => r.json()).catch(e => ({ error: String(e) })),
     fetch(`${cfg.url}/functions/v1/livekit-recording/test-storage`, { method: 'POST', headers, body: '{}' }).then(r => r.json()).catch(e => ({ error: String(e) })),
+    fetch(`${cfg.url}/functions/v1/livekit-recording/test-write`, { method: 'POST', headers, body: '{}' }).then(r => r.json()).catch(e => ({ error: String(e) })),
   ]);
   const secrets = infoR.secrets_status || {};
   const missing = infoR.missing_secrets || [];
@@ -50270,11 +50271,21 @@ async function _bunkoCheckRecordingConfig() {
         Cole essa URL em <strong>LiveKit Cloud Dashboard → Settings → Webhooks → + Add</strong>. Eventos: <code>egress_ended</code> e <code>egress_updated</code>. Sem isso o status nunca atualiza automaticamente.
       </div>
 
-      <div style="font-weight:600;margin-bottom:8px;">📦 Teste do bucket R2/S3</div>
-      <div style="background:${storR.ok?'rgba(59,109,17,.10)':'rgba(163,45,45,.10)'};padding:11px 14px;border-radius:7px;font-size:12px;line-height:1.5;">
+      <div style="font-weight:600;margin-bottom:8px;">📦 Teste de conexão (HEAD anônimo)</div>
+      <div style="background:${storR.ok?'rgba(59,109,17,.10)':'rgba(163,45,45,.10)'};padding:11px 14px;border-radius:7px;font-size:12px;line-height:1.5;margin-bottom:14px;">
         <strong style="color:${storR.ok?'#27500A':'#A32D2D'};">${storR.ok?'✓':'✕'} ${_esc(storR.message || storR.error || 'sem resposta')}</strong>
         ${storR.bucket ? `<div style="font-family:Menlo,monospace;font-size:11px;margin-top:4px;color:var(--color-text-tertiary);">bucket: ${_esc(storR.bucket)} · region: ${_esc(storR.region||'')} ${storR.endpoint?'· endpoint: '+_esc(storR.endpoint):''}</div>` : ''}
         ${storR.hint ? `<div style="margin-top:6px;font-size:11.5px;">${_esc(storR.hint)}</div>` : ''}
+      </div>
+
+      <div style="font-weight:600;margin-bottom:8px;">✍️ Teste de ESCRITA real no R2 (validação de credenciais)</div>
+      <div style="background:${writeR.ok?'rgba(59,109,17,.10)':'rgba(163,45,45,.10)'};padding:11px 14px;border-radius:7px;font-size:12px;line-height:1.5;">
+        <strong style="color:${writeR.ok?'#27500A':'#A32D2D'};">${writeR.ok?'✓':'✕'} ${_esc(writeR.message || writeR.error || 'sem resposta')}</strong>
+        ${writeR.hint ? `<div style="margin-top:6px;font-size:11.5px;color:#A32D2D;">${_esc(writeR.hint)}</div>` : ''}
+        ${writeR.status ? `<div style="font-family:Menlo,monospace;font-size:11px;margin-top:4px;color:var(--color-text-tertiary);">HTTP ${writeR.status}</div>` : ''}
+      </div>
+      <div style="font-size:11px;color:var(--color-text-tertiary);font-style:italic;margin-top:5px;">
+        Este é o teste DEFINITIVO. Se ✓, suas credenciais R2 funcionam e o LiveKit consegue subir gravações. Se ✕, o problema está aqui — não vai gravar enquanto não passar.
       </div>
 
       ${missing.length > 0 ? `<div style="margin-top:14px;padding:11px 14px;background:rgba(163,45,45,.08);border-radius:7px;font-size:12px;line-height:1.5;">
