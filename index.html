@@ -32964,9 +32964,12 @@ function renderRegistry() {
           <button class="reg-tab${['documents','automation','help'].includes(_registryTab)?' active':''}" onclick="_synToggleMoreMenu(event)" id="reg-more-btn" style="display:inline-flex;align-items:center;gap:5px;">
             ⋯ Mais
           </button>
-          <div id="reg-more-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:5px;min-width:180px;z-index:50;">
+          <div id="reg-more-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:5px;min-width:200px;z-index:50;">
             <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="setRegistryTab('documents');_synCloseMoreMenu()">📄 Documentos <span style="opacity:.5;font-weight:400;">${_documents.length}</span></button>
             <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="setRegistryTab('automation');_synCloseMoreMenu()">⚡ Automação</button>
+            <div style="height:1px;background:var(--color-border-tertiary);margin:4px 8px;"></div>
+            <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="_synOpenExportPicker();_synCloseMoreMenu()">📥 Exportar dados…</button>
+            <div style="height:1px;background:var(--color-border-tertiary);margin:4px 8px;"></div>
             <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="setRegistryTab('help');_synCloseMoreMenu()">❓ Como usar</button>
           </div>
         </div>
@@ -33300,10 +33303,6 @@ async function renderAnalyticsTab() {
         ${_synFunnelSVG() || '<div style="padding:18px;text-align:center;color:var(--color-text-tertiary);font-size:12.5px;font-style:italic;">Crie deals em estágios diferentes pra ver o funil.</div>'}
       </div>
     </div>
-    <div style="margin-top:18px;text-align:right;">
-      <button class="syn-btn-secondary" onclick="_synExportCSV('deals')" style="margin-right:6px;">📥 Exportar deals (CSV)</button>
-      <button class="syn-btn-secondary" onclick="_synExportCSV('activities')">📥 Exportar atividades (CSV)</button>
-    </div>
   `;
 }
 
@@ -33591,6 +33590,42 @@ function _synSearchKeydown(e) {
 // ────────────────────────────────────────────────────────────────────
 // #18 EXPORTAÇÃO CSV
 // ────────────────────────────────────────────────────────────────────
+// Picker pra escolher o que exportar
+function _synOpenExportPicker() {
+  let ov = document.getElementById('syn-export-picker');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'syn-export-picker';
+    ov.className = 'syn-modal-ov';
+    document.body.appendChild(ov);
+  }
+  const items = [
+    { kind:'contatos',   icon:'👥', label:'Contatos',    count: (_contacts||[]).length,    sub:'Nome, email, telefone, CPF/CNPJ, cargo, notas' },
+    { kind:'deals',      icon:'🎯', label:'Deals',       count: (_synDeals||[]).length,    sub:'Pipeline completo: valor, estágio, contato, follow-up' },
+    { kind:'activities', icon:'📝', label:'Atividades',  count: (_synActivities||[]).length, sub:'Timeline: notas, calls, emails, menções, mudanças' },
+  ];
+  ov.innerHTML = `<div class="syn-modal" onclick="event.stopPropagation()" style="max-width:480px;">
+    <div class="syn-modal-h"><h3>Exportar dados do Synconnect</h3><button class="syn-modal-x" onclick="document.getElementById('syn-export-picker').classList.remove('is-open')">×</button></div>
+    <div class="syn-modal-body">
+      <p style="font-size:12px;color:var(--color-text-secondary);margin:0 0 14px;">Baixa um CSV (compatível com Excel/Google Sheets). UTF-8 com BOM, separado por ponto-e-vírgula.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${items.map(it => `<button onclick="_synExportCSV('${it.kind}');document.getElementById('syn-export-picker').classList.remove('is-open')" style="display:flex;align-items:center;gap:12px;text-align:left;padding:12px 14px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;cursor:pointer;font-family:inherit;width:100%;" onmouseenter="this.style.background='var(--color-background-primary)';this.style.borderColor='var(--color-text-secondary)'" onmouseleave="this.style.background='var(--color-background-secondary)';this.style.borderColor='var(--color-border-tertiary)'">
+          <span style="font-size:22px;flex-shrink:0;">${it.icon}</span>
+          <div style="flex:1;">
+            <div style="font-weight:500;font-size:13.5px;">${it.label} <span style="font-weight:400;color:var(--color-text-tertiary);">· ${it.count}</span></div>
+            <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-top:2px;">${it.sub}</div>
+          </div>
+          <span style="color:var(--color-text-tertiary);">↓</span>
+        </button>`).join('')}
+      </div>
+    </div>
+    <div class="syn-modal-f">
+      <button class="syn-btn-secondary" onclick="document.getElementById('syn-export-picker').classList.remove('is-open')">Cancelar</button>
+    </div>
+  </div>`;
+  ov.classList.add('is-open');
+}
+
 function _synExportCSV(kind) {
   let rows = [];
   let filename = `synconnect_${kind}_${new Date().toISOString().slice(0,10)}.csv`;
@@ -34224,7 +34259,6 @@ function renderPipelineTab() {
       <div style="font-size:13px;color:var(--color-text-secondary);">Arraste cards entre os estágios. Mover pra <strong>Ganho</strong>/<strong>Perdido</strong> fecha o deal.</div>
       <div style="display:flex;gap:6px;">
         <button class="syn-btn-secondary" onclick="_synOpenStageEditor()" title="Renomear, reordenar ou criar estágios">⚙ Estágios</button>
-        <button class="syn-btn-secondary" onclick="_synExportCSV('deals')" title="Exportar pipeline em CSV">📥 Exportar</button>
         <button class="syn-new-deal-btn" onclick="_synOpenDealModal()">+ Nova oportunidade</button>
       </div>
     </div>
@@ -34800,7 +34834,6 @@ function renderContactsTab() {
         <option value="fornecedor" ${filter==='fornecedor'?'selected':''}>Só fornecedores</option>
         <option value="ambos"      ${filter==='ambos'?'selected':''}>Cliente + Fornecedor</option>
       </select>
-      <button class="btn-c" onclick="_synExportCSV('contatos')" title="Baixar lista em CSV">📥 Exportar</button>
       <button class="btn-c" style="background:#111;color:#fff;border-color:#111;" onclick="openContactModal()">+ Novo cadastro</button>
     </div>
     ${list.length ? `
