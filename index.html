@@ -50292,6 +50292,39 @@ async function _bunkoCheckRecordingConfig() {
         <strong style="color:#A32D2D;">⚠ Faltam ${missing.length} secret${missing.length===1?'':'s'}:</strong><br/>
         <code style="font-size:11px;">supabase secrets set ${missing.map(k=>k+'=...').join(' ')} --project-ref iycojmhbqfjnupxrrofa</code>
       </div>` : ''}
+
+      <div style="margin-top:14px;font-weight:600;margin-bottom:8px;">🎥 Egresses no LiveKit Cloud (raw)</div>
+      ${(() => {
+        if (infoR.livekit_error) {
+          return `<div style="background:rgba(163,45,45,.10);padding:11px 14px;border-radius:7px;font-size:12px;color:#A32D2D;">Erro ao consultar LiveKit: ${_esc(infoR.livekit_error)}</div>`;
+        }
+        const egs = infoR.livekit_egresses || [];
+        if (!egs.length) {
+          return `<div style="background:rgba(163,45,45,.08);padding:11px 14px;border-radius:7px;font-size:12px;color:#A32D2D;">
+            <strong>⚠ Zero egresses encontrados no LiveKit Cloud.</strong><br/>
+            Isso significa que o LiveKit não está retendo NENHUM egress — ou nunca chegou um, ou todos foram descartados. Verifique a URL do LIVEKIT_WS_URL (deve ser <code>wss://&lt;project&gt;.livekit.cloud</code>).
+          </div>`;
+        }
+        const rows = egs.map(eg => {
+          const stColor = (eg.status==='ready')?'#27500A':((eg.status==='failed'||eg.status==='aborted')?'#A32D2D':'#8B6914');
+          const stBg = (eg.status==='ready')?'rgba(59,109,17,.15)':((eg.status==='failed'||eg.status==='aborted')?'rgba(163,45,45,.12)':'rgba(245,158,11,.15)');
+          const sz = eg.file_size ? `${(eg.file_size/1024/1024).toFixed(1)} MB` : '—';
+          const dur = eg.file_duration_ns ? `${Math.round(eg.file_duration_ns/1e9)}s` : '—';
+          const err = eg.error ? `<div style="color:#A32D2D;font-size:10.5px;margin-top:3px;">❗ ${_esc(eg.error)}</div>` : '';
+          const loc = eg.file_location ? `<div style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:3px;word-break:break-all;">📁 ${_esc(eg.file_location)}</div>` : '';
+          return `
+            <div style="padding:9px 11px;border-bottom:1px solid var(--color-border);font-size:11.5px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                <code style="font-family:Menlo,monospace;font-size:10.5px;">${_esc((eg.egress_id||'').slice(0,28))}…</code>
+                <span style="background:${stBg};color:${stColor};padding:2px 8px;border-radius:4px;font-size:10.5px;font-weight:600;">${_esc(eg.status||'?')}</span>
+              </div>
+              <div style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:3px;">sala: <code>${_esc((eg.room_name||'—').slice(0,40))}</code> · dur ${dur} · ${sz}</div>
+              ${err}${loc}
+            </div>`;
+        }).join('');
+        return `<div style="background:var(--color-background-secondary);border-radius:7px;overflow:hidden;max-height:280px;overflow-y:auto;">${rows}</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary);font-style:italic;margin-top:5px;">${egs.length} egress(es) registrado(s) no LiveKit Cloud. Compare os IDs com o que está no seu Bunko Box.</div>`;
+      })()}
     </div>`;
   if (typeof appAlert === 'function') {
     appAlert('Diagnóstico de gravação', html, { icon: '🔍', html: true });
