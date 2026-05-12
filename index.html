@@ -50824,11 +50824,71 @@ function _bunkoItemMenu(evt, kind, itemId, title) {
       ${kind==='page' ? `<button onclick="_bunkoClosePopover(); _bunkoExportPageDocx('${_esc(itemId)}')">💾 Baixar Word</button>` : ''}
       ${kind==='page' ? `<button onclick="_bunkoClosePopover(); _bunkoExtractActionsPrompt('${_esc(itemId)}')">🧘 Extrair ações (Mestre Kan)</button>` : ''}
       ${kind==='page' ? `<button onclick="_bunkoClosePopover(); _bunkoSharePagePrompt('${_esc(itemId)}')">🔗 Compartilhar via link</button>` : ''}
+      ${kind==='recording' && item.url ? `<button onclick="_bunkoClosePopover(); _bunkoDownloadRecording('${_esc(itemId)}')">💾 Baixar vídeo (MP4)</button>` : ''}
       <div class="divider"></div>
       <button onclick="_bunkoClosePopover(); _bunkoArchiveItem('${kind}', '${_esc(itemId)}', ${!archived})">${archived?'↺ Desarquivar':'🗄 Arquivar'}</button>
       <button class="is-danger" onclick="_bunkoClosePopover(); _bunkoDeleteItem('${kind}', '${_esc(itemId)}')">🗑 Excluir</button>`;
   }
   _bunkoShowPopover(pop, evt);
+}
+
+// ── Baixar vídeo de gravação (R2 privado → URL assinada → trigger download) ──
+async function _bunkoDownloadRecording(recordingId) {
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c) return;
+  // Mostra toast progress
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Preparando download…', 'Gerando URL assinada do R2.', 'info');
+  }
+  try {
+    // Busca metadata da gravação pra montar o filename amigável
+    const { data: rec } = await c.from('tatame_recordings')
+      .select('id, title, started_at, duration_sec').eq('id', recordingId).single();
+    // Pede URL assinada (válida por 1h, mais que suficiente pra baixar)
+    const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+    const { data: { session } } = await c.auth.getSession();
+    const jwt = session?.access_token;
+    const r = await fetch(`${cfg.url}/functions/v1/livekit-recording/sign-url`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+jwt },
+      body: JSON.stringify({ recording_id: recordingId, ttl_sec: 3600 })
+    });
+    const j = await r.json();
+    if (!r.ok || !j.url) throw new Error(j.error || `HTTP ${r.status}`);
+    // Filename amigável: "Tatame - <título> - DD-MM-YYYY.mp4"
+    const dt = rec?.started_at ? new Date(rec.started_at) : new Date();
+    const dtStr = `${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')}-${dt.getFullYear()}`;
+    const safeTitle = (rec?.title || 'gravacao').replace(/[^\w\s\-]/g,'').replace(/\s+/g,'_').slice(0,60);
+    const filename = `${safeTitle}_${dtStr}.mp4`;
+    // Trigger download via <a download>. Como a URL é cross-origin (R2), o atributo download
+    // pode não funcionar em todos os browsers — então a gente cai pra fetch+blob como fallback.
+    try {
+      const a = document.createElement('a');
+      a.href = j.url;
+      a.download = filename;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning('Download iniciado ✓', 'Se o navegador apenas abrir o vídeo em vez de baixar, clique direito → Salvar como.', 'success');
+      }
+    } catch(e) {
+      // Fallback: fetch + blob
+      const blob = await (await fetch(j.url)).blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 60000);
+    }
+  } catch(e) {
+    appAlert('Erro ao baixar', e?.message || String(e), { icon:'⚠️' });
+  }
 }
 
 // Pin/unpin universal
