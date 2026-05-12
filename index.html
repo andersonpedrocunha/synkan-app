@@ -53112,6 +53112,27 @@ async function _bunkoOpenRecording(recordingId) {
     appAlert('Erro', 'Não consegui carregar essa gravação: ' + (e?.message || e), { icon: '⚠️' });
     return;
   }
+  // ━━ R2 bucket é privado → busca URL assinada antes de carregar o player ━━
+  if (rec.url) {
+    try {
+      const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+      const { data: { session } } = await c.auth.getSession();
+      const jwt = session?.access_token;
+      const r = await fetch(`${cfg.url}/functions/v1/livekit-recording/sign-url`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+jwt },
+        body: JSON.stringify({ recording_id: recordingId, ttl_sec: 3600 })
+      });
+      const j = await r.json();
+      if (r.ok && j.url) {
+        rec.url = j.url; // sobrescreve com URL assinada (válida por 1h)
+      } else {
+        console.warn('[bunko] sign-url falhou', j);
+      }
+    } catch(e) {
+      console.warn('[bunko] erro ao assinar URL', e);
+    }
+  }
   // Cria overlay
   let ov = document.getElementById('bunko-player-ov');
   if (ov) ov.remove();
