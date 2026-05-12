@@ -370,8 +370,25 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 .mk-dojo-close:hover{background:rgba(20,16,12,.75);transform:rotate(90deg);}
 
 
-.mk-hero{display:flex;align-items:center;gap:32px;padding:50px 44px 50px;background:linear-gradient(135deg,#BC002D 0%,#8B001F 50%,#1A1611 100%);color:#F5E8C8;position:relative;overflow:hidden;}
-.mk-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(245,232,200,.10) 0,transparent 60%);pointer-events:none;}
+.mk-hero{display:flex;align-items:center;gap:32px;padding:50px 44px 50px;color:#F5E8C8;position:relative;overflow:hidden;
+  background:
+    /* Camada 3 (topo): glow leve em volta do avatar (right side) */
+    radial-gradient(ellipse 600px 400px at 78% 55%, rgba(245,232,200,.10) 0%, transparent 70%),
+    /* Camada 2: véu escuro forte no lado ESQUERDO pra texto ficar 100% legível,
+       fade pra transparente no lado DIREITO onde as montanhas aparecem */
+    linear-gradient(90deg,
+      rgba(26,22,17,.92) 0%,
+      rgba(139,0,31,.82) 22%,
+      rgba(139,0,31,.45) 50%,
+      rgba(139,0,31,.20) 72%,
+      rgba(26,22,17,.30) 100%),
+    /* Camada 1 (base): foto das montanhas de Hokkaidō */
+    url('hokkaido-mountains.png') center right/cover no-repeat,
+    /* Fallback: gradiente original se imagem falhar */
+    linear-gradient(135deg,#BC002D 0%,#8B001F 50%,#1A1611 100%);
+  background-color:#5A0014;
+}
+.mk-hero::before{content:'';position:absolute;left:0;right:0;bottom:0;height:60px;background:linear-gradient(180deg,transparent,rgba(26,22,17,.30));pointer-events:none;}
 .mk-hero-text{flex:1;position:relative;z-index:2;}
 .mk-hero-kicker{font-family:'Noto Serif JP',serif;font-style:italic;font-size:11.5px;letter-spacing:.32em;text-transform:uppercase;color:rgba(245,232,200,.7);margin-bottom:6px;}
 .mk-hero-title{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:58px;font-weight:700;letter-spacing:-.02em;margin:0 0 14px;line-height:1;color:#F5E8C8;}
