@@ -50403,7 +50403,28 @@ async function _bunkoCheckRecording(recordingId) {
     } else if (status === 'failed' || status === 'aborted') {
       appAlert('Gravação falhou no LiveKit', detalhes + '<br/><br/>Os secrets do R2 estão validados — o problema é específico desse egress.', { icon:'⚠️', html:true });
     } else if (status === 'unknown') {
-      _bunkoOpenOrphanCleanupModal(recordingId);
+      // ━━ Debug: se LiveKit tem outros egress, mostra antes de abrir modal de órfã ━━
+      if (Array.isArray(result.debug_all_egresses) && result.debug_all_egresses.length > 0) {
+        const STATUS_NAMES = {0:'starting',1:'active',2:'ending',3:'ready',4:'failed',5:'aborted',6:'limit_reached'};
+        const rows = result.debug_all_egresses.map(eg => {
+          const stName = STATUS_NAMES[eg.status] || String(eg.status);
+          const isThis = eg.egress_id === rec.livekit_egress_id ? ' ◀ ESTE' : '';
+          const err = eg.error ? ` · erro: ${eg.error}` : '';
+          return `<tr><td style="font-family:monospace;font-size:.7rem;padding:4px 8px">${_esc((eg.egress_id||'').slice(0,16))}…${isThis}</td><td style="padding:4px 8px"><code style="background:${stName==='failed'||stName==='aborted'?'#fef2f2':'#f3f4f6'};padding:1px 6px;border-radius:3px;font-size:.75rem">${stName}</code></td><td style="padding:4px 8px;font-size:.7rem;color:#6b7280">${_esc(eg.room_name||'—')}${err}</td></tr>`;
+        }).join('');
+        const debugHtml = `
+          <div style="text-align:left;font-size:.85rem">
+            <p>Buscamos por <code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;font-size:.75rem">${_esc(rec.livekit_egress_id.slice(0,16))}…</code> mas o LiveKit retornou ${result.debug_all_egresses.length} egress(es):</p>
+            <table style="width:100%;border-collapse:collapse;margin-top:8px;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden">
+              <thead><tr style="background:#f9fafb"><th style="padding:6px 8px;text-align:left;font-size:.7rem;text-transform:uppercase">Egress ID</th><th style="padding:6px 8px;text-align:left;font-size:.7rem;text-transform:uppercase">Status</th><th style="padding:6px 8px;text-align:left;font-size:.7rem;text-transform:uppercase">Sala</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+            <p style="margin-top:10px;font-size:.75rem;color:#6b7280">Se o seu egress não aparece aqui, ele foi descartado pelo LiveKit. Possível causa: a sala ficou vazia (sem participantes publicando track) e o egress foi abortado.</p>
+          </div>`;
+        appAlert(`Egress não encontrado no LiveKit`, debugHtml, { icon:'🔍', html:true });
+      } else {
+        _bunkoOpenOrphanCleanupModal(recordingId);
+      }
     } else if (status === 'active' || status === 'starting' || status === 'ending' || status === 'recording') {
       // ━━━ Egress ainda rodando: oferece forçar parada ━━━
       const confirmed = await appConfirm(
