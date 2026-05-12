@@ -33016,22 +33016,24 @@ function _synCloseMoreMenu() {
 // ════════════════════════════════════════════════════════════════════
 function renderHelpTab() {
   const body = document.getElementById('reg-body'); if (!body) return;
+  const isMac = /Mac/.test(navigator.platform);
+  const cmd = isMac ? '⌘' : 'Ctrl';
   body.innerHTML = `
-    <div style="max-width:760px;">
+    <div style="max-width:820px;">
       <div style="background:linear-gradient(135deg,rgba(127,119,221,.10) 0%,rgba(59,109,17,.08) 100%);border:1px solid rgba(127,119,221,.25);border-radius:12px;padding:18px 22px;margin-bottom:24px;">
         <h2 style="font-size:18px;font-weight:600;margin:0 0 6px;">Como usar o Synconnect</h2>
         <p style="margin:0;color:var(--color-text-secondary);font-size:13.5px;line-height:1.6;">
-          O Synconnect transforma seu Synkan num CRM completo: pipeline de vendas, contatos, captação de leads e automações. Aqui está o caminho mais curto pra ele virar parte da sua rotina.
+          CRM completo dentro do Synkan: pipeline de vendas, contatos, captação de leads, automações e IA. Esse guia tem 4 passos pra começar + tudo que dá pra fazer.
         </p>
       </div>
 
-      <!-- Fluxo principal em 4 passos -->
+      <!-- Fluxo em 4 passos -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:32px;">
         ${[
-          { n:1, ico:'👥', title:'Cadastra contatos', body:'Cliente, lead ou fornecedor. PJ (com razão social + nome do contato) ou PF.', cta:'Ir pra Contatos', target:'contacts' },
-          { n:2, ico:'🎯', title:'Cria oportunidades (deals)', body:'Em Pipeline → "+ Nova oportunidade". Vincula a um contato, define valor + estágio.', cta:'Ir pro Pipeline', target:'pipeline' },
-          { n:3, ico:'🌐', title:'Capta leads automático', body:'Crie um formulário público em Captação. Cada submit vira contato + deal em Prospecção.', cta:'Ir pra Captação', target:'capture' },
-          { n:4, ico:'📊', title:'Acompanha resultado', body:'Em Análise você vê velocidade do funil, win rate, forecast e quais formulários convertem.', cta:'Ir pra Análise', target:'analytics' },
+          { n:1, ico:'👥', title:'Cadastre contatos', body:'Cliente, lead ou fornecedor. PJ (com razão social + nome do contato + cargo) ou PF. CNPJ é auto-preenchido via BrasilAPI.', cta:'Abrir Contatos', target:'contacts' },
+          { n:2, ico:'🎯', title:'Crie oportunidades', body:'Em Pipeline → "+ Nova oportunidade". Use um <strong>template</strong> pra acelerar (Cliente SaaS, Consultoria, Produto, Renovação).', cta:'Abrir Pipeline', target:'pipeline' },
+          { n:3, ico:'🌐', title:'Capture leads automático', body:'Crie um formulário público em Captação. Cada submit vira <strong>contato + deal em Prospecção automaticamente</strong>. Não precisa converter manualmente.', cta:'Abrir Captação', target:'capture' },
+          { n:4, ico:'📊', title:'Acompanhe e otimize', body:'Em Análise: velocidade do funil, win rate, forecast, cohort e <strong>funil de conversão visual</strong>. Define meta e acompanha pelo progress bar.', cta:'Abrir Análise', target:'analytics' },
         ].map(s => `<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:8px;">
           <div style="display:flex;align-items:center;gap:10px;">
             <span style="background:rgba(127,119,221,.15);color:#3C3489;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12.5px;">${s.n}</span>
@@ -33043,41 +33045,91 @@ function renderHelpTab() {
         </div>`).join('')}
       </div>
 
-      <!-- Conceitos chave -->
+      <!-- Atalho destacado -->
+      <div style="background:linear-gradient(135deg,#1A1611,#3A332C);color:#fff;border-radius:10px;padding:16px 22px;margin-bottom:24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span style="font-size:24px;">⌨️</span>
+        <div style="flex:1;min-width:200px;">
+          <div style="font-weight:600;font-size:14px;margin-bottom:2px;">Busca global · <kbd style="background:rgba(255,255,255,.15);padding:2px 8px;border-radius:5px;font-family:Menlo,monospace;font-size:12px;">${cmd}+K</kbd></div>
+          <div style="font-size:12px;color:rgba(255,255,255,.7);">De qualquer lugar do app, abre uma caixa que busca em deals, contatos, atividades e formulários. Resultados agrupados por tipo.</div>
+        </div>
+        <button onclick="_synOpenGlobalSearch()" style="background:rgba(255,255,255,.15);border:0.5px solid rgba(255,255,255,.25);color:#fff;padding:8px 14px;border-radius:7px;cursor:pointer;font-size:12.5px;font-family:inherit;">Experimentar</button>
+      </div>
+
+      <!-- Conceitos -->
       <h3 style="font-size:15px;font-weight:600;margin:0 0 12px;">Conceitos importantes</h3>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:32px;">
         ${[
-          { t:'Contato vs. Deal', d:'<strong>Contato</strong> = a pessoa/empresa. <strong>Deal</strong> = uma oportunidade específica com ela. Um contato pode ter vários deals ao longo do tempo.' },
-          { t:'Estágios do pipeline', d:'Prospecção → Qualificação → Proposta → Negociação → <strong>Ganho</strong> ou <strong>Perdido</strong>. Arraste cards entre colunas conforme avança.' },
-          { t:'Follow-up', d:'Campo de data no deal. Quando vence, aparece banner laranja no topo do app cobrando você.' },
-          { t:'Multi-contato', d:'Um deal pode ter várias pessoas envolvidas (decisor, financeiro, técnico). Adicione em "Pessoas envolvidas" no modal do deal.' },
-          { t:'Templates de deal', d:'Pré-prontos pra Cliente SaaS, Consultoria, Produto, Renovação. Selecione no topo do modal pra acelerar.' },
-          { t:'Lead via captação → Pipeline', d:'Formulário público recebe lead, ele <em>automaticamente</em> vira contato + deal em Prospecção. Nada manual.' },
-          { t:'Customer 360', d:'Click no nome do contato em qualquer lugar pra ver TUDO sobre ele: deals, cards, documentos, timeline, páginas vinculadas no Bunko.' },
+          { t:'Contato vs. Deal', d:'<strong>Contato</strong> = a empresa OU pessoa (razão social + nome do contato + cargo). <strong>Deal</strong> = uma oportunidade comercial com ela. Um contato pode ter vários deals ao longo do tempo.' },
+          { t:'Estágios do pipeline · customizáveis', d:'Padrão: Prospecção → Qualificação → Proposta → Negociação → Ganho/Perdido. Em <strong>Pipeline → ⚙ Estágios</strong> você renomeia, recoloriza, reordena, adiciona ou exclui. Cada estágio tem probabilidade padrão (usada no forecast).' },
+          { t:'Follow-up + banner', d:'Cada deal tem data de próximo follow-up. Quando vence, aparece <strong>banner laranja no topo do app</strong> em qualquer tela. Click → vai direto pro deal.' },
+          { t:'Aging visual', d:'Cada card do pipeline tem indicador 🟢 fresh (&lt;3d) / ⚪ 3-7d / 🟡 7-14d / 🔴 +14d parado. Você vê de relance o que tá esquecido.' },
+          { t:'Multi-contato', d:'Um deal envolve várias pessoas? Adicione em "Pessoas envolvidas" no modal do deal com roles (decisor, financeiro, técnico, etc).' },
+          { t:'Templates de deal', d:'Em "+ Nova oportunidade" tem um seletor de template. Pré-preenche valor, estágio, probabilidade, tags e checklist. Edite os 4 padrão ou crie novos.' },
+          { t:'Lead via captação → Pipeline', d:'Formulário público recebe submit → <em>trigger SQL</em> cria contato + deal em Prospecção <strong>automaticamente</strong>. Aparece no pipeline em segundos.' },
+          { t:'Customer 360', d:'Click em qualquer nome de contato pra abrir uma ficha com 6 abas: Pipeline, Cards (do Kanban), Documentos, Bunko (páginas vinculadas), Timeline (unificada) e Mestre Kan IA.' },
+          { t:'Metas mensais', d:'Em Pipeline → "🎯 Definir meta": receita ganha, número de deals e novos leads. Progress bar muda de cor conforme performance.' },
+          { t:'Workflows e Webhooks', d:'Em ⋯ Mais → ⚡ Automação. Regras "Quando X → faz Y" (criar nota, agendar follow-up, taggear) + URLs externas (Zapier, n8n) que recebem eventos.' },
+          { t:'Merge de duplicatas', d:'Customer 360 → "⇆ Mesclar". Junta todos os deals, atividades e páginas do duplicado neste contato e deleta o outro. <em>Ação irreversível.</em>' },
+          { t:'Exportação CSV', d:'⋯ Mais → 📥 Exportar dados. Baixa Contatos, Deals ou Atividades em CSV (compatível com Excel/Google Sheets).' },
         ].map(c => `<details style="background:var(--color-background-secondary);border-radius:8px;padding:11px 14px;font-size:13px;">
           <summary style="cursor:pointer;font-weight:500;">${c.t}</summary>
           <div style="margin-top:8px;color:var(--color-text-secondary);line-height:1.55;font-size:12.5px;">${c.d}</div>
         </details>`).join('')}
       </div>
 
-      <!-- Atalhos e dicas -->
+      <!-- Inteligência (Faixa Preta) -->
+      <h3 style="font-size:15px;font-weight:600;margin:0 0 12px;display:flex;align-items:center;gap:8px;">
+        🤖 Mestre Kan IA <span style="background:#3C3489;color:#fff;font-size:10px;padding:2px 8px;border-radius:999px;font-weight:600;letter-spacing:.04em;">FAIXA PRETA</span>
+      </h3>
+      <div style="background:linear-gradient(135deg,rgba(60,52,137,.06),rgba(127,119,221,.04));border:1px solid rgba(60,52,137,.20);border-radius:10px;padding:16px 20px;margin-bottom:32px;">
+        <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.6;margin:0 0 12px;">
+          3 superpoderes de IA exclusivos da <strong>Faixa Preta</strong>, rodando no <strong>Claude Haiku 4.5</strong> com sua chave no servidor (sem custo extra pra você além do seu plano):
+        </p>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <span style="font-size:18px;flex-shrink:0;">📅</span>
+            <div style="font-size:12.5px;line-height:1.5;"><strong>Daily brief</strong> · Widget no topo do Pipeline. Mestre Kan lê seu funil de manhã e devolve as 3-4 prioridades do dia em tom de mestre.</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <span style="font-size:18px;flex-shrink:0;">✦</span>
+            <div style="font-size:12.5px;line-height:1.5;"><strong>Próxima ação por deal</strong> · No modal do deal, botão "Sugerir próxima ação". Analisa timeline e sugere o passo concreto ("Ligar pra Maria sobre proposta enviada há 5d"). Cache de 24h.</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <span style="font-size:18px;flex-shrink:0;">📝</span>
+            <div style="font-size:12.5px;line-height:1.5;"><strong>Resumo do contato</strong> · No Customer 360, botão "Resumir com IA". 3 linhas: quem é, status atual, próximo passo natural.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dicas práticas -->
       <h3 style="font-size:15px;font-weight:600;margin:0 0 12px;">Dicas práticas</h3>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:32px;">
         ${[
-          ['🚀','Crie deal sem sair do modal', 'Em "+ Nova oportunidade", se não tem o contato, clica em "+ Criar novo contato" dentro do próprio dropdown.'],
-          ['🔗','Ligar páginas do Bunko a deals', 'Abre uma página, clica no botão "🔗 Synconnect" no toolbar. Anexa contratos, propostas, transcrições direto na oportunidade.'],
-          ['🎙','Tatame menciona contato', 'Quando você fala um nome de contato numa reunião, aparece automaticamente na timeline daquele contato.'],
-          ['⚡','Automação > Workflows', 'Crie regras tipo "Quando deal entra em Proposta → cria nota pedindo PDF" e o sistema executa sozinho.'],
-          ['🏆','Ganhar deal vira card no Zai', 'Sempre que você marca um deal como Ganho, um card de receita aparece automaticamente no seu board Zai.'],
-          ['📥','Lead direto pro pipeline', 'Captação → cria formulário. Cada lead já entra no Prospecção sem você precisar converter manualmente.'],
+          ['⌨️','Cmd+K em qualquer lugar', `<kbd style="background:var(--color-background-secondary);padding:1px 6px;border-radius:4px;">${cmd}+K</kbd> abre busca global. Acha qualquer deal, contato ou atividade.`],
+          ['🚀','Crie contato sem sair do modal', 'No modal de deal, dropdown "Contato" tem opção "+ Criar novo contato". Abre o cadastro por cima, salva e já vincula.'],
+          ['🔗','Páginas do Bunko viram parte do deal', 'No Bunko, abra uma página e clique em "🔗 Synconnect" no toolbar. Vincula contratos, propostas, transcrições direto na oportunidade.'],
+          ['🎙','Tatame menciona contato', 'Quando você fala um nome de contato cadastrado numa reunião, aparece automaticamente na timeline daquele contato.'],
+          ['⚡','Automação cuida do follow-up', 'Workflow: "Quando entra em Proposta → agenda follow-up em 5 dias". Não precisa lembrar mais.'],
+          ['🏆','Ganhar deal vira card no Zai', 'Sempre que você marca um deal como Ganho, um card de receita aparece automaticamente no seu board Zai (se tiver um).'],
+          ['📅','Adicionar deal ao Google Calendar', 'Modal do deal → "📅 Adicionar ao Google Calendar". Abre Google com título, detalhes e horário pré-preenchidos.'],
+          ['📥','Lead direto pro pipeline', 'Captação → cria formulário. Cada lead já entra em Prospecção sem você precisar converter manualmente.'],
         ].map(([ico,t,d]) => `<div style="display:flex;gap:12px;padding:11px 14px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;">
           <span style="font-size:18px;flex-shrink:0;">${ico}</span>
           <div style="flex:1;font-size:12.5px;line-height:1.5;"><strong>${t}</strong><div style="color:var(--color-text-secondary);margin-top:2px;">${d}</div></div>
         </div>`).join('')}
       </div>
 
+      <!-- Cross-módulo -->
+      <h3 style="font-size:15px;font-weight:600;margin:0 0 12px;">Como o Synconnect conversa com o resto do Synkan</h3>
+      <div style="background:var(--color-background-secondary);border-radius:10px;padding:16px 20px;margin-bottom:32px;font-size:12.5px;line-height:1.7;">
+        <div>🎯 <strong>Synconnect ↔ Kanban</strong> · Botão "+ Criar card no Kanban" no modal do deal cria task em qualquer board, com link de volta pro deal.</div>
+        <div>🎯 <strong>Synconnect ↔ Bunko Box</strong> · Páginas vinculadas a deal/contato aparecem nos dois lados. Contrato no Bunko, listado no deal.</div>
+        <div>🎯 <strong>Synconnect ↔ Tatame</strong> · Menções de contatos em reuniões viram entries automáticas na timeline. Transcrição completa pode ser salva como página do Bunko + vinculada ao deal.</div>
+        <div>🎯 <strong>Synconnect ↔ Zai</strong> · Ganhar um deal cria card de receita no board Zai com valor e descrição completa.</div>
+      </div>
+
       <div style="background:var(--color-background-secondary);border-radius:10px;padding:16px 20px;text-align:center;font-size:13px;color:var(--color-text-secondary);">
-        Ainda travou em algum lugar? <strong>F12 → Console</strong> mostra mensagens do Synconnect com prefix <code>[syn]</code>. Compartilhe a mensagem que aparecer com o suporte.
+        Travou? Abre <strong>F12 → Console</strong>. Mensagens do Synconnect têm prefix <code>[syn]</code>. Compartilhe a mensagem que aparecer com o suporte.
       </div>
     </div>
   `;
@@ -33942,18 +33994,35 @@ function _synFunnelSVG() {
   const lastWon = stages.find(s => s.kind === 'won');
   if (lastWon) counts[stages.indexOf(lastWon)] = wonCount;
   const maxCount = Math.max(1, ...counts);
-  const W = 520, H = 280;
-  const padX = 20, padY = 14;
+  // Calcula conversion rate entre estágios consecutivos
+  const conversions = counts.map((c, i) => i === 0 ? null : (counts[i-1] > 0 ? Math.round(c * 100 / counts[i-1]) : 0));
+  const W = 640, H = Math.max(320, stages.length * 56);
+  const padX = 24, padY = 16;
   const stepH = (H - 2*padY) / stages.length;
-  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:300px;">`;
+  const minW = 200; // pra caber o texto sempre
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:${H}px;font-family:sans-serif;">`;
   stages.forEach((s, i) => {
     const ratio = counts[i] / maxCount;
-    const w = Math.max(40, (W - 2*padX) * ratio);
+    const w = Math.max(minW, (W - 2*padX) * Math.max(ratio, 0.3));
     const x = (W - w) / 2;
     const y = padY + i * stepH;
-    const h = stepH - 4;
-    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${_esc(s.color || '#888780')}" opacity="0.85"/>`;
-    svg += `<text x="${W/2}" y="${y + h/2 + 4}" text-anchor="middle" fill="#fff" font-size="13" font-weight="500" font-family="sans-serif">${_esc(s.name)} · ${counts[i]}</text>`;
+    const h = stepH - 8;
+    const isEmpty = counts[i] === 0;
+    const color = _esc(s.color || '#888780');
+    if (isEmpty) {
+      // Estágio vazio: outline pontilhada
+      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="none" stroke="${color}" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.5"/>`;
+      svg += `<text x="${W/2}" y="${y + h/2 + 5}" text-anchor="middle" fill="${color}" font-size="13" font-weight="500" opacity="0.7">${_esc(s.name)} · 0</text>`;
+    } else {
+      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${color}"/>`;
+      svg += `<text x="${W/2}" y="${y + h/2 + 5}" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">${_esc(s.name)} · ${counts[i]}</text>`;
+    }
+    // Conversion rate à direita
+    if (i > 0 && conversions[i] !== null) {
+      const arrowY = y - stepH/2 + h/2 + 5;
+      const cvColor = conversions[i] >= 50 ? '#27500A' : conversions[i] >= 25 ? '#854F0B' : '#A32D2D';
+      svg += `<text x="${W - 12}" y="${arrowY}" text-anchor="end" fill="${cvColor}" font-size="11" font-weight="500">↓ ${conversions[i]}%</text>`;
+    }
   });
   svg += `</svg>`;
   return svg;
