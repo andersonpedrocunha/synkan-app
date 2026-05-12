@@ -32405,6 +32405,10 @@ async function _synInitCloud(opts) {
       _saveContacts();
       _synCloudReady = true;
       console.log(`[syn] ✓ cloud carregada: ${_contacts.length} contatos, ${_synDeals.length} deals, ${_synStages.length} estágios, ${_synActivities.length} atividades`);
+      // Carrega features v3 em paralelo (não-bloqueante)
+      Promise.all([_synLoadTemplates(), _synLoadWorkflows(), _synLoadWebhooks()]).catch(()=>{});
+      // Dispara watcher do banner de follow-ups
+      try { _synStartFollowupBannerWatcher(); } catch(_){}
       return true;
     } catch(e) {
       console.warn('[syn] init cloud falhou (modo offline):', e?.message);
@@ -32758,6 +32762,162 @@ function _synScanTatameForMentions(transcribedText, sessionId) {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════
+// AUTOMAÇÃO CRM v3 · templates, workflows, webhooks, banner follow-ups
+// ════════════════════════════════════════════════════════════════════
+
+// ── #6 Banner global de follow-ups vencendo ─────────────────────────
+let _synFollowupBannerTimer = null;
+function _synRenderFollowupBanner() {
+  const due = _synGetDueFollowUps();
+  let bar = document.getElementById('syn-followup-banner');
+  if (due.length === 0) {
+    if (bar) bar.remove();
+    return;
+  }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'syn-followup-banner';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9500;background:linear-gradient(135deg,#854F0B,#BA7517);color:#fff;padding:8px 18px;display:flex;align-items:center;justify-content:center;gap:12px;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer;transition:all .2s;';
+    bar.onmouseenter = () => { bar.style.background = 'linear-gradient(135deg,#633806,#854F0B)'; };
+    bar.onmouseleave = () => { bar.style.background = 'linear-gradient(135deg,#854F0B,#BA7517)'; };
+    bar.onclick = () => {
+      // Abre o primeiro deal vencendo
+      if (due[0]) _synOpenDealModal(due[0].id);
+    };
+    document.body.appendChild(bar);
+  }
+  const overdue = due.filter(d => new Date(d.follow_up_at) < new Date()).length;
+  const today = due.length - overdue;
+  bar.innerHTML = `
+    <span style="font-size:16px;">⏰</span>
+    <strong>${due.length} follow-up${due.length===1?'':'s'} ${overdue > 0 ? `(${overdue} atrasado${overdue===1?'':'s'})` : 'pra hoje'}</strong>
+    <span style="opacity:.85;">·</span>
+    <span style="opacity:.9;">${_esc(due[0].title)}${due.length>1?` + ${due.length-1} ${due.length-1===1?'outro':'outros'}`:''}</span>
+    <button onclick="event.stopPropagation();_synDismissFollowupBanner();" style="margin-left:auto;background:rgba(255,255,255,.18);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:14px;">×</button>
+  `;
+}
+function _synGetDueFollowUps() {
+  const tomorrow = new Date(); tomorrow.setHours(0,0,0,0); tomorrow.setDate(tomorrow.getDate()+1);
+  return (_synDeals||[]).filter(d =>
+    d.status === 'open' && d.follow_up_at && new Date(d.follow_up_at) < tomorrow
+  ).sort((a,b) => new Date(a.follow_up_at) - new Date(b.follow_up_at));
+}
+function _synDismissFollowupBanner() {
+  document.getElementById('syn-followup-banner')?.remove();
+  // Marca como dispensado por 1h (não reabre)
+  try { sessionStorage.setItem('syn_banner_dismissed_until', String(Date.now() + 60*60*1000)); } catch(_){}
+}
+function _synStartFollowupBannerWatcher() {
+  if (_synFollowupBannerTimer) return;
+  const tick = () => {
+    try {
+      const until = parseInt(sessionStorage.getItem('syn_banner_dismissed_until') || '0', 10);
+      if (Date.now() < until) return;
+    } catch(_){}
+    if (_synCloudReady) _synRenderFollowupBanner();
+  };
+  tick();
+  _synFollowupBannerTimer = setInterval(tick, 60 * 1000); // checa 1x por min
+}
+
+// ── #8 Aging visual no pipeline ─────────────────────────────────────
+function _synAgingLabel(deal) {
+  // Idade desde última activity do deal, ou desde updated_at
+  const lastAct = (_synActivities||[]).find(a => a.deal_id === deal.id);
+  const lastAt = new Date(lastAct?.occurred_at || deal.updated_at || deal.created_at);
+  const days = Math.floor((Date.now() - lastAt.getTime()) / 86400000);
+  if (days < 3)  return { d: days, color: '#3B6D11', icon: '🟢', label: 'fresh' };
+  if (days < 7)  return { d: days, color: '#888780', icon: '⚪', label: `${days}d` };
+  if (days < 14) return { d: days, color: '#854F0B', icon: '🟡', label: `${days}d` };
+  return                  { d: days, color: '#A32D2D', icon: '🔴', label: `${days}d parado` };
+}
+
+// ── #9 Deduplicação de contatos ────────────────────────────────────
+function _synFindDuplicateContact(payload) {
+  const emailLow = (payload.email||'').trim().toLowerCase();
+  const taxClean = (payload.taxId||'').replace(/\D/g,'');
+  const nameLow = (payload.name||'').trim().toLowerCase();
+  for (const c of (_contacts||[])) {
+    if (c.id === payload.id) continue; // ignora self em edit
+    if (emailLow && c.email && c.email.toLowerCase() === emailLow) return { contact: c, match: 'email' };
+    if (taxClean && c.taxId && c.taxId.replace(/\D/g,'') === taxClean) return { contact: c, match: 'cnpj' };
+    if (nameLow.length > 4 && c.name && c.name.toLowerCase() === nameLow) return { contact: c, match: 'nome' };
+  }
+  return null;
+}
+
+async function _synShowDuplicateDialog(newPayload, dupContact, matchField) {
+  return new Promise(resolve => {
+    let ov = document.getElementById('syn-dup-modal');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'syn-dup-modal';
+      ov.className = 'syn-modal-ov';
+      document.body.appendChild(ov);
+    }
+    const matchLabel = matchField === 'email' ? 'email' : matchField === 'cnpj' ? 'CPF/CNPJ' : 'nome';
+    ov.innerHTML = `<div class="syn-modal" style="max-width:480px;">
+      <div class="syn-modal-h"><h3>⚠️ Contato parecido já existe</h3></div>
+      <div class="syn-modal-body">
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px;">
+          O <strong>${_esc(matchLabel)}</strong> que você digitou bate com um contato já cadastrado.
+        </div>
+        <div style="background:var(--color-background-secondary);padding:12px;border-radius:8px;font-size:13px;">
+          <strong>${_esc(dupContact.name)}</strong>
+          ${dupContact.email ? `<div style="font-size:11.5px;color:var(--color-text-tertiary);">${_esc(dupContact.email)}</div>` : ''}
+          ${dupContact.taxId ? `<div style="font-size:11.5px;color:var(--color-text-tertiary);">${_esc(dupContact.taxId)}</div>` : ''}
+        </div>
+      </div>
+      <div class="syn-modal-f">
+        <button class="syn-btn-secondary" onclick="window._synDupResolve('cancel')">Cancelar</button>
+        <div style="display:flex;gap:6px;">
+          <button class="syn-btn-secondary" onclick="window._synDupResolve('new')">Criar mesmo assim</button>
+          <button class="syn-btn-primary" onclick="window._synDupResolve('merge')">Usar o existente</button>
+        </div>
+      </div>
+    </div>`;
+    ov.classList.add('is-open');
+    window._synDupResolve = (action) => {
+      ov.classList.remove('is-open');
+      delete window._synDupResolve;
+      resolve(action);
+    };
+  });
+}
+
+// ── #10 Templates de deal ───────────────────────────────────────────
+let _synTemplates = [];
+async function _synLoadTemplates() {
+  try {
+    const c = await _synGetClient(); if (!c) return;
+    // Garante templates default
+    try { await c.rpc('synconnect_seed_default_templates'); } catch(_){}
+    const r = await c.from('synconnect_deal_templates').select('*').eq('is_active', true).order('name');
+    if (r.data) _synTemplates = r.data;
+  } catch(e) { console.warn('[syn] load templates:', e?.message); }
+}
+
+// ── #7 Workflows ────────────────────────────────────────────────────
+let _synWorkflows = [];
+async function _synLoadWorkflows() {
+  try {
+    const c = await _synGetClient(); if (!c) return;
+    const r = await c.from('synconnect_workflows').select('*').order('created_at', { ascending: false });
+    if (r.data) _synWorkflows = r.data;
+  } catch(e) { console.warn('[syn] load workflows:', e?.message); }
+}
+
+// ── #18 Webhooks ────────────────────────────────────────────────────
+let _synWebhooks = [];
+async function _synLoadWebhooks() {
+  try {
+    const c = await _synGetClient(); if (!c) return;
+    const r = await c.from('synconnect_webhooks').select('*').order('created_at', { ascending: false });
+    if (r.data) _synWebhooks = r.data;
+  } catch(e) { console.warn('[syn] load webhooks:', e?.message); }
+}
+
 // Helpers de formatação
 function _synFmtMoney(cents) {
   if (cents == null) return 'R$ 0';
@@ -32793,9 +32953,11 @@ function renderRegistry() {
       </div>
       <div class="reg-tabs">
         ${tabBtn('pipeline',  pipelineLabel, '')}
+        ${tabBtn('analytics', '📊 Análise',  '')}
         ${tabBtn('contacts',  '👥 Contatos', _contacts.length)}
         ${tabBtn('documents', '📄 Documentos',  _documents.length)}
         ${tabBtn('capture',   '🌐 Captação',  '')}
+        ${tabBtn('automation','⚡ Automação',  '')}
       </div>
       <div id="reg-body"></div>
     </div>
@@ -32805,9 +32967,382 @@ function renderRegistry() {
     _synInitCloud().then(ok => { if (ok) renderRegistry(); });
   }
   if (_registryTab === 'pipeline') renderPipelineTab();
+  else if (_registryTab === 'analytics') renderAnalyticsTab();
+  else if (_registryTab === 'automation') renderAutomationTab();
   else if (_registryTab === 'contacts') renderContactsTab();
   else if (_registryTab === 'documents') renderDocumentsTab();
   else if (_registryTab === 'capture') renderCaptureInRegistry();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SYNCONNECT · Aba Análise (#11-14: velocidade, win rate, forecast, cohort)
+// ════════════════════════════════════════════════════════════════════
+async function renderAnalyticsTab() {
+  const body = document.getElementById('reg-body'); if (!body) return;
+  body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--color-text-tertiary);">📊 Carregando análise…</div>`;
+  if (!_synCloudReady) {
+    if (typeof _synInitCloud === 'function') await _synInitCloud();
+  }
+  const c = await _synGetClient();
+  if (!c) { body.innerHTML = `<div class="reg-empty"><strong>Cloud não disponível</strong>Conecte ao Supabase pra ver análise.</div>`; return; }
+  const [vel, wr, fc, ch, ag] = await Promise.all([
+    c.rpc('synconnect_analytics_velocity').then(r => r.data || []).catch(()=>[]),
+    c.rpc('synconnect_analytics_winrate').then(r => r.data || []).catch(()=>[]),
+    c.rpc('synconnect_analytics_forecast').then(r => r.data || []).catch(()=>[]),
+    c.rpc('synconnect_analytics_capture_cohort').then(r => r.data || []).catch(()=>[]),
+    c.rpc('synconnect_analytics_aging').then(r => r.data || []).catch(()=>[]),
+  ]);
+  // Velocidade
+  const velMax = Math.max(1, ...vel.map(v => v.avg_days || 0));
+  const velHTML = vel.map(v => `
+    <tr>
+      <td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${_esc(v.stage_color||'#888')};margin-right:7px;vertical-align:middle;"></span>${_esc(v.stage_name)}</td>
+      <td style="font-variant-numeric:tabular-nums;">${v.avg_days || 0}d <span style="color:var(--color-text-tertiary);font-size:11px;">média</span></td>
+      <td style="font-variant-numeric:tabular-nums;">${v.median_days || 0}d <span style="color:var(--color-text-tertiary);font-size:11px;">mediana</span></td>
+      <td>${(()=>{ const w = Math.max(2, Math.round((v.avg_days||0)/velMax * 100)); return `<div style="background:var(--color-background-secondary);height:8px;border-radius:4px;overflow:hidden;width:140px;"><div style="height:100%;background:${_esc(v.stage_color||'#888')};width:${w}%;"></div></div>`; })()}</td>
+      <td style="text-align:right;color:var(--color-text-tertiary);font-size:11.5px;">n=${v.sample_size||0}</td>
+    </tr>`).join('');
+  // Win rate
+  const wrHTML = wr.map(w => `
+    <tr>
+      <td>${_esc(w.stage_name)}</td>
+      <td style="font-variant-numeric:tabular-nums;">${w.opened||0}</td>
+      <td style="font-variant-numeric:tabular-nums;color:#3B6D11;">${w.won||0}</td>
+      <td style="font-variant-numeric:tabular-nums;color:#A32D2D;">${w.lost||0}</td>
+      <td style="font-variant-numeric:tabular-nums;font-weight:600;">${w.win_rate||0}%</td>
+    </tr>`).join('');
+  // Forecast
+  const fcMax = Math.max(1, ...fc.map(f => f.total_cents || 0));
+  const fcHTML = fc.map(f => {
+    const tot = parseInt(f.total_cents||0,10);
+    const wtd = parseInt(f.weighted_cents||0,10);
+    const wPct = Math.round(tot / fcMax * 100);
+    return `<div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+        <span><strong>${_esc(f.month)}</strong> · ${f.deal_count||0} deal${f.deal_count==1?'':'s'}</span>
+        <span style="color:var(--color-text-secondary);">${_synFmtMoney(tot)} <span style="color:#3B6D11;font-weight:500;">(ponderado: ${_synFmtMoney(wtd)})</span></span>
+      </div>
+      <div style="position:relative;height:18px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden;">
+        <div style="position:absolute;left:0;top:0;height:100%;width:${wPct}%;background:linear-gradient(90deg,rgba(127,119,221,.6),rgba(127,119,221,.3));"></div>
+        <div style="position:absolute;left:0;top:0;height:100%;width:${tot?Math.round(wtd/tot*wPct):0}%;background:rgba(59,109,17,.7);"></div>
+      </div>
+    </div>`;
+  }).join('');
+  // Cohort
+  const chHTML = ch.length === 0
+    ? `<div class="reg-empty" style="margin:0;"><strong>Sem captação ainda</strong>Crie um formulário em Synconnect → Captação pra rastrear conversão.</div>`
+    : `<table class="reg-table">
+        <thead><tr><th>Formulário</th><th>Leads</th><th>Em aberto</th><th>Ganhos</th><th>Perdidos</th><th>Win rate</th><th>Ticket médio</th></tr></thead>
+        <tbody>
+          ${ch.map(r => `<tr>
+            <td><strong>${_esc(r.form_name)}</strong></td>
+            <td style="font-variant-numeric:tabular-nums;">${r.leads||0}</td>
+            <td style="font-variant-numeric:tabular-nums;">${r.deals_open||0}</td>
+            <td style="font-variant-numeric:tabular-nums;color:#3B6D11;">${r.deals_won||0}</td>
+            <td style="font-variant-numeric:tabular-nums;color:#A32D2D;">${r.deals_lost||0}</td>
+            <td style="font-variant-numeric:tabular-nums;font-weight:600;">${r.win_rate||0}%</td>
+            <td style="font-variant-numeric:tabular-nums;">${_synFmtMoney(r.avg_ticket_cents||0)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  // Aging (top deals parados)
+  const agHTML = ag.slice(0, 8).map(d => {
+    const al = _synAgingLabel({ id: d.deal_id, updated_at: d.last_activity_at });
+    return `<div onclick="_synOpenDealModal('${_esc(d.deal_id)}')" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--color-background-secondary);border-radius:7px;margin-bottom:5px;cursor:pointer;font-size:12.5px;">
+      <span><strong>${_esc(d.title)}</strong><div style="font-size:11px;color:var(--color-text-tertiary);">${_esc(d.stage_name||'—')}</div></span>
+      <span style="color:${al.color};font-weight:600;">${al.icon} ${d.days_idle}d</span>
+    </div>`;
+  }).join('');
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:18px;">
+      <div>
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;">⏱ Velocidade do pipeline</h3>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 10px;">Tempo médio que um deal passa em cada estágio</p>
+        ${vel.length === 0 ? `<div class="reg-empty" style="margin:0;">Sem histórico de mudança de estágio ainda.</div>` :
+          `<table class="reg-table"><tbody>${velHTML}</tbody></table>`}
+      </div>
+      <div>
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;">🎯 Win rate por estágio</h3>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 10px;">% de deals que viram ganho</p>
+        <table class="reg-table"><thead><tr><th>Estágio</th><th>Em aberto</th><th>Ganho</th><th>Perdido</th><th>Win %</th></tr></thead><tbody>${wrHTML}</tbody></table>
+      </div>
+      <div style="grid-column:1 / -1;">
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;">💰 Forecast · próximos 6 meses</h3>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 12px;">Barra clara = total no funil. Barra verde = ponderado (valor × probabilidade)</p>
+        ${fcHTML || '<div class="reg-empty" style="margin:0;">Defina fechamento previsto nos seus deals pra ver forecast.</div>'}
+      </div>
+      <div>
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;">🌐 Cohort de captação</h3>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 10px;">Performance por formulário público</p>
+        ${chHTML}
+      </div>
+      <div>
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;">⏳ Deals parados (aging)</h3>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 10px;">Top 8 deals que não mexem há mais tempo</p>
+        ${agHTML || '<div class="reg-empty" style="margin:0;">Nenhum deal aberto.</div>'}
+      </div>
+    </div>
+  `;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SYNCONNECT · Aba Automação (#7 Workflows + #18 Webhooks)
+// ════════════════════════════════════════════════════════════════════
+let _synAutomationSub = 'workflows';
+async function renderAutomationTab() {
+  const body = document.getElementById('reg-body'); if (!body) return;
+  if (!_synCloudReady && typeof _synInitCloud === 'function') await _synInitCloud();
+  await Promise.all([_synLoadWorkflows(), _synLoadWebhooks()]);
+  const sub = _synAutomationSub;
+  body.innerHTML = `
+    <div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:0.5px solid var(--color-border-tertiary);">
+      <button class="reg-tab${sub==='workflows'?' active':''}" onclick="_synAutomationSub='workflows';renderAutomationTab();">⚙ Workflows ${_synWorkflows.length?`<span style="opacity:.5;">${_synWorkflows.length}</span>`:''}</button>
+      <button class="reg-tab${sub==='webhooks'?' active':''}" onclick="_synAutomationSub='webhooks';renderAutomationTab();">🔌 Webhooks ${_synWebhooks.length?`<span style="opacity:.5;">${_synWebhooks.length}</span>`:''}</button>
+    </div>
+    <div id="reg-automation-body"></div>
+  `;
+  if (sub === 'workflows') _synRenderWorkflowsList();
+  else _synRenderWebhooksList();
+}
+
+function _synRenderWorkflowsList() {
+  const body = document.getElementById('reg-automation-body'); if (!body) return;
+  if (_synWorkflows.length === 0) {
+    body.innerHTML = `<div class="reg-empty" style="margin:0;"><strong>Nenhum workflow ainda</strong>
+      Crie regras tipo "Quando deal entra em Proposta → cria nota 'enviar PDF' na timeline" ou "Quando ganha → tag deal com 'caso de sucesso'".
+      <div style="margin-top:14px;"><button class="btn-c" style="background:#3B6D11;color:#fff;border-color:#3B6D11;" onclick="_synOpenWorkflowEditor()">+ Criar primeiro workflow</button></div></div>`;
+    return;
+  }
+  const triggerLabels = {
+    stage_entered: 'Deal entrou em estágio', deal_won: 'Deal foi ganho',
+    deal_lost: 'Deal foi perdido', deal_aged: 'Deal parado há X dias',
+    lead_arrived: 'Lead novo via captação', follow_up_due: 'Follow-up vencendo'
+  };
+  const actionLabels = {
+    create_activity: '📝 Criar nota', set_follow_up: '⏰ Agendar follow-up',
+    tag_deal: '🏷 Adicionar tag', webhook: '🔌 Disparar webhook'
+  };
+  body.innerHTML = `
+    <div style="margin-bottom:10px;text-align:right;"><button class="btn-c" style="background:#3B6D11;color:#fff;border-color:#3B6D11;" onclick="_synOpenWorkflowEditor()">+ Novo workflow</button></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${_synWorkflows.map(w => `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--color-background-secondary);border-radius:8px;border:0.5px solid var(--color-border-tertiary);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:500;">${w.is_active?'':'<span style="opacity:.5;">⏸ </span>'}${_esc(w.name)}</div>
+          <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-top:3px;">
+            <strong>QUANDO</strong> ${_esc(triggerLabels[w.trigger_kind]||w.trigger_kind)} → <strong>FAZ</strong> ${_esc(actionLabels[w.action_kind]||w.action_kind)}
+            ${w.fire_count > 0 ? ` · <span style="color:#3B6D11;">disparou ${w.fire_count}x</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="reg-action-btn" onclick="_synToggleWorkflow('${_esc(w.id)}', ${!w.is_active})" title="${w.is_active?'Pausar':'Ativar'}">${w.is_active?'⏸':'▶'}</button>
+          <button class="reg-action-btn" onclick="_synOpenWorkflowEditor('${_esc(w.id)}')">✎</button>
+          <button class="reg-action-btn danger" onclick="_synDeleteWorkflow('${_esc(w.id)}')">×</button>
+        </div>
+      </div>`).join('')}
+    </div>
+  `;
+}
+
+async function _synToggleWorkflow(id, active) {
+  const c = await _synGetClient(); if (!c) return;
+  await c.from('synconnect_workflows').update({ is_active: active }).eq('id', id);
+  await _synLoadWorkflows();
+  _synRenderWorkflowsList();
+}
+
+async function _synDeleteWorkflow(id) {
+  const ok = await appConfirm('Excluir workflow?', 'A regra não vai mais disparar.', { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
+  const c = await _synGetClient(); if (!c) return;
+  await c.from('synconnect_workflows').delete().eq('id', id);
+  await _synLoadWorkflows();
+  _synRenderWorkflowsList();
+}
+
+async function _synOpenWorkflowEditor(workflowId) {
+  const isEdit = !!workflowId;
+  const w = isEdit ? _synWorkflows.find(x => x.id === workflowId) : { name:'', trigger_kind:'stage_entered', trigger_filter:{}, action_kind:'create_activity', action_config:{}, is_active:true };
+  if (!w) return;
+  const stages = _synStages.slice().sort((a,b)=>a.position-b.position);
+  let ov = document.getElementById('syn-wf-modal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'syn-wf-modal';
+    ov.className = 'syn-modal-ov';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `<div class="syn-modal" onclick="event.stopPropagation()">
+    <div class="syn-modal-h"><h3>${isEdit?'Editar':'Novo'} workflow</h3><button class="syn-modal-x" onclick="document.getElementById('syn-wf-modal').classList.remove('is-open')">×</button></div>
+    <div class="syn-modal-body">
+      <div class="syn-field"><label>Nome</label><input id="syn-wf-name" type="text" value="${_esc(w.name||'')}" placeholder="Ex: Notificar quando deal vai pra Proposta" autofocus/></div>
+      <div class="syn-field">
+        <label>Quando (gatilho)</label>
+        <select id="syn-wf-trigger" onchange="document.getElementById('syn-wf-stage-wrap').style.display=this.value==='stage_entered'?'block':'none'">
+          <option value="stage_entered" ${w.trigger_kind==='stage_entered'?'selected':''}>Deal entrou em estágio…</option>
+          <option value="deal_won" ${w.trigger_kind==='deal_won'?'selected':''}>Deal foi ganho</option>
+          <option value="deal_lost" ${w.trigger_kind==='deal_lost'?'selected':''}>Deal foi perdido</option>
+          <option value="lead_arrived" ${w.trigger_kind==='lead_arrived'?'selected':''}>Lead novo via captação</option>
+        </select>
+      </div>
+      <div class="syn-field" id="syn-wf-stage-wrap" style="display:${w.trigger_kind==='stage_entered'?'block':'none'};">
+        <label>Estágio específico</label>
+        <select id="syn-wf-stage">
+          ${stages.map(s => `<option value="${_esc(s.id)}" ${w.trigger_filter?.stage_id===s.id?'selected':''}>${_esc(s.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="syn-field">
+        <label>Faz (ação)</label>
+        <select id="syn-wf-action" onchange="_synRenderWfActionConfig(this.value)">
+          <option value="create_activity" ${w.action_kind==='create_activity'?'selected':''}>📝 Criar nota na timeline</option>
+          <option value="set_follow_up" ${w.action_kind==='set_follow_up'?'selected':''}>⏰ Agendar follow-up em X dias</option>
+          <option value="tag_deal" ${w.action_kind==='tag_deal'?'selected':''}>🏷 Adicionar tag ao deal</option>
+        </select>
+      </div>
+      <div id="syn-wf-action-cfg"></div>
+    </div>
+    <div class="syn-modal-f">
+      <button class="syn-btn-secondary" onclick="document.getElementById('syn-wf-modal').classList.remove('is-open')">Cancelar</button>
+      <button class="syn-btn-primary" onclick="_synSaveWorkflow(${isEdit?`'${_esc(w.id)}'`:'null'})">${isEdit?'Salvar':'Criar'}</button>
+    </div>
+  </div>`;
+  ov.classList.add('is-open');
+  _synRenderWfActionConfig(w.action_kind, w.action_config);
+}
+
+function _synRenderWfActionConfig(kind, config) {
+  config = config || {};
+  const el = document.getElementById('syn-wf-action-cfg'); if (!el) return;
+  if (kind === 'create_activity') {
+    el.innerHTML = `<div class="syn-field"><label>Título da nota</label><input id="syn-wf-cfg-title" type="text" value="${_esc(config.title||'')}" placeholder="Ex: Mandar proposta em PDF"/></div>
+                    <div class="syn-field"><label>Corpo (opcional)</label><textarea id="syn-wf-cfg-body" placeholder="Detalhes da nota…">${_esc(config.body||'')}</textarea></div>`;
+  } else if (kind === 'set_follow_up') {
+    el.innerHTML = `<div class="syn-field"><label>Dias até follow-up</label><input id="syn-wf-cfg-days" type="number" min="1" max="365" value="${config.days_ahead||3}"/></div>`;
+  } else if (kind === 'tag_deal') {
+    el.innerHTML = `<div class="syn-field"><label>Tag</label><input id="syn-wf-cfg-tag" type="text" value="${_esc(config.tag||'')}" placeholder="Ex: alta-prioridade"/></div>`;
+  }
+}
+
+async function _synSaveWorkflow(workflowId) {
+  const name = document.getElementById('syn-wf-name').value.trim();
+  if (!name) { alert('Nome obrigatório.'); return; }
+  const trigger_kind = document.getElementById('syn-wf-trigger').value;
+  const action_kind = document.getElementById('syn-wf-action').value;
+  const trigger_filter = (trigger_kind === 'stage_entered') ? { stage_id: document.getElementById('syn-wf-stage').value } : {};
+  let action_config = {};
+  if (action_kind === 'create_activity') action_config = { title: document.getElementById('syn-wf-cfg-title').value, body: document.getElementById('syn-wf-cfg-body').value, kind: 'note' };
+  else if (action_kind === 'set_follow_up') action_config = { days_ahead: parseInt(document.getElementById('syn-wf-cfg-days').value, 10) };
+  else if (action_kind === 'tag_deal') action_config = { tag: document.getElementById('syn-wf-cfg-tag').value };
+  const c = await _synGetClient(); if (!c) return;
+  const { data: { user } } = await c.auth.getUser();
+  const payload = { user_id: user.id, name, trigger_kind, trigger_filter, action_kind, action_config, is_active: true };
+  if (workflowId) await c.from('synconnect_workflows').update(payload).eq('id', workflowId);
+  else            await c.from('synconnect_workflows').insert(payload);
+  document.getElementById('syn-wf-modal').classList.remove('is-open');
+  await _synLoadWorkflows();
+  _synRenderWorkflowsList();
+}
+
+function _synRenderWebhooksList() {
+  const body = document.getElementById('reg-automation-body'); if (!body) return;
+  const events = ['deal_won', 'deal_lost', 'stage_change', 'lead_arrived'];
+  if (_synWebhooks.length === 0) {
+    body.innerHTML = `<div class="reg-empty" style="margin:0;"><strong>Nenhum webhook ainda</strong>
+      Configure URLs externas (Zapier, n8n, seu próprio backend) pra receber notificação quando algo importante acontecer no CRM.
+      <div style="margin-top:14px;"><button class="btn-c" style="background:#3B6D11;color:#fff;border-color:#3B6D11;" onclick="_synOpenWebhookEditor()">+ Criar primeiro webhook</button></div></div>`;
+    return;
+  }
+  body.innerHTML = `
+    <div style="margin-bottom:10px;text-align:right;"><button class="btn-c" style="background:#3B6D11;color:#fff;border-color:#3B6D11;" onclick="_synOpenWebhookEditor()">+ Novo webhook</button></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${_synWebhooks.map(wh => `<div style="padding:11px 14px;background:var(--color-background-secondary);border-radius:8px;border:0.5px solid var(--color-border-tertiary);">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:500;">${wh.is_active?'':'<span style="opacity:.5;">⏸ </span>'}${_esc(wh.name)}</div>
+            <div style="font-size:11px;color:var(--color-text-tertiary);font-family:Menlo,monospace;margin-top:3px;word-break:break-all;">${_esc(wh.url)}</div>
+            <div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap;">
+              ${(wh.events||[]).map(e => `<span style="background:rgba(127,119,221,.12);color:#3C3489;padding:2px 8px;border-radius:999px;font-size:10.5px;">${_esc(e)}</span>`).join('')}
+            </div>
+            ${wh.total_calls > 0 ? `<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:5px;">Chamado ${wh.total_calls}x · último ${wh.last_called_at ? new Date(wh.last_called_at).toLocaleString('pt-BR') : '—'} · status ${wh.last_status || '—'}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button class="reg-action-btn" onclick="_synToggleWebhook('${_esc(wh.id)}', ${!wh.is_active})">${wh.is_active?'⏸':'▶'}</button>
+            <button class="reg-action-btn" onclick="_synOpenWebhookEditor('${_esc(wh.id)}')">✎</button>
+            <button class="reg-action-btn danger" onclick="_synDeleteWebhook('${_esc(wh.id)}')">×</button>
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>
+  `;
+}
+
+async function _synToggleWebhook(id, active) {
+  const c = await _synGetClient(); if (!c) return;
+  await c.from('synconnect_webhooks').update({ is_active: active }).eq('id', id);
+  await _synLoadWebhooks();
+  _synRenderWebhooksList();
+}
+
+async function _synDeleteWebhook(id) {
+  const ok = await appConfirm('Excluir webhook?', 'A URL não vai mais ser chamada quando eventos ocorrerem.', { danger:true, okLabel:'Excluir' });
+  if (!ok) return;
+  const c = await _synGetClient(); if (!c) return;
+  await c.from('synconnect_webhooks').delete().eq('id', id);
+  await _synLoadWebhooks();
+  _synRenderWebhooksList();
+}
+
+async function _synOpenWebhookEditor(webhookId) {
+  const isEdit = !!webhookId;
+  const wh = isEdit ? _synWebhooks.find(x => x.id === webhookId) : { name:'', url:'', events:[], headers:{}, is_active:true };
+  if (!wh) return;
+  const eventsList = ['deal_won', 'deal_lost', 'stage_change', 'lead_arrived'];
+  let ov = document.getElementById('syn-wh-modal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'syn-wh-modal';
+    ov.className = 'syn-modal-ov';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `<div class="syn-modal" onclick="event.stopPropagation()">
+    <div class="syn-modal-h"><h3>${isEdit?'Editar':'Novo'} webhook</h3><button class="syn-modal-x" onclick="document.getElementById('syn-wh-modal').classList.remove('is-open')">×</button></div>
+    <div class="syn-modal-body">
+      <div class="syn-field"><label>Nome</label><input id="syn-wh-name" type="text" value="${_esc(wh.name||'')}" placeholder="Ex: Notifica time no Zapier" autofocus/></div>
+      <div class="syn-field"><label>URL (HTTP POST recebe JSON)</label><input id="syn-wh-url" type="url" value="${_esc(wh.url||'')}" placeholder="https://hooks.zapier.com/..." style="font-family:Menlo,monospace;font-size:12px;"/></div>
+      <div class="syn-field">
+        <label>Quais eventos disparam</label>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${eventsList.map(e => `<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;">
+            <input type="checkbox" data-event="${e}" ${(wh.events||[]).includes(e)?'checked':''}/>
+            <code style="background:var(--color-background-secondary);padding:1px 7px;border-radius:4px;font-size:11px;">${e}</code>
+          </label>`).join('')}
+        </div>
+      </div>
+      <div style="background:var(--color-background-secondary);padding:10px 12px;border-radius:7px;font-size:11.5px;line-height:1.5;">
+        <strong>Payload enviado:</strong> JSON com <code>deal_id, title, value_cents, status, stage_id, contact_id, occurred_at</code> + headers customizáveis.
+      </div>
+    </div>
+    <div class="syn-modal-f">
+      <button class="syn-btn-secondary" onclick="document.getElementById('syn-wh-modal').classList.remove('is-open')">Cancelar</button>
+      <button class="syn-btn-primary" onclick="_synSaveWebhook(${isEdit?`'${_esc(wh.id)}'`:'null'})">${isEdit?'Salvar':'Criar'}</button>
+    </div>
+  </div>`;
+  ov.classList.add('is-open');
+}
+
+async function _synSaveWebhook(webhookId) {
+  const name = document.getElementById('syn-wh-name').value.trim();
+  const url = document.getElementById('syn-wh-url').value.trim();
+  if (!name || !url) { alert('Nome e URL obrigatórios.'); return; }
+  const events = Array.from(document.querySelectorAll('#syn-wh-modal input[type=checkbox]:checked')).map(cb => cb.dataset.event);
+  if (events.length === 0) { alert('Selecione pelo menos um evento.'); return; }
+  const c = await _synGetClient(); if (!c) return;
+  const { data: { user } } = await c.auth.getUser();
+  const payload = { user_id: user.id, name, url, events, is_active: true };
+  if (webhookId) await c.from('synconnect_webhooks').update(payload).eq('id', webhookId);
+  else            await c.from('synconnect_webhooks').insert(payload);
+  document.getElementById('syn-wh-modal').classList.remove('is-open');
+  await _synLoadWebhooks();
+  _synRenderWebhooksList();
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -32910,6 +33445,7 @@ function _synRenderDealCard(d) {
       ? `⚠ follow-up ${due < today ? 'atrasado' : 'hoje'}`
       : `⏱ ${due.toLocaleDateString('pt-BR')}`
   ) : '';
+  const aging = _synAgingLabel(d);
   return `<div class="syn-deal" draggable="true" data-deal-id="${_esc(d.id)}" ondragstart="_synDragStart(event,'${_esc(d.id)}')" ondragend="_synDragEnd(event)" onclick="_synOpenDealModal('${_esc(d.id)}')">
     <div class="syn-deal-title">${_esc(d.title)}</div>
     <div class="syn-deal-meta">
@@ -32918,6 +33454,7 @@ function _synRenderDealCard(d) {
       <span>${prob}%</span>
       ${contact ? `<span style="opacity:.5;">·</span><span class="syn-deal-contact">${_esc(contact.name)}</span>` : ''}
       ${followLabel ? `<span class="syn-deal-followup ${isDue?'is-due':''}">${followLabel}</span>` : ''}
+      <span style="margin-left:auto;font-size:10px;color:${aging.color};font-weight:500;" title="${aging.d} dias desde última atividade">${aging.icon} ${aging.label}</span>
     </div>
   </div>`;
 }
@@ -32991,6 +33528,14 @@ async function _synOpenDealModal(dealId, presetStageId) {
         <button class="syn-modal-x" onclick="_synCloseDealModal()">×</button>
       </div>
       <div class="syn-modal-body">
+        ${!isEdit && _synTemplates.length > 0 ? `
+        <div class="syn-field">
+          <label>Template (opcional) <span style="font-weight:400;color:var(--color-text-tertiary);text-transform:none;letter-spacing:0;font-size:11px;">· pré-preenche valor, estágio, tags</span></label>
+          <select id="syn-d-template" onchange="_synApplyDealTemplate(this.value)">
+            <option value="">— em branco —</option>
+            ${_synTemplates.map(t => `<option value="${_esc(t.id)}">${_esc(t.icon || '📋')} ${_esc(t.name)}${t.default_value_cents?` · ${_synFmtMoney(t.default_value_cents)}`:''}</option>`).join('')}
+          </select>
+        </div>` : ''}
         <div class="syn-field">
           <label>Título da oportunidade *</label>
           <input id="syn-d-title" type="text" value="${_esc(deal?.title || '')}" placeholder="Ex: Implantação Synkan na empresa X" autofocus />
@@ -33307,6 +33852,26 @@ function _synCloseDealModal() {
   document.getElementById('syn-deal-modal')?.classList.remove('is-open');
 }
 
+// Aplica um template ao modal de deal (preenche os campos com defaults)
+function _synApplyDealTemplate(templateId) {
+  const t = _synTemplates.find(x => x.id === templateId);
+  if (!t) return;
+  const valueInp = document.getElementById('syn-d-value');
+  const probInp  = document.getElementById('syn-d-prob');
+  const stageSel = document.getElementById('syn-d-stage');
+  const notesInp = document.getElementById('syn-d-notes');
+  const titleInp = document.getElementById('syn-d-title');
+  if (valueInp && t.default_value_cents) valueInp.value = (t.default_value_cents / 100).toFixed(2);
+  if (probInp && t.default_probability != null) probInp.value = t.default_probability;
+  if (stageSel && t.default_stage_id) stageSel.value = t.default_stage_id;
+  if (titleInp && !titleInp.value) titleInp.value = t.icon + ' ' + t.name;
+  if (notesInp) {
+    const checklist = Array.isArray(t.checklist) ? t.checklist : [];
+    const checklistText = checklist.length ? '\n\nChecklist:\n' + checklist.map(c => '☐ ' + c).join('\n') : '';
+    notesInp.value = (t.notes || '') + checklistText;
+  }
+}
+
 async function _synSaveDealFromModal(dealId) {
   const title = (document.getElementById('syn-d-title').value || '').trim();
   if (!title) { alert('Título é obrigatório.'); return; }
@@ -33606,7 +34171,7 @@ async function _fetchCnpjData(cnpj) {
   }
 }
 
-function saveContact(id, isEdit) {
+async function saveContact(id, isEdit) {
   const name = (document.getElementById('reg-c-name').value||'').trim();
   if (!name) { alert('Nome é obrigatório.'); return; }
   const data = {
@@ -33620,6 +34185,26 @@ function saveContact(id, isEdit) {
     notes:   (document.getElementById('reg-c-notes').value||'').trim(),
     updatedAt: new Date().toISOString(),
   };
+  // ── #9 Deduplicação: só pra novos cadastros ────────────────────────
+  if (!isEdit && typeof _synFindDuplicateContact === 'function') {
+    const dup = _synFindDuplicateContact(data);
+    if (dup) {
+      const action = await _synShowDuplicateDialog(data, dup.contact, dup.match);
+      if (action === 'cancel') return; // user cancelou
+      if (action === 'merge') {
+        // Usa o existente, dispara callback como se tivesse criado
+        closeRegistryModal();
+        const cb = (typeof _contactSaveCallback === 'function') ? _contactSaveCallback : null;
+        _contactSaveCallback = null;
+        if (cb) { try { cb(dup.contact.id); } catch(e) { console.warn(e); } }
+        if (typeof _showKanWarning === 'function') {
+          _showKanWarning('Usando existente ✓', `Contato <strong>${_esc(dup.contact.name)}</strong> reaproveitado em vez de criar duplicado.`, 'info');
+        }
+        return;
+      }
+      // 'new' → segue normal, cria mesmo assim
+    }
+  }
   if (isEdit) {
     const idx = _contacts.findIndex(x=>x.id===id);
     if (idx>=0) _contacts[idx] = { ...(_contacts[idx]||{}), ...data };
