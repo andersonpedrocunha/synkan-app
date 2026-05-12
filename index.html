@@ -23023,6 +23023,27 @@ async function _onSignedIn(session) {
     _migrateCards(cards);
   }
 
+  // ━━ SELF-HEAL: se ainda parecer ter "poucos boards" comparado ao banco,
+  //    força re-sync. Cobre caso de localStorage wipado (signOut) onde
+  //    o load inicial pode estourar timeout em algumas tabelas. ━━
+  try {
+    const localCount = Object.keys(allBoards || {}).filter(k => k !== UNIFIED_BOARD_ID).length;
+    const { data: dbList, error: dbErr } = await c.from('boards').select('id', { count: 'exact', head: false }).eq('owner_id', supaUser.id);
+    const dbCount = dbErr ? localCount : (dbList?.length || 0);
+    if (dbCount > localCount) {
+      console.warn(`[boot] self-heal: local tem ${localCount} boards mas banco tem ${dbCount}. Re-sincronizando...`);
+      const recovered = await supaLoadAllBoards();
+      if (recovered && Object.keys(recovered).length > localCount) {
+        // Mescla: cloud sobrescreve, mas não apaga boards local-only ainda
+        Object.assign(allBoards, recovered);
+        if (typeof saveData === 'function') saveData();
+        if (typeof renderBoardsList === 'function') renderBoardsList();
+        if (typeof renderHome === 'function') try { renderHome(); } catch(_){}
+        console.info(`[boot] self-heal: ✓ recuperou ${Object.keys(recovered).length} board(s) do cloud`);
+      }
+    }
+  } catch(e) { console.warn('[boot] self-heal falhou (não crítico):', e?.message || e); }
+
   // Processa fila de retry (writes que falharam em sessões anteriores)
   try { if (typeof _processRetryQueue === 'function') _processRetryQueue(); } catch(e) { console.warn('retry queue', e); }
 
