@@ -27382,7 +27382,19 @@ function _monthKey() { return new Date().toISOString().slice(0,7); } // YYYY-MM
 
 function getAIQuota() {
   const cfg = getAIQuotaCfg();
-  const limit = (typeof cfg.limit==='number' && cfg.limit>0) ? cfg.limit : DEFAULT_AI_QUOTA;
+  // Default = limite MÁXIMO do plano (não um valor fixo genérico).
+  // Se user setou limit pessoal explicitamente, respeita.
+  // Se plano é ilimitado (planMax === -1), usa DEFAULT_AI_QUOTA como teto razoável.
+  let limit;
+  if (typeof cfg.limit === 'number' && cfg.limit > 0) {
+    limit = cfg.limit;
+  } else {
+    try {
+      const planLimits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+      const planMax = planLimits ? planLimits.ai : -1;
+      limit = (planMax > 0) ? planMax : DEFAULT_AI_QUOTA;
+    } catch(_) { limit = DEFAULT_AI_QUOTA; }
+  }
   const month = _monthKey();
   const usedThisMonth = (cfg.month===month) ? (cfg.count||0) : 0;
   return { limit, used: usedThisMonth, remaining: Math.max(0, limit - usedThisMonth), month };
