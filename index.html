@@ -50848,36 +50848,29 @@ async function _bunkoDownloadRecording(recordingId) {
     const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
     const { data: { session } } = await c.auth.getSession();
     const jwt = session?.access_token;
-    const r = await fetch(`${cfg.url}/functions/v1/livekit-recording/sign-url`, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+jwt },
-      body: JSON.stringify({ recording_id: recordingId, ttl_sec: 3600 })
-    });
-    const j = await r.json();
-    if (!r.ok || !j.url) throw new Error(j.error || `HTTP ${r.status}`);
-    // Filename amigável: "Tatame - <título> - DD-MM-YYYY.mp4"
+    // Filename amigável: "Tatame_aleatorio_DD-MM-YYYY.mp4"
     const dt = rec?.started_at ? new Date(rec.started_at) : new Date();
     const dtStr = `${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')}-${dt.getFullYear()}`;
     const safeTitle = (rec?.title || 'gravacao').replace(/[^\w\s\-]/g,'').replace(/\s+/g,'_').slice(0,60);
     const filename = `${safeTitle}_${dtStr}.mp4`;
-    // ━━ fetch + blob ━━
-    // Cross-origin sem `target=_blank`. Browser baixa direto, sem abrir aba.
-    // Mostra "Baixando..." durante o fetch.
-    if (typeof _showKanWarning === 'function') {
-      _showKanWarning('Baixando vídeo…', 'Aguarde, isso pode levar alguns segundos.', 'info');
-    }
-    const resp = await fetch(j.url);
-    if (!resp.ok) throw new Error(`R2 retornou HTTP ${resp.status}`);
-    const blob = await resp.blob();
-    const objUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objUrl;
-    a.download = filename;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(objUrl), 60000);
+    // ━━ Pede URL assinada COM response-content-disposition embutido ━━
+    // Isso faz o R2 servir o arquivo com header de download → browser baixa nativo
+    // (sem precisar de CORS, sem precisar abrir aba)
+    const r = await fetch(`${cfg.url}/functions/v1/livekit-recording/sign-url`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+jwt },
+      body: JSON.stringify({ recording_id: recordingId, ttl_sec: 3600, download_filename: filename })
+    });
+    const j = await r.json();
+    if (!r.ok || !j.url) throw new Error(j.error || `HTTP ${r.status}`);
+    // Navega direto pra URL assinada — R2 responde com Content-Disposition: attachment
+    // → browser baixa sem abrir página (porque é attachment).
+    // Usamos location.assign que não cria nova aba.
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = j.url;
+    document.body.appendChild(iframe);
+    setTimeout(() => iframe.remove(), 30000);
     if (typeof _showKanWarning === 'function') {
       _showKanWarning('Download iniciado ✓', `Salvando como <strong>${_esc(filename)}</strong>.`, 'success');
     }
