@@ -359,9 +359,12 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 :root.dark .sb-account-menu-item.danger{color:#FF9C9C;}
 
 /* ━━━━━━━━━━ O CAMINHO DO MESTRE KAN — modal épico/dojo ━━━━━━━━━━ */
-.mk-dojo-ov{position:fixed;inset:0;background:rgba(20,16,12,0);backdrop-filter:blur(0);z-index:10005;display:flex;align-items:center;justify-content:center;padding:40px 20px;overflow-y:auto;transition:background .25s,backdrop-filter .25s;}
+/* Overlay scrollable. NÃO usar flex align-items:center aqui — quando o modal
+   é maior que a viewport, flex corta a parte de cima (não dá pra scrollar até o topo).
+   Solução: margin auto + scroll natural. */
+.mk-dojo-ov{position:fixed;inset:0;background:rgba(20,16,12,0);backdrop-filter:blur(0);z-index:10005;padding:40px 20px;overflow-y:auto;transition:background .25s,backdrop-filter .25s;}
 .mk-dojo-ov.is-open{background:rgba(20,16,12,.78);backdrop-filter:blur(8px);}
-.mk-dojo{position:relative;max-width:840px;width:100%;background:linear-gradient(180deg,#FFFCF5 0%,#F5E8C8 100%);color:#1A1611;border:1px solid #B8A878;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 0 1px rgba(193,154,58,.18);transform:translateY(8px) scale(.98);opacity:0;transition:all .3s cubic-bezier(.2,.7,.2,1);}
+.mk-dojo{position:relative;max-width:840px;width:100%;margin:0 auto;background:linear-gradient(180deg,#FFFCF5 0%,#F5E8C8 100%);color:#1A1611;border:1px solid #B8A878;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 0 1px rgba(193,154,58,.18);transform:translateY(8px) scale(.98);opacity:0;transition:all .3s cubic-bezier(.2,.7,.2,1);}
 .mk-dojo-ov.is-open .mk-dojo{transform:translateY(0) scale(1);opacity:1;}
 .mk-dojo-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;background:rgba(20,16,12,.45);border:none;color:#F5E8C8;font-size:14px;cursor:pointer;z-index:20;display:flex;align-items:center;justify-content:center;transition:all .15s;backdrop-filter:blur(4px);}
 .mk-dojo-close:hover{background:rgba(20,16,12,.75);transform:rotate(90deg);}
