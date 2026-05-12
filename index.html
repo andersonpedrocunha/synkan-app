@@ -50263,6 +50263,27 @@ async function _bunkoCheckRecordingConfig() {
         ${Object.entries(secrets).map(([k,v]) => `<div style="color:${v?'#27500A':'#A32D2D'};">${v?'✓':'✕'} ${k}</div>`).join('')}
       </div>
 
+      ${infoR.secret_values ? (() => {
+        const sv = infoR.secret_values;
+        const ep = sv.STORAGE_S3_ENDPOINT || {};
+        const rg = sv.STORAGE_S3_REGION || {};
+        const bk = sv.STORAGE_S3_BUCKET || {};
+        const ak = sv.STORAGE_S3_ACCESS_KEY || {};
+        const epWarning = !ep.starts_with_https ? '<div style="color:#A32D2D;margin-top:2px;">⚠ Não começa com https://</div>' : '';
+        const epSlashWarning = ep.ends_with_slash ? '<div style="color:#8B6914;margin-top:2px;">⚠ Termina com /</div>' : '';
+        const epSpaceWarning = ep.has_whitespace ? '<div style="color:#A32D2D;margin-top:2px;">⚠ TEM ESPAÇO em branco no valor</div>' : '';
+        const epIsAws = ep.preview && /amazonaws\.com/i.test(ep.preview);
+        return `
+        <div style="font-weight:600;margin-bottom:8px;">🔬 Valores reais dos secrets (debug)</div>
+        <div style="background:var(--color-background-secondary);padding:11px 14px;border-radius:7px;font-family:Menlo,monospace;font-size:11px;margin-bottom:14px;line-height:1.5;">
+          <div style="color:${epIsAws?'#A32D2D':'#27500A'}"><strong>ENDPOINT</strong> (${ep.length} chars): ${ep.preview ? _esc(ep.preview) : '<span style="color:#A32D2D;">VAZIO</span>'}</div>
+          ${epWarning}${epSlashWarning}${epSpaceWarning}
+          ${epIsAws ? '<div style="color:#A32D2D;margin-top:2px;">⚠ Endpoint aponta pra AWS, não pro R2!</div>' : ''}
+          <div style="margin-top:6px;"><strong>REGION</strong>: <code>${_esc(rg.value || '(vazio)')}</code></div>
+          <div><strong>BUCKET</strong>: <code>${_esc(bk.value || '(vazio)')}</code></div>
+          <div><strong>ACCESS_KEY</strong>: ${ak.preview ? _esc(ak.preview) : '<span style="color:#A32D2D;">VAZIO</span>'} (${ak.length} chars)</div>
+        </div>` })() : ''}
+
       <div style="font-weight:600;margin-bottom:8px;">🔌 Webhook URL pra configurar no LiveKit Cloud</div>
       <div style="background:var(--color-background-secondary);padding:11px 14px;border-radius:7px;font-family:Menlo,monospace;font-size:11px;margin-bottom:6px;word-break:break-all;">
         ${_esc(infoR.webhook_url_to_configure || '?')}
