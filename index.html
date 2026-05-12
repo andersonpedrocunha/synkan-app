@@ -14870,12 +14870,40 @@ function _settingsContaSection() {
     <div class="settings-card">
       <div class="settings-card-title">Equipe (todos os boards)</div>
       <div class="settings-card-sub">Pessoas que aparecem nos seletores de "Responsável" em todos os seus boards. Para gerenciar membros de UM board específico, abra-o e use a engrenagem ⚙.</div>
-      ${(team && team.length) ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
-        ${team.map(n=>`<span class="cfg-team-row" style="display:inline-flex;padding:4px 10px;border-radius:999px;background:var(--color-background-secondary);font-size:12px;">
-          <span class="cfg-team-avatar" style="background:${avatarColor(n)};width:20px;height:20px;font-size:9px;">${_esc(avatarInitials(n))}</span>
-          <span style="margin-left:6px;">${_esc(n)}</span>
-        </span>`).join('')}
-      </div>` : '<div class="settings-row-hint">Nenhum membro do board atual.</div>'}
+      ${(() => {
+        // Agrega nomes únicos de TODOS os boards + sempre inclui o próprio user
+        const allNames = new Set();
+        // 1) Próprio user — sempre presente
+        try {
+          const me = getProfileName();
+          if (me && me.trim()) allNames.add(me.trim());
+        } catch(_){}
+        // 2) Team do board atual
+        try {
+          if (Array.isArray(team)) team.forEach(n => n && allNames.add(String(n).trim()));
+        } catch(_){}
+        // 3) Teams de TODOS os boards (allBoards)
+        try {
+          if (typeof allBoards === 'object' && allBoards) {
+            Object.values(allBoards).forEach(b => {
+              if (Array.isArray(b?.team)) b.team.forEach(n => n && allNames.add(String(n).trim()));
+            });
+          }
+        } catch(_){}
+        const allTeam = Array.from(allNames).filter(Boolean).sort((a,b) => a.localeCompare(b, 'pt-BR'));
+        if (allTeam.length === 0) {
+          return '<div class="settings-row-hint">Nenhum membro cadastrado. Adicione pessoas na engrenagem ⚙ de um board.</div>';
+        }
+        return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+          ${allTeam.map(n => {
+            const isMe = (() => { try { return n === getProfileName(); } catch(_) { return false; } })();
+            return `<span class="cfg-team-row" style="display:inline-flex;padding:4px 10px;border-radius:999px;background:${isMe?'rgba(193,154,58,.18)':'var(--color-background-secondary)'};font-size:12px;${isMe?'border:1px solid rgba(193,154,58,.45);':''}" title="${isMe?'Você':_esc(n)}">
+              <span class="cfg-team-avatar" style="background:${avatarColor(n)};width:20px;height:20px;font-size:9px;">${_esc(avatarInitials(n))}</span>
+              <span style="margin-left:6px;">${_esc(n)}${isMe?' <span style=\"color:var(--color-text-tertiary);font-size:10.5px;font-style:italic;\">(você)</span>':''}</span>
+            </span>`;
+          }).join('')}
+        </div>`;
+      })()}
     </div>
   `;
 }
@@ -51619,7 +51647,7 @@ function _bunkoCardHTML(it) {
     draggable="true"
     ondragstart="_bunkoDragStart(event, '${it.kind}', '${_esc(it.id)}')"
     onclick="${onClick}">
-    ${it.pinned ? '<div class="bunko-card-pin" title="Fixado">⭐</div>' : ''}
+    ${it.pinned ? '<div class="bunko-card-pin" title="Acesso rápido">⚡</div>' : ''}
     <div class="bunko-card-menu">
       <button class="bunko-card-menu-btn" onclick="event.stopPropagation(); _bunkoItemMenu(event, '${it.kind}', '${_esc(it.id)}', '${_esc((it.title||'').replace(/'/g,'\\\''))}')">⋯</button>
     </div>
