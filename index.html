@@ -50168,7 +50168,7 @@ function _bunkoCardHTML(it) {
         <span class="bunko-card-name">${_esc(it.title||'sem título')}</span>
       </div>
       <div class="bunko-card-meta">${dt(it.updated_at || it.created_at)}</div>
-      ${!isPage && (it.status === 'processing' || it.status === 'recording' || it.status === 'failed') ? `<div style="margin-top:8px;"><button onclick="event.stopPropagation(); _bunkoCheckRecording('${_esc(it.id)}')" style="background:rgba(107,72,37,.10);border:1px solid #8B6634;color:#6B4825;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--tatami-mincho,serif);font-style:italic;">↻ Verificar status no LiveKit</button></div>` : ''}
+      ${!isPage && (it.status === 'processing' || it.status === 'recording' || it.status === 'failed' || it.status === 'starting' || it.status === 'active' || it.status === 'ending' || (it.status === 'ready' && !it.url)) ? `<div style="margin-top:8px;"><button onclick="event.stopPropagation(); _bunkoCheckRecording('${_esc(it.id)}')" style="background:rgba(107,72,37,.10);border:1px solid #8B6634;color:#6B4825;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--tatami-mincho,serif);font-style:italic;">↻ Re-sincronizar com LiveKit</button></div>` : ''}
     </div>
   </div>`;
 }
