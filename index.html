@@ -14284,6 +14284,82 @@ function setSettingsTab(t) {
 }
 
 // ── Empresa / Marca do usuário (aparece nos relatórios) ──────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// USER APP STATE — sync genérico key/value pra nuvem
+// ─────────────────────────────────────────────────────────────────────
+// Tabela user_app_state no Supabase guarda QUALQUER JSON por (user, key).
+// Sync silencioso com debounce — escreve local imediato, push pra nuvem 1.5s
+// depois (juntando saves rápidos seguidos).
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const _uasCloudLoaded = { _ready:false };       // {keyName: true} = já carregou
+const _uasCloudPending = new Map();              // key → timer
+function _uasScheduleSync(key, getValueFn) {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  if (_uasCloudPending.has(key)) clearTimeout(_uasCloudPending.get(key));
+  const t = setTimeout(async () => {
+    _uasCloudPending.delete(key);
+    try {
+      const value = (typeof getValueFn === 'function') ? getValueFn() : null;
+      await supaClient.rpc('user_app_state_save', { p_key: key, p_value: value });
+    } catch(e) { console.warn('[uas]', key, 'sync falhou:', e?.message || e); }
+  }, 1500);
+  _uasCloudPending.set(key, t);
+}
+async function _uasLoadOnBoot() {
+  // Carrega todas as keys interessantes de uma vez (1 round-trip)
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  try {
+    const keys = ['doc_templates', 'checklist_templates', 'company_info'];
+    const { data, error } = await supaClient.rpc('user_app_state_load_many', { p_keys: keys });
+    if (error) throw error;
+    const cloud = data || {};
+    // 1) doc_templates
+    if (cloud.doc_templates && Array.isArray(cloud.doc_templates)) {
+      _docTemplates = cloud.doc_templates;
+      try { localStorage.setItem(DOC_TPL_KEY, JSON.stringify(_docTemplates)); } catch(_){}
+    } else if (Array.isArray(_docTemplates) && _docTemplates.length) {
+      // Cloud vazio mas local tem — sobe pra cloud
+      _uasScheduleSync('doc_templates', () => _docTemplates);
+    }
+    // 2) checklist_templates
+    if (cloud.checklist_templates && Array.isArray(cloud.checklist_templates)) {
+      _checklistTemplates = cloud.checklist_templates;
+      try { localStorage.setItem(CHECKLIST_TEMPLATES_KEY, JSON.stringify(_checklistTemplates)); } catch(_){}
+    } else if (Array.isArray(_checklistTemplates) && _checklistTemplates.length) {
+      _uasScheduleSync('checklist_templates', () => _checklistTemplates);
+    }
+    // 3) company_info
+    if (cloud.company_info && typeof cloud.company_info === 'object') {
+      try { localStorage.setItem(COMPANY_KEY, JSON.stringify(cloud.company_info)); } catch(_){}
+    } else {
+      const local = getCompanyInfo();
+      if (local && Object.keys(local).length) _uasScheduleSync('company_info', getCompanyInfo);
+    }
+    _uasCloudLoaded._ready = true;
+    console.info('[uas] sincronizou:', Object.keys(cloud).join(', ') || 'tudo vazio');
+    // Re-render se em tela relevante
+    try { if (typeof renderSettings === 'function' && typeof currentTab !== 'undefined' && currentTab === 'settings') renderSettings(); } catch(_){}
+  } catch(e) { console.warn('[uas] load boot falhou:', e?.message || e); }
+}
+async function _uasFinalSync() {
+  // Chamado no signOut pra forçar push pendente antes do wipe
+  const pending = Array.from(_uasCloudPending.keys());
+  for (const k of pending) clearTimeout(_uasCloudPending.get(k));
+  _uasCloudPending.clear();
+  if (!pending.length) return;
+  // Pra cada key pendente, força save
+  for (const key of pending) {
+    let value = null;
+    if (key === 'doc_templates') value = _docTemplates;
+    else if (key === 'checklist_templates') value = _checklistTemplates;
+    else if (key === 'company_info') value = getCompanyInfo();
+    if (value !== null) {
+      try { await supaClient.rpc('user_app_state_save', { p_key: key, p_value: value }); }
+      catch(e) { console.warn('[uas] final sync', key, 'falhou:', e?.message); }
+    }
+  }
+}
+
 const COMPANY_KEY = 'kanban_v8_company';
 function getCompanyInfo() {
   try { return JSON.parse(localStorage.getItem(COMPANY_KEY)||'{}') || {}; }
@@ -14291,6 +14367,7 @@ function getCompanyInfo() {
 }
 function setCompanyInfo(info) {
   try { localStorage.setItem(COMPANY_KEY, JSON.stringify(info||{})); } catch(e){}
+  try { _uasScheduleSync('company_info', getCompanyInfo); } catch(_){}
 }
 
 // Versão imediata (sem debounce) com feedback no botão. Usado pelo botão
@@ -22065,6 +22142,9 @@ async function signOut() {
       try { if (_aiCloudSyncTimer) { clearTimeout(_aiCloudSyncTimer); _aiCloudSyncTimer = null; } } catch(_){}
       finalSyncs.push(_aiCloudSyncNow());
     }
+    if (typeof _uasFinalSync === 'function' && supaUser) {
+      finalSyncs.push(_uasFinalSync());
+    }
     if (finalSyncs.length) {
       await Promise.race([
         Promise.all(finalSyncs),
@@ -22748,6 +22828,9 @@ async function _onSignedIn(session) {
   // CRÍTICO: addons = créditos pagos via Stripe. Sem sync, user perderia dinheiro
   // ao logar de outro device ou após wipe.
   try { setTimeout(() => { _aiLoadFromCloud().catch(()=>{}); }, 900); } catch(_){}
+  // ━━ Carrega user_app_state (doc/checklist templates + company info) ━━
+  // Tudo num round-trip via user_app_state_load_many.
+  try { setTimeout(() => { _uasLoadOnBoot().catch(()=>{}); }, 1000); } catch(_){}
 
   // Se é o MESMO user que já estava logado (token refresh, mudança de aba,
   // wake do sleep), só atualiza UI leve e sai. NÃO troca tab, NÃO recarrega
@@ -36740,6 +36823,7 @@ if (!Array.isArray(_checklistTemplates) || !_checklistTemplates.length) {
 }
 function _saveChecklistTemplates(){
   try { localStorage.setItem(CHECKLIST_TEMPLATES_KEY, JSON.stringify(_checklistTemplates||[])); } catch(e){}
+  try { _uasScheduleSync('checklist_templates', () => _checklistTemplates); } catch(_){}
 }
 function _genTplId(){ return 'tpl_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 
@@ -36974,6 +37058,7 @@ Por ser verdade, firmo o presente recibo.
 }
 function _saveDocTemplates(){
   try { localStorage.setItem(DOC_TPL_KEY, JSON.stringify(_docTemplates||[])); } catch(e){}
+  try { _uasScheduleSync('doc_templates', () => _docTemplates); } catch(_){}
 }
 function _genDocTplId(){ return 'doctpl_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 
