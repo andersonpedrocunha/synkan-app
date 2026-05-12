@@ -22051,19 +22051,27 @@ async function changePasswordFlow() {
 
 async function signOut() {
   try { _capInvalidateJWTCache(); } catch(e){}
-  // 0) ANTES de qualquer wipe: garante que o gamif (XP/streak/conquistas) está
-  //    sincronizado na nuvem. Sem isso, o _wipeAllAppLocalData abaixo apagaria
-  //    o último estado local e ele se perderia até o próximo save.
+  // 0) ANTES de qualquer wipe: garante que dados críticos estão na nuvem.
+  //    Sem isso, _wipeAllAppLocalData abaixo apagaria último estado local que
+  //    ainda não foi sincronizado.
+  //    Sincroniza gamif (XP) + ai_state (quota + addons pagos) em paralelo.
   try {
+    const finalSyncs = [];
     if (typeof _gamifCloudSyncNow === 'function' && supaUser) {
-      // Cancela debounce pendente e força sync imediato com timeout curto
       try { if (_gamifCloudSyncTimer) { clearTimeout(_gamifCloudSyncTimer); _gamifCloudSyncTimer = null; } } catch(_){}
+      finalSyncs.push(_gamifCloudSyncNow());
+    }
+    if (typeof _aiCloudSyncNow === 'function' && supaUser) {
+      try { if (_aiCloudSyncTimer) { clearTimeout(_aiCloudSyncTimer); _aiCloudSyncTimer = null; } } catch(_){}
+      finalSyncs.push(_aiCloudSyncNow());
+    }
+    if (finalSyncs.length) {
       await Promise.race([
-        _gamifCloudSyncNow(),
-        new Promise(res => setTimeout(res, 1500)),
+        Promise.all(finalSyncs),
+        new Promise(res => setTimeout(res, 2000)),
       ]);
     }
-  } catch(e) { console.warn('[signOut] gamif final sync falhou:', e?.message || e); }
+  } catch(e) { console.warn('[signOut] final cloud syncs falharam:', e?.message || e); }
   // 1) signOut do Supabase com timeout curto (não bloqueia se a rede/API falhar)
   try {
     if (supaClient && supaClient.auth) {
@@ -22736,6 +22744,10 @@ async function _onSignedIn(session) {
   // ━━ Carrega gamif (XP, streak, conquistas) da nuvem em background ━━
   // Se cloud tem progresso e local não, adota o cloud. Re-renderiza UI ao terminar.
   try { setTimeout(() => { _gamifLoadFromCloud().catch(()=>{}); }, 800); } catch(_){}
+  // ━━ Carrega AI state (quota + addons pagos) da nuvem em background ━━
+  // CRÍTICO: addons = créditos pagos via Stripe. Sem sync, user perderia dinheiro
+  // ao logar de outro device ou após wipe.
+  try { setTimeout(() => { _aiLoadFromCloud().catch(()=>{}); }, 900); } catch(_){}
 
   // Se é o MESMO user que já estava logado (token refresh, mudança de aba,
   // wake do sleep), só atualiza UI leve e sai. NÃO troca tab, NÃO recarrega
@@ -27434,6 +27446,82 @@ async function askClaudeWA(cardId) {
 
 // ── Quota local da IA (limite mensal por usuário) ────────────────
 const AI_QUOTA_KEY = 'kanban_v8_ai_quota';
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AI STATE CLOUD SYNC — quota + addons (créditos pagos)
+// ─────────────────────────────────────────────────────────────────────
+// Antes: quota e addons só em localStorage → logout limpa, troca de browser
+// perde, aba anônima zera. CRÍTICO pra créditos pagos (representam DINHEIRO).
+// Agora: tabela ai_state no Supabase com RPCs atômicos pra bump/consume.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let _aiCloudSyncTimer = null;
+let _aiCloudSyncing = false;
+let _aiCloudLoaded = false;
+
+function _aiScheduleCloudSync() {
+  if (!_aiCloudLoaded) return;
+  if (typeof supaUser === 'undefined' || !supaUser) return;
+  if (_aiCloudSyncTimer) clearTimeout(_aiCloudSyncTimer);
+  _aiCloudSyncTimer = setTimeout(_aiCloudSyncNow, 1500);
+}
+
+async function _aiCloudSyncNow() {
+  if (_aiCloudSyncing) return;
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  _aiCloudSyncing = true;
+  try {
+    const quota = (typeof getAIQuotaCfg === 'function') ? getAIQuotaCfg() : null;
+    const addons = (typeof getAIAddons === 'function') ? getAIAddons() : null;
+    await supaClient.rpc('ai_state_save', {
+      p_quota:  quota  || null,
+      p_addons: addons || null,
+    });
+  } catch(e) { console.warn('[ai-state] cloud sync falhou:', e?.message || e); }
+  finally { _aiCloudSyncing = false; }
+}
+
+async function _aiLoadFromCloud() {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) {
+    _aiCloudLoaded = true;
+    return;
+  }
+  try {
+    const { data, error } = await supaClient.rpc('ai_state_load');
+    if (error) throw error;
+    const cloud = data;
+    if (cloud) {
+      // Quota: pega a versão com MAIOR count do mês atual (defensivo — não regride)
+      const month = (typeof _monthKey === 'function') ? _monthKey() : new Date().toISOString().slice(0,7);
+      const localQuota = (typeof getAIQuotaCfg === 'function') ? getAIQuotaCfg() : {};
+      const cloudQuota = cloud.quota || {};
+      // Se mês bate, mantém o MAIOR count (defesa contra regressão)
+      if (cloudQuota.month === month && localQuota.month === month) {
+        const merged = { ...cloudQuota, ...localQuota };
+        merged.count = Math.max(localQuota.count || 0, cloudQuota.count || 0);
+        try { localStorage.setItem(AI_QUOTA_KEY, JSON.stringify(merged)); } catch(_){}
+      } else if (cloudQuota.month === month) {
+        // Só cloud está no mês certo
+        try { localStorage.setItem(AI_QUOTA_KEY, JSON.stringify(cloudQuota)); } catch(_){}
+      }
+      // Addons (créditos pagos): cloud é fonte autoritativa — sobrescreve local
+      // (dinheiro real, não quer somar erradamente entre devices)
+      if (cloud.addons && typeof cloud.addons === 'object') {
+        try { localStorage.setItem(AI_ADDON_KEY, JSON.stringify(cloud.addons)); } catch(_){}
+      }
+      console.info('[ai-state] adotado da nuvem · count:', cloudQuota.count, '· addons:', cloud.addons?.credits);
+    } else {
+      // Primeira vez na nuvem → sobe o local
+      _aiCloudLoaded = true;
+      await _aiCloudSyncNow();
+    }
+    try { if (typeof refreshAIQuotaPill === 'function') refreshAIQuotaPill(); } catch(_){}
+    try { if (typeof renderSettings === 'function' && typeof currentTab !== 'undefined' && currentTab === 'settings') renderSettings(); } catch(_){}
+  } catch(e) {
+    console.warn('[ai-state] load cloud falhou (segue só com local):', e?.message || e);
+  } finally {
+    _aiCloudLoaded = true;
+  }
+}
 const DEFAULT_AI_QUOTA = 600; // chamadas por mês (ajustável em Settings → IA)
 // Helper: gera HTML do avatar do Mestre Kan (PNG na pasta do projeto)
 function kanAvatar(size, opts) {
@@ -27459,6 +27547,7 @@ function getAIQuotaCfg() {
 }
 function setAIQuotaCfg(cfg) {
   try { localStorage.setItem(AI_QUOTA_KEY, JSON.stringify(cfg||{})); } catch(e){}
+  try { _aiScheduleCloudSync(); } catch(_){}
 }
 function _monthKey() { return new Date().toISOString().slice(0,7); } // YYYY-MM
 
@@ -27556,6 +27645,7 @@ function getAIAddons() {
 }
 function _saveAIAddons(state) {
   try { localStorage.setItem(AI_ADDON_KEY, JSON.stringify(state || { credits:0, history:[] })); } catch(e){}
+  try { _aiScheduleCloudSync(); } catch(_){}
 }
 // Adiciona créditos (chamado quando webhook do Stripe confirma compra,
 // ou em dev pelo botão "Simular compra")
