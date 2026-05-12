@@ -48086,6 +48086,13 @@ async function _lkPickerSelect(itemType, itemId, itemLabel) {
   ext.lk.sharedItem = { type: itemType, id: itemId, label: itemLabel, by: supaUser.id };
   _lkCloseSharePicker();
   _lkRenderShareWrap();
+  // ━━ Captura o que tá sendo apresentado e PUBLICA como screen share track ━━
+  // Sem isso, o item aparece pros participantes via embed local mas NÃO entra na
+  // gravação do Egress (que só vê tracks publicadas).
+  // Dispara em background — não bloqueia a UI.
+  setTimeout(() => {
+    _lkStartSynkanShareTrack().catch(e => console.warn('[lk] synkan share track:', e));
+  }, 600); // 600ms pra deixar o embed montar antes da primeira captura
 
   // Sync com banco em background (cliente isolado pra evitar lock)
   try {
@@ -48109,6 +48116,8 @@ async function _lkPickerSelect(itemType, itemId, itemLabel) {
 async function _lkStopPresenting() {
   const ext = _chatState.extended; if (!ext?.lk) return;
   console.log('[lk] parando presentation...');
+  // Para o canvas-stream antes de mexer no DOM (que vai sumir)
+  try { await _lkStopSynkanShareTrack(); } catch(e) { console.warn('[lk] stop synkan share track:', e); }
   // 1) Atualiza state local IMEDIATAMENTE pra UI reagir
   ext.lk.sharedItem = null;
   _lkRenderShareWrap();
@@ -48138,6 +48147,134 @@ async function _lkStopPresenting() {
   } catch(e) {
     console.warn('[lk] stopPresenting exception:', e?.message);
   }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SYNKAN SHARE → SCREEN SHARE TRACK
+// ─────────────────────────────────────────────────────────────────────
+// Quando o user apresenta um item Synkan (Bunko, board, OKR, deal), o
+// conteúdo é renderizado num embed local na sala. Pros OUTROS participantes
+// verem em tempo real e pra entrar na GRAVAÇÃO do Egress (que só vê tracks
+// publicadas no LiveKit), captura o DOM via html2canvas → canvas off-screen →
+// captureStream → publish como Track.Source.ScreenShare.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+let _lkSynkanShareState = { canvas: null, ctx: null, stream: null, pub: null, loop: null, busy: false };
+
+async function _ensureHtml2Canvas() {
+  if (typeof window.html2canvas === 'function') return window.html2canvas;
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.crossOrigin = 'anonymous';
+    s.onload = () => resolve(window.html2canvas);
+    s.onerror = () => reject(new Error('Falha ao carregar html2canvas'));
+    document.head.appendChild(s);
+  });
+}
+
+async function _lkStartSynkanShareTrack() {
+  const ext = _chatState.extended;
+  if (!ext?.lk?.room) return;
+  if (_lkSynkanShareState.pub) {
+    console.log('[lk] synkan share track já publicado, ignorando');
+    return;
+  }
+  const LK = window.LivekitClient;
+  if (!LK) { console.warn('[lk] LivekitClient não disponível'); return; }
+
+  // Carrega html2canvas se necessário
+  try { await _ensureHtml2Canvas(); }
+  catch(e) { console.warn('[lk]', e.message); return; }
+
+  // Canvas off-screen em FullHD pro Egress receber qualidade
+  const canvas = document.createElement('canvas');
+  canvas.width = 1920;
+  canvas.height = 1080;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  ctx.fillStyle = '#FFFCF5';
+  ctx.fillRect(0, 0, 1920, 1080);
+  // Texto "Carregando…" inicial
+  ctx.fillStyle = '#5C4F3F';
+  ctx.font = 'italic 36px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Preparando apresentação…', 960, 540);
+
+  // captureStream 15fps — conteúdo geralmente estático, 15fps já é suave
+  const stream = canvas.captureStream(15);
+  const videoTrack = stream.getVideoTracks()[0];
+  if (!videoTrack) { console.warn('[lk] captureStream não devolveu video track'); return; }
+
+  // Publica como Track.Source.ScreenShare → Egress detecta e mostra no layout grid
+  let pub;
+  try {
+    pub = await ext.lk.room.localParticipant.publishTrack(videoTrack, {
+      source: LK.Track?.Source?.ScreenShare,
+      name: 'synkan_share',
+      simulcast: false,
+      videoEncoding: { maxBitrate: 2_500_000, maxFramerate: 15 },
+    });
+    console.log('[lk] ✓ synkan share track publicado:', pub?.trackSid || pub);
+  } catch(e) {
+    console.error('[lk] publishTrack synkan share falhou:', e);
+    try { videoTrack.stop(); } catch(_){}
+    return;
+  }
+  _lkSynkanShareState = { canvas, ctx, stream, pub, loop: null, busy: false };
+
+  // Loop de captura: a cada 500ms tira "snapshot" do DOM e desenha no canvas
+  // captureStream re-emite frames automaticamente no fps configurado
+  const captureOnce = async () => {
+    if (_lkSynkanShareState.busy) return;
+    const wrap = document.getElementById('lk-share-content');
+    if (!wrap || !ext.lk?.sharedItem) return;
+    _lkSynkanShareState.busy = true;
+    try {
+      const snap = await window.html2canvas(wrap, {
+        backgroundColor: '#FFFCF5',
+        scale: 1,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        // Estima dimensões — html2canvas usa as REAIS do elemento
+      });
+      // Desenha mantendo aspect ratio
+      ctx.fillStyle = '#FFFCF5';
+      ctx.fillRect(0, 0, 1920, 1080);
+      const srcRatio = snap.width / snap.height;
+      const dstRatio = 1920 / 1080;
+      let dw, dh;
+      if (srcRatio > dstRatio) { dw = 1920; dh = 1920 / srcRatio; }
+      else                     { dh = 1080; dw = 1080 * srcRatio; }
+      const dx = (1920 - dw) / 2;
+      const dy = (1080 - dh) / 2;
+      ctx.drawImage(snap, dx, dy, dw, dh);
+    } catch(e) {
+      console.warn('[lk] captureOnce:', e?.message || e);
+    } finally {
+      _lkSynkanShareState.busy = false;
+    }
+  };
+  // Primeira captura imediata, depois loop
+  captureOnce();
+  _lkSynkanShareState.loop = setInterval(captureOnce, 500);
+}
+
+async function _lkStopSynkanShareTrack() {
+  const st = _lkSynkanShareState;
+  if (st.loop) { clearInterval(st.loop); st.loop = null; }
+  const ext = _chatState.extended;
+  if (st.pub && ext?.lk?.room) {
+    try {
+      const track = st.pub.track || st.pub;
+      await ext.lk.room.localParticipant.unpublishTrack(track, true /* stopOnUnpublish */);
+      console.log('[lk] ✓ synkan share track despublicado');
+    } catch(e) { console.warn('[lk] unpublish synkan share:', e?.message || e); }
+  }
+  if (st.stream) {
+    try { st.stream.getTracks().forEach(t => t.stop()); } catch(_){}
+  }
+  _lkSynkanShareState = { canvas: null, ctx: null, stream: null, pub: null, loop: null, busy: false };
 }
 
 // ── Render funções ───────────────────────────────────────────────────
@@ -54025,6 +54162,8 @@ async function _lkLeave() {
 
   // 0) Para JWT refresh timer + remove handler de beforeunload (sem leak)
   try { _lkStopJwtRefresh(); } catch(_){}
+  // 0b) Para canvas-stream de synkan share (sem isso, html2canvas/canvas vazam)
+  try { await _lkStopSynkanShareTrack(); } catch(_){}
   try {
     const h = ext.lk._beforeUnloadHandler;
     if (h) {
