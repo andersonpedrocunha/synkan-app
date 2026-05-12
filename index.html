@@ -51022,9 +51022,51 @@ async function _bunkoChangePageIcon(pageId) {
     });
   });
   if (!choice) return;
-  const c = await _chatGetClient();
-  await c.rpc('update_bunko_page', { p_id: pageId, p_title: null, p_content_html: null, p_content_text: null, p_icon: choice });
-  _bunkoOpenPage(pageId);
+  // Atualiza otimista no DOM (sem esperar RPC) pra feedback instantâneo
+  const btn = document.querySelector(`.bunko-page-icon-input[onclick*="${pageId}"]`);
+  const oldIcon = btn ? btn.textContent : '';
+  if (btn) btn.textContent = choice;
+  // Atualiza também o ícone do tile na lista (se estiver visível)
+  document.querySelectorAll(`[data-bunko-page-id="${pageId}"] .bunko-page-tile-icon, [data-bunko-page-icon="${pageId}"]`).forEach(el => el.textContent = choice);
+
+  try {
+    const c = await _chatGetClient();
+    if (!c) throw new Error('Supabase não disponível');
+    // CRÍTICO: a RPC update_bunko_page tem 6 params (id, title, html, text, icon, summary).
+    // Mandamos só os campos que mudaram — os outros vão como undefined e a RPC usa COALESCE.
+    const { error } = await c.rpc('update_bunko_page', {
+      p_id: pageId,
+      p_icon: choice,
+    });
+    if (error) throw error;
+    // Sucesso — toast leve
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Ícone atualizado ✓', `Página agora usa ${choice}`, 'success');
+    }
+    // Re-renderiza só a lista (não fecha o editor)
+    if (typeof _bunkoRenderList === 'function') {
+      try { _bunkoRenderList(); } catch(_){}
+    }
+  } catch(e) {
+    console.error('[bunko] falha ao trocar ícone:', e);
+    // Reverte o DOM
+    if (btn) btn.textContent = oldIcon;
+    // Mensagem clara
+    const msg = (e?.message || String(e)).toString();
+    let hint = '';
+    if (/jwt|expired|unauthorized|401/i.test(msg)) {
+      hint = '\n\nSua sessão expirou. Recarregue a página e tente de novo.';
+    } else if (/function.*does not exist|update_bunko_page/i.test(msg)) {
+      hint = '\n\nA Edge Function/RPC update_bunko_page não está atualizada no Supabase. Re-aplique MIGRATION_BUNKO_BOX.sql.';
+    } else if (/network|fetch/i.test(msg)) {
+      hint = '\n\nSem conexão com o servidor.';
+    }
+    if (typeof appAlert === 'function') {
+      appAlert('Falha ao trocar ícone', msg + hint, { icon: '⚠️' });
+    } else {
+      alert('Erro: ' + msg + hint);
+    }
+  }
 }
 
 // ── Export como .docx (truque HTML wrapped pra MS Office) ───────────
