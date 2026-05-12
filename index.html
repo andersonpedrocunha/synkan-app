@@ -21285,15 +21285,29 @@ async function fillAssignedUserSelect(currentUserId) {
     if (ra !== rb) return ra - rb;
     return (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '', 'pt-BR');
   });
+  // ━━ CRÍTICO: garante que o user logado SEMPRE aparece, mesmo se não estiver
+  //    em board_members (caso do owner — não precisa estar listado pra ter acesso).
+  //    Sem isso, dono do board não consegue se atribuir cards próprios.
+  const meId = (typeof supaUser !== 'undefined' && supaUser?.id) ? supaUser.id : null;
+  if (meId && !sorted.some(m => m.user_id === meId)) {
+    const myName = (typeof getProfileName === 'function') ? getProfileName() : '';
+    const myEmail = (typeof supaUser !== 'undefined' && supaUser?.email) ? supaUser.email : '';
+    const display = (myName || myEmail || 'você').trim();
+    const selected = meId === cur ? ' selected' : '';
+    // Insere no topo (acima dos outros) com label "(você)"
+    html += `<option value="${_esc(meId)}"${selected}>${_esc(display)} (você)</option>`;
+  }
   sorted.forEach(m => {
     if (!m.user_id) return;
+    const isMe = meId && m.user_id === meId;
     const display = m.full_name || m.email || m.user_id.slice(0, 8);
     const sub = m.role ? ` · ${m.role}` : '';
+    const meTag = isMe ? ' (você)' : '';
     const selected = m.user_id === cur ? ' selected' : '';
-    html += `<option value="${_esc(m.user_id)}"${selected}>${_esc(display)}${_esc(sub)}</option>`;
+    html += `<option value="${_esc(m.user_id)}"${selected}>${_esc(display)}${_esc(sub)}${_esc(meTag)}</option>`;
   });
   // Se cur não foi achado entre os membros (legacy/removido), mantém com label de aviso
-  if (cur && !sorted.some(m => m.user_id === cur)) {
+  if (cur && cur !== meId && !sorted.some(m => m.user_id === cur)) {
     html += `<option value="${_esc(cur)}" selected>${_esc(cur.slice(0,8))}… (não está mais no board)</option>`;
   }
   sel.innerHTML = html;
