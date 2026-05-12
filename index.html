@@ -523,6 +523,67 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 :root.dark .mk-section-sub{color:#B0A593;}
 :root.dark .mk-principles > div{background:rgba(245,232,200,.05);border-color:#5C4F3F;}
 
+/* ━━━━━━━━━━ GLOSSÁRIO · tooltip + página ━━━━━━━━━━ */
+/* Termo com glossário — underline pontilhada bem sutil, cursor de ajuda */
+.syn-gloss-term{border-bottom:1px dotted rgba(120,100,70,.4);cursor:help;text-decoration:none;transition:border-color .15s,background .15s;}
+.syn-gloss-term:hover{border-bottom-color:#BC002D;background:rgba(188,0,45,.04);border-radius:2px;}
+:root.dark .syn-gloss-term{border-bottom-color:rgba(245,232,200,.30);}
+:root.dark .syn-gloss-term:hover{border-bottom-color:#FF8B9C;background:rgba(255,139,156,.06);}
+
+/* Tooltip customizado */
+.syn-gloss-tip{position:fixed;z-index:10010;background:#1A1611;color:#F5E8C8;padding:12px 14px;border-radius:8px;max-width:300px;font-size:12.5px;line-height:1.5;box-shadow:0 12px 32px rgba(0,0,0,.45);opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity .14s ease,transform .14s ease;font-family:var(--font-sans);border:1px solid rgba(193,154,58,.25);}
+.syn-gloss-tip.is-open{opacity:1;transform:translateY(0);}
+.syn-gloss-tip .gtip-h{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:4px;}
+.syn-gloss-tip .gtip-native{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:18px;color:#FBF1E0;margin-right:2px;}
+.syn-gloss-tip .gtip-h strong{font-size:14px;color:#F5E8C8;font-weight:600;}
+.syn-gloss-tip .gtip-h em{font-size:11.5px;font-style:italic;color:rgba(245,232,200,.65);font-family:'Noto Serif JP',serif;}
+.syn-gloss-tip .gtip-mean{font-size:11px;color:#C19A3A;font-style:italic;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+.syn-gloss-tip .gtip-ctx{font-size:12.5px;line-height:1.55;color:rgba(245,232,200,.88);}
+
+/* Overlay da página de glossário */
+.syn-gloss-ov{position:fixed;inset:0;background:rgba(20,16,12,0);backdrop-filter:blur(0);z-index:10005;padding:32px 16px;overflow-y:auto;transition:background .25s,backdrop-filter .25s;}
+.syn-gloss-ov.is-open{background:rgba(20,16,12,.78);backdrop-filter:blur(8px);}
+.syn-gloss-pane{position:relative;max-width:1040px;width:100%;margin:0 auto;background:linear-gradient(180deg,#FFFCF5 0%,#F5E8C8 100%);color:#1A1611;border:1px solid #B8A878;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5);transform:translateY(8px) scale(.98);opacity:0;transition:all .28s cubic-bezier(.2,.7,.2,1);}
+.syn-gloss-ov.is-open .syn-gloss-pane{transform:translateY(0) scale(1);opacity:1;}
+.syn-gloss-close{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;background:rgba(20,16,12,.45);border:none;color:#F5E8C8;font-size:14px;cursor:pointer;z-index:20;display:flex;align-items:center;justify-content:center;transition:all .15s;backdrop-filter:blur(4px);}
+.syn-gloss-close:hover{background:rgba(20,16,12,.75);transform:rotate(90deg);}
+
+.syn-gloss-hero{padding:38px 44px 22px;background:linear-gradient(135deg,#BC002D 0%,#8B001F 60%,#1A1611 100%);color:#F5E8C8;position:relative;}
+.syn-gloss-hero .gloss-kicker{font-family:'Noto Serif JP',serif;font-style:italic;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:rgba(245,232,200,.65);margin-bottom:6px;}
+.syn-gloss-hero h1{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:42px;font-weight:700;margin:0 0 10px;letter-spacing:-.01em;color:#F5E8C8;}
+.syn-gloss-hero p{font-family:'Noto Serif JP',serif;font-style:italic;font-size:14px;line-height:1.55;color:rgba(245,232,200,.85);max-width:680px;margin:0 0 18px;}
+.syn-gloss-filter{width:100%;max-width:520px;padding:11px 14px;border-radius:8px;border:1px solid rgba(245,232,200,.30);background:rgba(20,16,12,.55);color:#F5E8C8;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s;}
+.syn-gloss-filter::placeholder{color:rgba(245,232,200,.45);}
+.syn-gloss-filter:focus{border-color:#C19A3A;background:rgba(20,16,12,.75);}
+
+.syn-gloss-body{padding:30px 36px 12px;}
+.gloss-section{margin-bottom:30px;}
+.gloss-section-h{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid rgba(184,168,120,.4);}
+.gloss-section-h span{font-size:22px;line-height:1;}
+.gloss-section-h h2{font-family:'Noto Serif JP',serif;font-size:18px;font-weight:600;color:#1A1611;margin:0;letter-spacing:-.01em;}
+.gloss-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;}
+.gloss-card{background:rgba(255,255,255,.55);border:1px solid rgba(184,168,120,.4);border-left:3px solid #C19A3A;border-radius:8px;padding:13px 15px 12px;transition:all .15s;}
+.gloss-card:hover{border-left-color:#BC002D;background:rgba(255,255,255,.80);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.06);}
+.gloss-card-h{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin-bottom:4px;}
+.gloss-native{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:22px;font-weight:700;color:#BC002D;line-height:1;}
+.gloss-card-h strong{font-family:'Noto Serif JP',serif;font-size:15px;font-weight:600;color:#1A1611;}
+.gloss-card-h em{font-size:11.5px;font-style:italic;color:#8B6634;font-family:'Noto Serif JP',serif;}
+.gloss-mean{font-size:10.5px;color:#5C0A0A;font-style:italic;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;font-weight:600;}
+.gloss-ctx{font-size:12.5px;line-height:1.55;color:#3A332C;margin:0;}
+
+.syn-gloss-foot{padding:18px 44px 32px;display:flex;justify-content:center;background:rgba(245,232,200,.4);}
+
+:root.dark .syn-gloss-pane{background:linear-gradient(180deg,#2A241D 0%,#1A1611 100%);color:#E8DDC4;border-color:#5C4F3F;}
+:root.dark .gloss-section-h h2{color:#F5E8C8;}
+:root.dark .gloss-section-h{border-bottom-color:#5C4F3F;}
+:root.dark .gloss-card{background:rgba(245,232,200,.06);border-color:#5C4F3F;}
+:root.dark .gloss-card:hover{background:rgba(245,232,200,.12);}
+:root.dark .gloss-card-h strong{color:#F5E8C8;}
+:root.dark .gloss-ctx{color:#D9CDA8;}
+:root.dark .gloss-card-h em{color:#B0A593;}
+:root.dark .gloss-native{color:#FF8B9C;}
+:root.dark .syn-gloss-foot{background:rgba(245,232,200,.04);}
+
 /* ── Página de Configurações ── */
 .settings-page{padding:.5rem 0 2rem;display:flex;flex-direction:column;gap:18px;max-width:760px;}
 .settings-head{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
@@ -23282,6 +23343,9 @@ function _refreshAccountUIInternal() {
       <button class="sb-account-menu-item" onclick="closeAccountMenu();openMestreKanDojo();">
         <span class="sb-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11.5" cy="3.8" r="1.5"/><path d="M1.5 13 L5 6.5 L7.5 10 L9.8 7 L14.5 13 Z"/></svg></span><span>O Caminho do Mestre</span>
       </button>
+      <button class="sb-account-menu-item" onclick="closeAccountMenu();openSynGlossary();">
+        <span class="sb-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5 L13.5 2.5 L13.5 13.5 L2.5 13.5 Z"/><path d="M5.5 5 L10.5 5"/><path d="M5.5 7.5 L10.5 7.5"/><path d="M5.5 10 L8.5 10"/></svg></span><span>Glossário</span>
+      </button>
       <button class="sb-account-menu-item" onclick="closeAccountMenu();openHelpSupport();">
         <span class="sb-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M5.7 6 a2.3 2.3 0 0 1 4.6 0 c0 1.4 -2.3 1.6 -2.3 3"/><line x1="8" y1="11.6" x2="8" y2="11.7"/></svg></span><span>Ajuda e Suporte</span>
       </button>
@@ -23588,6 +23652,248 @@ function _mkDojoHTML() {
       <button class="mk-dojo-btn-primary" onclick="closeMestreKanDojo()">Voltar</button>
     </div>
   </div>`;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GLOSSÁRIO — explicação curta dos termos japoneses do Synkan
+// ─────────────────────────────────────────────────────────────────────
+// Cada termo tem: caractere/palavra, romaji (pronúncia), tradução literal,
+// significado no Synkan. Usado em 2 lugares:
+//   • Tooltips no hover (qualquer .syn-gloss-term na UI)
+//   • Página de Glossário no menu de conta
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const SYN_GLOSSARY = [
+  // ─── Identidade do app ───
+  { term:'Synkan',     native:'syn-kan',  romaji:'シンカン',     meaning:'evolução/progresso',           context:'O nome do app — "Syn" de sincronização + "Kan" de mestre/observador. O workspace que junta tudo num lugar só.', category:'app' },
+  { term:'Mestre Kan', native:'観',        romaji:'kan',         meaning:'observar/perceber',            context:'A IA embarcada no Synkan. Sensei silencioso que escuta reuniões, transcreve em tempo real e ajuda a extrair ações.', category:'app' },
+
+  // ─── Caracteres principais ───
+  { term:'主',  romaji:'shu / aruji',  meaning:'mestre · proprietário · selo',   context:'Aparece como avatar do Mestre Kan e no hanko (selo) do Tatami Profile. Representa quem domina algo, o "dono" do conhecimento.', category:'kanji' },
+  { term:'印',  romaji:'in',           meaning:'selo · marca',                   context:'Hanko japonês — selo pessoal usado em vez de assinatura. Aparece no Tatami Profile representando identidade.', category:'kanji' },
+  { term:'畳',  romaji:'tatami',       meaning:'esteira de palha',               context:'Esteira do dojo onde se senta pra meditar/lutar. No Synkan é o módulo de chat + sala ao vivo (Tatami).', category:'kanji' },
+  { term:'場',  romaji:'jō / ba',      meaning:'lugar · espaço',                 context:'Junto com 道 forma 道場 (dōjō, "lugar do caminho"). No Synkan, o Dojo é onde mora a gamificação.', category:'kanji' },
+  { term:'道',  romaji:'dō / michi',   meaning:'caminho · via',                  context:'Como em karate-dō, judô. No Synkan: "O Caminho do Mestre" e o Dojo (道場).', category:'kanji' },
+  { term:'財',  romaji:'zai',          meaning:'riqueza · ativos',               context:'Marca os boards financeiros do Synkan (Zai). Cards têm tipo receita/custo e o app calcula runway/burn rate.', category:'kanji' },
+  { term:'文',  romaji:'bun',          meaning:'escrita · texto · literatura',  context:'Junto com 庫 forma 文庫 (bunko, "biblioteca"). No Synkan: Bunko Box é seu drive + base de conhecimento.', category:'kanji' },
+  { term:'集',  romaji:'shū',          meaning:'reunir · concentrar',            context:'Mostrado no botão "集中" (concentração) e no foco profundo do Dojo. Reunir energia pra um objetivo.', category:'kanji' },
+  { term:'中',  romaji:'chū',          meaning:'meio · centro · dentro',         context:'Junto com 集 forma 集中 (shūchū = concentração). Usado no Modo Foco do Synkan.', category:'kanji' },
+  { term:'急',  romaji:'kyū',          meaning:'urgente · rápido',               context:'Marca cards/sections de alta prioridade ou prazo curto (ex: "para hoje").', category:'kanji' },
+  { term:'重',  romaji:'jū',           meaning:'pesado · importante',            context:'Marca prioridade alta. Card pesado = card crítico.', category:'kanji' },
+  { term:'軽',  romaji:'kei',          meaning:'leve',                           context:'Marca prioridade baixa. Card leve = pode esperar.', category:'kanji' },
+  { term:'改',  romaji:'kai',          meaning:'melhorar · mudar',               context:'Forma 改善 (kaizen) com 善. Filosofia de melhoria contínua que inspira o Synkan.', category:'kanji' },
+  { term:'善',  romaji:'zen',          meaning:'bondade · virtude',              context:'Junto com 改 forma 改善 (kaizen = melhoria contínua).', category:'kanji' },
+  { term:'会',  romaji:'kai',          meaning:'encontro · reunião',             context:'Marca canais públicos do Tatami (Praça, Geral). Lugar de encontro do time.', category:'kanji' },
+  { term:'禅',  romaji:'zen',          meaning:'meditação · zen',                context:'Filosofia de calma e foco que permeia o design do Synkan — botões minimalistas, paleta sóbria, sem ruído.', category:'kanji' },
+  { term:'忍',  romaji:'nin',          meaning:'paciência · perseverança',       context:'Virtude do ninja. Usada em achievements/missões do Dojo que premiam consistência.', category:'kanji' },
+  { term:'静',  romaji:'sei',          meaning:'silêncio · quietude',            context:'Aparece no Mestre Kan ("escuta silenciosa") e modo Foco. Calma antes da ação.', category:'kanji' },
+  { term:'桜',  romaji:'sakura',       meaning:'cerejeira',                      context:'Efeito de câmera "Sakura" do Tatame — pétalas flutuando no fundo virtual.', category:'kanji' },
+  { term:'山',  romaji:'yama',         meaning:'montanha',                       context:'Hokkaidō — paisagem que inspira o Synkan. O Mestre Kan teria meditado em montanhas como essas.', category:'kanji' },
+  { term:'風',  romaji:'fū / kaze',    meaning:'vento',                          context:'Filosofia de fluir como o vento — sem forçar. Aparece em achievements do Dojo.', category:'kanji' },
+  { term:'墨',  romaji:'sumi',         meaning:'tinta nanquim',                  context:'Efeito de câmera "Sumi-ê" (墨絵) do Tatame — fundo virtual em pinceladas a nanquim.', category:'kanji' },
+  { term:'朝',  romaji:'asa',          meaning:'manhã',                          context:'Aparece no "Resumo do amanhecer" — briefing matinal do que vem pra hoje.', category:'kanji' },
+  { term:'夜',  romaji:'yoru',         meaning:'noite',                          context:'Aparece no "Boa noite" da home depois das 18h.', category:'kanji' },
+  { term:'今',  romaji:'ima',          meaning:'agora · presente',               context:'Marca a seção "para hoje" — foco no que precisa ser feito agora.', category:'kanji' },
+  { term:'務',  romaji:'mu',           meaning:'dever · obrigação',              context:'Junto com 急 (urgente) marca tarefas. "Suas tarefas" no dashboard.', category:'kanji' },
+  { term:'問題', romaji:'mondai',      meaning:'problema · questão',             context:'Categoria de cards no Lab — capture problemas pra depois transformar em ações.', category:'kanji' },
+  { term:'創始', romaji:'sōshi',       meaning:'fundação · início',              context:'Aparece em achievements de "primeira vez" — criar primeiro card, primeiro board.', category:'kanji' },
+  { term:'休憩', romaji:'kyūkei',      meaning:'pausa · descanso',               context:'Modo Pausa do Tracker — pausa o cronômetro sem perder o registro.', category:'kanji' },
+  { term:'壱',  romaji:'ichi',         meaning:'um (formal)',                    context:'Numeração formal japonesa. Aparece nos 3 princípios do Mestre Kan.', category:'kanji' },
+  { term:'弐',  romaji:'ni',           meaning:'dois (formal)',                  context:'Numeração formal. Segundo princípio do Mestre.', category:'kanji' },
+  { term:'参',  romaji:'san',          meaning:'três (formal)',                  context:'Numeração formal. Terceiro princípio do Mestre.', category:'kanji' },
+  { term:'志',  romaji:'shi / kokorozashi', meaning:'vontade · propósito',       context:'O "porquê" por trás dos OKRs — a ambição que move o objetivo.', category:'kanji' },
+  { term:'動',  romaji:'dō',           meaning:'ação · movimento',               context:'Marca cards em movimento — em progresso, sendo executados.', category:'kanji' },
+  { term:'流',  romaji:'ryū',          meaning:'fluxo · estilo',                 context:'Como "ryūha" (escola). O fluxo de trabalho do board é o "ryū" do seu time.', category:'kanji' },
+  { term:'規',  romaji:'ki',           meaning:'regra · padrão',                 context:'Aparece em Workflows e regras de automação do Synconnect.', category:'kanji' },
+  { term:'勲章', romaji:'kunshō',      meaning:'medalha · condecoração',         context:'Marca achievements/conquistas no Dojo.', category:'kanji' },
+  { term:'級',  romaji:'kyū',          meaning:'grau · faixa de aprendiz',       context:'Sistema kyu (9º-1º) das artes marciais. No Synkan: faixas Branca, Amarela, Laranja, Verde.', category:'kanji' },
+  { term:'段',  romaji:'dan',          meaning:'grau · faixa de mestre',         context:'Sistema dan (1º-10º) acima do kyu. No Synkan: faixas Preta 1º dan e 2º dan.', category:'kanji' },
+
+  // ─── Termos compostos / módulos ───
+  { term:'Tatami',     romaji:'tatami',    meaning:'esteira do dojo',           context:'Módulo de chat + reunião ao vivo. Tem canais, DMs e o "tatame ao vivo" — sala com vídeo HD, voz e workspace compartilhado.', category:'modulo' },
+  { term:'Tatame',     romaji:'tatame',    meaning:'sessão ao vivo',            context:'A sala de reunião dentro do Tatami. "Subir no tatame" = entrar em sessão de vídeo/voz com workspace compartilhado.', category:'modulo' },
+  { term:'Bunko',      native:'文庫',     romaji:'bunko',     meaning:'biblioteca',  context:'O Bunko Box é drive + base de conhecimento. Páginas markdown, transcrições, gravações MP4, arquivos arrastados.', category:'modulo' },
+  { term:'Zai',        native:'財',       romaji:'zai',       meaning:'riqueza',     context:'Boards financeiros. Cards têm tipo (receita/custo) e o sistema calcula burn rate + runway automaticamente.', category:'modulo' },
+  { term:'Synconnect', romaji:'synconnect', meaning:'conectar',                  context:'CRM completo do Synkan. Pipeline kanban, deals multi-contato, captação de leads, Customer 360, IA Faixa Preta.', category:'modulo' },
+  { term:'Lab',        romaji:'lab',       meaning:'laboratório',               context:'Canvas multi-formato — mindmap, planilha com fórmulas, doc colaborativo, fluxograma. IA gera tudo do zero.', category:'modulo' },
+  { term:'Dojo',       native:'道場',     romaji:'dōjō',     meaning:'lugar do caminho', context:'Espaço de gamificação. Mostra sua faixa, XP, conquistas, missões e streak. Treino contínuo.', category:'modulo' },
+  { term:'OKR',        romaji:'O-K-R',     meaning:'Objectives & Key Results',  context:'Objetivos com Key Results numéricos. Filtros por trimestre, % de avanço automático.', category:'modulo' },
+
+  // ─── Conceitos de gamificação ───
+  { term:'Sensei',     romaji:'sensei',    meaning:'professor · mestre',        context:'No Synkan, o Mestre Kan é seu sensei silencioso. Também usado em achievements avançados.', category:'conceito' },
+  { term:'Senpai',     romaji:'senpai',    meaning:'veterano · sênior',         context:'Aparece em Tatami Profiles de membros antigos do workspace.', category:'conceito' },
+  { term:'Hanko',      native:'印',       romaji:'hanko',     meaning:'selo pessoal', context:'Selo japonês usado em vez de assinatura. No Tatami Profile representa identidade.', category:'conceito' },
+  { term:'Kaizen',     native:'改善',     romaji:'kaizen',    meaning:'melhoria contínua', context:'Filosofia japonesa de pequenas melhorias constantes. Inspirou a filosofia do Synkan.', category:'conceito' },
+  { term:'Sumi-ê',     native:'墨絵',     romaji:'sumi-e',    meaning:'pintura a nanquim', context:'Estilo de pintura japonesa em preto e branco. Um dos efeitos de câmera do Tatame.', category:'conceito' },
+  { term:'Hokusai',    romaji:'hokusai',   meaning:'pintor (Edo)',              context:'Katsushika Hokusai — autor da famosa "A Grande Onda". Inspira o fundo do Mapa do Tatami e efeito de câmera.', category:'conceito' },
+  { term:'Selo de Honra', romaji:'honra',  meaning:'honor seal',                context:'Indicador de prazos cumpridos. % de cards entregues no prazo nos últimos 30 dias. Desativado por padrão (pressão).', category:'conceito' },
+  { term:'Faixa',      romaji:'obi',       meaning:'cinturão',                  context:'Sistema de progressão por XP — Branca, Amarela, Laranja, Verde, Azul, Roxa, Marrom, Preta 1º e 2º dan.', category:'conceito' },
+  { term:'Pergaminho', romaji:'maki',      meaning:'rolo · documento',          context:'Como o Mestre Kan chama uma transcrição completa de reunião — guardada no Bunko Box.', category:'conceito' },
+  { term:'Katana',     romaji:'katana',    meaning:'espada japonesa',           context:'Símbolo das ações que cortam (consomem IA). "Desembainhar a katana" = usar função paga.', category:'conceito' },
+];
+
+// Lookup rápido pelo termo (case-insensitive)
+const _synGlossMap = (() => {
+  const m = new Map();
+  for (const e of SYN_GLOSSARY) {
+    m.set(e.term.toLowerCase(), e);
+    if (e.native) m.set(e.native.toLowerCase(), e);
+  }
+  return m;
+})();
+
+function synGloss(term) {
+  if (!term) return null;
+  return _synGlossMap.get(String(term).toLowerCase()) || null;
+}
+
+// Envolve um texto em <span class="syn-gloss-term"> com tooltip — uso opcional inline
+function _synWrapGloss(term, displayText) {
+  const e = synGloss(term);
+  if (!e) return displayText || term;
+  const tip = `${e.romaji ? e.romaji + ' · ' : ''}${e.meaning}\n${e.context}`;
+  return `<span class="syn-gloss-term" data-gloss="${_esc(term)}" title="${_esc(tip)}">${_esc(displayText || term)}</span>`;
+}
+
+// ── Tooltip customizado (não usa title="" feio do browser) ──
+let _glossTipEl = null;
+function _ensureGlossTip() {
+  if (_glossTipEl) return _glossTipEl;
+  _glossTipEl = document.createElement('div');
+  _glossTipEl.className = 'syn-gloss-tip';
+  document.body.appendChild(_glossTipEl);
+  return _glossTipEl;
+}
+function _showGlossTip(targetEl, term) {
+  const e = synGloss(term);
+  if (!e) return;
+  const tip = _ensureGlossTip();
+  const native = e.native ? `<span class="gtip-native">${_esc(e.native)}</span>` : '';
+  tip.innerHTML = `
+    <div class="gtip-h">${native}<strong>${_esc(e.term)}</strong>${e.romaji?`<em>${_esc(e.romaji)}</em>`:''}</div>
+    <div class="gtip-mean">${_esc(e.meaning)}</div>
+    <div class="gtip-ctx">${_esc(e.context)}</div>`;
+  // Posiciona acima do target
+  const r = targetEl.getBoundingClientRect();
+  tip.style.opacity = '0';
+  tip.classList.add('is-open');
+  const tipR = tip.getBoundingClientRect();
+  let left = r.left + (r.width/2) - (tipR.width/2);
+  let top  = r.top - tipR.height - 8;
+  if (top < 8) top = r.bottom + 8; // se não cabe acima, vai abaixo
+  if (left < 8) left = 8;
+  if (left + tipR.width > window.innerWidth - 8) left = window.innerWidth - tipR.width - 8;
+  tip.style.left = left + 'px';
+  tip.style.top  = top + 'px';
+  tip.style.opacity = '1';
+}
+function _hideGlossTip() {
+  if (_glossTipEl) _glossTipEl.classList.remove('is-open');
+}
+
+// Instala listener global pra qualquer elemento .syn-gloss-term
+(function _installGlossTipDelegation(){
+  if (typeof document === 'undefined') return;
+  document.addEventListener('mouseover', e => {
+    const el = e.target.closest && e.target.closest('.syn-gloss-term');
+    if (!el) return;
+    const term = el.dataset.gloss || el.textContent;
+    _showGlossTip(el, term);
+  }, true);
+  document.addEventListener('mouseout', e => {
+    const el = e.target.closest && e.target.closest('.syn-gloss-term');
+    if (!el) return;
+    _hideGlossTip();
+  }, true);
+  // Mobile: tap mostra, fora fecha
+  document.addEventListener('click', e => {
+    const el = e.target.closest && e.target.closest('.syn-gloss-term');
+    if (el) {
+      const term = el.dataset.gloss || el.textContent;
+      _showGlossTip(el, term);
+      setTimeout(_hideGlossTip, 4000);
+    } else {
+      _hideGlossTip();
+    }
+  });
+})();
+
+// ── Página completa do glossário (acessível pelo menu) ──
+function openSynGlossary() {
+  let ov = document.getElementById('syn-gloss-ov');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'syn-gloss-ov';
+  ov.className = 'syn-gloss-ov';
+  ov.innerHTML = _synGlossaryHTML();
+  document.body.appendChild(ov);
+  requestAnimationFrame(() => ov.classList.add('is-open'));
+  ov.addEventListener('click', e => { if (e.target === ov) closeSynGlossary(); });
+  // Filtro instantâneo
+  const inp = ov.querySelector('#syn-gloss-filter');
+  if (inp) {
+    inp.focus();
+    inp.addEventListener('input', () => _synGlossFilter(inp.value));
+  }
+}
+function closeSynGlossary() {
+  const ov = document.getElementById('syn-gloss-ov');
+  if (!ov) return;
+  ov.classList.remove('is-open');
+  setTimeout(() => ov.remove(), 220);
+}
+function _synGlossFilter(q) {
+  const query = (q||'').toLowerCase().trim();
+  document.querySelectorAll('#syn-gloss-ov .gloss-card').forEach(card => {
+    const txt = (card.textContent||'').toLowerCase();
+    card.style.display = (!query || txt.includes(query)) ? '' : 'none';
+  });
+  // Esconde headers de seção que ficaram sem cards visíveis
+  document.querySelectorAll('#syn-gloss-ov .gloss-section').forEach(sec => {
+    const anyVisible = Array.from(sec.querySelectorAll('.gloss-card')).some(c => c.style.display !== 'none');
+    sec.style.display = anyVisible ? '' : 'none';
+  });
+}
+function _synGlossaryHTML() {
+  const cats = [
+    { key:'app',      title:'Identidade do app',  icon:'🍶' },
+    { key:'modulo',   title:'Módulos do Synkan',  icon:'📦' },
+    { key:'kanji',    title:'Kanjis e ideogramas', icon:'漢' },
+    { key:'conceito', title:'Conceitos e filosofia', icon:'🧘' },
+  ];
+  return `
+    <div class="syn-gloss-pane">
+      <button class="syn-gloss-close" onclick="closeSynGlossary()" aria-label="Fechar">✕</button>
+      <header class="syn-gloss-hero">
+        <div class="gloss-kicker">道 · O CAMINHO TEM PALAVRAS</div>
+        <h1>Glossário</h1>
+        <p>Significado por trás de cada caractere, termo e módulo do Synkan. Passe o mouse em qualquer palavra sublinhada no app pra ver explicação rápida.</p>
+        <input id="syn-gloss-filter" class="syn-gloss-filter" type="text" placeholder="Buscar termo, kanji, romaji ou significado…" />
+      </header>
+      <div class="syn-gloss-body">
+        ${cats.map(c => `
+          <section class="gloss-section" data-cat="${c.key}">
+            <div class="gloss-section-h"><span>${c.icon}</span><h2>${c.title}</h2></div>
+            <div class="gloss-grid">
+              ${SYN_GLOSSARY.filter(e => e.category === c.key).map(e => `
+                <article class="gloss-card">
+                  <div class="gloss-card-h">
+                    ${e.native?`<span class="gloss-native">${_esc(e.native)}</span>`:''}
+                    <strong>${_esc(e.term)}</strong>
+                    ${e.romaji?`<em>${_esc(e.romaji)}</em>`:''}
+                  </div>
+                  <div class="gloss-mean">${_esc(e.meaning)}</div>
+                  <p class="gloss-ctx">${_esc(e.context)}</p>
+                </article>
+              `).join('')}
+            </div>
+          </section>
+        `).join('')}
+      </div>
+      <footer class="syn-gloss-foot">
+        <button class="mk-dojo-btn-primary" onclick="closeSynGlossary()">Voltar</button>
+      </footer>
+    </div>`;
 }
 
 // ── Ajuda e Suporte ─────────────────────────────────────────────────────────
