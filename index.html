@@ -32360,6 +32360,8 @@ function _synFromCloudContact(row) {
     phone:     row.phone || '',
     address:   row.address || '',
     notes:     row.notes || '',
+    contact_person: row.contact_person || '',
+    role:           row.role || '',
     score:     row.score || 'warm',
     source:    row.source || 'manual',
     tags:      row.tags || [],
@@ -32434,6 +32436,8 @@ async function _synSaveContactCloud(contact, isMigration) {
       phone:     contact.phone || null,
       address:   contact.address || null,
       notes:     contact.notes || null,
+      contact_person: contact.contact_person || null,
+      role:           contact.role || null,
       score:     contact.score || 'warm',
       source:    contact.source || 'manual',
       tags:      contact.tags || [],
@@ -32951,13 +32955,21 @@ function renderRegistry() {
           <div class="reg-sub">Pipeline de vendas, contatos, contratos e captação num só lugar — vinculados ao seu Kanban sem reescrever.</div>
         </div>
       </div>
-      <div class="reg-tabs">
+      <div class="reg-tabs" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
         ${tabBtn('pipeline',  pipelineLabel, '')}
         ${tabBtn('analytics', '📊 Análise',  '')}
         ${tabBtn('contacts',  '👥 Contatos', _contacts.length)}
-        ${tabBtn('documents', '📄 Documentos',  _documents.length)}
         ${tabBtn('capture',   '🌐 Captação',  '')}
-        ${tabBtn('automation','⚡ Automação',  '')}
+        <div style="position:relative;margin-left:auto;">
+          <button class="reg-tab${['documents','automation','help'].includes(_registryTab)?' active':''}" onclick="_synToggleMoreMenu(event)" id="reg-more-btn" style="display:inline-flex;align-items:center;gap:5px;">
+            ⋯ Mais
+          </button>
+          <div id="reg-more-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:5px;min-width:180px;z-index:50;">
+            <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="setRegistryTab('documents');_synCloseMoreMenu()">📄 Documentos <span style="opacity:.5;font-weight:400;">${_documents.length}</span></button>
+            <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="setRegistryTab('automation');_synCloseMoreMenu()">⚡ Automação</button>
+            <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="setRegistryTab('help');_synCloseMoreMenu()">❓ Como usar</button>
+          </div>
+        </div>
       </div>
       <div id="reg-body"></div>
     </div>
@@ -32972,11 +32984,137 @@ function renderRegistry() {
   else if (_registryTab === 'contacts') renderContactsTab();
   else if (_registryTab === 'documents') renderDocumentsTab();
   else if (_registryTab === 'capture') renderCaptureInRegistry();
+  else if (_registryTab === 'help') renderHelpTab();
+}
+
+function _synToggleMoreMenu(e) {
+  e?.stopPropagation();
+  const m = document.getElementById('reg-more-menu');
+  if (!m) return;
+  m.style.display = m.style.display === 'block' ? 'none' : 'block';
+  // Click fora fecha
+  if (m.style.display === 'block') {
+    const close = (ev) => {
+      if (!m.contains(ev.target) && ev.target.id !== 'reg-more-btn') {
+        m.style.display = 'none';
+        document.removeEventListener('click', close);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', close), 50);
+  }
+}
+function _synCloseMoreMenu() {
+  const m = document.getElementById('reg-more-menu');
+  if (m) m.style.display = 'none';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SYNCONNECT · Aba "Como usar" — tutorial integrado
+// ════════════════════════════════════════════════════════════════════
+function renderHelpTab() {
+  const body = document.getElementById('reg-body'); if (!body) return;
+  body.innerHTML = `
+    <div style="max-width:760px;">
+      <div style="background:linear-gradient(135deg,rgba(127,119,221,.10) 0%,rgba(59,109,17,.08) 100%);border:1px solid rgba(127,119,221,.25);border-radius:12px;padding:18px 22px;margin-bottom:24px;">
+        <h2 style="font-size:18px;font-weight:600;margin:0 0 6px;">Como usar o Synconnect</h2>
+        <p style="margin:0;color:var(--color-text-secondary);font-size:13.5px;line-height:1.6;">
+          O Synconnect transforma seu Synkan num CRM completo: pipeline de vendas, contatos, captação de leads e automações. Aqui está o caminho mais curto pra ele virar parte da sua rotina.
+        </p>
+      </div>
+
+      <!-- Fluxo principal em 4 passos -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:32px;">
+        ${[
+          { n:1, ico:'👥', title:'Cadastra contatos', body:'Cliente, lead ou fornecedor. PJ (com razão social + nome do contato) ou PF.', cta:'Ir pra Contatos', target:'contacts' },
+          { n:2, ico:'🎯', title:'Cria oportunidades (deals)', body:'Em Pipeline → "+ Nova oportunidade". Vincula a um contato, define valor + estágio.', cta:'Ir pro Pipeline', target:'pipeline' },
+          { n:3, ico:'🌐', title:'Capta leads automático', body:'Crie um formulário público em Captação. Cada submit vira contato + deal em Prospecção.', cta:'Ir pra Captação', target:'capture' },
+          { n:4, ico:'📊', title:'Acompanha resultado', body:'Em Análise você vê velocidade do funil, win rate, forecast e quais formulários convertem.', cta:'Ir pra Análise', target:'analytics' },
+        ].map(s => `<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="background:rgba(127,119,221,.15);color:#3C3489;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12.5px;">${s.n}</span>
+            <span style="font-size:22px;">${s.ico}</span>
+            <strong style="font-size:14.5px;">${s.title}</strong>
+          </div>
+          <div style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.5;flex:1;">${s.body}</div>
+          <button onclick="setRegistryTab('${s.target}')" class="btn-c" style="background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary);align-self:flex-start;font-size:12px;padding:6px 12px;">${s.cta} →</button>
+        </div>`).join('')}
+      </div>
+
+      <!-- Conceitos chave -->
+      <h3 style="font-size:15px;font-weight:600;margin:0 0 12px;">Conceitos importantes</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:32px;">
+        ${[
+          { t:'Contato vs. Deal', d:'<strong>Contato</strong> = a pessoa/empresa. <strong>Deal</strong> = uma oportunidade específica com ela. Um contato pode ter vários deals ao longo do tempo.' },
+          { t:'Estágios do pipeline', d:'Prospecção → Qualificação → Proposta → Negociação → <strong>Ganho</strong> ou <strong>Perdido</strong>. Arraste cards entre colunas conforme avança.' },
+          { t:'Follow-up', d:'Campo de data no deal. Quando vence, aparece banner laranja no topo do app cobrando você.' },
+          { t:'Multi-contato', d:'Um deal pode ter várias pessoas envolvidas (decisor, financeiro, técnico). Adicione em "Pessoas envolvidas" no modal do deal.' },
+          { t:'Templates de deal', d:'Pré-prontos pra Cliente SaaS, Consultoria, Produto, Renovação. Selecione no topo do modal pra acelerar.' },
+          { t:'Lead via captação → Pipeline', d:'Formulário público recebe lead, ele <em>automaticamente</em> vira contato + deal em Prospecção. Nada manual.' },
+          { t:'Customer 360', d:'Click no nome do contato em qualquer lugar pra ver TUDO sobre ele: deals, cards, documentos, timeline, páginas vinculadas no Bunko.' },
+        ].map(c => `<details style="background:var(--color-background-secondary);border-radius:8px;padding:11px 14px;font-size:13px;">
+          <summary style="cursor:pointer;font-weight:500;">${c.t}</summary>
+          <div style="margin-top:8px;color:var(--color-text-secondary);line-height:1.55;font-size:12.5px;">${c.d}</div>
+        </details>`).join('')}
+      </div>
+
+      <!-- Atalhos e dicas -->
+      <h3 style="font-size:15px;font-weight:600;margin:0 0 12px;">Dicas práticas</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:32px;">
+        ${[
+          ['🚀','Crie deal sem sair do modal', 'Em "+ Nova oportunidade", se não tem o contato, clica em "+ Criar novo contato" dentro do próprio dropdown.'],
+          ['🔗','Ligar páginas do Bunko a deals', 'Abre uma página, clica no botão "🔗 Synconnect" no toolbar. Anexa contratos, propostas, transcrições direto na oportunidade.'],
+          ['🎙','Tatame menciona contato', 'Quando você fala um nome de contato numa reunião, aparece automaticamente na timeline daquele contato.'],
+          ['⚡','Automação > Workflows', 'Crie regras tipo "Quando deal entra em Proposta → cria nota pedindo PDF" e o sistema executa sozinho.'],
+          ['🏆','Ganhar deal vira card no Zai', 'Sempre que você marca um deal como Ganho, um card de receita aparece automaticamente no seu board Zai.'],
+          ['📥','Lead direto pro pipeline', 'Captação → cria formulário. Cada lead já entra no Prospecção sem você precisar converter manualmente.'],
+        ].map(([ico,t,d]) => `<div style="display:flex;gap:12px;padding:11px 14px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;">
+          <span style="font-size:18px;flex-shrink:0;">${ico}</span>
+          <div style="flex:1;font-size:12.5px;line-height:1.5;"><strong>${t}</strong><div style="color:var(--color-text-secondary);margin-top:2px;">${d}</div></div>
+        </div>`).join('')}
+      </div>
+
+      <div style="background:var(--color-background-secondary);border-radius:10px;padding:16px 20px;text-align:center;font-size:13px;color:var(--color-text-secondary);">
+        Ainda travou em algum lugar? <strong>F12 → Console</strong> mostra mensagens do Synconnect com prefix <code>[syn]</code>. Compartilhe a mensagem que aparecer com o suporte.
+      </div>
+    </div>
+  `;
 }
 
 // ════════════════════════════════════════════════════════════════════
 // SYNCONNECT · Aba Análise (#11-14: velocidade, win rate, forecast, cohort)
 // ════════════════════════════════════════════════════════════════════
+let _synAnalyticsPeriod = '30d'; // '7d' | '30d' | '90d' | 'all' | 'custom'
+let _synAnalyticsFrom = '';
+let _synAnalyticsTo   = '';
+
+function _synSetAnalyticsPeriod(p) {
+  _synAnalyticsPeriod = p;
+  if (p !== 'custom') { _synAnalyticsFrom = ''; _synAnalyticsTo = ''; }
+  renderAnalyticsTab();
+}
+
+function _synApplyCustomPeriod() {
+  _synAnalyticsFrom = document.getElementById('syn-anal-from').value;
+  _synAnalyticsTo   = document.getElementById('syn-anal-to').value;
+  _synAnalyticsPeriod = 'custom';
+  renderAnalyticsTab();
+}
+
+function _synPeriodFilterDeal(d) {
+  if (_synAnalyticsPeriod === 'all') return true;
+  const ref = d.updated_at || d.created_at;
+  if (!ref) return false;
+  const refDate = new Date(ref);
+  const now = new Date();
+  if (_synAnalyticsPeriod === 'custom') {
+    if (_synAnalyticsFrom && refDate < new Date(_synAnalyticsFrom)) return false;
+    if (_synAnalyticsTo   && refDate > new Date(_synAnalyticsTo + 'T23:59:59')) return false;
+    return true;
+  }
+  const days = { '7d':7, '30d':30, '90d':90 }[_synAnalyticsPeriod] || 30;
+  return (now - refDate) <= days * 86400000;
+}
+
 async function renderAnalyticsTab() {
   const body = document.getElementById('reg-body'); if (!body) return;
   body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--color-text-tertiary);">📊 Carregando análise…</div>`;
@@ -32992,6 +33130,16 @@ async function renderAnalyticsTab() {
     c.rpc('synconnect_analytics_capture_cohort').then(r => r.data || []).catch(()=>[]),
     c.rpc('synconnect_analytics_aging').then(r => r.data || []).catch(()=>[]),
   ]);
+  // KPIs computados client-side com filtro de período
+  const filteredDeals = (_synDeals || []).filter(_synPeriodFilterDeal);
+  const opened = filteredDeals.filter(d => d.status === 'open');
+  const won    = filteredDeals.filter(d => d.status === 'won');
+  const lost   = filteredDeals.filter(d => d.status === 'lost');
+  const totOpenC = opened.reduce((s,d) => s + (d.value_cents||0), 0);
+  const totWonC  = won.reduce((s,d) => s + (d.value_cents||0), 0);
+  const totLostC = lost.reduce((s,d) => s + (d.value_cents||0), 0);
+  const winRate = (won.length + lost.length) > 0 ? Math.round(won.length * 100 / (won.length + lost.length)) : 0;
+  const avgTicket = won.length > 0 ? totWonC / won.length : 0;
   // Velocidade
   const velMax = Math.max(1, ...vel.map(v => v.avg_days || 0));
   const velHTML = vel.map(v => `
@@ -33053,33 +33201,97 @@ async function renderAnalyticsTab() {
       <span style="color:${al.color};font-weight:600;">${al.icon} ${d.days_idle}d</span>
     </div>`;
   }).join('');
+  const periodLabel = { '7d':'últimos 7 dias', '30d':'últimos 30 dias', '90d':'últimos 90 dias', 'all':'desde sempre', 'custom':`${_synAnalyticsFrom || '?'} → ${_synAnalyticsTo || '?'}` }[_synAnalyticsPeriod];
+  const periodBtn = (p, label) => `<button onclick="_synSetAnalyticsPeriod('${p}')" style="background:${_synAnalyticsPeriod===p?'var(--color-text-primary)':'transparent'};color:${_synAnalyticsPeriod===p?'var(--color-background-primary)':'var(--color-text-primary)'};border:0.5px solid ${_synAnalyticsPeriod===p?'var(--color-text-primary)':'var(--color-border-secondary)'};border-radius:6px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit;">${label}</button>`;
+
   body.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:18px;">
-      <div>
-        <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;">⏱ Velocidade do pipeline</h3>
-        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 10px;">Tempo médio que um deal passa em cada estágio</p>
-        ${vel.length === 0 ? `<div class="reg-empty" style="margin:0;">Sem histórico de mudança de estágio ainda.</div>` :
-          `<table class="reg-table"><tbody>${velHTML}</tbody></table>`}
+    <!-- Filtro de período -->
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px;padding:11px 14px;background:var(--color-background-secondary);border-radius:9px;">
+      <span style="font-size:11.5px;color:var(--color-text-secondary);font-weight:500;text-transform:uppercase;letter-spacing:.04em;">Período</span>
+      ${periodBtn('7d','7 dias')}
+      ${periodBtn('30d','30 dias')}
+      ${periodBtn('90d','90 dias')}
+      ${periodBtn('all','tudo')}
+      <span style="margin-left:8px;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary);">
+        <input id="syn-anal-from" type="date" value="${_synAnalyticsFrom}" style="border:0.5px solid var(--color-border-secondary);border-radius:5px;padding:4px 7px;font-size:11.5px;font-family:inherit;" />
+        <span style="color:var(--color-text-tertiary);">até</span>
+        <input id="syn-anal-to" type="date" value="${_synAnalyticsTo}" style="border:0.5px solid var(--color-border-secondary);border-radius:5px;padding:4px 7px;font-size:11.5px;font-family:inherit;" />
+        <button onclick="_synApplyCustomPeriod()" style="background:transparent;border:0.5px solid var(--color-border-secondary);color:var(--color-text-primary);padding:4px 10px;border-radius:5px;font-size:11.5px;cursor:pointer;font-family:inherit;">aplicar</button>
+      </span>
+      <span style="margin-left:auto;font-size:11.5px;color:var(--color-text-tertiary);font-style:italic;">${periodLabel}</span>
+    </div>
+
+    <!-- KPI Cards top -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:24px;">
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
+        <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Em aberto</div>
+        <div style="font-size:22px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums;color:#3C3489;">${_synFmtMoney(totOpenC)}</div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">${opened.length} deal${opened.length===1?'':'s'}</div>
       </div>
-      <div>
-        <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;">🎯 Win rate por estágio</h3>
-        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 10px;">% de deals que viram ganho</p>
-        <table class="reg-table"><thead><tr><th>Estágio</th><th>Em aberto</th><th>Ganho</th><th>Perdido</th><th>Win %</th></tr></thead><tbody>${wrHTML}</tbody></table>
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
+        <div style="font-size:11px;color:#27500A;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Ganhos</div>
+        <div style="font-size:22px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums;color:#3B6D11;">${_synFmtMoney(totWonC)}</div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">${won.length} fechado${won.length===1?'':'s'}</div>
       </div>
-      <div style="grid-column:1 / -1;">
-        <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;">💰 Forecast · próximos 6 meses</h3>
-        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 12px;">Barra clara = total no funil. Barra verde = ponderado (valor × probabilidade)</p>
-        ${fcHTML || '<div class="reg-empty" style="margin:0;">Defina fechamento previsto nos seus deals pra ver forecast.</div>'}
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
+        <div style="font-size:11px;color:#791F1F;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Perdidos</div>
+        <div style="font-size:22px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums;color:#A32D2D;">${_synFmtMoney(totLostC)}</div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">${lost.length} perdido${lost.length===1?'':'s'}</div>
       </div>
-      <div>
-        <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;">🌐 Cohort de captação</h3>
-        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 10px;">Performance por formulário público</p>
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
+        <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Win rate</div>
+        <div style="font-size:22px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums;color:${winRate >= 50 ? '#3B6D11' : winRate >= 25 ? '#854F0B' : '#A32D2D'};">${winRate}%</div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">${won.length}/${won.length + lost.length} fechados</div>
+      </div>
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
+        <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Ticket médio</div>
+        <div style="font-size:22px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums;">${_synFmtMoney(avgTicket)}</div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">só deals ganhos</div>
+      </div>
+    </div>
+
+    <!-- Grid 2-col com cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:18px;">
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <h3 style="font-size:14px;font-weight:600;margin:0;">⏱ Velocidade do pipeline</h3>
+        </div>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 14px;">Tempo médio em cada estágio (em dias)</p>
+        ${vel.length === 0 || vel.every(v => !v.sample_size) ? `<div style="padding:24px 14px;text-align:center;color:var(--color-text-tertiary);font-size:12.5px;font-style:italic;">Sem histórico ainda. Mova alguns deals entre estágios pra começar.</div>` :
+          `<table style="width:100%;border-collapse:collapse;"><tbody>${velHTML}</tbody></table>`}
+      </div>
+
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:18px;">
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 4px;">🎯 Win rate por estágio</h3>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 14px;">Quantos deals viram ganho a partir de cada coluna</p>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead><tr style="border-bottom:0.5px solid var(--color-border-tertiary);">
+            <th style="text-align:left;padding:6px 10px;font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">Estágio</th>
+            <th style="text-align:right;padding:6px 10px;font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">Aberto</th>
+            <th style="text-align:right;padding:6px 10px;font-size:11px;font-weight:500;color:#27500A;text-transform:uppercase;letter-spacing:.04em;">Ganho</th>
+            <th style="text-align:right;padding:6px 10px;font-size:11px;font-weight:500;color:#791F1F;text-transform:uppercase;letter-spacing:.04em;">Perdido</th>
+            <th style="text-align:right;padding:6px 10px;font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">Win %</th>
+          </tr></thead>
+          <tbody>${wrHTML}</tbody>
+        </table>
+      </div>
+
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:18px;grid-column:1 / -1;">
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 4px;">💰 Forecast · próximos 6 meses</h3>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 14px;">Barra clara = valor total no funil. Barra verde = ponderado (valor × probabilidade)</p>
+        ${fcHTML || '<div style="padding:18px;text-align:center;color:var(--color-text-tertiary);font-size:12.5px;font-style:italic;">Defina <strong>fechamento previsto</strong> nos seus deals pra ver forecast.</div>'}
+      </div>
+
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:18px;">
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 4px;">🌐 Cohort de captação</h3>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 14px;">Conversão por formulário público</p>
         ${chHTML}
       </div>
-      <div>
-        <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;">⏳ Deals parados (aging)</h3>
-        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 10px;">Top 8 deals que não mexem há mais tempo</p>
-        ${agHTML || '<div class="reg-empty" style="margin:0;">Nenhum deal aberto.</div>'}
+
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:18px;">
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 4px;">⏳ Deals parados</h3>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 14px;">Top 8 que não mexem há mais tempo</p>
+        ${agHTML || '<div style="padding:18px;text-align:center;color:var(--color-text-tertiary);font-size:12.5px;font-style:italic;">Nenhum deal aberto.</div>'}
       </div>
     </div>
   `;
@@ -33310,11 +33522,14 @@ async function _synOpenWebhookEditor(webhookId) {
       <div class="syn-field"><label>URL (HTTP POST recebe JSON)</label><input id="syn-wh-url" type="url" value="${_esc(wh.url||'')}" placeholder="https://hooks.zapier.com/..." style="font-family:Menlo,monospace;font-size:12px;"/></div>
       <div class="syn-field">
         <label>Quais eventos disparam</label>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          ${eventsList.map(e => `<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;">
-            <input type="checkbox" data-event="${e}" ${(wh.events||[]).includes(e)?'checked':''}/>
-            <code style="background:var(--color-background-secondary);padding:1px 7px;border-radius:4px;font-size:11px;">${e}</code>
-          </label>`).join('')}
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+          ${eventsList.map(e => {
+            const labels = { deal_won:'🏆 Deal ganho', deal_lost:'❌ Deal perdido', stage_change:'🎯 Mudança de estágio', lead_arrived:'📥 Lead novo via captação' };
+            return `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--color-background-secondary);border-radius:7px;font-size:12.5px;cursor:pointer;border:0.5px solid var(--color-border-tertiary);">
+              <input type="checkbox" data-event="${e}" ${(wh.events||[]).includes(e)?'checked':''} style="flex-shrink:0;"/>
+              <span style="flex:1;">${labels[e] || e}</span>
+            </label>`;
+          }).join('')}
         </div>
       </div>
       <div style="background:var(--color-background-secondary);padding:10px 12px;border-radius:7px;font-size:11.5px;line-height:1.5;">
@@ -34042,7 +34257,7 @@ function openContactModalFromCard() {
 
 function openContactModal(contactId) {
   const isEdit = !!contactId;
-  const c = isEdit ? _contacts.find(x=>x.id===contactId) : { id: _genRegId('p'), type:'lead', name:'', taxId:'', email:'', phone:'', address:'', notes:'' };
+  const c = isEdit ? _contacts.find(x=>x.id===contactId) : { id: _genRegId('p'), type:'lead', name:'', taxId:'', email:'', phone:'', address:'', notes:'', contact_person:'', role:'' };
   if (!c) return;
   const card = document.getElementById('reg-modal-card');
   card.innerHTML = `
@@ -34051,6 +34266,15 @@ function openContactModal(contactId) {
       <div class="reg-field full">
         <label>Nome / Razão social *</label>
         <input id="reg-c-name" type="text" placeholder="Acme Ltda. ou João da Silva" value="${_esc(c.name||'')}" />
+        <div style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:3px;font-style:italic;">Nome da empresa (PJ) ou pessoa física (PF). Pra registrar quem é a <em>pessoa</em> dentro de uma empresa, use o campo abaixo.</div>
+      </div>
+      <div class="reg-field">
+        <label>Nome do contato <span style="font-weight:400;color:var(--color-text-tertiary);text-transform:none;letter-spacing:0;font-size:11px;">· quem fala com você</span></label>
+        <input id="reg-c-person" type="text" placeholder="Ex: Maria Silva" value="${_esc(c.contact_person||'')}" />
+      </div>
+      <div class="reg-field">
+        <label>Cargo / função <span style="font-weight:400;color:var(--color-text-tertiary);text-transform:none;letter-spacing:0;font-size:11px;">· opcional</span></label>
+        <input id="reg-c-role" type="text" placeholder="Ex: Gerente de Compras" value="${_esc(c.role||'')}" />
       </div>
       <div class="reg-field">
         <label>Tipo *</label>
@@ -34183,6 +34407,8 @@ async function saveContact(id, isEdit) {
     phone:   (document.getElementById('reg-c-phone').value||'').trim(),
     address: (document.getElementById('reg-c-address').value||'').trim(),
     notes:   (document.getElementById('reg-c-notes').value||'').trim(),
+    contact_person: (document.getElementById('reg-c-person')?.value||'').trim(),
+    role:           (document.getElementById('reg-c-role')?.value||'').trim(),
     updatedAt: new Date().toISOString(),
   };
   // ── #9 Deduplicação: só pra novos cadastros ────────────────────────
