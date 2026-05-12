@@ -44471,10 +44471,14 @@ async function renderChat() {
       try { _chatClaimMyKudos(); } catch(_){}
       // #5 Resumo do amanhecer (idempotente, 1x por dia)
       try { _chatDawnSummaryMaybe(); } catch(_){}
-      // Default agora é MAPA — só vai pra lista se o user explicitamente escolheu
+      // Default agora é LISTA — só vai pro mapa se o user explicitamente escolheu
+      // (lista é mais familiar pra quem chega; mapa é uma vista alternativa opt-in)
+      // Chave v2: força reset pra todo mundo (apaga valor antigo do v1 que era 'mapa')
       try {
-        const savedView = localStorage.getItem('synkan_tatami_view');
-        if (savedView !== 'lista') {
+        // Migração: apaga chave v1 (qualquer valor que tivesse — gente que estava em mapa)
+        try { localStorage.removeItem('synkan_tatami_view'); } catch(_){}
+        const savedView = localStorage.getItem('synkan_tatami_view_v2');
+        if (savedView === 'mapa') {
           _chatState.dojoMapMode = true;
           _chatState.dojoMapHideSidebar = true;
         } else {
@@ -58550,7 +58554,7 @@ function _chatSetView(view) {
   _chatState.dojoMapHideSidebar = wantHide;
   // Persiste preferência
   try {
-    localStorage.setItem('synkan_tatami_view', wantMap ? 'mapa' : 'lista');
+    localStorage.setItem('synkan_tatami_view_v2', wantMap ? 'mapa' : 'lista');
   } catch(_){}
   document.getElementById('chat-root').innerHTML = _chatRenderShell(_chatState.channels);
   _chatRenderMessagesView();
@@ -58780,19 +58784,21 @@ function _chatRenderDojoMap() {
 }
 
 // ─── #7.b Fundo Hokusai do Mapa do Tatami ──────────────────────────
-const _DOJO_MAP_BG_KEY = 'synkan_dojo_map_bg_v1';
+// Default: 'subtle' + 'watermark' — discreto, deixa só as bordas da arte aparecerem.
+// Mais convidativo pra primeira visita do que cobertura cheia (que pode "competir" visualmente).
+const _DOJO_MAP_BG_KEY = 'synkan_dojo_map_bg_v2'; // bump v2 — novo default
 function _chatGetMapBgPrefs(){
   try {
     const raw = localStorage.getItem(_DOJO_MAP_BG_KEY);
     if (raw){
       const p = JSON.parse(raw);
       return {
-        intensity: p.intensity || 'strong',
-        variant:   p.variant   || 'full',
+        intensity: p.intensity || 'subtle',
+        variant:   p.variant   || 'watermark',
       };
     }
   } catch(e){}
-  return { intensity:'strong', variant:'full' };
+  return { intensity:'subtle', variant:'watermark' };
 }
 function _chatSaveMapBgPrefs(prefs){
   try { localStorage.setItem(_DOJO_MAP_BG_KEY, JSON.stringify(prefs)); } catch(e){}
