@@ -6789,7 +6789,7 @@ body.tx-active .belt-ring::after{
   box-shadow:0 2px 6px rgba(0,0,0,.18);
   color:#FBF6E8;
 }
-.tp-hanko svg{width:18px;height:18px;display:block;}
+.tp-hanko svg{width:28px;height:28px;display:block;}
 
 .tp-avatar-wrap{position:relative;width:96px;height:96px;margin:6px auto 14px;z-index:2;}
 .tp-avatar{
@@ -56426,10 +56426,13 @@ function _chatRenderDMAvatar(ch, size) {
 // Mestre Kan auto-popula katas via análise dos cards/mensagens.
 // O próprio user pode editar role/bio/contato via "Editar perfil".
 
-const _TP_HANKO_ICON = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-  <!-- Person silhouette in clean abstract style -->
-  <circle cx="12" cy="8" r="3.2"/>
-  <path d="M5 19.5 c0-3.5 3.2-5.7 7-5.7 s7 2.2 7 5.7 v.5 H5 z"/>
+// Hanko (印) — selo japonês tradicional usado em vez de assinatura.
+// Renderiza o kanji 印 ("selo/marca") em fonte serif japonesa — autêntico,
+// elegante, e remete à identidade pessoal (que é o que o card de profile é).
+const _TP_HANKO_ICON = `<svg viewBox="0 0 32 32" aria-hidden="true">
+  <text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle"
+        font-family="'Noto Serif JP','Yuji Syuku',serif" font-weight="700"
+        font-size="22" fill="currentColor">印</text>
 </svg>`;
 
 // Cache de profiles carregados (evita re-fetch redundante)
@@ -56692,9 +56695,21 @@ function _tpRenderPanel(data, userId) {
   // (o monitor preciso depende de presence interna; usamos placeholder)
   const isOnline = !isExMember && onlineSet.has(userId);
 
-  // Avatar inner
-  const avatarInner = p.avatar_url
-    ? `<img src="${_esc(p.avatar_url)}" alt=""/>`
+  // Avatar inner — busca em CASCATA pra evitar mostrar iniciais "AT" quando o
+  // user já configurou foto em Configurações mas a tabela profiles não sincronizou ainda:
+  //   1) profiles.avatar_url (DB)
+  //   2) supaUser.user_metadata.avatar_url (auth — fonte autoritativa se for próprio user)
+  //   3) _chatState.userMap[userId].avatar (cache do chat)
+  //   4) Iniciais como último fallback
+  let avatarUrl = p.avatar_url || '';
+  if (!avatarUrl && isMe) {
+    try { avatarUrl = supaUser?.user_metadata?.avatar_url || ''; } catch(_){}
+  }
+  if (!avatarUrl) {
+    try { avatarUrl = _chatState?.userMap?.[userId]?.avatar || _chatState?.userMap?.[userId]?.avatar_url || ''; } catch(_){}
+  }
+  const avatarInner = avatarUrl
+    ? `<img src="${_esc(avatarUrl)}" alt=""/>`
     : `${_esc(typeof avatarInitials === 'function' ? avatarInitials(p.full_name) : (p.full_name||'?').slice(0,1).toUpperCase())}`;
   const avatarBg = (typeof avatarColor === 'function') ? avatarColor(p.full_name) : '#3C3489';
 
