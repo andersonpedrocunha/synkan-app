@@ -22373,17 +22373,64 @@ function _rowToCard(r) {
 }
 
 async function supaLoadAllBoards() {
-  const c = _ensureSupaClient(); if(!c) return {};
-  const { data: boardsRows, error: bErr } = await c.from('boards').select('*').order('created_at');
-  if (bErr) { console.error(bErr); return {}; }
-  if (!boardsRows.length) return {};
+  // CRÍTICO: usa cliente ISOLADO em vez do principal — cliente principal sofre
+  // de lock no JWT às vezes (corrida com auth state changes), retornando 0
+  // boards silenciosamente. Cliente isolado evita esse problema.
+  let c = null;
+  try {
+    if (typeof _getOrCreateIsolatedClient === 'function') {
+      c = await Promise.race([
+        _getOrCreateIsolatedClient(),
+        new Promise(res => setTimeout(() => res(null), 3000)),
+      ]);
+    }
+  } catch(_){}
+  if (!c) c = _ensureSupaClient();
+  if (!c) return {};
+  // Filtro explícito por owner_id (mesmo com RLS funcionando, ajuda planner do
+  // Postgres e evita ambiguidade em cenários multi-conta no mesmo browser)
+  const ownerId = (typeof supaUser !== 'undefined' && supaUser?.id) ? supaUser.id : null;
+  if (!ownerId) { console.warn('[supa] supaLoadAllBoards sem supaUser — abortando'); return {}; }
+  const withTimeout = (p, ms, label) => Promise.race([
+    p, new Promise((_, rej) => setTimeout(() => rej(new Error(label + ' timeout '+ms+'ms')), ms))
+  ]);
+  let boardsRows;
+  try {
+    const r = await withTimeout(
+      c.from('boards').select('*').eq('owner_id', ownerId),
+      10000, 'list boards'
+    );
+    if (r.error) { console.error('[supa] supaLoadAllBoards boards error:', r.error); return {}; }
+    boardsRows = r.data || [];
+  } catch(e) {
+    console.error('[supa] supaLoadAllBoards boards exception:', e?.message || e);
+    return {};
+  }
+  if (!boardsRows.length) { console.info('[supa] supaLoadAllBoards: 0 boards no banco'); return {}; }
+  console.info(`[supa] supaLoadAllBoards: ${boardsRows.length} board(s) achados`);
   const boardIds = boardsRows.map(b=>b.id);
-  const { data: cardsRows, error: cErr } = await c.from('cards').select('*').in('board_id', boardIds);
-  if (cErr) { console.error(cErr); return {}; }
+  let cardsRows = [];
+  try {
+    const r = await withTimeout(
+      c.from('cards').select('*').in('board_id', boardIds),
+      15000, 'list cards'
+    );
+    if (r.error) { console.warn('[supa] supaLoadAllBoards cards error (segue com 0 cards):', r.error); }
+    else cardsRows = r.data || [];
+  } catch(e) {
+    console.warn('[supa] supaLoadAllBoards cards exception:', e?.message || e);
+    // Segue mesmo sem cards — board vazio é melhor que board sumido
+  }
+  console.info(`[supa] supaLoadAllBoards: ${cardsRows.length} card(s) carregados`);
   const out = {};
   for (const b of boardsRows) {
-    const cs = (cardsRows||[]).filter(r=>r.board_id===b.id).map(_rowToCard);
-    out[b.id] = _rowToBoard(b, cs);
+    try {
+      const cs = cardsRows.filter(r=>r.board_id===b.id).map(_rowToCard);
+      out[b.id] = _rowToBoard(b, cs);
+    } catch(e) {
+      console.warn('[supa] supaLoadAllBoards row → board falhou em', b.id, ':', e?.message);
+      // Não interrompe — pula esse board
+    }
   }
   return out;
 }
