@@ -50386,27 +50386,72 @@ async function _bunkoCheckRecording(recordingId) {
     const result = await r.json();
     if (!r.ok) throw new Error(result.error || `HTTP ${r.status}`);
     const status = result.status;
-    if (typeof _showKanWarning === 'function') {
-      if (status === 'ready') {
-        _showKanWarning('Gravação pronta ✓',
-          `Status: <strong>${status}</strong>. ${result.duration_sec ? `${Math.round(result.duration_sec/60)} min · ` : ''}${result.size_bytes ? Math.round(result.size_bytes/1024/1024)+' MB' : ''}`,
-          'success');
-      } else if (status === 'failed' || status === 'aborted') {
-        _showKanWarning(`Gravação falhou no LiveKit`,
-          `Status: <strong>${status}</strong>${result.error_msg ? '<br/>Erro: '+_esc(result.error_msg) : ''}<br/><br/>Verifique se os secrets do R2 estão configurados corretamente no Supabase.`,
-          'warning');
-      } else if (status === 'unknown') {
-        // LiveKit não acha mais esse egress — provavelmente foi descartado.
-        _bunkoOpenOrphanCleanupModal(recordingId);
-      } else {
-        _showKanWarning('Ainda processando',
-          `Status atual: <strong>${status}</strong>. Tente de novo em alguns minutos.`,
-          'info');
+    // ━━━━━ Modal forte com TODA info do LiveKit (visível, não some) ━━━━━
+    const dur = result.duration_sec ? `${Math.round(result.duration_sec/60)}m ${result.duration_sec%60}s` : '—';
+    const sz = result.size_bytes ? `${(result.size_bytes/1024/1024).toFixed(2)} MB` : '—';
+    const url = result.url ? `<br/><a href="${_esc(result.url)}" target="_blank" style="color:#2563eb;text-decoration:underline;word-break:break-all;font-size:.75rem">${_esc(result.url)}</a>` : '';
+    const err = result.error_msg ? `<br/><strong>Erro do LiveKit:</strong> <code style="background:#fef2f2;color:#991b1b;padding:2px 6px;border-radius:4px;font-size:.75rem">${_esc(result.error_msg)}</code>` : '';
+    const detalhes = `
+      <div style="text-align:left;font-size:.85rem;line-height:1.6">
+        <strong>Status LiveKit:</strong> <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">${_esc(status)}</code> (raw: ${result.raw_status ?? '—'})<br/>
+        <strong>Duração:</strong> ${dur}<br/>
+        <strong>Tamanho:</strong> ${sz}
+        ${url}${err}
+      </div>`;
+    if (status === 'ready') {
+      appAlert('Gravação pronta ✓', detalhes, { icon:'✅', html:true });
+    } else if (status === 'failed' || status === 'aborted') {
+      appAlert('Gravação falhou no LiveKit', detalhes + '<br/><br/>Os secrets do R2 estão validados — o problema é específico desse egress.', { icon:'⚠️', html:true });
+    } else if (status === 'unknown') {
+      _bunkoOpenOrphanCleanupModal(recordingId);
+    } else if (status === 'active' || status === 'starting' || status === 'ending' || status === 'recording') {
+      // ━━━ Egress ainda rodando: oferece forçar parada ━━━
+      const confirmed = await appConfirm(
+        'Egress ainda ativo no LiveKit',
+        `${detalhes}<br/><br/>O LiveKit ainda está com esse egress aberto. Você saiu da sala mas o egress não foi parado.<br/><br/><strong>Quer forçar parada agora?</strong>`,
+        { icon:'⏳', html:true, okLabel:'Forçar parar egress', cancelLabel:'Agora não' }
+      );
+      if (confirmed) {
+        await _bunkoForceStopEgress(rec.livekit_egress_id, recordingId);
       }
+    } else {
+      appAlert('Status indeterminado', detalhes, { icon:'❓', html:true });
     }
     await _bunkoLoadAll();
   } catch(e) {
     appAlert('Erro ao verificar', e?.message || String(e), { icon:'⚠️' });
+  }
+}
+
+// Força parada do egress (caso ele tenha ficado active depois do usuário sair da sala)
+async function _bunkoForceStopEgress(egressId, recordingId) {
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  if (!c) return;
+  const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+  const stopUrl = `${cfg?.url}/functions/v1/livekit-recording/stop`;
+  let jwt = null;
+  if (typeof _capReadJWTFromStorage === 'function') jwt = _capReadJWTFromStorage();
+  if (!jwt) {
+    try {
+      const { data } = await c.auth.getSession();
+      jwt = data?.session?.access_token;
+    } catch(_){}
+  }
+  try {
+    if (typeof _showKanWarning === 'function') _showKanWarning('Parando egress…', 'Pedindo pro LiveKit fechar e fazer upload do MP4.', 'info');
+    const r = await fetch(stopUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify({ egress_id: egressId })
+    });
+    const result = await r.json();
+    if (!r.ok) throw new Error(result.error || `HTTP ${r.status}`);
+    // Marca como processing no banco (vai virar ready quando upload terminar)
+    try { await c.from('tatame_recordings').update({ status: 'processing' }).eq('id', recordingId); } catch(_){}
+    if (typeof _showKanWarning === 'function') _showKanWarning('Egress parado ✓', 'O LiveKit está finalizando o upload. Aguarde 30-60s e clique em Verificar status de novo.', 'success');
+    await _bunkoLoadAll();
+  } catch(e) {
+    appAlert('Erro ao parar egress', e?.message || String(e), { icon:'⚠️' });
   }
 }
 
