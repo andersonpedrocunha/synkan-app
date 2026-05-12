@@ -13892,7 +13892,7 @@ const OB_STEPS = [
     title: 'Quer dados de exemplo pra explorar?',
     body: 'Posso popular alguns módulos com itens demo prefixados com <strong>[Exemplo]</strong> — você apaga quando quiser. Pode mudar depois em Configurações → Conta.',
     choices: [
-      { id: 'demo',  icon: '✨', title: 'Sim, popular com exemplos', desc: '1 board financeiro Zai, 1 OKR, 3 contatos no Synconnect e 1 Lab. Bom pra explorar e entender o app antes dos seus próprios dados.' },
+      { id: 'demo',  icon: '✨', title: 'Sim, popular com exemplos', desc: '1 Kanban (Marketing), 1 Zai financeiro, 1 OKR, 5 contatos + 1 deal + 1 lead no Synconnect (CRM), 1 Lab e 2 páginas no Bunko (uma é transcrição simulada). Bom pra explorar antes dos seus próprios dados.' },
       { id: 'empty', icon: '🥋', title: 'Não, prefiro começar vazio', desc: 'Começo do zero com meus próprios dados. Mais limpo, mas demanda construir tudo do zero.' },
     ],
     primary: 'Confirmar',
@@ -14585,7 +14585,7 @@ function _settingsContaSection() {
         <span class="settings-card-title">Dados de exemplo</span>
         <span class="settings-card-sub" style="font-size:11px;">Pra explorar o app sem começar do zero.</span>
       </div>
-      <div class="settings-card-sub">Cria 1 board financeiro <strong>Zai</strong>, 1 <strong>OKR</strong>, 3 contatos no <strong>Synconnect</strong> e 1 <strong>Lab</strong> — todos prefixados com <strong>[Exemplo]</strong>. Você pode apagar individualmente quando não precisar mais. Útil pra testar funcionalidades ou demonstrar o app.</div>
+      <div class="settings-card-sub">Cria exemplos em todos os módulos relevantes: <strong>1 Kanban (Marketing)</strong>, <strong>1 Zai financeiro</strong>, <strong>1 OKR</strong>, <strong>5 contatos + 1 deal + 1 lead</strong> no Synconnect (CRM), <strong>1 Lab</strong> e <strong>2 páginas no Bunko Box</strong> (incluindo uma transcrição simulada). Todos prefixados com <strong>[Exemplo]</strong> — apague individualmente quando não precisar. Útil pra explorar antes de jogar seus próprios dados.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
         <button class="btn-c" onclick="_settingsLoadExampleData()">✨ Carregar dados de exemplo</button>
         <button class="btn-c" onclick="restartOnboarding()">🥋 Refazer tour de boas-vindas</button>
@@ -23663,10 +23663,10 @@ function _renderHelpRecursosTopic(id) {
     synconnect: {
       icon: '⊞',
       title: 'CRM (Synconnect)',
-      sub: 'Pessoas, captação e Customer 360 sem CRM separado.',
+      sub: 'Pipeline kanban, deals multi-contato, Customer 360 e IA Faixa Preta.',
       body: `
         <h4 class="help-topic-h">O que é o Synconnect</h4>
-        <p>É o CRM nativo do Synkan. Em vez de manter contatos numa planilha ou pagar HubSpot, você guarda tudo no mesmo lugar dos seus boards. Acessa pelo menu lateral em <strong>Synconnect</strong>.</p>
+        <p>É o <strong>CRM completo do Synkan</strong>. Substitui HubSpot/Pipedrive pra time pequeno/médio: pipeline kanban arrastável com estágios customizáveis, deals com múltiplos contatos, atividades automáticas, <strong>Customer 360</strong> (todos cards, mensagens, transcrições e deals do contato numa tela), captação de leads que cai direto no funil, metas mensais, workflows + webhooks, exportação CSV e <strong>IA Faixa Preta</strong> (resumo 360, briefing diário, próxima ação por deal). Acessa pelo menu lateral em <strong>Synconnect</strong>.</p>
 
         <h4 class="help-topic-h">Cadastros</h4>
         <p>Cada contato tem nome, email, telefone, empresa, cargo, redes sociais, notas e tags. Aceita CSV de importação. Os planos cobrem: Faixa Azul até 100 contatos, Roxa e Preta sem limite.</p>
