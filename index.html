@@ -22051,6 +22051,19 @@ async function changePasswordFlow() {
 
 async function signOut() {
   try { _capInvalidateJWTCache(); } catch(e){}
+  // 0) ANTES de qualquer wipe: garante que o gamif (XP/streak/conquistas) está
+  //    sincronizado na nuvem. Sem isso, o _wipeAllAppLocalData abaixo apagaria
+  //    o último estado local e ele se perderia até o próximo save.
+  try {
+    if (typeof _gamifCloudSyncNow === 'function' && supaUser) {
+      // Cancela debounce pendente e força sync imediato com timeout curto
+      try { if (_gamifCloudSyncTimer) { clearTimeout(_gamifCloudSyncTimer); _gamifCloudSyncTimer = null; } } catch(_){}
+      await Promise.race([
+        _gamifCloudSyncNow(),
+        new Promise(res => setTimeout(res, 1500)),
+      ]);
+    }
+  } catch(e) { console.warn('[signOut] gamif final sync falhou:', e?.message || e); }
   // 1) signOut do Supabase com timeout curto (não bloqueia se a rede/API falhar)
   try {
     if (supaClient && supaClient.auth) {
@@ -22719,6 +22732,10 @@ async function _onSignedIn(session) {
   // o nome dele logo, sem esperar load de boards/plano (que pode demorar ou
   // falhar e deixaria a UI travada em "Convidado").
   try { refreshAccountUI(); } catch(e) { console.warn('early refreshAccountUI', e); }
+
+  // ━━ Carrega gamif (XP, streak, conquistas) da nuvem em background ━━
+  // Se cloud tem progresso e local não, adota o cloud. Re-renderiza UI ao terminar.
+  try { setTimeout(() => { _gamifLoadFromCloud().catch(()=>{}); }, 800); } catch(_){}
 
   // Se é o MESMO user que já estava logado (token refresh, mudança de aba,
   // wake do sleep), só atualiza UI leve e sai. NÃO troca tab, NÃO recarrega
@@ -37880,7 +37897,101 @@ const BELTS = [
   { idx:8, name:'Preta · 2° dan',   title:'Grão-Mestre Eminente', color:'#1A1A1A', color2:'#FFD700', threshold:90000, quote:'O ouro brilha mesmo no preto. Você já não treina pra vencer — você treina pra inspirar.' },
 ];
 
-function _saveGamif() { try { localStorage.setItem(GAMIF_KEY, JSON.stringify(_gamif)); } catch(e){} }
+function _saveGamif() {
+  try { localStorage.setItem(GAMIF_KEY, JSON.stringify(_gamif)); } catch(e){}
+  // ━━ Sync pra cloud (debounced) — só se logado no Supabase ━━
+  try { _gamifScheduleCloudSync(); } catch(_){}
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DOJO CLOUD SYNC — XP/streak/conquistas persistidos na nuvem
+// ─────────────────────────────────────────────────────────────────────
+// Antes: gamif só morava em localStorage → perdido ao trocar browser,
+// limpar cache, aba anônima, ou domínio diferente.
+// Agora: tabela dojo_state no Supabase (1 linha por user, owner_id PK).
+// Estratégia:
+//   • Boot: tenta carregar da nuvem; se mais recente que local OU local
+//     está vazio, adota o cloud. Se local é mais recente, sobe local
+//     pra nuvem (one-way merge inicial).
+//   • Save: debounce de 2s — chama _saveGamif várias vezes, sync 1×.
+//   • Falha silenciosa: se cloud falhar, mantém local funcionando.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+let _gamifCloudSyncTimer = null;
+let _gamifCloudSyncing = false;
+let _gamifCloudLoaded = false; // marca se já fez o load inicial (evita race com saves)
+
+function _gamifScheduleCloudSync() {
+  // Só sincroniza se logado no Supabase + load inicial já rolou
+  if (!_gamifCloudLoaded) return;
+  if (typeof supaUser === 'undefined' || !supaUser) return;
+  if (_gamifCloudSyncTimer) clearTimeout(_gamifCloudSyncTimer);
+  _gamifCloudSyncTimer = setTimeout(_gamifCloudSyncNow, 2000);
+}
+
+async function _gamifCloudSyncNow() {
+  if (_gamifCloudSyncing) return;
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  _gamifCloudSyncing = true;
+  try {
+    await supaClient.rpc('dojo_state_save', {
+      p_xp:           _gamif.xp || 0,
+      p_stats:        _gamif.stats || {},
+      p_today:        _gamif.today || {},
+      p_achievements: _gamif.achievements || [],
+      p_missions:     _gamif.missions || {},
+      p_streak:       _gamif.streak || {},
+    });
+    // (silencioso — sucesso é o esperado)
+  } catch(e) {
+    console.warn('[gamif] cloud sync falhou (mantém local OK):', e?.message || e);
+  } finally {
+    _gamifCloudSyncing = false;
+  }
+}
+
+async function _gamifLoadFromCloud() {
+  // Chamado após login confirmado. Estratégia:
+  // • Lê cloud + lê local
+  // • Se cloud existe e local tá vazio (xp=0/undefined) → adota cloud
+  // • Se ambos existem, pega o de maior XP (proxy pra "mais avançado")
+  // • Se só local existe → sobe local pra cloud
+  // • Se nenhum existe → começa do zero
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) {
+    _gamifCloudLoaded = true; // permite save mesmo em modo local
+    return;
+  }
+  try {
+    const { data, error } = await supaClient.rpc('dojo_state_load');
+    if (error) throw error;
+    const cloud = data; // null se primeira vez
+    const localXP = (_gamif && typeof _gamif.xp === 'number') ? _gamif.xp : 0;
+    const cloudXP = (cloud && typeof cloud.xp === 'number') ? cloud.xp : 0;
+    if (cloud && cloudXP >= localXP) {
+      // Cloud é igual ou maior — adota
+      _gamif.xp           = cloud.xp           || 0;
+      _gamif.stats        = cloud.stats        || _gamif.stats || {};
+      _gamif.today        = cloud.today        || _gamif.today || {};
+      _gamif.achievements = cloud.achievements || _gamif.achievements || [];
+      _gamif.missions     = cloud.missions     || _gamif.missions || {};
+      _gamif.streak       = cloud.streak       || _gamif.streak || {};
+      try { localStorage.setItem(GAMIF_KEY, JSON.stringify(_gamif)); } catch(e){}
+      console.info('[gamif] adotado da nuvem · XP:', cloud.xp);
+    } else if (localXP > 0) {
+      // Local tem progresso que a nuvem não tem → sobe imediatamente
+      console.info('[gamif] subindo local pra nuvem · XP:', localXP);
+      _gamifCloudLoaded = true; // permite o sync abaixo rodar
+      await _gamifCloudSyncNow();
+    }
+    // Re-render UI pra refletir XP novo (se mudou)
+    try { if (typeof refreshAccountUI === 'function') refreshAccountUI(); } catch(_){}
+    try { if (typeof renderDojoIfActive === 'function') renderDojoIfActive(); } catch(_){}
+  } catch(e) {
+    console.warn('[gamif] load cloud falhou (segue só com local):', e?.message || e);
+  } finally {
+    _gamifCloudLoaded = true;
+  }
+}
 function _gamifBeltForXP(xp) {
   let b = BELTS[0];
   for (const belt of BELTS) if (xp >= belt.threshold) b = belt;
