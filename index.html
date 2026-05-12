@@ -49975,10 +49975,24 @@ async function _bunkoOpenPage(pageId) {
   _bunkoLoadFiles(pageId);
   // Carrega índice de páginas pro autocomplete de wikilinks (background)
   _bunkoLoadPagesIndex();
-  // Badge de vínculo com Synconnect (deal/contato)
-  if (page.synconnect_deal_id || page.synconnect_contact_id) {
+  // Badge de vínculo com Synconnect (deal/contato).
+  // Fallback: se a RPC get_bunko_page é versão antiga (sem esses campos),
+  // lê do cache localStorage que populamos no momento do link.
+  let dealId = page.synconnect_deal_id;
+  let contactId = page.synconnect_contact_id;
+  if (!dealId && !contactId) {
+    try {
+      const cache = JSON.parse(localStorage.getItem('bunko_synconnect_links') || '{}');
+      const cached = cache[pageId];
+      if (cached) {
+        dealId = cached.deal_id || null;
+        contactId = cached.contact_id || null;
+      }
+    } catch(_){}
+  }
+  if (dealId || contactId) {
     if (typeof _synInitCloud === 'function') _synInitCloud().then(() => {
-      _bunkoRenderSynconnectBadge(pageId, page.synconnect_deal_id, page.synconnect_contact_id);
+      _bunkoRenderSynconnectBadge(pageId, dealId, contactId);
     });
   }
 }
@@ -50045,6 +50059,19 @@ async function _bunkoSubmitSynconnectLink(pageId) {
   const ok = await _synLinkBunkoPage(pageId, { deal_id: dealId, contact_id: contactId });
   if (ok) {
     document.getElementById('bunko-syn-linker').classList.remove('is-open');
+    // Marca no objeto em memória pra próximo refresh não perder
+    if (typeof _bunkoPageCache === 'object' && _bunkoPageCache?.[pageId]) {
+      _bunkoPageCache[pageId].synconnect_deal_id    = dealId;
+      _bunkoPageCache[pageId].synconnect_contact_id = contactId;
+    }
+    // Também guarda num cache local persistente (fallback caso get_bunko_page
+    // não retorne os campos — versão antiga da RPC)
+    try {
+      const k = 'bunko_synconnect_links';
+      const cache = JSON.parse(localStorage.getItem(k) || '{}');
+      cache[pageId] = { deal_id: dealId, contact_id: contactId, at: Date.now() };
+      localStorage.setItem(k, JSON.stringify(cache));
+    } catch(_){}
     _bunkoRenderSynconnectBadge(pageId, dealId, contactId);
     if (typeof _showKanWarning === 'function') {
       const tags = [];
