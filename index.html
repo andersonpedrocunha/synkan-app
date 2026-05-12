@@ -49841,6 +49841,8 @@ async function _bunkoLoadAll() {
     _bunkoRenderTree();
     _bunkoRenderBreadcrumb();
     _bunkoRenderItems();
+    // Inicia auto-check de gravações processando (cron de 60s)
+    try { _bunkoStartAutoCheck && _bunkoStartAutoCheck(); } catch(_){}
   } catch(e) {
     console.warn('[bunko] load:', e);
     const main = document.getElementById('bunko-main-content');
@@ -50146,6 +50148,161 @@ function _bunkoCardHTML(it) {
   </div>`;
 }
 
+// Modal de cleanup quando gravação tá órfã. Oferece: este, todos, diagnóstico.
+async function _bunkoOpenOrphanCleanupModal(recordingId) {
+  let ov = document.getElementById('bunko-orphan-modal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'bunko-orphan-modal';
+    ov.className = 'syn-modal-ov';
+    document.body.appendChild(ov);
+  }
+  // Conta órfãs (recordings em processing/recording sem update há > 30min)
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  let orphanCount = 0;
+  try {
+    const cutoff = new Date(Date.now() - 30*60*1000).toISOString();
+    const { count } = await c.from('tatame_recordings')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['processing', 'recording', 'starting'])
+      .lt('started_at', cutoff);
+    orphanCount = count || 0;
+  } catch(_){}
+  ov.innerHTML = `<div class="syn-modal" onclick="event.stopPropagation()" style="max-width:520px;">
+    <div class="syn-modal-h"><h3>⚠ Gravação órfã detectada</h3><button class="syn-modal-x" onclick="document.getElementById('bunko-orphan-modal').classList.remove('is-open')">×</button></div>
+    <div class="syn-modal-body">
+      <p style="margin:0 0 12px;font-size:13px;color:var(--color-text-secondary);line-height:1.5;">
+        A LiveKit Cloud não tem mais registro dessa gravação. As 3 causas mais comuns:
+      </p>
+      <ol style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.6;margin:0 0 14px;padding-left:22px;">
+        <li>Upload pro R2 falhou e foi descartado (R2 secrets incorretos)</li>
+        <li>Webhook do LiveKit não tá configurado → status nunca atualiza</li>
+        <li>Egress passou tempo demais sem completar</li>
+      </ol>
+      <div style="background:var(--color-background-secondary);padding:11px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;">
+        <strong>${orphanCount}</strong> gravação${orphanCount===1?'':'ões'} órfã${orphanCount===1?'':'s'} no total (em processing há +30 min).
+      </div>
+    </div>
+    <div class="syn-modal-f" style="flex-direction:column;align-items:stretch;gap:6px;">
+      <button class="syn-btn-primary" onclick="_bunkoCleanOrphanSingle('${_esc(recordingId)}')">Marcar SÓ esta como failed</button>
+      ${orphanCount > 1 ? `<button class="syn-btn-primary" style="background:#A32D2D;" onclick="_bunkoCleanAllOrphans()">Marcar TODAS as ${orphanCount} órfãs como failed</button>` : ''}
+      <button class="syn-btn-secondary" onclick="_bunkoCheckRecordingConfig()">🔍 Diagnosticar configuração</button>
+      <button class="syn-btn-secondary" onclick="document.getElementById('bunko-orphan-modal').classList.remove('is-open')">Cancelar</button>
+    </div>
+  </div>`;
+  ov.classList.add('is-open');
+}
+
+async function _bunkoCleanOrphanSingle(recordingId) {
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  await c.from('tatame_recordings').update({ status: 'failed', ended_at: new Date().toISOString() }).eq('id', recordingId);
+  document.getElementById('bunko-orphan-modal').classList.remove('is-open');
+  if (typeof _showKanWarning === 'function') _showKanWarning('Marcado ✓', 'Gravação marcada como failed.', 'info');
+  if (typeof _bunkoLoadAll === 'function') _bunkoLoadAll();
+}
+
+async function _bunkoCleanAllOrphans() {
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  const { data, error } = await c.rpc('cleanup_orphan_recordings', { p_max_age_minutes: 30 });
+  if (error) {
+    alert('Falha: ' + error.message + '\n\nVerifique se rodou MIGRATIONS_RECORDINGS_CLEANUP.sql no Supabase.');
+    return;
+  }
+  document.getElementById('bunko-orphan-modal').classList.remove('is-open');
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Limpeza ✓', `${data?.cleaned || 0} gravação${(data?.cleaned||0)===1?'':'ões'} marcada${(data?.cleaned||0)===1?'':'s'} como failed.`, 'success');
+  }
+  if (typeof _bunkoLoadAll === 'function') _bunkoLoadAll();
+}
+
+async function _bunkoCheckRecordingConfig() {
+  const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+  if (!cfg?.url) return;
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  const { data: { session } } = await c.auth.getSession();
+  const jwt = session?.access_token;
+
+  // Busca info de config + testa storage em paralelo
+  const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` };
+  const [infoR, storR] = await Promise.all([
+    fetch(`${cfg.url}/functions/v1/livekit-recording/config-info`, { method: 'POST', headers, body: '{}' }).then(r => r.json()).catch(e => ({ error: String(e) })),
+    fetch(`${cfg.url}/functions/v1/livekit-recording/test-storage`, { method: 'POST', headers, body: '{}' }).then(r => r.json()).catch(e => ({ error: String(e) })),
+  ]);
+  const secrets = infoR.secrets_status || {};
+  const missing = infoR.missing_secrets || [];
+  const html = `
+    <div style="font-size:13px;line-height:1.55;">
+      <div style="font-weight:600;margin-bottom:8px;">📋 Status dos secrets no Supabase</div>
+      <div style="background:var(--color-background-secondary);padding:11px 14px;border-radius:7px;font-family:Menlo,monospace;font-size:11.5px;margin-bottom:14px;">
+        ${Object.entries(secrets).map(([k,v]) => `<div style="color:${v?'#27500A':'#A32D2D'};">${v?'✓':'✕'} ${k}</div>`).join('')}
+      </div>
+
+      <div style="font-weight:600;margin-bottom:8px;">🔌 Webhook URL pra configurar no LiveKit Cloud</div>
+      <div style="background:var(--color-background-secondary);padding:11px 14px;border-radius:7px;font-family:Menlo,monospace;font-size:11px;margin-bottom:6px;word-break:break-all;">
+        ${_esc(infoR.webhook_url_to_configure || '?')}
+      </div>
+      <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-bottom:14px;font-style:italic;">
+        Cole essa URL em <strong>LiveKit Cloud Dashboard → Settings → Webhooks → + Add</strong>. Eventos: <code>egress_ended</code> e <code>egress_updated</code>. Sem isso o status nunca atualiza automaticamente.
+      </div>
+
+      <div style="font-weight:600;margin-bottom:8px;">📦 Teste do bucket R2/S3</div>
+      <div style="background:${storR.ok?'rgba(59,109,17,.10)':'rgba(163,45,45,.10)'};padding:11px 14px;border-radius:7px;font-size:12px;line-height:1.5;">
+        <strong style="color:${storR.ok?'#27500A':'#A32D2D'};">${storR.ok?'✓':'✕'} ${_esc(storR.message || storR.error || 'sem resposta')}</strong>
+        ${storR.bucket ? `<div style="font-family:Menlo,monospace;font-size:11px;margin-top:4px;color:var(--color-text-tertiary);">bucket: ${_esc(storR.bucket)} · region: ${_esc(storR.region||'')} ${storR.endpoint?'· endpoint: '+_esc(storR.endpoint):''}</div>` : ''}
+        ${storR.hint ? `<div style="margin-top:6px;font-size:11.5px;">${_esc(storR.hint)}</div>` : ''}
+      </div>
+
+      ${missing.length > 0 ? `<div style="margin-top:14px;padding:11px 14px;background:rgba(163,45,45,.08);border-radius:7px;font-size:12px;line-height:1.5;">
+        <strong style="color:#A32D2D;">⚠ Faltam ${missing.length} secret${missing.length===1?'':'s'}:</strong><br/>
+        <code style="font-size:11px;">supabase secrets set ${missing.map(k=>k+'=...').join(' ')} --project-ref iycojmhbqfjnupxrrofa</code>
+      </div>` : ''}
+    </div>`;
+  if (typeof appAlert === 'function') {
+    appAlert('Diagnóstico de gravação', html, { icon: '🔍', html: true });
+  } else {
+    alert('Diagnóstico:\n' + JSON.stringify(infoR, null, 2));
+  }
+  document.getElementById('bunko-orphan-modal')?.classList.remove('is-open');
+}
+
+// Auto-check periódico: a cada 60s checa recordings em processing há +5min
+let _bunkoAutoCheckTimer = null;
+function _bunkoStartAutoCheck() {
+  if (_bunkoAutoCheckTimer) return;
+  _bunkoAutoCheckTimer = setInterval(async () => {
+    try {
+      const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+      if (!c) return;
+      const cutoff = new Date(Date.now() - 5*60*1000).toISOString();
+      const { data } = await c.from('tatame_recordings')
+        .select('id, livekit_egress_id')
+        .in('status', ['processing', 'recording', 'starting'])
+        .not('livekit_egress_id', 'is', null)
+        .lt('started_at', cutoff)
+        .limit(5);
+      // Re-checa silenciosamente cada uma
+      for (const rec of (data || [])) {
+        await _bunkoCheckRecordingSilent(rec.id).catch(()=>{});
+      }
+    } catch(_){}
+  }, 60 * 1000);
+}
+async function _bunkoCheckRecordingSilent(recordingId) {
+  // Versão silenciosa do check — só atualiza o banco, sem modals
+  const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+  if (!cfg?.url) return;
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+  const { data: rec } = await c.from('tatame_recordings').select('livekit_egress_id').eq('id', recordingId).single();
+  if (!rec?.livekit_egress_id) return;
+  const { data: { session } } = await c.auth.getSession();
+  const jwt = session?.access_token;
+  await fetch(`${cfg.url}/functions/v1/livekit-recording/check`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwt },
+    body: JSON.stringify({ egress_id: rec.livekit_egress_id, recording_id: recordingId }),
+  }).catch(()=>{});
+}
+
 // Consulta status do Egress diretamente na LiveKit Cloud (não depende de webhook)
 async function _bunkoCheckRecording(recordingId) {
   const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
@@ -50204,15 +50361,7 @@ async function _bunkoCheckRecording(recordingId) {
           'warning');
       } else if (status === 'unknown') {
         // LiveKit não acha mais esse egress — provavelmente foi descartado.
-        const ok = await appConfirm('Gravação não encontrada na LiveKit',
-          `A LiveKit Cloud não tem mais registro dessa gravação. Causas comuns:\n\n• Upload pro R2 falhou e foi descartado\n• Secrets do R2 (bucket/endpoint/keys) podem estar incorretos\n• Egress passou tempo demais sem completar\n\nMarcar essa gravação como falha pra liberar?`,
-          { okLabel: 'Marcar como failed', cancelLabel: 'Manter', danger: true });
-        if (ok) {
-          await c.from('tatame_recordings')
-            .update({ status: 'failed', ended_at: new Date().toISOString() })
-            .eq('id', recordingId);
-          _showKanWarning('Marcado', 'Gravação marcada como falha. Pode arquivar ou excluir.', 'info');
-        }
+        _bunkoOpenOrphanCleanupModal(recordingId);
       } else {
         _showKanWarning('Ainda processando',
           `Status atual: <strong>${status}</strong>. Tente de novo em alguns minutos.`,
