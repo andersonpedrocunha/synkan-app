@@ -52716,9 +52716,16 @@ async function _bunkoChangePageIcon(pageId) {
     if (!c) throw new Error('Supabase não disponível');
     // CRÍTICO: a RPC update_bunko_page tem 6 params (id, title, html, text, icon, summary).
     // Mandamos só os campos que mudaram — os outros vão como undefined e a RPC usa COALESCE.
+    // CRÍTICO: Postgres tem 2 versões da function (5 e 6 params). Mandar TODOS
+    // os params explícitos (null pros não-usados) força ele a escolher a versão
+    // de 6 params, evitando "Could not choose the best candidate function".
     const { error } = await c.rpc('update_bunko_page', {
       p_id: pageId,
+      p_title: null,
+      p_content_html: null,
+      p_content_text: null,
       p_icon: choice,
+      p_summary: null,
     });
     if (error) throw error;
     // Sucesso — toast leve
