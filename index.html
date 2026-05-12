@@ -13498,6 +13498,32 @@ function _seedExampleData() {
             notes:'Lead de exemplo capturado via formulário.',
             createdAt: now, updatedAt: now,
           },
+          {
+            id:'c_ex_parceiro',
+            name:'[Exemplo] Parceiro Estratégico',
+            type:'parceiro',
+            taxId:'12.345.678/0001-90',
+            email:'partner@aliado.com',
+            phone:'(11) 96000-0004',
+            address:'Belo Horizonte · MG',
+            contactPerson:'João Almeida',
+            role:'Diretor Comercial',
+            notes:'Parceria de revenda — reunião agendada pra próxima semana.',
+            createdAt: now, updatedAt: now,
+          },
+          {
+            id:'c_ex_cliente_recorrente',
+            name:'[Exemplo] Cliente Recorrente',
+            type:'cliente',
+            taxId:'98.765.432/0001-01',
+            email:'recorrente@cliente.com',
+            phone:'(11) 95000-0005',
+            address:'Curitiba · PR',
+            contactPerson:'Ana Silva',
+            role:'Compras',
+            notes:'Cliente desde 2024 — contrato anual renovado. Alto NPS.',
+            createdAt: now, updatedAt: now,
+          },
         ];
         sample.forEach(c => _contacts.push(c));
         if (typeof _saveContacts === 'function') _saveContacts();
@@ -13582,6 +13608,58 @@ function _seedExampleData() {
       }
     }
 
+    // ── 5. Board Kanban regular (Marketing — pra mostrar como funciona) ──
+    if (typeof allBoards === 'object' && typeof _genBoardId === 'function') {
+      const hasKanbanExample = Object.values(allBoards).some(b =>
+        (b.name||'').startsWith('[Exemplo] Marketing') || (b.name||'').startsWith('[Exemplo] Vendas Q'));
+      if (!hasKanbanExample) {
+        try {
+          const bId = _genBoardId();
+          const today = new Date();
+          const inDays = (n) => { const d = new Date(today); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+          const sampleCards = [
+            { id:1, name:'Escrever artigo "Onboarding 90 dias"',  col:'backlog',     priority:'media', deadline:inDays(7),  tagIds:['t1'] },
+            { id:2, name:'Briefing pra campanha Q2',               col:'backlog',     priority:'media', deadline:inDays(10), tagIds:['t2'] },
+            { id:3, name:'Reels TikTok semanal',                   col:'em_progresso',priority:'alta',  deadline:inDays(2),  tagIds:['t3'] },
+            { id:4, name:'Webinar — Lançamento Q2',                col:'em_progresso',priority:'alta',  deadline:inDays(14), tagIds:['t2'] },
+            { id:5, name:'Revisar landing page de planos',         col:'revisao',     priority:'media', deadline:inDays(3),  tagIds:['t1'] },
+            { id:6, name:'Newsletter mensal #08',                  col:'feito',       priority:'baixa', deadline:inDays(-5), tagIds:['t1'] },
+            { id:7, name:'Anúncios Meta — Black Friday',           col:'feito',       priority:'alta',  deadline:inDays(-12),tagIds:['t2'] },
+          ].map(c => ({
+            ...c,
+            tagIds: c.tagIds || [],
+            createdAt: new Date().toISOString(),
+            subtasks: [], threads: [], attachments: [], customFieldValues: {},
+          }));
+          allBoards[bId] = {
+            name: '[Exemplo] Marketing',
+            icon: '📣',
+            cards: sampleCards,
+            COLS: [
+              { id:'backlog',     name:'Backlog' },
+              { id:'em_progresso',name:'Em progresso' },
+              { id:'revisao',     name:'Em revisão' },
+              { id:'feito',       name:'Feito' },
+            ],
+            team: typeof _initialTeam === 'function' ? _initialTeam() : [],
+            globalTags: [
+              { id:'t1', text:'Conteúdo',  color:(typeof COLORS!=='undefined' ? COLORS[2] : '#A8C5E8') },
+              { id:'t2', text:'Campanha',  color:(typeof COLORS!=='undefined' ? COLORS[4] : '#F5C16C') },
+              { id:'t3', text:'Social',    color:(typeof COLORS!=='undefined' ? COLORS[6] : '#E2A4D8') },
+            ],
+            customFields: [],
+            nCard: sampleCards.length + 1,
+            nTag: 4,
+            kanbanConfig: (typeof DEFAULT_CONFIG !== 'undefined' ? { ...DEFAULT_CONFIG, cardFields: { ...DEFAULT_CARD_FIELDS } } : {}),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          if (typeof saveData === 'function') saveData();
+          summary.boards = (summary.boards || 0) + 1;
+        } catch(e) { console.warn('[seed] board kanban falhou:', e); }
+      }
+    }
+
     console.log('[seed] dados de exemplo criados:', summary);
     return summary;
   } catch(e) {
@@ -13590,25 +13668,141 @@ function _seedExampleData() {
   }
 }
 
+// ━━━ Seed CLOUD (best-effort): Bunko pages + Synconnect deals/leads ━━━
+// Roda DEPOIS do seed local. Pode falhar silenciosamente se user não tá em modo
+// Supabase ou se RPCs não existem. Não bloqueia a UX.
+async function _seedExampleDataCloud() {
+  let cloudSummary = { bunko_pages: 0, transcripts: 0, deals: 0, leads: 0 };
+  try {
+    const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() :
+              (typeof _ensureSupaClient === 'function' ? _ensureSupaClient() : null);
+    if (!c || !supaUser) return cloudSummary;
+
+    // ── Bunko: 2 páginas de exemplo (templates + uma transcrição simulada) ──
+    try {
+      // Verifica se já tem página exemplo
+      const { data: existing } = await c.from('bunko_pages')
+        .select('id, title')
+        .ilike('title', '[Exemplo]%')
+        .eq('owner_id', supaUser.id)
+        .is('deleted_at', null)
+        .limit(1);
+      if (!existing || existing.length === 0) {
+        // Página 1: Guia rápido (markdown)
+        try {
+          const { data: p1 } = await c.rpc('create_bunko_page', {
+            p_folder_id: null,
+            p_title: '[Exemplo] Guia rápido — Como usar o Synkan',
+            p_icon: '📘',
+            p_content: '# Bem-vindo ao Synkan\n\nEsse é um exemplo de página no Bunko Box. Você pode:\n\n- **Editar** clicando no texto\n- **Anexar arquivos** arrastando aqui dentro\n- **Pinnar com ⚡** pra ficar no topo\n- **Exportar pra Word** no menu dos ⋯\n\n## Estrutura recomendada\n\n1. Decisões importantes\n2. Atas de reunião (vêm automático do Mestre Kan)\n3. Templates de processos\n4. Knowledge base do time\n\n> Apague essa página quando não precisar mais — está marcada com [Exemplo].',
+            p_summary: 'Guia rápido de exemplo no Bunko Box',
+          });
+          if (p1) cloudSummary.bunko_pages++;
+        } catch(_){}
+        // Página 2: Transcrição simulada do Mestre Kan
+        try {
+          const { data: p2 } = await c.rpc('create_bunko_page', {
+            p_folder_id: null,
+            p_title: '[Exemplo] Mestre Kan · Reunião de alinhamento Q2',
+            p_icon: '🧘',
+            p_content: '# Transcrição · Reunião de alinhamento Q2\n\n*Gravada via Mestre Kan ao vivo no Tatame · 38 min*\n\n---\n\n**Ana:** Pessoal, bom dia. Vamos começar pelo overview do trimestre. Como tá a performance dos KRs?\n\n**João:** A gente bateu 87% do NPS, ainda falta 13 pontos pra meta. Tempo de resposta caiu pra 3h em média.\n\n**Ana:** Bom. O risco principal hoje é o backlog de suporte. Tem 47 tickets abertos há mais de 5 dias.\n\n**Maria:** Eu sugiro contratarmos um analista de suporte júnior. Calculei o ROI — se zerar o backlog, libera duas pessoas seniors pra projetos estratégicos.\n\n**Ana:** Aprovado. Maria, monta a vaga até sexta. João, prepara o draft do email de aprovação pro RH.\n\n**João:** Combinado. Outra coisa: a integração com a Granatum tá pronta pra QA.\n\n**Ana:** Excelente. Quando vocês acham que conseguem deployar?\n\n**João:** Próxima quinta, se nada quebrar no staging.\n\n---\n\n## Ações extraídas (manualmente)\n\n- [ ] Maria: criar vaga de analista de suporte júnior — prazo sexta\n- [ ] João: draft de email de aprovação pro RH — prazo segunda\n- [ ] João: deploy da integração Granatum — prazo quinta\n\n## Decisões\n\n- Contratação de 1 analista júnior aprovada\n- Deploy Granatum agendado pra quinta\n\n*Você pode clicar em "Extrair ações" no menu pra Mestre Kan estruturar isso automaticamente (consome IA).*',
+            p_summary: 'Reunião de alinhamento Q2 — overview KRs, aprovação contratação, deploy Granatum',
+          });
+          if (p2) cloudSummary.transcripts++;
+        } catch(_){}
+      }
+    } catch(e) { console.warn('[seed] bunko pages cloud falhou:', e?.message); }
+
+    // ── Synconnect: deal + lead de captação (best-effort) ──
+    try {
+      // Cria 1 deal de exemplo se RPC existir
+      try {
+        const { data: existingDeals } = await c.from('synconnect_deals')
+          .select('id').ilike('title','[Exemplo]%').eq('owner_id', supaUser.id).limit(1);
+        if (!existingDeals || existingDeals.length === 0) {
+          // Acha 1 contato pra associar
+          const { data: someContact } = await c.from('synconnect_contacts')
+            .select('id').eq('owner_id', supaUser.id).limit(1);
+          const { data: stages } = await c.from('synconnect_stages')
+            .select('id, name, order_idx').eq('owner_id', supaUser.id).order('order_idx').limit(2);
+          const stageId = stages?.[0]?.id;
+          if (stageId) {
+            const { data: deal } = await c.from('synconnect_deals').insert({
+              title: '[Exemplo] Renovação contrato anual',
+              value: 28000,
+              currency: 'BRL',
+              stage_id: stageId,
+              owner_id: supaUser.id,
+              expected_close_at: new Date(Date.now() + 30*24*3600*1000).toISOString().slice(0,10),
+              notes: 'Cliente recorrente. Reunião agendada pra fechar próxima semana.',
+            }).select().single();
+            if (deal && someContact?.[0]?.id) {
+              try {
+                await c.from('synconnect_deal_contacts').insert({
+                  deal_id: deal.id, contact_id: someContact[0].id, role: 'decisor'
+                });
+              } catch(_){}
+              cloudSummary.deals++;
+            }
+          }
+        }
+      } catch(e) { console.warn('[seed] deal cloud falhou:', e?.message); }
+
+      // Cria 1 lead de captação pendente
+      try {
+        const { data: existingLeads } = await c.from('synconnect_leads_inbox')
+          .select('id').ilike('name','[Exemplo]%').eq('owner_id', supaUser.id).limit(1);
+        if (!existingLeads || existingLeads.length === 0) {
+          await c.from('synconnect_leads_inbox').insert({
+            owner_id: supaUser.id,
+            name: '[Exemplo] Marina Souza',
+            email: 'marina@empresax.com',
+            phone: '(11) 99100-2020',
+            company: 'Empresa X Ltda',
+            message: 'Olá! Vi a apresentação do Synkan e queria entender melhor como funciona o módulo de Synconnect. Posso agendar uma demo?',
+            source: 'formulário site',
+            status: 'pending',
+          });
+          cloudSummary.leads++;
+        }
+      } catch(e) { console.warn('[seed] lead cloud falhou:', e?.message); }
+    } catch(e) { console.warn('[seed] synconnect cloud falhou:', e?.message); }
+  } catch(e) { console.warn('[seed] cloud geral falhou:', e?.message); }
+  console.log('[seed] cloud:', cloudSummary);
+  return cloudSummary;
+}
+
 // Chamado a partir do botão "Carregar dados de exemplo" em Settings.
 async function _settingsLoadExampleData() {
   if (typeof appConfirm !== 'function') return;
   const ok = await appConfirm(
     'Carregar dados de exemplo?',
-    'Vou criar 1 board financeiro <strong>Zai</strong>, 1 <strong>OKR</strong>, 3 contatos no <strong>Synconnect</strong> e 1 <strong>Lab</strong> — todos prefixados com <strong>[Exemplo]</strong>. Você pode apagar individualmente quando não precisar mais.',
-    { icon:'✨', okLabel:'Carregar exemplos' }
+    'Vou criar exemplos em todos os módulos relevantes: <strong>1 Kanban (Marketing)</strong>, <strong>1 Zai (Financeiro)</strong>, <strong>1 OKR</strong>, <strong>5 contatos + 1 deal + 1 lead</strong> no Synconnect, <strong>1 Lab</strong>, e <strong>2 páginas no Bunko Box</strong> (incluindo uma transcrição simulada). Todos prefixados com <strong>[Exemplo]</strong> — apague individualmente quando não precisar.',
+    { icon:'✨', okLabel:'Carregar exemplos', html:true }
   );
   if (!ok) return;
+
+  // Seed local (síncrono — boards, OKRs, contatos, canvas)
   const s = _seedExampleData();
-  const total = s.boards + s.canvas + s.okrs + s.contacts;
+
+  // Seed cloud (async — Bunko + Synconnect deals/leads, best-effort)
+  let cloud = { bunko_pages:0, transcripts:0, deals:0, leads:0 };
+  try { cloud = await _seedExampleDataCloud(); } catch(_){}
+
+  const total = (s.boards||0) + (s.canvas||0) + (s.okrs||0) + (s.contacts||0)
+              + cloud.bunko_pages + cloud.transcripts + cloud.deals + cloud.leads;
   if (typeof appAlert === 'function') {
     if (total > 0) {
       const parts = [];
-      if (s.boards)   parts.push(`✓ 1 Zai board`);
-      if (s.okrs)     parts.push(`1 OKR`);
-      if (s.contacts) parts.push(`${s.contacts} contatos`);
-      if (s.canvas)   parts.push(`1 Lab`);
-      appAlert('Exemplos carregados', parts.join(' · ') || 'Pronto.', { icon:'✓' });
+      if (s.boards)         parts.push(`${s.boards} board${s.boards>1?'s':''}`);
+      if (s.okrs)           parts.push(`1 OKR`);
+      if (s.contacts)       parts.push(`${s.contacts} contatos`);
+      if (s.canvas)         parts.push(`1 Lab`);
+      if (cloud.bunko_pages)parts.push(`${cloud.bunko_pages} página Bunko`);
+      if (cloud.transcripts)parts.push(`1 transcrição Mestre Kan`);
+      if (cloud.deals)      parts.push(`1 deal`);
+      if (cloud.leads)      parts.push(`1 lead captação`);
+      appAlert('Exemplos carregados', `<strong>Criado:</strong><br/>${parts.map(p => '✓ '+p).join('<br/>')}<br/><br/>Tudo prefixado com [Exemplo] — apague quando quiser.`, { icon:'✓', html:true });
     } else {
       appAlert('Já existem exemplos', 'Seus módulos já têm dados marcados como [Exemplo]. Apague-os antes pra recarregar.', { icon:'ℹ️' });
     }
@@ -13618,6 +13812,7 @@ async function _settingsLoadExampleData() {
     if (currentTab === 'okrs') { try { renderOKRs(); } catch(e){} }
     if (currentTab === 'registry') { try { renderRegistry(); } catch(e){} }
     if (currentTab === 'canvas') { try { renderCanvasIndex && renderCanvasIndex(); } catch(e){} }
+    if (currentTab === 'bunko' && typeof _bunkoLoadAll === 'function') { try { _bunkoLoadAll(); } catch(e){} }
   }
 }
 
@@ -26841,47 +27036,57 @@ Card a classificar: "${name}"`;
 }
 
 // ── Tour guiado de onboarding ────────────────────────────────────────
-const TOUR_KEY = 'kanban_v8_tour_done';
+const TOUR_KEY = 'kanban_v9_tour_done'; // bump pra mostrar tour atualizado
 const TOUR_STEPS = [
   {
     icon: '👋',
     title: 'Bem-vindo ao Synkan',
-    body: 'Vários kanbans num só lugar. Em 30 segundos você vai dominar o essencial.',
+    body: 'Workspace completo pra rodar seu negócio: kanbans, CRM, OKRs, financeiro, reuniões com IA e base de conhecimento — tudo conectado. Em 2 minutos você vê tudo.',
   },
   {
     icon: '⌂',
-    title: 'Home — seu painel global',
-    body: 'Ela mostra cards de TODOS os boards: o que é pra hoje, atrasados, sua atividade da semana e o que sua equipe fez hoje. É a tela inicial.',
+    title: 'Home — painel global',
+    body: 'Cards de TODOS os módulos: o que é pra hoje, follow-ups do CRM, gravações pra revisar, metas do mês. É a tela inicial e o seu radar diário.',
   },
   {
     icon: '▤',
-    title: 'My boards & Gallery',
-    body: '<strong>My boards</strong> tem todos os seus kanbans. <strong>Gallery</strong> tem 7 templates prontos (Recebimentos, Dev, Marketing…) — clica em "Ativar" e o board já vem populado.',
+    title: 'Boards, OKRs e Zai (financeiro)',
+    body: '<strong>Boards</strong> são seus kanbans (Dev, Marketing, etc). <strong>OKRs</strong> rastreiam objetivos com Key Results numéricos. <strong>Zai</strong> são boards financeiros com valor/categoria por card — fluxo de caixa e DRE visuais.',
   },
   {
-    icon: '★',
-    title: 'Board Unificado',
-    body: 'Um tile especial em My boards que junta cards de TODOS os boards numa vista só. Filtre por board, veja listras coloridas identificando origem. Útil pra ter visão geral.',
-  },
-  {
-    icon: '⌘ K',
-    title: 'Atalhos de teclado',
-    body: '<kbd>Cmd+K</kbd> busca tudo. <kbd>N</kbd> novo card. <kbd>?</kbd> mostra todos os atalhos. <kbd>G H</kbd> volta pra Home.',
-  },
-  {
-    icon: '🥋',
-    title: 'Mestre Kan integrado',
-    body: 'Em qualquer card você tem o Mestre Kan, sábio assistente do Synkan: quebra em subtarefas, redige e-mail de cobrança, sugere próxima ação. No Dashboard, ele resume os últimos 7 dias e identifica o que está travado.',
+    icon: '🤝',
+    title: 'Synconnect — CRM completo',
+    body: 'Pipeline kanban arrastável, deals com múltiplos contatos, atividades automáticas, Customer 360 com tudo vinculado (cards, transcrições, mensagens, deals). Captação vira leads que entram automaticamente no funil. Tem metas mensais, funil visual, workflows, webhooks e exportação CSV.',
   },
   {
     icon: '畳',
-    title: 'Tatami — chat e tatame ao vivo',
-    body: '<strong>Tatami</strong> é o módulo de comunicação do Synkan. Tem canais de equipe, DMs e cada canal pode subir num <strong>tatame ao vivo</strong> (voz + workspace compartilhado em tempo real). Click no avatar de qualquer pessoa abre o <strong>Tatami Profile</strong> dela: status, cards em andamento, especialidades. Configurações que afetam o time (como o Selo de Honra) ficam em <kbd>Configurações → Dojo</kbd>.',
+    title: 'Tatami — chat + tatame ao vivo + gravação',
+    body: '<strong>Tatami</strong>: canais de equipe, DMs e <strong>tatame ao vivo</strong> (vídeo + voz + workspace compartilhado). Pode <strong>gravar a reunião em MP4</strong>, compartilhar tela do Synkan dentro da gravação, e ter os <strong>efeitos de câmera</strong> (Sumi-ê, Hokusai, Sakura).',
   },
   {
-    icon: '🎉',
-    title: 'Pronto pra começar!',
-    body: 'Crie seu primeiro card com <kbd>N</kbd> ou explore um template na Gallery. Boa produtividade!',
+    icon: 'mk', // marker especial — render usa avatar do Mestre Kan
+    title: 'Mestre Kan — transcrição ao vivo',
+    body: 'No tatame, ativa o Mestre Kan: ele <strong>transcreve em tempo real</strong> tudo que é dito. Você assiste a reunião normalmente e no fim sai um <strong>pergaminho com a transcrição completa</strong>, salva automaticamente no Bunko Box. Tudo gratuito.',
+  },
+  {
+    icon: '📦',
+    title: 'Bunko Box — base de conhecimento',
+    body: 'Tudo que vira "memória" mora aqui: páginas markdown editáveis, transcrições de reuniões, gravações MP4 pra rever, arquivos arrastados. Pinne com <strong>⚡ Acesso rápido</strong>. Os ⋯ tem opções de baixar, mover, exportar Word — e nas gravações tem <strong>baixar MP4</strong>.',
+  },
+  {
+    icon: '⚔️',
+    title: 'Onde a katana corta (IA paga)',
+    body: 'Funções que <strong>consomem chamada</strong> do seu pacote: extrair ações da transcrição, resumir página, gerar resumo de contato 360, briefing diário do CRM, próxima ação por deal. Sempre opt-in — você clica explicitamente. Veja a lista completa em <strong>menu → O Caminho do Mestre</strong>.',
+  },
+  {
+    icon: '⌘',
+    title: 'Atalhos de produtividade',
+    body: '<kbd>Cmd+K</kbd> busca global (contatos, deals, páginas, cards, transcrições). <kbd>N</kbd> novo card. <kbd>?</kbd> lista todos os atalhos. <kbd>G S</kbd> abre Configurações.',
+  },
+  {
+    icon: '🎴',
+    title: 'Pronto pra subir no tatame',
+    body: 'Em <strong>Configurações → Conta</strong> você pode carregar <strong>dados de exemplo</strong> prefixados [Exemplo] — board financeiro, OKR, contatos, leads, transcrição demo. Apague quando quiser. Bons treinos.',
   },
 ];
 
@@ -26903,9 +27108,10 @@ function startTour() {
 
 function renderTourStep() {
   const s = TOUR_STEPS[_tourStep]; if (!s) return finishTour();
-  // Se o ícone for o do Mestre Kan, mostra a imagem dele
-  const iconHTML = (s.icon === '🥋')
-    ? `<div style="display:flex;justify-content:center;margin-bottom:12px;"><img class="kan-avatar xl" src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" onerror="this.outerHTML='<div style=\\'font-size:42px;\\'>🥋</div>'"/></div>`
+  // 'mk' ou '🥋' → mostra a arte oficial do Mestre Kan; senão renderiza o emoji/símbolo
+  const useMestreAvatar = s.icon === 'mk' || s.icon === '🥋';
+  const iconHTML = useMestreAvatar
+    ? `<div style="display:flex;justify-content:center;margin-bottom:12px;"><img class="kan-avatar xl" src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" style="width:88px;height:88px;border-radius:50%;border:2px solid #BC002D;box-shadow:0 6px 18px rgba(0,0,0,.25);" onerror="this.outerHTML='<div style=\\'font-size:42px;\\'>🧘</div>'"/></div>`
     : `<div style="font-size:42px;margin-bottom:12px;">${s.icon}</div>`;
   document.getElementById('tour-content').innerHTML = `
     ${iconHTML}
