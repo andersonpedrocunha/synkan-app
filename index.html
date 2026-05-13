@@ -23825,11 +23825,12 @@ function _mkDojoHTML() {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 function _findDuplicateBoardGroups() {
+  // Versão síncrona — só pra check rápido no Settings (lê do localStorage/memória)
   if (typeof allBoards !== 'object' || !allBoards) return [];
   const byName = new Map();
   Object.entries(allBoards).forEach(([id, b]) => {
     if (id === 'unified' || !b || !b.name) return;
-    if (b.archived) return; // ignora arquivados
+    if (b.archived) return;
     const key = (b.name || '').trim().toLowerCase();
     if (!key) return;
     if (!byName.has(key)) byName.set(key, []);
@@ -23842,20 +23843,74 @@ function _findDuplicateBoardGroups() {
   return groups;
 }
 
-async function openDedupeBoardsModal() {
-  const groups = _findDuplicateBoardGroups();
-  if (groups.length === 0) {
-    if (typeof appAlert === 'function') {
-      appAlert('Sem duplicados', 'Você não tem boards com nomes duplicados. Tudo limpo.', { icon:'✓' });
+// Versão CLOUD-FIRST — busca do Supabase direto pra ver duplicados REAIS no banco
+async function _findDuplicateBoardGroupsCloud() {
+  try {
+    const c = (typeof _getOrCreateIsolatedClient === 'function') ? await _getOrCreateIsolatedClient() : _ensureSupaClient();
+    if (!c || !supaUser?.id) return [];
+    const { data: boards, error } = await c.from('boards')
+      .select('id,name,archived,created_at,updated_at')
+      .eq('owner_id', supaUser.id);
+    if (error || !boards) { console.warn('[dedupe-cloud]', error); return []; }
+    // Conta cards por board
+    const boardIds = boards.map(b => b.id);
+    let cardCounts = {};
+    let assignedCounts = {};
+    try {
+      const { data: cards } = await c.from('cards')
+        .select('board_id,assigned_user_id').in('board_id', boardIds);
+      (cards||[]).forEach(c => {
+        cardCounts[c.board_id] = (cardCounts[c.board_id]||0) + 1;
+        if (c.assigned_user_id) assignedCounts[c.board_id] = (assignedCounts[c.board_id]||0) + 1;
+      });
+    } catch(_){}
+    const byName = new Map();
+    boards.forEach(b => {
+      if (b.archived) return;
+      const key = (b.name || '').trim().toLowerCase();
+      if (!key) return;
+      if (!byName.has(key)) byName.set(key, []);
+      byName.get(key).push({
+        id: b.id,
+        name: b.name,
+        cards: Array(cardCounts[b.id]||0), // mantém compatibilidade com .length
+        _assignedCount: assignedCounts[b.id]||0,
+        createdAt: b.created_at,
+        updatedAt: b.updated_at,
+      });
+    });
+    const groups = [];
+    for (const [name, list] of byName.entries()) {
+      if (list.length > 1) groups.push({ name, boards: list });
     }
-    return;
+    return groups;
+  } catch(e) { console.warn('[dedupe-cloud] falhou:', e?.message); return []; }
+}
+
+async function openDedupeBoardsModal() {
+  // Mostra loading enquanto busca do cloud (mais autoritativo que o local)
+  if (typeof _showKanWarning === 'function') {
+    _showKanWarning('Buscando duplicados…', 'Verificando o banco direto.', 'info');
   }
+  // CLOUD-FIRST: busca direto do Supabase (cobre boards que ainda não estão em allBoards)
+  const groups = await _findDuplicateBoardGroupsCloud();
+  if (groups.length === 0) {
+    // Fallback pra checagem local caso cloud falhe
+    const localGroups = _findDuplicateBoardGroups();
+    if (localGroups.length === 0) {
+      if (typeof appAlert === 'function') {
+        appAlert('Sem duplicados', 'Você não tem boards com nomes duplicados no banco. Tudo limpo.', { icon:'✓' });
+      }
+      return;
+    }
+  }
+  const finalGroups = groups.length > 0 ? groups : _findDuplicateBoardGroups();
   let ov = document.getElementById('dedupe-boards-ov');
   if (ov) ov.remove();
   ov = document.createElement('div');
   ov.id = 'dedupe-boards-ov';
   ov.className = 'dedupe-ov';
-  ov.innerHTML = _dedupeBoardsHTML(groups);
+  ov.innerHTML = _dedupeBoardsHTML(finalGroups);
   document.body.appendChild(ov);
   requestAnimationFrame(() => ov.classList.add('is-open'));
   ov.addEventListener('click', e => { if (e.target === ov) closeDedupeBoardsModal(); });
@@ -23883,7 +23938,10 @@ function _dedupeBoardsHTML(groups) {
         <div class="dedupe-rows">
           ${sorted.map((b, bi) => {
             const cardCount = (b.cards||[]).length;
-            const assignedCount = (b.cards||[]).filter(c => c.assignedUserId).length;
+            // _assignedCount vem da query cloud; senão filtra do array local
+            const assignedCount = typeof b._assignedCount === 'number'
+              ? b._assignedCount
+              : (b.cards||[]).filter(c => c.assignedUserId).length;
             const isCurrent = b.id === currentBoardId;
             return `
               <label class="dedupe-row ${bi === 0 ? 'is-recommended' : ''}">
