@@ -3765,7 +3765,8 @@ body.density-compact .col{padding:7px;}
 .beltup-kan{width:80px;height:80px;border-radius:50%;margin:0 auto 14px;border:3px solid var(--belt-color,#FFD56B);box-shadow:0 0 0 4px rgba(0,0,0,.4),0 0 30px var(--belt-color,#FFD56B);object-fit:cover;}
 .beltup-h{font-size:13px;color:#A8A4D8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;font-weight:600;}
 .beltup-belt{font-size:30px;font-weight:700;color:#fff;line-height:1.1;margin-bottom:6px;letter-spacing:-0.01em;}
-.beltup-title{font-size:15px;color:#FFD56B;font-weight:500;margin-bottom:18px;}
+.beltup-title{font-size:15px;color:#FFD56B;font-weight:500;margin-bottom:14px;}
+.beltup-stripes{display:inline-flex;align-items:center;gap:3px;margin-bottom:16px;padding:6px 12px;background:rgba(0,0,0,.35);border-radius:999px;}
 .beltup-quote{font-size:13.5px;color:#D8D4F2;font-style:italic;line-height:1.55;margin-bottom:24px;padding:14px 16px;background:rgba(255,255,255,.05);border-radius:10px;border-left:3px solid var(--belt-color,#FFD56B);}
 .beltup-btn{background:#fff;color:#1a1a2e;border:none;padding:10px 26px;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:transform .12s;}
 .beltup-btn:hover{transform:scale(1.04);}
@@ -3809,6 +3810,10 @@ body.density-compact .col{padding:7px;}
 .dojo-hero-title{font-size:28px;font-weight:700;letter-spacing:-0.01em;line-height:1.1;margin-bottom:6px;text-shadow:0 2px 10px rgba(0,0,0,.6);}
 .dojo-hero-sub{font-size:14px;color:#E5E1F8;text-shadow:0 1px 5px rgba(0,0,0,.45);}
 .dojo-hero-sub strong{color:#fff;}
+/* ━━ Fitas douradas crescentes (dan 1-10) ━━ */
+.dojo-hero-stripes{display:inline-flex;align-items:center;gap:3px;margin-bottom:8px;padding:5px 10px;background:rgba(0,0,0,.35);border-radius:999px;backdrop-filter:blur(4px);}
+.dojo-stripe{display:inline-block;width:6px;height:14px;border-radius:1.5px;box-shadow:0 1px 2px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.25);}
+.dojo-stripe-label{margin-left:7px;font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:13px;color:#FFD700;letter-spacing:.04em;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.6);}
 /* ━━ Card de Conquistas Sazonais no Dojo (春 夏 秋 冬) ━━ */
 .dojo-seasonal-card{background:linear-gradient(135deg,rgba(255,255,255,.85),rgba(245,232,200,.50));border:1px solid var(--color-border-tertiary);border-top:4px solid var(--season-color,#C19A3A);border-radius:12px;padding:20px 22px;margin:18px 0;box-shadow:0 2px 10px rgba(58,36,16,.05);position:relative;overflow:hidden;}
 .dojo-seasonal-card::before{content:'';position:absolute;top:-30px;right:-20px;width:160px;height:160px;background:radial-gradient(circle,var(--season-color,#C19A3A) 0%,transparent 70%);opacity:.10;pointer-events:none;}
@@ -24467,7 +24472,7 @@ const SYN_GLOSSARY = [
   { term:'規',  romaji:'ki',           meaning:'regra · padrão',                 context:'Aparece em Workflows e regras de automação do Synconnect.', category:'kanji' },
   { term:'勲章', romaji:'kunshō',      meaning:'medalha · condecoração',         context:'Marca achievements/conquistas no Dojo.', category:'kanji' },
   { term:'級',  romaji:'kyū',          meaning:'grau · faixa de aprendiz',       context:'Sistema kyu (9º-1º) das artes marciais. No Synkan: faixas Branca, Amarela, Laranja, Verde.', category:'kanji' },
-  { term:'段',  romaji:'dan',          meaning:'grau · faixa de mestre',         context:'Sistema dan (1º-10º) acima do kyu. No Synkan: faixas Preta 1º dan e 2º dan.', category:'kanji' },
+  { term:'段',  romaji:'dan',          meaning:'grau · faixa de mestre',         context:'Sistema dan (1º-10º) acima do kyu. No Synkan: faixas Preta 1° dan (Shodan) até 10° dan (Jūdan/Meijin). Cada degrau exige prática sustentada por meses/anos.', category:'kanji' },
 
   // ─── Termos compostos / módulos ───
   { term:'Tatami',     romaji:'tatami',    meaning:'esteira do dojo',           context:'Módulo de chat + reunião ao vivo. Tem canais, DMs e o "tatame ao vivo" — sala com vídeo HD, voz e workspace compartilhado.', category:'modulo' },
@@ -24487,7 +24492,7 @@ const SYN_GLOSSARY = [
   { term:'Sumi-ê',     native:'墨絵',     romaji:'sumi-e',    meaning:'pintura a nanquim', context:'Estilo de pintura japonesa em preto e branco. Um dos efeitos de câmera do Tatame.', category:'conceito' },
   { term:'Hokusai',    romaji:'hokusai',   meaning:'pintor (Edo)',              context:'Katsushika Hokusai — autor da famosa "A Grande Onda". Inspira o fundo do Mapa do Tatami e efeito de câmera.', category:'conceito' },
   { term:'Selo de Honra', romaji:'honra',  meaning:'honor seal',                context:'Indicador de prazos cumpridos. % de cards entregues no prazo nos últimos 30 dias. Desativado por padrão (pressão).', category:'conceito' },
-  { term:'Faixa',      romaji:'obi',       meaning:'cinturão',                  context:'Sistema de progressão por XP — Branca, Amarela, Laranja, Verde, Azul, Roxa, Marrom, Preta 1º e 2º dan.', category:'conceito' },
+  { term:'Faixa',      romaji:'obi',       meaning:'cinturão',                  context:'Sistema de progressão por XP — Branca, Amarela, Laranja, Verde, Azul, Roxa, Marrom, depois Preta com 10 graduações dan (Shodan 1° → Jūdan 10°/Meijin). Engajamento por anos sem precisar de prestige.', category:'conceito' },
   { term:'Pergaminho', romaji:'maki',      meaning:'rolo · documento',          context:'Como o Mestre Kan chama uma transcrição completa de reunião — guardada no Bunko Box.', category:'conceito' },
   { term:'Katana',     romaji:'katana',    meaning:'espada japonesa',           context:'Símbolo das ações que cortam (consomem IA). "Desembainhar a katana" = usar função paga.', category:'conceito' },
 
@@ -24511,7 +24516,21 @@ const SYN_GLOSSARY = [
   { term:'Azul',    romaji:'ao-obi',      meaning:'sensei iniciante',  context:'Quinta faixa. 5.000 XP. Começou a ensinar.', category:'conceito' },
   { term:'Roxa',    romaji:'murasaki-obi', meaning:'sensei',           context:'Sexta faixa. 11.000 XP. É o caminho, não busca o caminho.', category:'conceito' },
   { term:'Marrom',  romaji:'cha-obi',     meaning:'mestre',            context:'Sétima faixa. 22.000 XP. Sustenta os que vêm depois.', category:'conceito' },
-  { term:'Preta',   romaji:'kuro-obi',    meaning:'grão-mestre',       context:'Faixa preta. 45.000 XP (1° dan), 90.000 (2° dan). Sinal de que agora está pronto pra começar de verdade.', category:'conceito' },
+  { term:'Preta',   romaji:'kuro-obi',    meaning:'grão-mestre',       context:'Faixa preta com 10 graduações dan: 1° Shodan (45k XP) → 10° Jūdan/Meijin (1.7M XP). Cada dan tem visual próprio (fitas douradas crescentes) e título formal: 1-3 sem título, 4-5 Renshi (錬士 · lapidador), 6-7 Kyoshi (教士 · orientador), 8-9 Hanshi (範士 · exemplo), 10 Meijin (名人 · Pessoa de Nome).', category:'conceito' },
+  { term:'Shodan',  native:'初段',         romaji:'shodan',        meaning:'1° dan · iniciante mestre',    context:'Primeira graduação dan. "Iniciante" porque na cultura japonesa a faixa preta marca o COMEÇO do estudo sério, não o fim.', category:'conceito' },
+  { term:'Nidan',   native:'二段',         romaji:'nidan',         meaning:'2° dan · mestre eminente',     context:'Segunda graduação dan. Confirmação do compromisso — anos de prática consistente.', category:'conceito' },
+  { term:'Sandan',  native:'三段',         romaji:'sandan',        meaning:'3° dan · mestre confirmado',   context:'Terceira graduação dan. Domínio técnico já não é mais questionado.', category:'conceito' },
+  { term:'Yondan',  native:'四段',         romaji:'yondan',        meaning:'4° dan · mestre praticante',   context:'Quarta graduação dan. Recebe o título formal Renshi (錬士) — "aquele que se poliu".', category:'conceito' },
+  { term:'Godan',   native:'五段',         romaji:'godan',         meaning:'5° dan · mestre instrutor',    context:'Quinta graduação dan, também Renshi. Tradicionalmente o ponto a partir do qual pode ensinar formalmente.', category:'conceito' },
+  { term:'Rokudan', native:'六段',         romaji:'rokudan',       meaning:'6° dan · mestre professor',    context:'Sexta graduação dan. Recebe o título Kyoshi (教士) — "professor", aquele que orienta o caminho dos outros.', category:'conceito' },
+  { term:'Nanadan', native:'七段',         romaji:'nanadan',       meaning:'7° dan · mestre orientador',   context:'Sétima graduação dan, também Kyoshi. Voz formal do dojo — sua palavra carrega autoridade técnica e moral.', category:'conceito' },
+  { term:'Hachidan',native:'八段',         romaji:'hachidan',      meaning:'8° dan · mestre modelo',       context:'Oitava graduação dan. Recebe o título Hanshi (範士) — "o exemplo". Não é mais o que faz, é o que outros fazem por terem visto.', category:'conceito' },
+  { term:'Kudan',   native:'九段',         romaji:'kudan',         meaning:'9° dan · patriarca',           context:'Nona graduação dan, também Hanshi. Pouquíssimas pessoas no mundo chegam aqui — décadas de prática contínua.', category:'conceito' },
+  { term:'Jūdan',   native:'十段',         romaji:'jūdan',         meaning:'10° dan · grau supremo',       context:'Graduação máxima do sistema dan. Tradicionalmente concedida postumamente ou aos verdadeiramente lendários. No Synkan: 1.7M XP.', category:'conceito' },
+  { term:'Renshi',  native:'錬士',         romaji:'renshi',        meaning:'título formal · 4-5° dan',     context:'Literalmente "homem polido" ou "lapidador". Primeiro dos 3 títulos honorários (Renshi → Kyoshi → Hanshi).', category:'conceito' },
+  { term:'Kyoshi',  native:'教士',         romaji:'kyoshi',        meaning:'título formal · 6-7° dan',     context:'Literalmente "instrutor". Segundo título honorário — quem orienta o caminho dos outros.', category:'conceito' },
+  { term:'Hanshi',  native:'範士',         romaji:'hanshi',        meaning:'título formal · 8-9° dan',     context:'Literalmente "modelo" ou "exemplo". Terceiro e mais alto título honorário comum — referência viva da prática.', category:'conceito' },
+  { term:'Meijin',  native:'名人',         romaji:'meijin',        meaning:'pessoa de nome · 10° dan',     context:'Literalmente "Pessoa de Nome". Reservado pra grandes mestres cujo nome se tornou sinônimo da arte. Usado também no shōgi (xadrez japonês) e no go pra campeões absolutos.', category:'conceito' },
 
   // ─── Efemérides japonesas (vinculadas às conquistas anuais do Dojo) ───
   { term:'Hinamatsuri', native:'雛祭り',  romaji:'hinamatsuri',  meaning:'festival das bonecas',  context:'3 de março · Festival das meninas. Famílias exibem bonecas hina representando a corte imperial Heian em uma plataforma de 7 níveis, pedindo proteção e felicidade pra suas filhas.', category:'conceito' },
@@ -39239,15 +39258,27 @@ try {
 const BELTS = [
   // Thresholds aumentados ~3x. A progressão deve refletir prática sustentada
   // (semanas/meses), não uma sessão concentrada de farm.
-  { idx:0, name:'Branca',           title:'Aluno',                color:'#F5F4F1', color2:'#CFCDC8', threshold:0,     quote:'Toda jornada de mil passos começa com um único passo. Bem-vindo ao dojo.' },
-  { idx:1, name:'Amarela',          title:'Discípulo',            color:'#F5C518', color2:'#D4A40E', threshold:300,   quote:'A semente germina em silêncio. Você plantou a sua. Continue regando.' },
-  { idx:2, name:'Laranja',          title:'Discípulo Avançado',   color:'#FF8C00', color2:'#D4690A', threshold:900,   quote:'O sol nasce devagar mas ilumina o mundo todo. Sua disciplina já se vê.' },
-  { idx:3, name:'Verde',            title:'Senpai',               color:'#3B6D11', color2:'#2A4F0B', threshold:2200,  quote:'Como o bambu, você é flexível e firme. Pronto pra orientar quem chega.' },
-  { idx:4, name:'Azul',             title:'Sensei Iniciante',     color:'#1E68C1', color2:'#0E4A91', threshold:5000,  quote:'O céu não tem limites — mas você sabe respeitar a tempestade. Ensinar é seu próximo passo.' },
-  { idx:5, name:'Roxa',             title:'Sensei',               color:'#6B3FA0', color2:'#4A2870', threshold:11000, quote:'A noite traz sabedoria. Você já não busca o caminho — você é o caminho.' },
-  { idx:6, name:'Marrom',           title:'Mestre',               color:'#6B4226', color2:'#4A2E1A', threshold:22000, quote:'A terra acolhe a raiz mais profunda. Sua presença sustenta os que vêm depois.' },
-  { idx:7, name:'Preta · 1° dan',   title:'Grão-Mestre',          color:'#1A1A1A', color2:'#000000', threshold:45000, quote:'A faixa preta não é um fim. É o sinal de que agora você está pronto pra começar de verdade.' },
-  { idx:8, name:'Preta · 2° dan',   title:'Grão-Mestre Eminente', color:'#1A1A1A', color2:'#FFD700', threshold:90000, quote:'O ouro brilha mesmo no preto. Você já não treina pra vencer — você treina pra inspirar.' },
+  // Dan 3-10 estende o ciclo do "engajamento por anos" — graduações reais do
+  // sistema japonês (Shodan→Jūdan) com títulos Renshi/Kyoshi/Hanshi/Meijin.
+  // Visual: fitas douradas crescentes no avatar de faixa (1→8 stripes).
+  { idx:0, name:'Branca',                          title:'Aluno',                color:'#F5F4F1', color2:'#CFCDC8', threshold:0,       quote:'Toda jornada de mil passos começa com um único passo. Bem-vindo ao dojo.' },
+  { idx:1, name:'Amarela',                         title:'Discípulo',            color:'#F5C518', color2:'#D4A40E', threshold:300,     quote:'A semente germina em silêncio. Você plantou a sua. Continue regando.' },
+  { idx:2, name:'Laranja',                         title:'Discípulo Avançado',   color:'#FF8C00', color2:'#D4690A', threshold:900,     quote:'O sol nasce devagar mas ilumina o mundo todo. Sua disciplina já se vê.' },
+  { idx:3, name:'Verde',                           title:'Senpai',               color:'#3B6D11', color2:'#2A4F0B', threshold:2200,    quote:'Como o bambu, você é flexível e firme. Pronto pra orientar quem chega.' },
+  { idx:4, name:'Azul',                            title:'Sensei Iniciante',     color:'#1E68C1', color2:'#0E4A91', threshold:5000,    quote:'O céu não tem limites — mas você sabe respeitar a tempestade. Ensinar é seu próximo passo.' },
+  { idx:5, name:'Roxa',                            title:'Sensei',               color:'#6B3FA0', color2:'#4A2870', threshold:11000,   quote:'A noite traz sabedoria. Você já não busca o caminho — você é o caminho.' },
+  { idx:6, name:'Marrom',                          title:'Mestre',               color:'#6B4226', color2:'#4A2E1A', threshold:22000,   quote:'A terra acolhe a raiz mais profunda. Sua presença sustenta os que vêm depois.' },
+  // ── Dan 1-10 (faixa preta + graduações ──────────────────────────────
+  { idx:7,  name:'Preta · 1° dan · Shodan',        title:'Iniciante Mestre',     color:'#1A1A1A', color2:'#000000', threshold:45000,   stripes:1,  native:'初段', quote:'A faixa preta não é um fim. É o sinal de que agora você está pronto pra começar de verdade.' },
+  { idx:8,  name:'Preta · 2° dan · Nidan',         title:'Mestre Eminente',      color:'#1A1A1A', color2:'#FFD700', threshold:90000,   stripes:2,  native:'二段', quote:'O ouro brilha mesmo no preto. Você já não treina pra vencer — você treina pra inspirar.' },
+  { idx:9,  name:'Preta · 3° dan · Sandan',        title:'Mestre Confirmado',    color:'#1A1A1A', color2:'#FFC400', threshold:150000,  stripes:3,  native:'三段', quote:'Três anos de chuva também viram floresta. Sua constância já é referência.' },
+  { idx:10, name:'Preta · 4° dan · Renshi',        title:'Mestre Praticante',    color:'#1A1A1A', color2:'#FFB000', threshold:230000,  stripes:4,  native:'四段', formal:'錬士', quote:'Renshi: aquele que poliu a si mesmo. Você já não corrige — você lapida.' },
+  { idx:11, name:'Preta · 5° dan · Renshi',        title:'Mestre Instrutor',     color:'#1A1A1A', color2:'#FF9A00', threshold:340000,  stripes:5,  native:'五段', formal:'錬士', quote:'O rio que ensina é o rio que volta nascente. Ensinar é seu próximo treino.' },
+  { idx:12, name:'Preta · 6° dan · Kyoshi',        title:'Mestre Professor',     color:'#1A1A1A', color2:'#F58220', threshold:500000,  stripes:6,  native:'六段', formal:'教士', quote:'Kyoshi: aquele que orienta. O dojo só prospera porque você está dentro dele.' },
+  { idx:13, name:'Preta · 7° dan · Kyoshi',        title:'Mestre Orientador',    color:'#1A1A1A', color2:'#DC4A1E', threshold:700000,  stripes:7,  native:'七段', formal:'教士', quote:'A palavra exata vale mais que mil técnicas. Sua presença já corrige o ar.' },
+  { idx:14, name:'Preta · 8° dan · Hanshi',        title:'Mestre Modelo',        color:'#1A1A1A', color2:'#BC002D', threshold:950000,  stripes:8,  native:'八段', formal:'範士', quote:'Hanshi: o exemplo. Não é mais o que você faz — é o que outros fazem porque te viram.' },
+  { idx:15, name:'Preta · 9° dan · Hanshi',        title:'Patriarca',            color:'#1A1A1A', color2:'#A32D2D', threshold:1300000, stripes:9,  native:'九段', formal:'範士', quote:'Nove anos de bambu, dez anos de bambu — a raiz só aparece depois. A sua já é floresta.' },
+  { idx:16, name:'Preta · 10° dan · Meijin',       title:'Mestre Supremo',       color:'#1A1A1A', color2:'#8B0000', threshold:1700000, stripes:10, native:'十段 · 名人', formal:'名人', quote:'Meijin: "Pessoa de Nome". Não há mais faixa acima — o caminho continua mas o título acabou. O dojo agora tem seu nome.' },
 ];
 
 function _saveGamif() {
@@ -40124,11 +40155,15 @@ function _showBeltUpModal(belt) {
   const card = document.getElementById('beltup-card');
   if (!ov || !card) return;
   card.style.setProperty('--belt-color', belt.color);
+  const stripesHTML = belt.stripes
+    ? `<div class="beltup-stripes" title="${belt.formal ? belt.formal + ' · ' : ''}${belt.stripes} fita${belt.stripes>1?'s':''} dourada${belt.stripes>1?'s':''}">${Array.from({length: belt.stripes}, () => `<span class="dojo-stripe" style="background:${belt.color2};"></span>`).join('')}${belt.formal ? `<span class="dojo-stripe-label">${belt.formal}</span>` : ''}</div>`
+    : '';
   card.innerHTML = `
     <img class="beltup-kan" src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" onerror="this.outerHTML='<div class=&quot;beltup-kan&quot; style=&quot;background:#fff;display:flex;align-items:center;justify-content:center;font-size:36px;&quot;>🥋</div>'"/>
     <div class="beltup-h">Nova faixa conquistada</div>
     <div class="beltup-belt">Faixa ${belt.name}</div>
     <div class="beltup-title">${belt.title}</div>
+    ${stripesHTML}
     <div class="beltup-quote">"${belt.quote}"<br><span style="opacity:.6;font-size:11px;font-style:normal;letter-spacing:.05em;text-transform:uppercase;display:block;margin-top:6px;">— Mestre Kan</span></div>
     <button class="beltup-btn" onclick="_closeBeltUp()">Continuar treino</button>
   `;
@@ -41808,6 +41843,7 @@ function renderDojo() {
       <div class="dojo-hero-info">
         <div class="dojo-hero-belt">Faixa atual</div>
         <div class="dojo-hero-title">${_esc(gst.name)} · ${_esc(gst.title)}</div>
+        ${gst.stripes ? `<div class="dojo-hero-stripes" title="${gst.formal ? _esc(gst.formal) + ' · ' : ''}${gst.stripes} fita${gst.stripes>1?'s':''} dourada${gst.stripes>1?'s':''} — ${_esc(gst.native||'')}">${Array.from({length: gst.stripes}, () => `<span class="dojo-stripe" style="background:${gst.color2};"></span>`).join('')}${gst.formal ? `<span class="dojo-stripe-label">${_esc(gst.formal)}</span>` : ''}</div>` : ''}
         <div class="dojo-hero-sub">${gst.next?`Faltam <strong style="color:#fff;">${(gst.next.threshold - totalXP).toLocaleString('pt-BR')} XP</strong> pra <strong style="color:#fff;">${gst.next.name}</strong>`:'Você atingiu a faixa máxima 🎉'}</div>
         <div class="dojo-hero-bar"><div class="dojo-hero-bar-fill" style="width:${gst.pct}%;"></div></div>
         <div class="dojo-hero-bar-text">${totalXP.toLocaleString('pt-BR')} XP totais ${gst.next?`· ${gst.xpInBelt}/${gst.xpToNext} nesta faixa`:''}</div>
