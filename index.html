@@ -3620,6 +3620,12 @@ body.density-compact .col{padding:7px;}
 .ppl-drawer-name{font-size:18px;font-weight:600;color:var(--color-text-primary);}
 .ppl-drawer-meta{font-size:12px;color:var(--color-text-tertiary);margin-top:2px;}
 .ppl-drawer-close{background:transparent;border:none;color:var(--color-text-secondary);font-size:20px;cursor:pointer;padding:4px 8px;}
+.ppl-drawer-icon-btn{background:transparent;border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);font-size:15px;cursor:pointer;padding:5px 9px;border-radius:7px;line-height:1;}
+.ppl-drawer-icon-btn:hover{border-color:var(--color-text-primary);color:var(--color-text-primary);background:var(--color-background-secondary);}
+.ppl-drawer-action{background:transparent;border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);font-size:11px;cursor:pointer;padding:5px 10px;border-radius:7px;font-family:var(--font-sans);font-weight:500;display:inline-flex;align-items:center;gap:4px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ppl-drawer-action:hover{border-color:var(--color-text-primary);color:var(--color-text-primary);}
+.ppl-drawer-action.is-warn{border-color:#C19A3A;color:#7A5500;background:rgba(193,154,58,.08);}
+.ppl-drawer-action.is-warn:hover{background:rgba(193,154,58,.18);}
 .ppl-drawer-body{flex:1;overflow-y:auto;padding:18px 22px;}
 .ppl-step-group{margin-bottom:22px;}
 .ppl-step-group-h{font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:8px;}
@@ -3653,6 +3659,10 @@ body.density-compact .col{padding:7px;}
 .ppl-modal-input,.ppl-modal-select{padding:8px 11px;font-size:13px;font-family:inherit;border:0.5px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-primary);color:var(--color-text-primary);outline:none;}
 .ppl-modal-input:focus,.ppl-modal-select:focus{border-color:#BC002D;}
 .ppl-tmpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;max-height:340px;overflow-y:auto;padding-right:4px;}
+/* Editor de etapas — botões inline ✎ e 🗑 */
+.ppl-step-edit-btn{background:transparent;border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:5px 9px;border-radius:6px;line-height:1;flex-shrink:0;transition:all .12s;}
+.ppl-step-edit-btn:hover{border-color:var(--color-text-primary);color:var(--color-text-primary);}
+.ppl-step-edit-btn.is-del:hover{border-color:#BC002D;color:#BC002D;background:#FBEAEB;}
 .ppl-tmpl-card{padding:12px;border:1px solid var(--color-border-tertiary);border-radius:9px;cursor:pointer;font-family:inherit;background:var(--color-background-primary);text-align:left;transition:all .12s;}
 .ppl-tmpl-card.active{border-color:#BC002D;background:#FDF7F3;}
 .ppl-tmpl-card:hover{border-color:var(--color-text-secondary);}
@@ -35773,20 +35783,26 @@ async function renderPeople() {
   _peopleState.loading = true;
   root.innerHTML = `<div class="ppl-wrap"><div class="ppl-empty"><div class="ppl-empty-icon">道</div><div class="ppl-empty-title">Carregando trilhas…</div></div></div>`;
   let loadError = null;
-  // Timeout de segurança: se _peopleLoadAll demorar > 10s, aborta e renderiza
-  // mesmo assim (evita spinner infinito quando algum await trava).
+  // Timeout de segurança 15s. Se passou e a query continua rodando, deixa em
+  // background — quando responder, re-renderiza tudo automaticamente.
+  let loadCompletedAfterTimeout = false;
+  const loadPromise = _peopleLoadAll().then(() => { loadCompletedAfterTimeout = true; });
   try {
     await Promise.race([
-      _peopleLoadAll(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout 10s — checar console')), 10_000))
+      loadPromise,
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout 15s — checar console (network ou RLS)')), 15_000))
     ]);
   } catch(e) {
     loadError = e;
-    console.warn('[people] load falhou:', e?.message || e, e);
+    console.warn('[people] load lento ou falhou:', e?.message || e);
+    // Continua em background — quando completar, re-renderiza com dados frescos
+    loadPromise.then(() => {
+      console.log('[people] dados chegaram tardiamente — re-renderizando');
+      _peopleRenderMain();
+    }).catch(() => {});
   } finally {
     _peopleState.loading = false;
   }
-  // Render principal sempre roda, com fallback de erro se _peopleRenderMain crashar
   try {
     _peopleRenderMain();
   } catch(renderErr) {
@@ -35803,13 +35819,21 @@ async function renderPeople() {
     </div>`;
     return;
   }
-  // Se houve erro no load mas o render conseguiu, mostra banner discreto no topo
-  if (loadError) {
+  // Só mostra o banner se REALMENTE não temos dados após o timeout. Se as
+  // queries lentas tiverem populado o state antes do render, não mostra.
+  const hasData = !!_peopleState.dashboard || (_peopleState.templates && _peopleState.templates.length > 0);
+  if (loadError && !hasData) {
     const wrap = root.querySelector('.ppl-wrap');
     if (wrap) {
       const banner = document.createElement('div');
       banner.style.cssText = 'padding:10px 14px;background:#FFF4D1;border:1px solid #E6C84F;border-radius:8px;font-size:12px;color:#7A5500;font-family:var(--font-sans);';
-      banner.innerHTML = `⚠ <strong>Backend não respondeu.</strong> Provavelmente a migration <code>MIGRATIONS_PEOPLE.sql</code> não foi aplicada ainda no Supabase. Rode o SQL e recarregue. <em style="opacity:.7;">(${_esc(loadError?.message||'')})</em>`;
+      banner.innerHTML = `⚠ <strong>Backend lento ou indisponível.</strong> Possíveis causas:
+        <ul style="margin:6px 0 0;padding-left:20px;">
+          <li>Migration <code>MIGRATIONS_PEOPLE.sql</code> ainda não foi aplicada no Supabase</li>
+          <li>Deploy do Cloudflare Pages ainda não propagou as últimas mudanças (espera 1-2min e recarrega)</li>
+          <li>Cold start do Supabase — recarregue em 30s</li>
+        </ul>
+        <em style="opacity:.7;">${_esc(loadError?.message||'')}</em>`;
       wrap.insertBefore(banner, wrap.firstChild);
     }
   }
@@ -36500,6 +36524,9 @@ function _peopleRenderDrawer(state, loading) {
   const done = steps.filter(s => s.status === 'feito').length;
   const total = steps.length;
   const pct = total ? Math.round(100*done/total) : 0;
+  const accountChip = person.user_id
+    ? `<button class="ppl-drawer-action" title="Conta vinculada · clique pra ver ou desvincular" onclick="_peopleOpenLinkUserModal('${_esc(person.id)}', '${_esc(person.email||'')}', true)">@ ${_esc(person.email || 'conta vinculada')}</button>`
+    : `<button class="ppl-drawer-action is-warn" title="Vincular conta Synkan pro aprendiz" onclick="_peopleOpenLinkUserModal('${_esc(person.id)}', '${_esc(person.email||'')}', false)">＋ vincular conta</button>`;
   ov.innerHTML = `
     <div class="ppl-drawer">
       <div class="ppl-drawer-h">
@@ -36510,7 +36537,11 @@ function _peopleRenderDrawer(state, loading) {
             <div class="ppl-drawer-meta">${_esc(person.role_title || _PPL_ROLE_LABELS[person.role_template] || '')} · <strong>${_PPL_BELT_LABELS[belt]}</strong> <span style="opacity:.6;">(${_PPL_BELT_STAGE[belt]})</span></div>
           </div>
         </div>
-        <button class="ppl-drawer-close" onclick="_peopleCloseDrawer()" title="Fechar">×</button>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          ${accountChip}
+          <button class="ppl-drawer-icon-btn" onclick="_peopleOpenTrailEditor('${_esc(trail?.id||'')}')" title="Configurar etapas da trilha (adicionar/remover/editar)">⚙</button>
+          <button class="ppl-drawer-close" onclick="_peopleCloseDrawer()" title="Fechar">×</button>
+        </div>
       </div>
       <div class="ppl-drawer-body">
         <div style="display:flex;gap:12px;align-items:center;margin-bottom:18px;padding:12px;background:var(--color-background-secondary);border-radius:9px;">
@@ -36580,6 +36611,349 @@ function _peoplePulseRowHTML(p) {
         </div>
       </div>
     </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Editor de trilha — adiciona, edita e remove etapas customizadas
+// ────────────────────────────────────────────────────────────────────
+// Cada empresa tem suas particularidades (CLT vs PJ, etapas específicas,
+// processos próprios). Esse editor permite customizar a trilha de UM
+// aprendiz específico sem mexer no template público.
+// ════════════════════════════════════════════════════════════════════
+
+const _PPL_CATEGORIES = [
+  { key: 'documentos',  label: 'Documentos' },
+  { key: 'acesso',      label: 'Acesso' },
+  { key: 'treinamento', label: 'Treinamento' },
+  { key: 'social',      label: 'Social' },
+  { key: 'plano',       label: 'Plano' },
+  { key: 'cultura',     label: 'Cultura' },
+];
+const _PPL_ASSIGNEES = [
+  { key: 'aprendiz',         label: 'Aprendiz' },
+  { key: 'sensei',           label: 'Sensei (gestor)' },
+  { key: 'buddy',            label: 'Padrinho (buddy)' },
+  { key: 'workspace_owner',  label: 'Workspace (RH/owner)' },
+];
+
+async function _peopleOpenTrailEditor(trailId) {
+  if (!trailId) {
+    if (typeof appAlert === 'function') appAlert('Sem trilha', 'Esta pessoa ainda não tem trilha ativa pra editar.', { icon: '⚠️' });
+    return;
+  }
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  // Carrega trilha + steps
+  const [tRes, sRes] = await Promise.all([
+    c.from('people_trails').select('*').eq('id', trailId).maybeSingle(),
+    c.from('people_trail_steps').select('*').eq('trail_id', trailId).order('order_idx'),
+  ]);
+  const trail = tRes.data;
+  const steps = sRes.data || [];
+  if (!trail) {
+    if (typeof appAlert === 'function') appAlert('Trilha não encontrada', '', { icon: '⚠️' });
+    return;
+  }
+  let modal = document.getElementById('ppl-trail-editor');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-trail-editor';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10006';
+  modal.dataset.trailId = trailId;
+  modal.innerHTML = _peopleTrailEditorHTML(trail, steps);
+  document.body.appendChild(modal);
+}
+
+function _peopleTrailEditorHTML(trail, steps) {
+  return `
+    <div class="modal" style="max-width:780px;width:96%;max-height:92vh;display:flex;flex-direction:column;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div>
+          <h3 style="margin:0;font-size:18px;">⚙ Configurar etapas da trilha</h3>
+          <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-top:3px;">Personalize pro perfil do aprendiz (CLT, PJ, sênior, júnior, etc). Mudanças salvam na hora.</div>
+        </div>
+        <button onclick="document.getElementById('ppl-trail-editor').remove();_peopleOpenPersonDrawer(_peopleState.currentPersonId);" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb" style="overflow-y:auto;flex:1;">
+        <div style="display:flex;gap:8px;margin-bottom:14px;font-size:11.5px;color:var(--color-text-tertiary);">
+          <span><strong style="color:var(--color-text-primary);">${steps.length}</strong> etapa(s)</span>
+          <span>·</span>
+          <span>Início: <strong style="color:var(--color-text-primary);">${trail.start_date?new Date(trail.start_date).toLocaleDateString('pt-BR'):'-'}</strong></span>
+          <span>·</span>
+          <span>Graduação prevista: <strong style="color:var(--color-text-primary);">${trail.target_graduation_date?new Date(trail.target_graduation_date).toLocaleDateString('pt-BR'):'-'}</strong></span>
+        </div>
+        <div id="ppl-steps-editor-list" style="display:flex;flex-direction:column;gap:6px;">
+          ${steps.map(s => _peopleStepEditorRowHTML(s)).join('')}
+        </div>
+        <button class="ppl-btn" style="margin-top:14px;width:100%;justify-content:center;border-style:dashed;color:var(--color-text-secondary);" onclick="_peopleAddStep('${_esc(trail.id)}', ${steps.length})">＋ Adicionar etapa</button>
+      </div>
+      <div style="padding:12px 22px;border-top:0.5px solid var(--color-border-tertiary);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;">
+        <button class="ppl-btn-primary ppl-btn" onclick="document.getElementById('ppl-trail-editor').remove();_peopleOpenPersonDrawer(_peopleState.currentPersonId);">Concluir</button>
+      </div>
+    </div>`;
+}
+
+function _peopleStepEditorRowHTML(s) {
+  const isFeito = s.status === 'feito';
+  const cat = (s.category||'').toLowerCase();
+  return `
+    <div class="ppl-step-edit-row" data-step-id="${_esc(s.id)}" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;border:0.5px solid var(--color-border-tertiary);">
+      <span style="font-size:10.5px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;width:34px;flex-shrink:0;">D+${s.day_offset||0}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:${isFeito?'400':'500'};color:var(--color-text-primary);${isFeito?'text-decoration:line-through;opacity:.65;':''}">${_esc(s.title)}</div>
+        ${s.description?`<div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px;line-height:1.4;">${_esc(s.description)}</div>`:''}
+        <div style="display:flex;gap:6px;margin-top:4px;align-items:center;flex-wrap:wrap;">
+          ${cat?`<span class="ppl-step-cat cat-${cat}" style="font-size:9.5px;">${cat}</span>`:''}
+          ${s.assignee_role?`<span style="font-size:10px;color:var(--color-text-tertiary);">${_esc(_PPL_ASSIGNEES.find(a=>a.key===s.assignee_role)?.label || s.assignee_role)}</span>`:''}
+        </div>
+      </div>
+      <button class="ppl-step-edit-btn" onclick="_peopleEditStep('${_esc(s.id)}')" title="Editar etapa">✎</button>
+      <button class="ppl-step-edit-btn is-del" onclick="_peopleDeleteStep('${_esc(s.id)}')" title="Remover etapa">🗑</button>
+    </div>`;
+}
+
+async function _peopleAddStep(trailId, currentLen) {
+  // Cria um step novo direto, depois abre o editor inline
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const { data: trail } = await c.from('people_trails').select('start_date').eq('id', trailId).maybeSingle();
+  const startDate = trail?.start_date;
+  const dayOffset = 0;
+  const deadline = startDate ? new Date(new Date(startDate).getTime() + dayOffset*86400000).toISOString().slice(0,10) : null;
+  try {
+    const { data: newStep, error } = await c.from('people_trail_steps').insert({
+      trail_id: trailId,
+      title: 'Nova etapa',
+      description: '',
+      category: 'plano',
+      day_offset: dayOffset,
+      deadline_date: deadline,
+      status: 'pendente',
+      assignee_role: 'aprendiz',
+      order_idx: currentLen,
+    }).select('*').maybeSingle();
+    if (error) throw error;
+    // Re-render lista
+    await _peopleRefreshTrailEditor(trailId);
+    // Já abre o editor inline
+    setTimeout(() => _peopleEditStep(newStep.id), 50);
+  } catch(e) {
+    console.warn('[people] add step:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao criar etapa', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+async function _peopleDeleteStep(stepId) {
+  if (typeof appConfirm !== 'function') return;
+  const ok = await appConfirm('Remover etapa', 'Tem certeza? Isso não pode ser desfeito.', { okLabel: 'Remover', cancelLabel: 'Cancelar', icon: '🗑' });
+  if (!ok) return;
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const editor = document.getElementById('ppl-trail-editor');
+  const trailId = editor?.dataset?.trailId;
+  try {
+    const { error } = await c.from('people_trail_steps').delete().eq('id', stepId);
+    if (error) throw error;
+    await _peopleRefreshTrailEditor(trailId);
+  } catch(e) {
+    console.warn('[people] delete step:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao remover etapa', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+async function _peopleEditStep(stepId) {
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const { data: s } = await c.from('people_trail_steps').select('*').eq('id', stepId).maybeSingle();
+  if (!s) return;
+  let modal = document.getElementById('ppl-step-edit-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-step-edit-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10007';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:520px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">✎ Editar etapa</h3>
+        <button onclick="document.getElementById('ppl-step-edit-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <form id="ppl-step-edit-form" class="ppl-modal-form" onsubmit="event.preventDefault();_peopleSaveStep('${_esc(stepId)}');">
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Título *</label>
+            <input class="ppl-modal-input" name="title" required value="${_esc(s.title||'')}" autocomplete="off"/>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Descrição</label>
+            <textarea class="ppl-modal-input" name="description" rows="3" style="resize:vertical;">${_esc(s.description||'')}</textarea>
+          </div>
+          <div class="ppl-modal-row cols">
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Dia (D+N) *</label>
+              <input class="ppl-modal-input" name="day_offset" type="number" min="0" max="365" required value="${Number(s.day_offset)||0}"/>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Categoria</label>
+              <select class="ppl-modal-select" name="category">
+                ${_PPL_CATEGORIES.map(c => `<option value="${c.key}" ${s.category===c.key?'selected':''}>${_esc(c.label)}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Quem é responsável</label>
+            <select class="ppl-modal-select" name="assignee_role">
+              ${_PPL_ASSIGNEES.map(a => `<option value="${a.key}" ${s.assignee_role===a.key?'selected':''}>${_esc(a.label)}</option>`).join('')}
+            </select>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+            <button type="button" class="ppl-btn" onclick="document.getElementById('ppl-step-edit-modal').remove()">Cancelar</button>
+            <button type="submit" class="ppl-btn ppl-btn-primary">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => { try { modal.querySelector('input[name="title"]').focus(); } catch(_){} }, 50);
+}
+
+async function _peopleSaveStep(stepId) {
+  const form = document.getElementById('ppl-step-edit-form');
+  if (!form) return;
+  const fd = new FormData(form);
+  const dayOffset = parseInt(fd.get('day_offset')||'0', 10);
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const editor = document.getElementById('ppl-trail-editor');
+  const trailId = editor?.dataset?.trailId;
+  // Pega start_date pra recalcular deadline
+  let startDate = null;
+  if (trailId) {
+    const { data: t } = await c.from('people_trails').select('start_date').eq('id', trailId).maybeSingle();
+    startDate = t?.start_date;
+  }
+  const deadline = startDate ? new Date(new Date(startDate).getTime() + dayOffset*86400000).toISOString().slice(0,10) : null;
+  try {
+    const { error } = await c.from('people_trail_steps').update({
+      title:         (fd.get('title')||'').toString().trim(),
+      description:   (fd.get('description')||'').toString().trim() || null,
+      day_offset:    dayOffset,
+      deadline_date: deadline,
+      category:      fd.get('category'),
+      assignee_role: fd.get('assignee_role'),
+    }).eq('id', stepId);
+    if (error) throw error;
+    document.getElementById('ppl-step-edit-modal')?.remove();
+    await _peopleRefreshTrailEditor(trailId);
+  } catch(e) {
+    console.warn('[people] save step:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao salvar etapa', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+async function _peopleRefreshTrailEditor(trailId) {
+  if (!trailId) return;
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const { data: steps } = await c.from('people_trail_steps').select('*').eq('trail_id', trailId).order('order_idx');
+  const list = document.getElementById('ppl-steps-editor-list');
+  if (list) list.innerHTML = (steps||[]).map(s => _peopleStepEditorRowHTML(s)).join('');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Vincular conta de usuário Synkan ao aprendiz
+// ────────────────────────────────────────────────────────────────────
+// Quando o aprendiz cria conta Synkan (signup), o owner pode vincular o
+// email dele à row de people pra que ele veja seu banner no home, receba
+// pulses, e seja @-mencionado em canais como qualquer membro.
+// ════════════════════════════════════════════════════════════════════
+function _peopleOpenLinkUserModal(personId, currentEmail, isLinked) {
+  let modal = document.getElementById('ppl-link-user-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-link-user-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10006';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:480px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">${isLinked?'@ Conta vinculada':'＋ Vincular conta Synkan'}</h3>
+        <button onclick="document.getElementById('ppl-link-user-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        ${isLinked ? `
+          <div style="padding:11px 13px;background:#E2F0D0;border-left:3px solid #3B6D11;border-radius:0 7px 7px 0;font-size:12px;color:#2A4F0A;margin-bottom:14px;line-height:1.5;">
+            ✓ Esta pessoa está vinculada à conta <strong>${_esc(currentEmail||'(email não disponível)')}</strong>. Ela aparece em @-menções nos canais e recebe pulses automáticos quando faz login.
+          </div>
+          <button class="ppl-btn" style="width:100%;border-color:#BC002D;color:#BC002D;" onclick="_peopleUnlinkUser('${_esc(personId)}')">Desvincular conta</button>
+        ` : `
+          <p style="font-size:13px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 14px;">
+            Vincule a conta Synkan do aprendiz pra ele aparecer em @-menções no chat, ver sua trilha no home e responder pulses.
+          </p>
+          <form id="ppl-link-form" class="ppl-modal-form" onsubmit="event.preventDefault();_peopleSubmitLinkUser('${_esc(personId)}');">
+            <div class="ppl-modal-row">
+              <label class="ppl-modal-label">Email da conta Synkan dele</label>
+              <input class="ppl-modal-input" name="email" type="email" required placeholder="email@empresa.com" value="${_esc(currentEmail||'')}" autocomplete="off"/>
+            </div>
+            <div style="padding:9px 11px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11.5px;color:#7A5500;line-height:1.5;">
+              <strong>Pré-requisito:</strong> a pessoa precisa ter criado conta Synkan antes (com esse mesmo email). Se ainda não tem, peça pra fazer signup em <code>app.synkan.com.br</code> e depois volte aqui.
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+              <button type="button" class="ppl-btn" onclick="document.getElementById('ppl-link-user-modal').remove()">Cancelar</button>
+              <button type="submit" class="ppl-btn ppl-btn-primary">Vincular</button>
+            </div>
+          </form>
+        `}
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  if (!isLinked) setTimeout(() => { try { modal.querySelector('input[name="email"]').focus(); } catch(_){} }, 50);
+}
+
+async function _peopleSubmitLinkUser(personId) {
+  const form = document.getElementById('ppl-link-form');
+  if (!form) return;
+  const fd = new FormData(form);
+  const email = (fd.get('email')||'').toString().trim();
+  if (!email) return;
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  try {
+    const { data, error } = await c.rpc('people_link_user_by_email', { p_person_id: personId, p_email: email });
+    if (error) throw error;
+    document.getElementById('ppl-link-user-modal')?.remove();
+    if (!data?.found) {
+      if (typeof appAlert === 'function') {
+        appAlert('Conta não encontrada', `Não existe usuário Synkan com email <strong>${_esc(email)}</strong> ainda. Peça pra pessoa fazer signup primeiro em <code>app.synkan.com.br</code> e tente vincular de novo.`, { icon: '⚠️', html: true });
+      }
+      return;
+    }
+    if (typeof appAlert === 'function') {
+      appAlert('Conta vinculada ✓', `<strong>${_esc(email)}</strong> agora aparece em @-menções, recebe pulses automáticos e vê a trilha no home.`, { icon: '@', html: true });
+    }
+    if (_peopleState.currentPersonId) await _peopleOpenPersonDrawer(_peopleState.currentPersonId);
+  } catch(e) {
+    console.warn('[people] link user:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao vincular', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+async function _peopleUnlinkUser(personId) {
+  if (typeof appConfirm !== 'function') return;
+  const ok = await appConfirm('Desvincular conta?', 'A pessoa não vai mais aparecer em @-menções nem receber pulses. Isso não exclui a conta Synkan dela.', { okLabel: 'Desvincular', cancelLabel: 'Cancelar', icon: '⚠️' });
+  if (!ok) return;
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  try {
+    const { error } = await c.rpc('people_unlink_user', { p_person_id: personId });
+    if (error) throw error;
+    document.getElementById('ppl-link-user-modal')?.remove();
+    if (_peopleState.currentPersonId) await _peopleOpenPersonDrawer(_peopleState.currentPersonId);
+  } catch(e) {
+    console.warn('[people] unlink:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao desvincular', e?.message || String(e), { icon: '⚠️' });
+  }
 }
 
 // Cria um pulse pendente pra esta pessoa (manual, do sensei)
