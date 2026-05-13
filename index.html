@@ -8079,27 +8079,36 @@ function setSupabaseConfig(cfg) {
 // Espelha a view public.user_plan_limits do Supabase. Quando o app está
 // em modo local (sem auth), usa "trial" (acesso completo, lembretes ocasionais).
 // Em modo Supabase, lê o plan_code da tabela subscriptions.
+// ─── Campos novos (out/2026) ─────────────────────────────────────────
+// tatame:              'none' | 'live' | 'full'  — none=bloqueado, live=voz+vídeo ao vivo (sem gravar/transcrever), full=tudo
+// synconnect_contacts: -1=ilimitado, N=número máx de contatos (leads + clientes + fornecedores somados)
+// bunko_storage_gb:    -1=ilimitado, N=GB de storage no Bunko Box
 const PLAN_LIMITS = {
   trial:        { ai: 30,   boards: -1, canvas: -1, okrs: -1, unified: -1, zai: -1,
                   seats: 1, editors: 0, viewers: 1,
                   chat_history_days: -1, integrations: true, shared_boards: false, synconnect: true,
+                  tatame: 'full', synconnect_contacts: -1, bunko_storage_gb: 5,
                   name: 'Trial 5 dias',                price: 0     },
   faixa_branca: { ai: 10,   boards: 1,  canvas: 1,  okrs: 1,  unified: 1,  zai: 1,
                   seats: 1, editors: 0, viewers: 0,
                   chat_history_days: 30, integrations: false, shared_boards: false, synconnect: false,
                   boards_with_zai: 2, // bônus: 1 Zai ativo libera 2º board
+                  tatame: 'none', synconnect_contacts: 0, bunko_storage_gb: 0.1,  // 100MB
                   name: 'Faixa Branca · Grátis',       price: 0     },
   faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: -1, zai: 3,
                   seats: -1, editors: 3, viewers: 5,
                   chat_history_days: 90, integrations: true, shared_boards: true, synconnect: true,
+                  tatame: 'none', synconnect_contacts: 50, bunko_storage_gb: 1,
                   name: 'Faixa Azul · Pessoal',        price: 14.90 },
   faixa_roxa:   { ai: 300,  boards: 10, canvas: 10, okrs: 5,  unified: -1, zai: 10,
                   seats: -1, editors: 3, viewers: 5,
                   chat_history_days: -1, integrations: true, shared_boards: true, synconnect: true,
+                  tatame: 'live', synconnect_contacts: 2000, bunko_storage_gb: 25,
                   name: 'Faixa Roxa · Profissional',   price: 27.90 },
   faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1, zai: -1,
                   seats: -1, editors: 5, viewers: 10,
                   chat_history_days: -1, integrations: true, shared_boards: true, synconnect: true,
+                  tatame: 'full', synconnect_contacts: -1, bunko_storage_gb: 200,
                   name: 'Faixa Preta · Empresarial',   price: 62.90 },
 };
 // seats   = ADMINS pagos (mesmo valor do plano; -1 = ilimitado).
@@ -8450,8 +8459,136 @@ function getResourceUsage(resource) {
   if (resource === 'okr')      return _countOKRs();
   if (resource === 'ai')       return _aiUsageThisMonth;
   if (resource === 'unified')  return _countActiveBoards(); // unificado considera quantos boards o user tem
+  if (resource === 'synconnect_contact') return _countSynconnectContacts();
+  if (resource === 'bunko_storage_gb')   return _bunkoStorageUsedGB();
   return 0;
 }
+
+// ── Synconnect: total de contatos (leads + clientes + fornecedores) ──
+function _countSynconnectContacts() {
+  try {
+    if (typeof _contacts !== 'undefined' && Array.isArray(_contacts)) return _contacts.length;
+    if (typeof _synContacts !== 'undefined' && Array.isArray(_synContacts)) return _synContacts.length;
+    return 0;
+  } catch(_) { return 0; }
+}
+
+// ── Bunko: storage usado (em GB) ──
+// Cache atualizado periodicamente. Soma bytes de bunko_files + tatame_recordings.
+let _bunkoStorageUsedBytes = 0;
+let _bunkoStorageUsedAt = 0;
+let _bunkoStorageRefreshing = false;
+function _bunkoStorageUsedGB() {
+  return _bunkoStorageUsedBytes / (1024 * 1024 * 1024);
+}
+
+// Recalcula o uso somando bunko_files + tatame_recordings do user atual.
+// Estratégia: usa RPC `bunko_storage_total` (rápido, 1 round-trip).
+// Se a migration ainda não foi aplicada, cai pro fallback de 2 queries diretas.
+// Fail-soft: se tudo falhar, mantém o cache antigo.
+async function _bunkoRefreshStorageUsed(force) {
+  if (_bunkoStorageRefreshing) return;
+  // Throttle: 60s mínimo entre refreshes não-forçados
+  if (!force && _bunkoStorageUsedAt && (Date.now() - _bunkoStorageUsedAt < 60_000)) return;
+  _bunkoStorageRefreshing = true;
+  try {
+    const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+    if (!c || typeof supaUser === 'undefined' || !supaUser) { _bunkoStorageRefreshing = false; return; }
+    // ── Caminho preferido: RPC dedicada ──
+    let total = null;
+    try {
+      const { data, error } = await c.rpc('bunko_storage_total');
+      if (!error && data && typeof data === 'object') {
+        total = Number(data.total_bytes) || 0;
+      }
+    } catch(_) {}
+    // ── Fallback: queries diretas (caso a migration de RPC não esteja aplicada) ──
+    if (total === null) {
+      total = 0;
+      try {
+        const { data: filesRows } = await c.from('bunko_files').select('size_bytes').eq('owner_id', supaUser.id).is('deleted_at', null);
+        if (Array.isArray(filesRows)) total += filesRows.reduce((s,r) => s + (Number(r.size_bytes) || 0), 0);
+      } catch(_) {}
+      try {
+        // ATENÇÃO: coluna correta é `workspace_owner` (não `owner_id`)
+        const { data: recRows } = await c.from('tatame_recordings').select('size_bytes').eq('workspace_owner', supaUser.id).is('deleted_at', null).eq('status', 'ready');
+        if (Array.isArray(recRows)) total += recRows.reduce((s,r) => s + (Number(r.size_bytes) || 0), 0);
+      } catch(_) {}
+    }
+    _bunkoStorageUsedBytes = total;
+    _bunkoStorageUsedAt = Date.now();
+  } catch(e) {
+    console.warn('[bunko-storage] refresh falhou:', e?.message || e);
+  } finally {
+    _bunkoStorageRefreshing = false;
+  }
+}
+
+// Confere se o user pode subir mais N bytes. Se não, abre modal de paywall/vendas.
+// Retorna true se OK, false se bloqueado.
+function _bunkoCanUploadBytes(extraBytes) {
+  try {
+    const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+    const maxGB  = limits ? limits.bunko_storage_gb : -1;
+    if (maxGB === -1 || maxGB === undefined) return true; // ilimitado
+    const maxBytes = maxGB * 1024 * 1024 * 1024;
+    const projected = _bunkoStorageUsedBytes + (Number(extraBytes) || 0);
+    return projected <= maxBytes;
+  } catch(_) { return true; /* fail-open em caso de bug */ }
+}
+
+// Modal específico do Bunko: oferece upgrade OU "Falar com vendas" pra Faixa Preta.
+function _bunkoStoragePaywallModal() {
+  const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+  const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+  const planName = limits?.name || 'seu plano';
+  const usedGB   = _bunkoStorageUsedGB().toFixed(2);
+  const maxGB    = limits ? limits.bunko_storage_gb : 0;
+  // Se já tá no plano Preta, oferece "Falar com vendas" direto (sem upgrade possível)
+  const isPreta = planCode === 'faixa_preta';
+  if (typeof appConfirm !== 'function') return;
+  if (isPreta) {
+    appConfirm(
+      'Espaço esgotado · Faixa Preta',
+      `Você usou <strong>${usedGB} GB de ${maxGB} GB</strong> no Bunko Box.<br/><br/>` +
+      `Por estar na Faixa Preta, podemos ampliar seu espaço sob demanda — fala com a gente:`,
+      {
+        icon: '📦',
+        html: true,
+        okLabel: 'Falar com vendas',
+        cancelLabel: 'Agora não',
+      }
+    ).then(ok => { if (ok) { try { openTalkToSalesModal('Bunko storage extra (Faixa Preta)'); } catch(_){} } });
+  } else {
+    appConfirm(
+      'Espaço do Bunko Box esgotado',
+      `Você usou <strong>${usedGB} GB de ${maxGB} GB</strong> no plano <strong>${planName}</strong>.<br/><br/>` +
+      `Faça upgrade pra ter mais espaço:<br/>` +
+      `• Faixa Roxa: 25 GB<br/>` +
+      `• Faixa Preta: 200 GB (+ gravação de vídeo)<br/><br/>` +
+      `Precisa de muito mais? Time comercial atende sob demanda.`,
+      {
+        icon: '📦',
+        html: true,
+        okLabel: 'Fazer upgrade',
+        cancelLabel: 'Falar com vendas',
+      }
+    ).then(choice => {
+      if (choice === true)       { try { window.open(getUpgradeURL(), '_blank'); } catch(_){} }
+      else if (choice === false) { try { openTalkToSalesModal('Bunko storage upgrade'); } catch(_){} }
+    });
+  }
+}
+
+// ── Tatame: nível de acesso ──
+// Retorna 'none' | 'live' | 'full'
+function _tatameAccessLevel() {
+  const limits = getCurrentPlanLimits();
+  return limits.tatame || 'none';
+}
+function _canUseTatame()           { return _tatameAccessLevel() !== 'none'; }
+function _canRecordTatame()        { return _tatameAccessLevel() === 'full'; }
+function _canTranscribeTatame()    { return _tatameAccessLevel() === 'full'; }
 
 function canCreate(resource) {
   const limits = getCurrentPlanLimits();
@@ -8459,6 +8596,8 @@ function canCreate(resource) {
   const _LIMIT_KEY = {
     board: 'boards', canvas: 'canvas', okr: 'okrs', ai: 'ai', unified: 'unified',
     seat: 'seats', viewer: 'viewers', convidado: 'convidados', zai: 'zai',
+    synconnect_contact: 'synconnect_contacts',
+    bunko_storage_gb:   'bunko_storage_gb',
   };
   const key = _LIMIT_KEY[resource] || resource;
   let max = limits[key];
@@ -8494,7 +8633,47 @@ const _RESOURCE_LABELS = {
   seat:      { what: 'usuários pagos (editores/admins)',  upgrade: 'Faixa Roxa (sem limite, R$ 27,90/seat)' },
   viewer:    { what: 'viewers (só leitura)',              upgrade: 'Faixa Roxa (5) ou Preta (20)' },
   convidado: { what: 'convidados externos',               upgrade: 'Faixa Preta (10 convidados, 3 boards cada)' },
+  synconnect_contact: { what: 'contatos no Synconnect',   upgrade: 'Faixa Roxa (2.000 contatos) ou Preta (ilimitado)' },
+  bunko_storage_gb:   { what: 'GB usados no Bunko Box',   upgrade: 'Faixa Preta (200 GB) — ou falar com vendas pra mais espaço' },
 };
+
+// ── Modal "Falar com vendas" — abre mailto pré-preenchido pro time comercial ──
+function openTalkToSalesModal(context) {
+  const ctx = context || 'Bunko storage';
+  const email = 'contato@synkan.com.br';
+  const subject = encodeURIComponent(`[${ctx}] Quero contratar mais espaço`);
+  const planName = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits().name : '—';
+  const userId = (typeof supaUser !== 'undefined' && supaUser?.id) || '—';
+  const userEmail = (typeof supaUser !== 'undefined' && supaUser?.email) || '—';
+  const usedGB = _bunkoStorageUsedGB().toFixed(2);
+  const body = encodeURIComponent(
+    `Olá, time Synkan!\n\n` +
+    `Estou no plano ${planName} e quero contratar mais espaço no Bunko Box.\n\n` +
+    `Uso atual: ${usedGB} GB\n` +
+    `Contexto: ${ctx}\n\n` +
+    `User ID: ${userId}\n` +
+    `Email: ${userEmail}\n\n` +
+    `Aguardo proposta. Obrigado!`
+  );
+  const mailto = `mailto:${email}?subject=${subject}&body=${body}`;
+  const openMailto = () => { try { window.location.href = mailto; } catch(_) { window.open(mailto, '_blank'); } };
+  if (typeof appConfirm === 'function') {
+    appConfirm(
+      'Falar com vendas',
+      `Pra contratar mais espaço no Bunko Box (ou outras necessidades específicas), o time comercial entra em contato com você por e-mail.<br/><br/>` +
+      `📧 <strong>${email}</strong><br/><br/>` +
+      `Vamos abrir o e-mail pré-preenchido — confere e envia. Costumamos responder no mesmo dia útil.`,
+      {
+        icon: '💼',
+        html: true,
+        okLabel: 'Abrir e-mail',
+        cancelLabel: 'Agora não',
+      }
+    ).then(ok => { if (ok) openMailto(); });
+  } else {
+    openMailto();
+  }
+}
 
 function showPlanLimitModal(resource, used, max) {
   const l = _RESOURCE_LABELS[resource] || { what: 'recursos', upgrade: 'um plano superior' };
@@ -14052,7 +14231,7 @@ const OB_STEPS = [
   {
     type: 'welcome',
     title: '🥋 Boas-vindas ao dojo',
-    body: 'Vou te mostrar o Synkan em <strong>12 passos rápidos</strong> — leva uns 2-3 minutos. Cobre todos os módulos: kanban, CRM, financeiro, OKRs, reuniões com gravação e o Mestre Kan IA.<br/><br/>A qualquer momento você pode pular e explorar por conta própria.',
+    body: 'Vou te mostrar o Synkan em <strong>14 passos rápidos</strong> — leva uns 3-4 minutos. Cobre todos os módulos: kanban, CRM, financeiro, OKRs, Bunko Box, reuniões com gravação, o Dojo (gamificação) e o Mestre Kan IA.<br/><br/>A qualquer momento você pode pular e explorar por conta própria.',
     primary: 'Começar',
   },
   {
@@ -36518,6 +36697,15 @@ async function _synRenderDealContacts(dealId) {
 // o contato recém-criado no select de origem. Bumpa o z-index do reg-modal
 // pra ele aparecer NA FRENTE do modal de deal (default 9600 < deal 9800).
 function _synCreateContactInline(targetSelectId, dealIdForMulti) {
+  // ── Gate de plano antes mesmo de abrir o modal ──
+  try {
+    if (typeof checkAndBlockOrAllow === 'function' && !checkAndBlockOrAllow('synconnect_contact')) {
+      // Reseta o select pra "sem contato" (não deixa preso em "+ Criar novo…")
+      const sel = document.getElementById(targetSelectId);
+      if (sel) sel.value = '';
+      return;
+    }
+  } catch(_) {}
   // Reset o select pra "sem contato" enquanto o usuário cria
   const sel = document.getElementById(targetSelectId);
   if (sel) sel.value = '';
@@ -36823,6 +37011,27 @@ function renderContactsTab() {
       </select>
       <button class="btn-c" style="background:#111;color:#fff;border-color:#111;" onclick="openContactModal()">+ Novo cadastro</button>
     </div>
+    ${(() => {
+      try {
+        const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+        const max = limits ? limits.synconnect_contacts : -1;
+        if (max === -1 || max === undefined) return '';
+        const used = _contacts.length;
+        const pct  = Math.min(100, Math.round((used / max) * 100));
+        const near = pct >= 80;
+        const full = used >= max;
+        const tone = full ? '#BC002D' : near ? '#C19A3A' : 'var(--color-text-tertiary)';
+        const msg  = full
+          ? `Limite do plano atingido: <strong>${used}/${max}</strong> contatos. Faça upgrade pra cadastrar mais.`
+          : near
+          ? `Usando <strong>${used}/${max}</strong> contatos (${pct}%). Considere upgrade — acabando o espaço.`
+          : `<strong>${used}/${max}</strong> contatos · plano ${(limits?.name || '').replace('Faixa ', 'Faixa ')}.`;
+        return `<div style="margin:6px 0 10px;padding:7px 11px;font-size:12px;color:${tone};background:rgba(245,232,200,.10);border:1px solid rgba(193,154,58,.20);border-radius:7px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <span>${msg}</span>
+          ${(near || full) ? `<button onclick="window.open(getUpgradeURL(),'_blank')" style="background:transparent;border:1px solid currentColor;color:inherit;font-size:11.5px;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:inherit;">Fazer upgrade</button>` : ''}
+        </div>`;
+      } catch(_) { return ''; }
+    })()}
     ${list.length ? `
     <table class="reg-table">
       <thead><tr>
@@ -37023,6 +37232,10 @@ async function _fetchCnpjData(cnpj) {
 async function saveContact(id, isEdit) {
   const name = (document.getElementById('reg-c-name').value||'').trim();
   if (!name) { alert('Nome é obrigatório.'); return; }
+  // ── Gate de plano: bloqueia criação se estourou limite ──
+  if (!isEdit && typeof checkAndBlockOrAllow === 'function') {
+    if (!checkAndBlockOrAllow('synconnect_contact')) return;
+  }
   const data = {
     id,
     name,
@@ -50340,11 +50553,35 @@ function _lkCanUseVideo() {
   } catch(_) { return true; /* dev mode */ }
 }
 function _lkCanRecord() {
+  // Gating canônico: usa o campo `tatame` do PLAN_LIMITS. Só 'full' permite gravação.
   try {
-    const code = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
-    // Permite todos os planos pra testar; em produção fina pra Faixa Preta.
-    return ['trial','faixa_azul','faixa_roxa','faixa_preta','azul','roxa','preta','basic','pro','enterprise'].includes(code);
-  } catch(_) { return true; /* fail-open pra não bloquear testes */ }
+    if (typeof _canRecordTatame === 'function') return _canRecordTatame();
+    // Fallback: lê direto da limit
+    const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+    return limits && limits.tatame === 'full';
+  } catch(_) { return false; /* fail-closed em produção */ }
+}
+
+// Modal que aparece se user no plano errado clica no botão de gravar
+function _lkRecordPaywall() {
+  const planName = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits().name : 'seu plano';
+  if (typeof appConfirm !== 'function') return;
+  appConfirm(
+    'Gravação · exclusivo Faixa Preta',
+    `Gravar a sessão em MP4 (com transcrição automática pelo Mestre Kan) faz parte da <strong>Faixa Preta</strong>.<br/><br/>` +
+    `Seu plano atual: <strong>${planName}</strong>.<br/><br/>` +
+    `Na Faixa Preta você pode:<br/>` +
+    `• Gravar reuniões em MP4 (até 200 GB no Bunko)<br/>` +
+    `• Transcrição automática · busca por palavra<br/>` +
+    `• Extrair ações com o Mestre Kan<br/>` +
+    `• Compartilhar gravação por link assinado`,
+    {
+      icon: '🥋',
+      html: true,
+      okLabel: 'Fazer upgrade',
+      cancelLabel: 'Agora não',
+    }
+  ).then(ok => { if (ok) { try { window.open(getUpgradeURL(), '_blank'); } catch(_) {} } });
 }
 
 // Pede token ao endpoint (com timeout pra não pendurar)
@@ -52772,6 +53009,7 @@ async function renderBunko() {
         <main class="bunko-main">
           <div class="bunko-main-h">
             <div class="bunko-breadcrumb" id="bunko-breadcrumb"></div>
+            <div id="bunko-storage-banner" style="margin-bottom:8px;"></div>
             <div class="bunko-main-title-row">
               <div class="bunko-main-title" id="bunko-main-title"><span class="bunko-main-title-icon">📁</span><span>Bunko Box</span></div>
               <div class="bunko-toolbar">
@@ -52813,6 +53051,45 @@ async function renderBunko() {
   _bunkoLoadPagesIndex();
   // Ativa atalhos de teclado (uma vez só)
   _bunkoInstallShortcuts();
+  // Atualiza uso de storage + pinta o banner
+  _bunkoRefreshStorageUsed(true).then(() => _bunkoRenderStorageBanner());
+}
+
+// ── Banner de uso de storage no topo do Bunko ──
+function _bunkoRenderStorageBanner() {
+  const el = document.getElementById('bunko-storage-banner');
+  if (!el) return;
+  try {
+    const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+    const maxGB  = limits ? limits.bunko_storage_gb : -1;
+    if (maxGB === -1 || maxGB === undefined) {
+      el.innerHTML = ''; // ilimitado — não mostra
+      return;
+    }
+    const usedGB = _bunkoStorageUsedGB();
+    const pct    = Math.min(100, Math.round((usedGB / maxGB) * 100));
+    const near   = pct >= 80;
+    const full   = pct >= 100;
+    const tone   = full ? '#BC002D' : near ? '#C19A3A' : '#6B4825';
+    const bg     = full ? 'rgba(188,0,45,.08)' : near ? 'rgba(193,154,58,.12)' : 'rgba(245,232,200,.30)';
+    const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
+    const isPreta = planCode === 'faixa_preta';
+    const cta = isPreta
+      ? `<button onclick="openTalkToSalesModal('Bunko storage extra')" style="background:transparent;border:1px solid ${tone};color:${tone};font-size:11.5px;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:inherit;">💼 Falar com vendas</button>`
+      : `<button onclick="window.open(getUpgradeURL(),'_blank')" style="background:transparent;border:1px solid ${tone};color:${tone};font-size:11.5px;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:inherit;">Fazer upgrade</button>`;
+    const msg = full
+      ? `Espaço esgotado: <strong>${usedGB.toFixed(2)} GB de ${maxGB} GB</strong>. Uploads bloqueados.`
+      : near
+      ? `Atenção: <strong>${usedGB.toFixed(2)} GB de ${maxGB} GB</strong> usados (${pct}%).`
+      : `<strong>${usedGB.toFixed(2)} GB de ${maxGB} GB</strong> usados (${pct}%)`;
+    el.innerHTML = `
+      <div style="padding:7px 11px;font-size:12px;color:${tone};background:${bg};border:1px solid ${tone};border-radius:7px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-family:var(--font-sans);">
+        <span style="display:inline-flex;align-items:center;gap:8px;">📦 ${msg}</span>
+        ${(near || full) ? cta : ''}
+      </div>`;
+  } catch(e) {
+    el.innerHTML = '';
+  }
 }
 
 // ── A5: Keyboard shortcuts ───────────────────────────────────────────
@@ -52953,6 +53230,8 @@ async function _bunkoLoadAll() {
     _bunkoRenderItems();
     // Inicia auto-check de gravações processando (cron de 60s)
     try { _bunkoStartAutoCheck && _bunkoStartAutoCheck(); } catch(_){}
+    // Atualiza banner de storage em background (com throttle de 60s embutido)
+    try { _bunkoRefreshStorageUsed().then(() => _bunkoRenderStorageBanner()); } catch(_){}
   } catch(e) {
     console.warn('[bunko] load:', e);
     const main = document.getElementById('bunko-main-content');
@@ -55616,6 +55895,12 @@ async function _bunkoUploadFilesToFolder(folderId, fileList) {
     appAlert('Sem cliente', 'Modo Cloud não está ativo.', { icon:'⚠️' });
     return;
   }
+  // ── Gate de storage por plano ──
+  try {
+    await _bunkoRefreshStorageUsed();
+    const incoming = Array.from(fileList).reduce((s,f) => s + (f.size||0), 0);
+    if (!_bunkoCanUploadBytes(incoming)) { _bunkoStoragePaywallModal(); return; }
+  } catch(_) {}
   const total = fileList.length;
   let done = 0, errors = 0;
   if (typeof _showKanWarning === 'function') {
@@ -55660,6 +55945,7 @@ async function _bunkoUploadFilesToFolder(folderId, fileList) {
     }
   }
   await _bunkoLoadAll();
+  try { await _bunkoRefreshStorageUsed(true); _bunkoRenderStorageBanner(); } catch(_){}
 }
 
 // Renomeia anexo (sem mexer no arquivo físico — só no nome de exibição/download)
@@ -55692,6 +55978,12 @@ async function _bunkoUploadFiles(pageId, fileList) {
     appAlert('Sem cliente', 'Modo Cloud não está ativo.', { icon:'⚠️' });
     return;
   }
+  // ── Gate de storage por plano ──
+  try {
+    await _bunkoRefreshStorageUsed();
+    const incoming = Array.from(fileList).reduce((s,f) => s + (f.size||0), 0);
+    if (!_bunkoCanUploadBytes(incoming)) { _bunkoStoragePaywallModal(); return; }
+  } catch(_) {}
   const total = fileList.length;
   let done = 0, errors = 0;
   if (typeof _showKanWarning === 'function') {
@@ -55739,6 +56031,7 @@ async function _bunkoUploadFiles(pageId, fileList) {
     }
   }
   _bunkoLoadFiles(pageId);
+  try { await _bunkoRefreshStorageUsed(true); _bunkoRenderStorageBanner(); } catch(_){}
 }
 
 async function _bunkoDownloadFile(storagePath, bucket, filename) {
@@ -56660,13 +56953,18 @@ function _lkRenderControls() {
     <button type="button" class="lk-ctrl lk-ctrl-fx ${_lkGetCurrentEffect()!=='none'?'is-active':''}" onclick="_lkOpenEffectsModal()" title="Efeitos de câmera">
       <img src="katana-magica-icon.png?v=4" alt="Efeitos de câmera" draggable="false"/>
     </button>
-    <button type="button" class="lk-ctrl lk-ctrl-rec ${ext.lk.recording?.starting ? 'is-starting' : ext.lk.recording ? 'is-recording' : ''}" onclick="_lkToggleRecording()" title="${ext.lk.recording?.starting ? 'Iniciando gravação…' : ext.lk.recording ? 'Parar gravação' : 'Iniciar gravação'}">
-      ${ext.lk.recording?.starting
-        ? `<span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--tatami-mincho,serif);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;"><span class="lk-rec-dot" style="background:#fff;"></span>INICIANDO…</span>`
-        : ext.lk.recording
-        ? `<span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--tatami-mincho,serif);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;"><span class="lk-rec-dot"></span>REC</span>`
-        : `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>`}
-    </button>
+    ${(typeof _canRecordTatame === 'function' && !_canRecordTatame())
+      ? `<button type="button" class="lk-ctrl lk-ctrl-rec" onclick="_lkRecordPaywall()" title="Gravação MP4 exclusiva da Faixa Preta — clique pra saber mais" style="opacity:.55;cursor:pointer;position:relative;">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
+          <span style="position:absolute;top:-4px;right:-4px;background:#1A1611;color:#F5E8C8;font-size:10px;line-height:1;padding:2px 4px;border-radius:6px;font-weight:700;border:1px solid #C19A3A;">🔒</span>
+        </button>`
+      : `<button type="button" class="lk-ctrl lk-ctrl-rec ${ext.lk.recording?.starting ? 'is-starting' : ext.lk.recording ? 'is-recording' : ''}" onclick="_lkToggleRecording()" title="${ext.lk.recording?.starting ? 'Iniciando gravação…' : ext.lk.recording ? 'Parar gravação' : 'Iniciar gravação'}">
+          ${ext.lk.recording?.starting
+            ? `<span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--tatami-mincho,serif);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;"><span class="lk-rec-dot" style="background:#fff;"></span>INICIANDO…</span>`
+            : ext.lk.recording
+            ? `<span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--tatami-mincho,serif);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;"><span class="lk-rec-dot"></span>REC</span>`
+            : `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>`}
+        </button>`}
     <button type="button" class="lk-ctrl" style="margin-left:auto;background:#BC002D;border-color:#BC002D;width:auto;padding:0 16px;gap:7px;font-family:var(--tatami-mincho,serif);font-size:12.5px;font-weight:600;" onclick="_lkLeave()">
       <svg viewBox="0 0 24 24"><path d="M9 21H5 a2 2 0 0 1 -2 -2V5 a2 2 0 0 1 2 -2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       <span>sair do tatame</span>
@@ -57385,6 +57683,28 @@ const _TX_ICO = {
 //     voiceJoined, micMuted, peerConns:{peerId:RTCPeerConnection}, localStream, speakingMap:{} }
 
 function _txOpen() {
+  // ── Gate de plano: Tatame não disponível em planos sem 'tatame' ──
+  try {
+    if (typeof _canUseTatame === 'function' && !_canUseTatame()) {
+      const planName = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits().name : 'seu plano';
+      if (typeof appConfirm === 'function') {
+        appConfirm(
+          'Tatame ao vivo — exclusivo da Faixa Roxa+',
+          `O Tatame ao vivo (voz + vídeo + workspace compartilhado) faz parte da <strong>Faixa Roxa</strong> e <strong>Faixa Preta</strong>.<br/><br/>` +
+          `<strong>Faixa Roxa</strong>: voz e vídeo ao vivo (sem gravação)<br/>` +
+          `<strong>Faixa Preta</strong>: + gravação MP4 e transcrição automática pelo Mestre Kan<br/><br/>` +
+          `Seu plano atual: <strong>${planName}</strong>.`,
+          {
+            icon: '🥋',
+            html: true,
+            okLabel: 'Fazer upgrade',
+            cancelLabel: 'Agora não',
+          }
+        ).then(ok => { if (ok) { try { window.open(getUpgradeURL(), '_blank'); } catch(_) {} } });
+      }
+      return;
+    }
+  } catch(_) {}
   if (!_chatState.currentChannelId) {
     if (typeof appAlert === 'function') appAlert('Sem canal aberto', 'Abre um canal antes de estender o tatame.', { icon:'🎴' });
     return;
