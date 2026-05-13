@@ -46800,6 +46800,29 @@ function _chatChannelKind(ch) {
   return 'dm1on1';
 }
 
+// Helper: o canal atual tem 3+ pessoas? Usado pra gatear comandos que dão XP
+// (selo, kudos) — em self/DM 1on1, o user poderia farmar XP dando selo/kudos
+// pra si mesmo. Só faz sentido quando tem audiência real.
+function _chatIsMultiUserChannel(ch) {
+  const target = ch || (_chatState.channels.find(c => c.id === _chatState.currentChannelId));
+  if (!target) return false;
+  const kind = _chatChannelKind(target);
+  return kind === 'multi';
+}
+
+// Mostra erro padronizado quando um comando de XP é usado em self/DM
+function _chatBlockXpCmd(cmdName) {
+  if (typeof appAlert === 'function') {
+    appAlert(
+      `${cmdName} indisponível aqui`,
+      `O comando <code>${cmdName}</code> só funciona em canais com <strong>3 ou mais pessoas</strong>.<br/><br/>` +
+      `Em <strong>notas pessoais</strong> ou <strong>DM 1 a 1</strong> ele fica bloqueado — caso contrário, qualquer pessoa poderia farmar XP dando selos e kudos pra si mesma (ou pro melhor amigo) sem audiência real.<br/><br/>` +
+      `Selo e kudos só fazem sentido quando tem testemunhas pra reforçar o compromisso.`,
+      { icon: '🥋', html: true }
+    );
+  }
+}
+
 // Helper: user pode criar canais/DMs no Kai?
 // Liberado pra: Trial ativo (5 dias), Faixa Roxa, Faixa Preta.
 // Faixa Azul não tem Kai (só vê canais que foram compartilhados como
@@ -48080,18 +48103,26 @@ function _chatShowSlashPopup(query, inp) {
 function _chatRenderSlashPopup() {
   const pop = document.getElementById('chat-slash-pop');
   if (!pop) return;
-  pop.innerHTML = _chatSlashPopupMatches.map((c, i) => `
+  // Comandos que dão XP e exigem audiência (canal com 3+ pessoas)
+  const _XP_CMDS = ['/selo', '/kudos'];
+  const isMulti = (typeof _chatIsMultiUserChannel === 'function') ? _chatIsMultiUserChannel() : true;
+  pop.innerHTML = _chatSlashPopupMatches.map((c, i) => {
+    const isXpBlocked = _XP_CMDS.includes(c.cmd) && !isMulti;
+    const dimStyle = isXpBlocked ? 'opacity:.45;' : '';
+    const blockedSuffix = isXpBlocked ? ' <span style="font-size:10px;color:#A32D2D;font-weight:600;">· só em canais 3+</span>' : '';
+    return `
     <button type="button" class="chat-slash-item${i === _chatSlashPopupSelected ? ' is-selected' : ''}"
+            style="${dimStyle}"
             onmouseover="_chatSlashHover(${i})"
             onclick="_chatSelectSlashCmd('${c.cmd}')">
       <span class="chat-slash-ico">${c.icon}</span>
       <div class="chat-slash-body">
-        <div class="chat-slash-cmd">${_esc(c.cmd)}${c.args ? ' <span class=\"chat-slash-args\">' + _esc(c.args) + '</span>' : ''}</div>
+        <div class="chat-slash-cmd">${_esc(c.cmd)}${c.args ? ' <span class=\"chat-slash-args\">' + _esc(c.args) + '</span>' : ''}${blockedSuffix}</div>
         <div class="chat-slash-desc">App · Synkan · ${_esc(c.desc)}</div>
       </div>
       ${i === _chatSlashPopupSelected ? '<span class="chat-slash-enter">Enter</span>' : ''}
-    </button>
-  `).join('');
+    </button>`;
+  }).join('');
 }
 
 function _chatSlashHover(idx) {
@@ -48236,6 +48267,8 @@ async function _chatSendFromComposer() {
     if (text.startsWith('/selo')) {
       const arg = text.replace(/^\/selo\s*/, '').trim();
       input.value = '';
+      // Bloqueia em self/DM 1on1: sem audiência, vira farm de XP
+      if (!_chatIsMultiUserChannel()) { _chatBlockXpCmd('/selo'); return; }
       _chatStartSeal(arg);
       return;
     }
@@ -48248,6 +48281,8 @@ async function _chatSendFromComposer() {
     }
     if (text.startsWith('/kudos')) {
       input.value = '';
+      // Bloqueia em self/DM 1on1: sem audiência, vira farm de XP
+      if (!_chatIsMultiUserChannel()) { _chatBlockXpCmd('/kudos'); return; }
       _chatSendKudos(text);
       return;
     }
@@ -60308,6 +60343,11 @@ document.addEventListener('mouseout', (e) => {
 // XP é creditado localmente na próxima vez que o receiver abrir o chat.
 
 async function _chatSendKudos(rawText) {
+  // Defensiva: bloqueia em self/DM 1on1 (anti-farm de XP)
+  if (typeof _chatIsMultiUserChannel === 'function' && !_chatIsMultiUserChannel()) {
+    if (typeof _chatBlockXpCmd === 'function') _chatBlockXpCmd('/kudos');
+    return;
+  }
   // Parse: /kudos @nome ou @uuid + motivo
   // Aceita formato livre — extrai a primeira menção e usa o resto como motivo
   const m = rawText.match(/^\/kudos\s+@?(\S+)\s*(.*)$/i);
@@ -60921,6 +60961,11 @@ async function _chatStartKata(kind) {
 
 // ─── #3 Selo de honra ───────────────────────────────────────────────
 async function _chatStartSeal(text) {
+  // Defensiva: bloqueia em self/DM 1on1 (anti-farm de XP)
+  if (typeof _chatIsMultiUserChannel === 'function' && !_chatIsMultiUserChannel()) {
+    if (typeof _chatBlockXpCmd === 'function') _chatBlockXpCmd('/selo');
+    return;
+  }
   text = (text || '').trim();
   if (!text) {
     if (typeof appAlert === 'function') appAlert('Selo precisa de texto', 'Use: /selo <o que você está se comprometendo>', { icon:'🤝' });
