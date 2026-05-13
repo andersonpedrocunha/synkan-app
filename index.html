@@ -7560,7 +7560,7 @@ body.tx-active .belt-ring::after{
     <button class="sb-item" id="sb-okrs" onclick="switchTab('okrs')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></span><span>OKRs</span></button>
     <button class="sb-item" id="sb-people" onclick="switchTab('people')">
-      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="5.5" cy="5.2" r="2.4"/><path d="M1.5 13.5c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="11" cy="4.5" r="1.8" opacity=".7"/><path d="M9 11c.5-1.4 1.8-2.4 3.3-2.4 1 0 1.9.4 2.5 1.1" opacity=".7"/></svg></span><span>People</span></button>
+      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="5.5" cy="5.2" r="2.4"/><path d="M1.5 13.5c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="11" cy="4.5" r="1.8" opacity=".7"/><path d="M9 11c.5-1.4 1.8-2.4 3.3-2.4 1 0 1.9.4 2.5 1.1" opacity=".7"/></svg></span><span>People Journey</span></button>
     <button class="sb-item" id="sb-registry" onclick="switchTab('registry')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5.5 4V2.8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V4"/><rect x="2" y="4" width="12" height="9.2" rx="1.4"/><path d="M2 8h12"/><path d="M7 7.5v1"/><path d="M9 7.5v1"/></svg></span><span>Synconnect</span></button>
     <button class="sb-item" id="sb-bunko" onclick="switchTab('bunko')">
@@ -36032,12 +36032,12 @@ function _peopleRenderMain() {
     <div class="ppl-wrap">
       <div class="ppl-head">
         <div>
-          <div class="ppl-title">People <span class="ppl-title-badge">道</span></div>
+          <div class="ppl-title">People Journey <span class="ppl-title-badge">道</span></div>
           <div class="ppl-sub">da lua nova à lua cheia — onboarding personalizado.</div>
         </div>
         <div class="ppl-actions">
           ${myCardHTML}
-          <button class="ppl-btn-primary ppl-btn" onclick="_peopleOpenCreateModal()">＋ Novo aprendiz</button>
+          <button class="ppl-btn-primary ppl-btn" onclick="_peopleOpenCreateModal()">＋ Nova pessoa</button>
         </div>
       </div>
 
@@ -36052,7 +36052,7 @@ function _peopleRenderMain() {
         <button class="ppl-tab ${tab==='aprendizes'?'active':''}" onclick="_peopleSetTab('aprendizes')">🌙 Em trilha <span style="opacity:.55;">${aprendizes.length}</span></button>
         <button class="ppl-tab ${tab==='graduados'?'active':''}"  onclick="_peopleSetTab('graduados')">🎓 Graduados <span style="opacity:.55;">${graduados.length}</span></button>
         <button class="ppl-tab ${tab==='templates'?'active':''}"  onclick="_peopleSetTab('templates')">📋 Templates <span style="opacity:.55;">${_peopleState.templates.length}</span></button>
-        <button class="ppl-tab ${tab==='pulse'?'active':''}"      onclick="_peopleSetTab('pulse')">💚 Pulse <span style="opacity:.55;">${(d.pulse_count!==undefined)?d.pulse_count:''}</span></button>
+        <button class="ppl-tab ${tab==='pulse'?'active':''}"      onclick="_peopleSetTab('pulse')">💚 Check-ins <span style="opacity:.55;">${(d.pulse_count!==undefined)?d.pulse_count:''}</span></button>
       </div>
 
       <div id="ppl-tab-content"></div>
@@ -36073,14 +36073,36 @@ function _peopleRenderTabContent() {
     const list = pessoas.filter(p => p.status === 'ativo');
     el.innerHTML = list.length
       ? `<div class="ppl-grid">${list.map(_peopleCardHTML).join('')}</div>`
-      : _peopleEmptyHTML('Sem aprendizes ainda', 'Clique em "+ Novo aprendiz" pra criar a primeira trilha. O sistema monta board, pasta no Bunko e canal de chat automaticamente.');
+      : `<div class="ppl-empty">
+          <div class="ppl-empty-icon">道</div>
+          <div class="ppl-empty-title">Ninguém em trilha ainda</div>
+          <div class="ppl-empty-sub" style="max-width:560px;">Clique em <strong>"+ Nova pessoa"</strong> no topo pra abrir a primeira trilha.</div>
+          <div style="margin-top:18px;text-align:left;max-width:540px;font-size:12px;color:var(--color-text-secondary);line-height:1.65;font-style:normal;background:var(--color-background-secondary);padding:14px 18px;border-radius:10px;border-left:3px solid #C19A3A;font-family:var(--font-sans);">
+            <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:8px;font-family:'Noto Serif JP',serif;font-style:italic;">🔗 Como o People Journey conversa com o resto do Synkan</div>
+            <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;">
+              <li>🎴 <strong>Tatami</strong> — quando uma etapa do tipo "Reunião de boas-vindas" / "Check-in 30 dias" chega no prazo, o sensei abre o tatame com a pessoa. Transcrição automática via Mestre Kan vira pergaminho no Bunko.</li>
+              <li>📋 <strong>Boards</strong> — você pode promover etapas da trilha pra cards de board específico (ex: "Primeiro PR", "Primeira venda fechada") pra ficarem visíveis no fluxo de trabalho do time.</li>
+              <li>📦 <strong>Bunko Box</strong> — ao criar a pessoa, o sistema gera pasta automática <code>People · [Nome]</code> com 4 sub-pastas: Documentos pessoais, Contratos, Materiais de boas-vindas, Gravações dos check-ins. Tudo que ela subir fica organizado ali.</li>
+              <li>💬 <strong>Chat</strong> — canal privado <code>#aprendiz-[nome]</code> criado automaticamente, com a pessoa + sensei + padrinho. Lá rolam as conversas do onboarding.</li>
+              <li>💚 <strong>Check-ins</strong> — a cada 7 dias o Mestre Kan pergunta "como tá indo?" no chat da pessoa. Resposta vira histórico de sentimento que o sensei acompanha.</li>
+              <li>🎯 <strong>OKRs</strong> — etapas tipo "Definir OKRs trimestrais" linkam pro módulo OKRs, onde a pessoa monta seus primeiros objetivos.</li>
+            </ul>
+          </div>
+        </div>`;
   } else if (tab === 'graduados') {
     const list = pessoas.filter(p => p.status === 'graduado');
     el.innerHTML = list.length
       ? `<div class="ppl-grid">${list.map(_peopleCardHTML).join('')}</div>`
       : _peopleEmptyHTML('Nenhum graduado ainda', 'Quando aprendizes completam 100% da trilha (faixa roxa), eles aparecem aqui.');
   } else if (tab === 'templates') {
-    el.innerHTML = `<div class="ppl-grid">${_peopleState.templates.map(_peopleTemplateCardHTML).join('') || '<div class="ppl-empty"><div class="ppl-empty-title">Sem templates carregados</div><div class="ppl-empty-sub">Rode a migration MIGRATIONS_PEOPLE.sql pra carregar os 4 templates iniciais (Dev/Vendas/Marketing/Ops).</div></div>'}</div>`;
+    const newCard = `
+      <div class="ppl-card ppl-card-new" onclick="_peopleOpenTemplateCreator()" style="cursor:pointer;min-height:170px;border-style:dashed;border-color:var(--color-border-secondary);background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--color-text-tertiary);transition:all .15s;">
+        <div style="font-size:32px;line-height:1;">＋</div>
+        <div style="font-size:13px;font-weight:600;color:var(--color-text-secondary);">Novo template</div>
+        <div style="font-size:11px;text-align:center;padding:0 16px;line-height:1.45;">pra uma vaga que não tem na lista — você define etapas, prazos, categorias</div>
+      </div>`;
+    const templates = _peopleState.templates || [];
+    el.innerHTML = `<div class="ppl-grid">${newCard}${templates.map(_peopleTemplateCardHTML).join('')}</div>`;
   } else if (tab === 'pulse') {
     _peopleRenderPulseHistory(el);
   }
@@ -36266,12 +36288,326 @@ function _peoplePreviewTemplate(templateId) {
   document.body.appendChild(modal);
 }
 
-// ── Edição de template (versão mínima — JSON do steps direto) ───────
+// ────────────────────────────────────────────────────────────────────
+// Criação de template customizado (vaga que não tá na lista padrão)
+// ────────────────────────────────────────────────────────────────────
+function _peopleOpenTemplateCreator() {
+  let modal = document.getElementById('ppl-tmpl-creator');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-tmpl-creator';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10005';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:520px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:18px;">＋ Novo template de trilha</h3>
+        <button onclick="document.getElementById('ppl-tmpl-creator').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <form id="ppl-tmpl-form" class="ppl-modal-form" onsubmit="event.preventDefault();_peopleSubmitTemplateCreate();">
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Nome do template *</label>
+            <input class="ppl-modal-input" name="name" required placeholder="Ex: Engenheiro(a) de Dados Pleno" autocomplete="off"/>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Descrição</label>
+            <textarea class="ppl-modal-input" name="description" rows="2" style="resize:vertical;" placeholder="Resumo: o que essa trilha cobre, perfil ideal, peculiaridades."></textarea>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Categoria base (pra ícone)</label>
+            <select class="ppl-modal-select" name="role">
+              <option value="custom">Custom (genérico)</option>
+              <option value="dev">Tecnologia / Engenharia</option>
+              <option value="vendas">Vendas</option>
+              <option value="marketing">Marketing</option>
+              <option value="ops">Operações</option>
+              <option value="design">Design</option>
+              <option value="suporte">Suporte / CS</option>
+              <option value="financeiro">Financeiro</option>
+              <option value="lideranca">Liderança</option>
+              <option value="produto">Produto</option>
+              <option value="estagio">Estágio / Trainee</option>
+              <option value="dados">Dados / BI</option>
+              <option value="rh">Pessoas / People</option>
+            </select>
+          </div>
+          <div style="padding:10px 12px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11.5px;color:var(--color-text-secondary);line-height:1.55;">
+            <strong>Próximo passo:</strong> depois de criar, abre o editor de etapas. Você adiciona uma a uma com título, prazo (D+N), categoria (documentos/acesso/treinamento etc) e responsável (aprendiz/sensei/buddy).
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+            <button type="button" class="ppl-btn" onclick="document.getElementById('ppl-tmpl-creator').remove()">Cancelar</button>
+            <button type="submit" class="ppl-btn ppl-btn-primary">Criar e configurar etapas</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => { try { modal.querySelector('input[name="name"]').focus(); } catch(_){} }, 50);
+}
+
+async function _peopleSubmitTemplateCreate() {
+  const form = document.getElementById('ppl-tmpl-form');
+  if (!form) return;
+  const fd = new FormData(form);
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c || typeof supaUser === 'undefined' || !supaUser) return;
+  try {
+    const { data: newT, error } = await c.from('people_trail_templates').insert({
+      workspace_owner: supaUser.id,
+      role: fd.get('role') || 'custom',
+      name: (fd.get('name')||'').toString().trim() || 'Template sem nome',
+      description: (fd.get('description')||'').toString().trim() || null,
+      is_public: false,
+      steps: [],
+    }).select('*').maybeSingle();
+    if (error) throw error;
+    document.getElementById('ppl-tmpl-creator')?.remove();
+    await _peopleLoadAll();
+    _peopleRenderTabContent();
+    // Abre o editor de etapas pra preencher
+    _peopleOpenTemplateEditor(newT.id);
+  } catch(e) {
+    console.warn('[people] create template:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao criar template', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Editor de etapas do template (igual ao editor de trilha mas pra template)
+// ────────────────────────────────────────────────────────────────────
 function _peopleEditTemplate(templateId) {
-  const t = _peopleState.templates.find(x => x.id === templateId);
+  _peopleOpenTemplateEditor(templateId);
+}
+
+async function _peopleOpenTemplateEditor(templateId) {
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const { data: t } = await c.from('people_trail_templates').select('*').eq('id', templateId).maybeSingle();
+  if (!t) { if (typeof appAlert === 'function') appAlert('Template não encontrado', '', { icon: '⚠️' }); return; }
+  if (t.workspace_owner === null) {
+    if (typeof appAlert === 'function') appAlert('Template público', 'Esse é um template público do sistema — clone primeiro pro seu workspace pra poder editar.', { icon: 'ⓘ' });
+    return;
+  }
+  let modal = document.getElementById('ppl-tmpl-editor');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-tmpl-editor';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10006';
+  modal.dataset.templateId = templateId;
+  const steps = Array.isArray(t.steps) ? t.steps : [];
+  modal.innerHTML = _peopleTemplateEditorHTML(t, steps);
+  document.body.appendChild(modal);
+}
+
+function _peopleTemplateEditorHTML(t, steps) {
+  return `
+    <div class="modal" style="max-width:820px;width:96%;max-height:92vh;display:flex;flex-direction:column;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div>
+          <h3 style="margin:0;font-size:18px;">⚙ Editar template · ${_esc(t.name)}</h3>
+          <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-top:3px;">${steps.length} etapas · categoria <strong>${_esc(_PPL_ROLE_LABELS[t.role]||t.role)}</strong>. Mudanças salvam automaticamente.</div>
+        </div>
+        <button onclick="document.getElementById('ppl-tmpl-editor').remove();_peopleLoadAll().then(()=>_peopleRenderTabContent());" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb" style="overflow-y:auto;flex:1;">
+        <div class="ppl-modal-row cols">
+          <div class="ppl-modal-row" style="margin:0;">
+            <label class="ppl-modal-label">Nome do template</label>
+            <input class="ppl-modal-input" id="ppl-tmpl-name" value="${_esc(t.name||'')}" onchange="_peopleSaveTemplateMeta('${_esc(t.id)}')"/>
+          </div>
+          <div class="ppl-modal-row" style="margin:0;">
+            <label class="ppl-modal-label">Categoria</label>
+            <select class="ppl-modal-select" id="ppl-tmpl-role" onchange="_peopleSaveTemplateMeta('${_esc(t.id)}')">
+              ${Object.entries(_PPL_ROLE_LABELS).map(([k,v]) => `<option value="${_esc(k)}" ${t.role===k?'selected':''}>${_esc(v)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="ppl-modal-row">
+          <label class="ppl-modal-label">Descrição</label>
+          <textarea class="ppl-modal-input" id="ppl-tmpl-desc" rows="2" style="resize:vertical;" onchange="_peopleSaveTemplateMeta('${_esc(t.id)}')">${_esc(t.description||'')}</textarea>
+        </div>
+        <div style="margin:18px 0 8px;font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;">Etapas da trilha (${steps.length})</div>
+        <div id="ppl-tmpl-steps-list" style="display:flex;flex-direction:column;gap:6px;">
+          ${steps.length === 0
+            ? '<div style="padding:20px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12.5px;">Sem etapas ainda. Clica em "+ Adicionar etapa" pra criar a primeira.</div>'
+            : steps.map((s, idx) => _peopleTemplateStepRowHTML(s, idx)).join('')}
+        </div>
+        <button class="ppl-btn" style="margin-top:14px;width:100%;justify-content:center;border-style:dashed;color:var(--color-text-secondary);" onclick="_peopleAddTemplateStep('${_esc(t.id)}')">＋ Adicionar etapa</button>
+      </div>
+      <div style="padding:12px 22px;border-top:0.5px solid var(--color-border-tertiary);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;">
+        <button class="ppl-btn-primary ppl-btn" onclick="document.getElementById('ppl-tmpl-editor').remove();_peopleLoadAll().then(()=>_peopleRenderTabContent());">Concluir</button>
+      </div>
+    </div>`;
+}
+
+function _peopleTemplateStepRowHTML(s, idx) {
+  const cat = (s.category||'').toLowerCase();
+  return `
+    <div class="ppl-step-edit-row" data-step-idx="${idx}" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;border:0.5px solid var(--color-border-tertiary);">
+      <span style="font-size:10.5px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;width:34px;flex-shrink:0;">D+${s.day_offset||0}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${_esc(s.title||'(sem título)')}</div>
+        ${s.description?`<div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px;line-height:1.4;">${_esc(s.description)}</div>`:''}
+        <div style="display:flex;gap:6px;margin-top:4px;align-items:center;flex-wrap:wrap;">
+          ${cat?`<span class="ppl-step-cat cat-${cat}" style="font-size:9.5px;">${cat}</span>`:''}
+          ${s.assignee_role?`<span style="font-size:10px;color:var(--color-text-tertiary);">${_esc(_PPL_ASSIGNEES.find(a=>a.key===s.assignee_role)?.label || s.assignee_role)}</span>`:''}
+        </div>
+      </div>
+      <button class="ppl-step-edit-btn" onclick="_peopleEditTemplateStep(${idx})" title="Editar etapa">✎</button>
+      <button class="ppl-step-edit-btn is-del" onclick="_peopleDeleteTemplateStep(${idx})" title="Remover etapa">🗑</button>
+    </div>`;
+}
+
+async function _peopleSaveTemplateMeta(templateId) {
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const name = document.getElementById('ppl-tmpl-name')?.value?.trim() || 'Template sem nome';
+  const role = document.getElementById('ppl-tmpl-role')?.value || 'custom';
+  const description = document.getElementById('ppl-tmpl-desc')?.value?.trim() || null;
+  try {
+    const { error } = await c.from('people_trail_templates').update({ name, role, description }).eq('id', templateId);
+    if (error) throw error;
+  } catch(e) { console.warn('[people] save template meta:', e?.message); }
+}
+
+async function _peopleAddTemplateStep(templateId) {
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const { data: t } = await c.from('people_trail_templates').select('steps').eq('id', templateId).maybeSingle();
+  const steps = Array.isArray(t?.steps) ? t.steps.slice() : [];
+  steps.push({
+    title: 'Nova etapa',
+    description: '',
+    category: 'plano',
+    day_offset: 0,
+    assignee_role: 'aprendiz',
+  });
+  try {
+    await c.from('people_trail_templates').update({ steps }).eq('id', templateId);
+    await _peopleRefreshTemplateEditor(templateId);
+    // Já abre o editor inline da nova etapa
+    setTimeout(() => _peopleEditTemplateStep(steps.length - 1), 50);
+  } catch(e) {
+    console.warn('[people] add template step:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao criar etapa', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+async function _peopleDeleteTemplateStep(idx) {
+  if (typeof appConfirm !== 'function') return;
+  const ok = await appConfirm('Remover etapa do template', 'Isso não afeta trilhas de aprendizes já criadas — só remove do template pra futuras criações.', { okLabel: 'Remover', cancelLabel: 'Cancelar', icon: '🗑' });
+  if (!ok) return;
+  const modal = document.getElementById('ppl-tmpl-editor');
+  const templateId = modal?.dataset?.templateId;
+  if (!templateId) return;
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const { data: t } = await c.from('people_trail_templates').select('steps').eq('id', templateId).maybeSingle();
+  const steps = Array.isArray(t?.steps) ? t.steps.slice() : [];
+  steps.splice(idx, 1);
+  await c.from('people_trail_templates').update({ steps }).eq('id', templateId);
+  await _peopleRefreshTemplateEditor(templateId);
+}
+
+async function _peopleEditTemplateStep(idx) {
+  const modal = document.getElementById('ppl-tmpl-editor');
+  const templateId = modal?.dataset?.templateId;
+  if (!templateId) return;
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const { data: t } = await c.from('people_trail_templates').select('steps').eq('id', templateId).maybeSingle();
+  const steps = Array.isArray(t?.steps) ? t.steps : [];
+  const s = steps[idx];
+  if (!s) return;
+  let editModal = document.getElementById('ppl-tmpl-step-edit');
+  if (editModal) editModal.remove();
+  editModal = document.createElement('div');
+  editModal.id = 'ppl-tmpl-step-edit';
+  editModal.className = 'ov open';
+  editModal.style.zIndex = '10007';
+  editModal.innerHTML = `
+    <div class="modal" style="max-width:520px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">✎ Editar etapa do template</h3>
+        <button onclick="document.getElementById('ppl-tmpl-step-edit').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <form id="ppl-tmpl-step-form" class="ppl-modal-form" onsubmit="event.preventDefault();_peopleSaveTemplateStep('${_esc(templateId)}', ${idx});">
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Título *</label>
+            <input class="ppl-modal-input" name="title" required value="${_esc(s.title||'')}" autocomplete="off"/>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Descrição</label>
+            <textarea class="ppl-modal-input" name="description" rows="3" style="resize:vertical;">${_esc(s.description||'')}</textarea>
+          </div>
+          <div class="ppl-modal-row cols">
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Dia (D+N) *</label>
+              <input class="ppl-modal-input" name="day_offset" type="number" min="0" max="365" required value="${Number(s.day_offset)||0}"/>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Categoria</label>
+              <select class="ppl-modal-select" name="category">
+                ${_PPL_CATEGORIES.map(c => `<option value="${c.key}" ${s.category===c.key?'selected':''}>${_esc(c.label)}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Quem é responsável</label>
+            <select class="ppl-modal-select" name="assignee_role">
+              ${_PPL_ASSIGNEES.map(a => `<option value="${a.key}" ${s.assignee_role===a.key?'selected':''}>${_esc(a.label)}</option>`).join('')}
+            </select>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+            <button type="button" class="ppl-btn" onclick="document.getElementById('ppl-tmpl-step-edit').remove()">Cancelar</button>
+            <button type="submit" class="ppl-btn ppl-btn-primary">Salvar etapa</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  document.body.appendChild(editModal);
+  setTimeout(() => { try { editModal.querySelector('input[name="title"]').focus(); editModal.querySelector('input[name="title"]').select(); } catch(_){} }, 50);
+}
+
+async function _peopleSaveTemplateStep(templateId, idx) {
+  const form = document.getElementById('ppl-tmpl-step-form');
+  if (!form) return;
+  const fd = new FormData(form);
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const { data: t } = await c.from('people_trail_templates').select('steps').eq('id', templateId).maybeSingle();
+  const steps = Array.isArray(t?.steps) ? t.steps.slice() : [];
+  steps[idx] = {
+    title: (fd.get('title')||'').toString().trim() || 'Etapa sem título',
+    description: (fd.get('description')||'').toString().trim() || '',
+    day_offset: parseInt(fd.get('day_offset')||'0', 10),
+    category: fd.get('category'),
+    assignee_role: fd.get('assignee_role'),
+  };
+  try {
+    await c.from('people_trail_templates').update({ steps }).eq('id', templateId);
+    document.getElementById('ppl-tmpl-step-edit')?.remove();
+    await _peopleRefreshTemplateEditor(templateId);
+  } catch(e) {
+    console.warn('[people] save template step:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao salvar etapa', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+async function _peopleRefreshTemplateEditor(templateId) {
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  const { data: t } = await c.from('people_trail_templates').select('*').eq('id', templateId).maybeSingle();
   if (!t) return;
-  if (typeof appAlert === 'function') {
-    appAlert('Edição de template', `Edição de etapas via formulário visual chega na próxima iteração — por enquanto vale editar direto no SQL ou no Supabase Studio na tabela <code>people_trail_templates</code>, alterando o JSON do campo <code>steps</code>.<br/><br/>Template selecionado: <strong>${_esc(t.name)}</strong> (ID <code>${_esc(t.id)}</code>).`, { icon: '✎', html: true });
+  const list = document.getElementById('ppl-tmpl-steps-list');
+  const steps = Array.isArray(t.steps) ? t.steps : [];
+  if (list) {
+    list.innerHTML = steps.length === 0
+      ? '<div style="padding:20px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12.5px;">Sem etapas ainda. Clica em "+ Adicionar etapa" pra criar a primeira.</div>'
+      : steps.map((s, idx) => _peopleTemplateStepRowHTML(s, idx)).join('');
   }
 }
 
@@ -36307,7 +36643,7 @@ function _peopleOpenCreateModal() {
   modal.innerHTML = `
     <div class="modal" style="max-width:560px;width:95%;">
       <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
-        <h3 style="margin:0;font-size:18px;">＋ Novo aprendiz</h3>
+        <h3 style="margin:0;font-size:18px;">＋ Nova pessoa em trilha</h3>
         <button onclick="document.getElementById('ppl-create-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
       </div>
       <div class="mb">
@@ -36628,7 +36964,7 @@ function _peoplePulseSectionHTML(person, pulses) {
   return `
     <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--color-border-tertiary);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;">💚 Pulse · check-ins de bem-estar</div>
+        <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;">💚 Check-ins · termômetro de bem-estar</div>
         <button class="ppl-btn" style="font-size:11px;padding:4px 10px;" onclick="_peopleRequestPulse('${_esc(person.id)}', ${hasUserAccount})" ${pendingPulse?'disabled style="opacity:.4;cursor:not-allowed;font-size:11px;padding:4px 10px;"':''}>
           ${pendingPulse?'⏳ pulse pendente':'🌙 pedir pulse agora'}
         </button>
