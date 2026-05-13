@@ -41656,7 +41656,7 @@ function renderDojo() {
         // Anuais históricas (de anos anteriores, já conquistadas)
         const yearlyHistoric = completedList.filter(c => c.kind === 'yearly' && c.year !== yearNow).length;
         const historicNote = yearlyHistoric > 0 ? ` + ${yearlyHistoric} anuai${yearlyHistoric===1?'':'s'} já conquistada${yearlyHistoric===1?'':'s'} em anos anteriores` : '';
-        return `${unlockedAll} de ${totalDisponiveisEsteAno} desbloqueadas este ano <span style="opacity:.7;">(${permanentUnlocked}/${permanentTotal} permanentes · ${seasonalFixedUnlocked}/${seasonalFixedTotal} sazonais fixas · ${yearlyUnlocked}/${yearlyAvailable} anuais ${yearNow})${historicNote}</span>. As destacadas abaixo são as que fazem mais sentido pro seu uso atual.`;
+        return `${unlockedAll} de ${totalDisponiveisEsteAno} desbloqueadas este ano <span style="opacity:.7;">(${permanentUnlocked}/${permanentTotal} permanentes · ${seasonalFixedUnlocked}/${seasonalFixedTotal} sazonais fixas · ${yearlyUnlocked}/${yearlyAvailable} <span title="Conquistas vinculadas a efemérides japonesas — uma por estação por ano. Exclusivas, não voltam.">efemérides ${yearNow}</span>)${historicNote}</span>. As destacadas abaixo são as que fazem mais sentido pro seu uso atual.`;
       })()}</div>
       <div class="dojo-grid">${relevantHTML}</div>
       ${otherAch.length ? `
