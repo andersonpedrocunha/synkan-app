@@ -56177,12 +56177,12 @@ async function _bunkoOpenPage(pageId) {
         <button onclick="_bunkoExecFormat('blockquote')" title="Citação">❝</button>
         <button onclick="_bunkoExecFormat('pre')" title="Code">{ }</button>
         <span class="divider"></span>
-        <button onclick="_bunkoInsertLink()" title="Link">🔗</button>
+        <button onclick="_bunkoInsertLink()" title="Inserir link externo (URL) num texto selecionado">🔗 URL</button>
         <button onclick="_bunkoInsertWikilinkHint('${_esc(pageId)}')" title="Vincular outra página (Wikilink) — digite [[ no editor" style="font-family:Menlo,monospace;">[[…]]</button>
         <button onclick="_bunkoExtractActionsPrompt('${_esc(pageId)}')" title="Mestre Kan extrai ações pra cards" class="bunko-btn" style="padding:4px 10px;background:linear-gradient(135deg,rgba(188,0,45,.10) 0%,rgba(107,93,200,.10) 100%);border-color:rgba(188,0,45,.40);">🧘 Ações</button>
-        <button onclick="_bunkoOpenSynconnectLinker('${_esc(pageId)}')" title="Vincular esta página a um deal ou contato do Synconnect" class="bunko-btn" style="padding:4px 10px;background:linear-gradient(135deg,rgba(59,109,17,.10) 0%,rgba(127,119,221,.10) 100%);border-color:rgba(59,109,17,.40);">🔗 Synconnect</button>
+        <button onclick="_bunkoOpenSynconnectLinker('${_esc(pageId)}')" title="Vincular esta página a um deal ou contato do Synconnect" class="bunko-btn" style="padding:4px 10px;background:linear-gradient(135deg,rgba(59,109,17,.10) 0%,rgba(127,119,221,.10) 100%);border-color:rgba(59,109,17,.40);">⊞ Synconnect</button>
         <button onclick="_bunkoExportPageDocx('${_esc(pageId)}')" title="Baixar Word" class="bunko-btn" style="padding:4px 10px;">💾 Word</button>
-        <button onclick="_bunkoSharePagePrompt('${_esc(pageId)}')" title="Compartilhar via link público" class="bunko-btn" style="padding:4px 10px;">🔗 Link</button>
+        <button onclick="_bunkoSharePagePrompt('${_esc(pageId)}')" title="Gerar link público de leitura desta página" class="bunko-btn" style="padding:4px 10px;">🌐 Compartilhar</button>
         <span class="bunko-page-savestatus" id="bunko-page-savestatus">Salvo</span>
       </div>
       <div id="bunko-synconnect-badge-${_esc(pageId)}"></div>
@@ -56996,10 +56996,118 @@ function _bunkoExecFormat(tag) {
   try { document.execCommand('formatBlock', false, tag); } catch(_){}
 }
 function _bunkoInsertLink() {
-  const url = prompt('URL:');
-  if (!url) return;
-  try { document.execCommand('createLink', false, url); } catch(_){}
+  // Captura a seleção ANTES de abrir modal (foco no input pode perder a seleção)
+  const sel = window.getSelection();
+  const range = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0).cloneRange() : null;
+  const selectedText = range ? range.toString().trim() : '';
+  // Se já tem link na seleção, pega URL atual pra pré-preencher
+  let existingUrl = '';
+  let existingText = selectedText;
+  try {
+    let node = sel?.anchorNode;
+    while (node && node !== document.body) {
+      if (node.nodeType === 1 && node.tagName === 'A') {
+        existingUrl = node.getAttribute('href') || '';
+        if (!existingText) existingText = node.textContent || '';
+        break;
+      }
+      node = node.parentNode;
+    }
+  } catch(_){}
+
+  // Cria modal customizado (mesmo z-index que appAlert: 10500)
+  let ov = document.getElementById('bunko-link-modal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'bunko-link-modal';
+    document.body.appendChild(ov);
+  }
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:10500;display:flex;align-items:center;justify-content:center;font-family:var(--font-sans);';
+  ov.innerHTML = `
+    <div style="background:#FFFCF5;border:1px solid #B8A878;border-radius:14px;padding:24px 26px;max-width:480px;width:92%;box-shadow:0 16px 48px rgba(58,36,16,.30);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+        <span style="font-size:22px;">🔗</span>
+        <h3 style="margin:0;font-family:var(--tatami-mincho,serif);font-size:19px;color:#3A2410;">${existingUrl ? 'Editar link' : 'Inserir link'}</h3>
+      </div>
+      <p style="margin:0 0 16px;font-size:12.5px;color:#6B5840;line-height:1.5;">
+        Cole a URL (planilha, site, drive, qualquer link). ${selectedText || existingText ? 'O texto selecionado vira o link.' : 'Se nenhum texto estiver selecionado, a URL aparece como texto.'}
+      </p>
+      <div style="display:flex;flex-direction:column;gap:11px;">
+        <label style="font-size:11px;color:#6B5840;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">
+          URL de destino
+          <input id="bunko-link-url" type="text" value="${_esc(existingUrl)}" placeholder="https://docs.google.com/... ou exemplo.com" style="margin-top:5px;width:100%;padding:9px 12px;border:1px solid #B8A878;border-radius:7px;font-family:Menlo,monospace;font-size:12.5px;background:#FFFEF8;color:#3A2410;outline:none;" />
+        </label>
+        ${!selectedText && !existingText ? `<label style="font-size:11px;color:#6B5840;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">
+          Texto exibido <span style="text-transform:none;font-weight:400;font-size:10px;color:#A89066;font-style:italic;">opcional · se vazio, usa a URL</span>
+          <input id="bunko-link-text" type="text" placeholder="Ex: Planilha de orçamento Q4" style="margin-top:5px;width:100%;padding:9px 12px;border:1px solid #B8A878;border-radius:7px;font-size:13px;background:#FFFEF8;color:#3A2410;outline:none;font-family:var(--font-sans);" />
+        </label>` : ''}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:8px;">
+        ${existingUrl ? `<button onclick="_bunkoRemoveLink()" style="background:transparent;border:1px solid #BC002D;color:#BC002D;padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit;">Remover link</button>` : '<span></span>'}
+        <div style="display:flex;gap:8px;">
+          <button onclick="document.getElementById('bunko-link-modal').remove();" style="background:transparent;border:1px solid #B8A878;color:#6B5840;padding:7px 14px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">Cancelar</button>
+          <button id="bunko-link-save" style="background:#3A2410;border:none;color:#FFFCF5;padding:7px 18px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;">${existingUrl ? 'Salvar' : 'Inserir'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  // Click fora fecha
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  // Esc fecha
+  const onKey = e => { if (e.key === 'Escape') { ov.remove(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
+
+  const urlInp = document.getElementById('bunko-link-url');
+  const textInp = document.getElementById('bunko-link-text');
+  setTimeout(() => urlInp?.focus(), 50);
+
+  const doInsert = () => {
+    let url = (urlInp.value || '').trim();
+    if (!url) { urlInp.style.borderColor = '#BC002D'; urlInp.focus(); return; }
+    // Auto-prepend https:// se faltou protocolo (e não é mailto/tel/anchor)
+    if (!/^(https?:|mailto:|tel:|#|\/)/i.test(url)) url = 'https://' + url;
+    const customText = textInp ? (textInp.value || '').trim() : '';
+
+    // Restaura seleção que tinha antes do modal abrir
+    try {
+      if (range) {
+        const newSel = window.getSelection();
+        newSel.removeAllRanges();
+        newSel.addRange(range);
+      }
+    } catch(_){}
+
+    if (selectedText || existingText) {
+      // Tinha texto selecionado / link existente: aplica createLink na seleção
+      try { document.execCommand('createLink', false, url); } catch(_){}
+    } else if (customText) {
+      // Nenhum texto selecionado mas user digitou: insere <a> com o texto
+      try {
+        const html = `<a href="${_esc(url)}" target="_blank" rel="noopener noreferrer">${_esc(customText)}</a>`;
+        document.execCommand('insertHTML', false, html);
+      } catch(_){}
+    } else {
+      // Nada selecionado nem texto: insere a URL como texto + link
+      try {
+        const html = `<a href="${_esc(url)}" target="_blank" rel="noopener noreferrer">${_esc(url)}</a>`;
+        document.execCommand('insertHTML', false, html);
+      } catch(_){}
+    }
+    ov.remove();
+    document.removeEventListener('keydown', onKey);
+  };
+
+  document.getElementById('bunko-link-save').onclick = doInsert;
+  urlInp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); doInsert(); } };
+  if (textInp) textInp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); doInsert(); } };
 }
+
+// Remove link da seleção atual
+window._bunkoRemoveLink = function() {
+  try { document.execCommand('unlink'); } catch(_){}
+  const ov = document.getElementById('bunko-link-modal');
+  if (ov) ov.remove();
+};
 
 // Biblioteca grande de ícones, organizados por categoria + tags pra busca
 const _BUNKO_ICON_LIBRARY = [
