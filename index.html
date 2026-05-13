@@ -51567,6 +51567,10 @@ async function _lkStart() {
       // Bitrate explícito pra layer principal (h540 @ 30fps). Sem isso o SDK
       // usa um auto-budget conservador que faz a câmera parecer "travada".
       videoEncoding: { maxBitrate: 1_500_000, maxFramerate: 30 },
+      // Screen share: 3 Mbps @ 30fps. Sem isso o SDK aplica defaults muito
+      // conservadores (15fps / 1.5 Mbps) que deixam o share "travado" e
+      // borram texto. 3 Mbps é orçamento folgado pra texto nítido.
+      screenShareEncoding: { maxBitrate: 3_000_000, maxFramerate: 30 },
     },
   });
 
@@ -51673,6 +51677,13 @@ async function _lkStart() {
   room.on(LK.RoomEvent.ActiveSpeakersChanged, _lkOnActiveSpeakersChanged);
   room.on(LK.RoomEvent.Disconnected, _lkOnDisconnected);
   room.on(LK.RoomEvent.DataReceived, _lkOnDataReceived);
+  // Tracks locais publicadas/despublicadas — sem isso, se o user clica
+  // "Stop sharing" na barra nativa do browser (não no nosso botão), o
+  // <video> morto continua no tile e mostra preto. Re-render limpa.
+  if (LK.RoomEvent.LocalTrackPublished)   room.on(LK.RoomEvent.LocalTrackPublished, _lkOnLocalTrackChange);
+  if (LK.RoomEvent.LocalTrackUnpublished) room.on(LK.RoomEvent.LocalTrackUnpublished, _lkOnLocalTrackChange);
+  if (LK.RoomEvent.TrackMuted)            room.on(LK.RoomEvent.TrackMuted, _lkOnLocalTrackChange);
+  if (LK.RoomEvent.TrackUnmuted)          room.on(LK.RoomEvent.TrackUnmuted, _lkOnLocalTrackChange);
 
   console.log('[lk] conectando em', window.LIVEKIT_WS_URL, '— sala:', session.livekit_room);
   try {
@@ -51848,6 +51859,21 @@ function _lkOnTrackSubscribed(track, pub, participant) {
   _lkRenderTiles();
 }
 function _lkOnTrackUnsubscribed(track) { _lkRenderTiles(); }
+function _lkOnLocalTrackChange(...args) {
+  // Dispara em LocalTrackPublished/Unpublished e TrackMuted/Unmuted.
+  // Útil sobretudo quando o user para o screen share pela barra nativa do
+  // browser (não pelo nosso botão) — o evento chega aqui e re-renderizamos
+  // pra limpar o <video> morto que ficaria mostrando preto.
+  const ext = _chatState.extended; if (!ext?.lk) return;
+  // Detecta se a track envolvida é screen share — log diagnóstico
+  try {
+    const pub = args.find(a => a && (a.kind === 'video' || a.kind === 'audio' || a.source));
+    if (pub?.source) console.log('[lk] local track change:', pub.source, pub.isMuted ? 'muted' : 'active');
+  } catch(_){}
+  // Re-render geral pra atualizar tiles e a barra de controles (botão de
+  // screen share precisa refletir o estado real)
+  try { _lkRender(); } catch(_){}
+}
 function _lkOnActiveSpeakersChanged(speakers) {
   const ext = _chatState.extended; if (!ext?.lk) return;
   ext.lk.activeSpeakerIds = new Set(speakers.map(p => p.sid));
@@ -52544,18 +52570,35 @@ function _lkAttachTracks(p) {
   const sid = p.sid;
   const mount = document.querySelector(`[data-track-mount="${sid}"]`);
   if (!mount) return;
+  const LK = window.LivekitClient;
+  const CAM_SRC = LK?.Track?.Source?.Camera;
+  const SCREEN_SRC = LK?.Track?.Source?.ScreenShare;
+  // Prioriza Screen Share quando há uma ativa — se alguém tá apresentando,
+  // os outros querem ver a TELA, não o rosto. Fallback pra Camera. Tracks
+  // mortas (sem .track ou muted) são ignoradas e o mount é limpo no fim —
+  // fix do "tile preto após parar screen share" (porque o <video> morto
+  // não tem fallback e fica congelado).
+  let camPub = null, screenPub = null, otherPub = null;
   p.videoTrackPublications.forEach(pub => {
-    if (pub.track && !pub.isMuted) {
-      const existing = mount.querySelector('video');
-      if (existing) existing.remove();
-      const el = pub.track.attach();
-      el.style.width = '100%';
-      el.style.height = '100%';
-      el.style.objectFit = 'cover';
-      mount.innerHTML = '';
-      mount.appendChild(el);
-    }
+    if (!pub.track || pub.isMuted) return;
+    if (CAM_SRC && pub.source === CAM_SRC) camPub = pub;
+    else if (SCREEN_SRC && pub.source === SCREEN_SRC) screenPub = pub;
+    else if (!otherPub) otherPub = pub;
   });
+  const chosen = screenPub || camPub || otherPub;
+  // Limpa o mount sempre — garante que screen share morto vai embora
+  const existing = mount.querySelector('video');
+  if (existing) try { existing.srcObject = null; existing.remove(); } catch(_){}
+  mount.innerHTML = '';
+  if (chosen) {
+    const el = chosen.track.attach();
+    el.style.width = '100%';
+    el.style.height = '100%';
+    // Screen share usa 'contain' (não cortar bordas) e camera usa 'cover'
+    el.style.objectFit = (screenPub && chosen === screenPub) ? 'contain' : 'cover';
+    if (screenPub && chosen === screenPub) el.style.background = '#0A0907';
+    mount.appendChild(el);
+  }
 }
 
 function _lkRenderSidepanel() {
