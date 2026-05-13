@@ -20867,11 +20867,14 @@ function render() {
               }
             }
             // 2) Cache do chat (profiles) — costuma ter avatar
-            if (!resolvedAvatar && _chatState?.userMap?.[c.assignedUserId]) {
-              const cu = _chatState.userMap[c.assignedUserId];
-              if (!resolvedName) resolvedName = cu.name || cu.full_name || cu.email || null;
-              resolvedAvatar = resolvedAvatar || cu.avatar || cu.avatar_url || null;
-            }
+            //    OBS: _chatState está em TDZ se acessado antes do let — try/catch protege.
+            try {
+              if (!resolvedAvatar && typeof _chatState !== 'undefined' && _chatState?.userMap?.[c.assignedUserId]) {
+                const cu = _chatState.userMap[c.assignedUserId];
+                if (!resolvedName) resolvedName = cu.name || cu.full_name || cu.email || null;
+                resolvedAvatar = resolvedAvatar || cu.avatar || cu.avatar_url || null;
+              }
+            } catch(_) { /* _chatState pode estar em temporal dead zone */ }
             // 3) Próprio user logado — pega foto do auth metadata + cascata
             if (supaUser?.id === c.assignedUserId) {
               if (!resolvedName) resolvedName = supaUser.user_metadata?.full_name || supaUser.email || 'Você';
@@ -41408,13 +41411,32 @@ function renderDojo() {
     <div>
       <div class="dojo-section-title" data-kanji="勲章">🏆 Conquistas</div>
       <div class="dojo-section-sub">${(() => {
-        const totalSeasonal = (typeof SEASONAL_ACHIEVEMENTS === 'object')
+        const yearNow = new Date().getFullYear();
+        // Permanentes (fixas no ACHIEVEMENTS)
+        const permanentTotal = ACHIEVEMENTS.length;
+        const permanentUnlocked = unlocked.length;
+        // Sazonais FIXAS (5 por estação × 4 estações = 20)
+        const seasonalFixedTotal = (typeof SEASONAL_ACHIEVEMENTS === 'object')
           ? Object.values(SEASONAL_ACHIEVEMENTS).reduce((acc, list) => acc + (list?.length||0), 0)
           : 0;
-        const seasonalUnlocked = (_gamif?.seasonal?.completed||[]).length;
-        const totalGlobal = ACHIEVEMENTS.length + totalSeasonal;
-        const unlockedAll = unlocked.length + seasonalUnlocked;
-        return `${unlockedAll} de ${totalGlobal} desbloqueadas <span style="opacity:.7;">(${unlocked.length}/${ACHIEVEMENTS.length} permanentes · ${seasonalUnlocked}/${totalSeasonal} sazonais)</span>. As destacadas abaixo são as que fazem mais sentido pro seu uso atual.`;
+        // Anuais especiais DO ANO CORRENTE (4 — 1 por estação)
+        let yearlyAvailable = 0;
+        if (typeof SEASONAL_YEARLY === 'object') {
+          for (const seasonKey of Object.keys(SEASONAL_YEARLY)) {
+            if (SEASONAL_YEARLY[seasonKey]?.[yearNow]) yearlyAvailable++;
+          }
+        }
+        // Conta unlocked seasonais (fixas + anuais já feitas)
+        const completedList = (_gamif?.seasonal?.completed||[]);
+        const seasonalFixedUnlocked = completedList.filter(c => c.kind !== 'yearly').length;
+        const yearlyUnlocked = completedList.filter(c => c.kind === 'yearly' && c.year === yearNow).length;
+        // Totais
+        const totalDisponiveisEsteAno = permanentTotal + seasonalFixedTotal + yearlyAvailable;
+        const unlockedAll = permanentUnlocked + seasonalFixedUnlocked + yearlyUnlocked;
+        // Anuais históricas (de anos anteriores, já conquistadas)
+        const yearlyHistoric = completedList.filter(c => c.kind === 'yearly' && c.year !== yearNow).length;
+        const historicNote = yearlyHistoric > 0 ? ` + ${yearlyHistoric} anuai${yearlyHistoric===1?'':'s'} já conquistada${yearlyHistoric===1?'':'s'} em anos anteriores` : '';
+        return `${unlockedAll} de ${totalDisponiveisEsteAno} desbloqueadas este ano <span style="opacity:.7;">(${permanentUnlocked}/${permanentTotal} permanentes · ${seasonalFixedUnlocked}/${seasonalFixedTotal} sazonais fixas · ${yearlyUnlocked}/${yearlyAvailable} anuais ${yearNow})${historicNote}</span>. As destacadas abaixo são as que fazem mais sentido pro seu uso atual.`;
       })()}</div>
       <div class="dojo-grid">${relevantHTML}</div>
       ${otherAch.length ? `
@@ -45849,7 +45871,11 @@ if (typeof _initPomo === 'function') _initPomo();
 //   }
 // ══════════════════════════════════════════════════════════════════════
 
-let _chatState = {
+// IMPORTANTE: `var` ao invés de `let` pra ter hoisting em todo o escopo do arquivo.
+// Antes era `let`, o que causava Temporal Dead Zone quando código mais cedo no
+// arquivo (cards do kanban, etc) tentava acessar `_chatState` antes da linha
+// onde ele é declarado/inicializado.
+var _chatState = {
   channels: [],
   currentChannelId: null,
   messages: [],
