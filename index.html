@@ -52022,30 +52022,43 @@ function _lkCloseSharePicker() {
 
 function _lkSharePickerHTML() {
   const boards = (typeof allBoards !== 'undefined') ? Object.values(allBoards||{}).filter(b => b && b.id !== '__unified__') : [];
-  // Categorias: Boards / OKRs / Lab / Zai
+  // Categorias: Boards / Lab / OKRs / Synconnect / Chat / Zai
   const tabs = [
     { key:'board', label:'Boards', items: boards.map(b => ({
       id: b.id, name: b.name || 'Board', meta: `${(b.cards||[]).length} cards`
     })) },
   ];
-  // OKRs
+  // Lab — usa _canvases diretamente (objeto keyado por id)
   try {
-    if (typeof _okrsList === 'function') {
-      const okrs = _okrsList() || [];
-      tabs.push({ key:'okr', label:'OKRs', items: okrs.map(o => ({
-        id: o.id, name: o.title || 'OKR', meta: `${(o.krs||[]).length} KRs`
-      })) });
-    }
-  } catch(_){}
-  // Lab
-  try {
-    if (typeof _canvasesList === 'function') {
-      const labs = _canvasesList() || [];
+    if (typeof _canvases === 'object' && _canvases) {
+      const ZAI_ONLY = new Set(['opcost', 'goal-1pct', 'invest']);
+      const labs = Object.values(_canvases)
+        .filter(cv => cv && !ZAI_ONLY.has(cv.format))
+        .sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
       tabs.push({ key:'lab', label:'Lab', items: labs.map(l => ({
-        id: l.id, name: l.title || 'Lab', meta: l.kind || 'canvas'
+        id: l.id, name: l.name || 'Lab', meta: l.format || 'canvas'
       })) });
     }
   } catch(_){}
+  // OKRs — usa _okrs diretamente (array). OKRs é um módulo único; selecionar
+  // qualquer item monta a view inteira, então mostra como um único "Abrir OKRs".
+  try {
+    if (typeof _okrs !== 'undefined' && Array.isArray(_okrs)) {
+      tabs.push({ key:'okr', label:'OKRs', items: [
+        { id: 'okrs', name: 'Abrir OKRs', meta: `${_okrs.length} objetivo(s)` }
+      ] });
+    }
+  } catch(_){}
+  // Synconnect — também é módulo único (view-registry com sub-abas)
+  tabs.push({ key:'synconnect', label:'Synconnect', items: [
+    { id: 'synconnect', name: 'Abrir Synconnect', meta: 'CRM completo' }
+  ] });
+  // Chat do canal (view-chat) — onde o tatame foi aberto
+  const _chCh = (typeof _chatState !== 'undefined') ? _chatState.channels?.find(c => c.id === _chatState.currentChannelId) : null;
+  const _chName = _chCh?.name || 'canal';
+  tabs.push({ key:'chat', label:'Chat', items: [
+    { id: 'chat', name: `Chat #${_chName}`, meta: 'mensagens do canal' }
+  ] });
   // Zai (boards com kind=zai)
   const zais = boards.filter(b => b.kind === 'zai' || b.isZai);
   if (zais.length) {
@@ -52055,10 +52068,12 @@ function _lkSharePickerHTML() {
   }
 
   const ICO = {
-    board: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="5" height="13" rx="1"/></svg>',
-    okr:   '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>',
-    lab:   '<svg viewBox="0 0 24 24"><path d="M9 3 L 15 3 L 18 8 L 18 21 L 6 21 L 6 8 Z"/><path d="M9 3 L 9 8 L 18 8"/></svg>',
-    zai:   '<svg viewBox="0 0 24 24"><path d="M3 17 L 9 11 L 13 15 L 21 7"/><polyline points="17 7 21 7 21 11"/></svg>',
+    board:      '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="5" height="13" rx="1"/></svg>',
+    okr:        '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>',
+    lab:        '<svg viewBox="0 0 24 24"><path d="M9 3 L 15 3 L 18 8 L 18 21 L 6 21 L 6 8 Z"/><path d="M9 3 L 9 8 L 18 8"/></svg>',
+    synconnect: '<svg viewBox="0 0 24 24"><path d="M5.5 6V4.4a1.4 1.4 0 0 1 1.4-1.4h10.2a1.4 1.4 0 0 1 1.4 1.4V6"/><rect x="2" y="6" width="20" height="15" rx="2"/><path d="M2 12h20"/></svg>',
+    chat:       '<svg viewBox="0 0 24 24"><path d="M3 5 a2 2 0 0 1 2-2 h14 a2 2 0 0 1 2 2 v10 a2 2 0 0 1 -2 2 h-9 l-5 4 v-4 h-0 a2 2 0 0 1 -2-2 z"/></svg>',
+    zai:        '<svg viewBox="0 0 24 24"><path d="M3 17 L 9 11 L 13 15 L 21 7"/><polyline points="17 7 21 7 21 11"/></svg>',
   };
 
   return `<div class="lk-share-modal">
@@ -52383,9 +52398,11 @@ function _lkRenderShareWrap() {
   const isMine = item.by === supaUser?.id;
   const presenter = _chatState.userMap?.[item.by];
   const presenterName = presenter?.name || (isMine ? 'você' : 'alguém');
-  // Container com IDs que as funções _txMount* reconhecem (board/lab/okrs)
-  const mountId = item.type === 'lab' ? 'tx-lab-mount'
-                : item.type === 'okr' ? 'tx-okrs-mount'
+  // Container com IDs que as funções _txMount* reconhecem
+  const mountId = item.type === 'lab'        ? 'tx-lab-mount'
+                : item.type === 'okr'        ? 'tx-okrs-mount'
+                : item.type === 'synconnect' ? 'tx-synconnect-mount'
+                : item.type === 'chat'       ? 'tx-chat-mount'
                 : 'tx-board-mount'; // boards e zais usam o mesmo mount do kanban
   wrap.innerHTML = `
     <div class="lk-share-bar">
@@ -52408,6 +52425,10 @@ function _lkRenderShareWrap() {
         if (typeof _txMountLabEmbed === 'function') _txMountLabEmbed(item.id);
       } else if (item.type === 'okr') {
         if (typeof _txMountOkrsEmbed === 'function') _txMountOkrsEmbed();
+      } else if (item.type === 'synconnect') {
+        if (typeof _txMountSynconnectEmbed === 'function') _txMountSynconnectEmbed();
+      } else if (item.type === 'chat') {
+        if (typeof _txMountChatEmbed === 'function') _txMountChatEmbed();
       } else {
         const mount = document.getElementById(mountId);
         if (mount) mount.innerHTML = `<div style="padding:30px;text-align:center;font-style:italic;color:var(--tatami-ink-soft,#5C4F3F);">Tipo "${_esc(item.type)}" ainda não tem embed implementado.</div>`;
@@ -58838,16 +58859,18 @@ async function _lkLeave() {
     ov.classList.remove('tx-livekit-mode');
     const body = ov.querySelector('.lk-body');
     if (body) {
-      // Rescue: se view-kanban ainda tá dentro do lk-body (unmount falhou
-      // silenciosamente ou nem chegou a rodar), devolve pro home ANTES de
-      // destruir o body — sem isso, body.remove() leva o view-kanban junto
-      // e o próximo share fica quebrado.
+      // Rescue: se alguma das views gerenciadas (kanban, canvas, okrs,
+      // registry, chat) ainda tá dentro do lk-body (unmount falhou ou nem
+      // chegou a rodar), devolve pro home ANTES de destruir o body — sem
+      // isso, body.remove() leva a view junto e o próximo share fica quebrado.
       try {
-        if (body.querySelector('#view-kanban')) {
-          if (typeof _txRestoreKanbanHome === 'function') _txRestoreKanbanHome();
-          console.log('[lk-leave] view-kanban resgatado antes de lk-body.remove()');
-        }
-      } catch(e) { console.warn('[lk-leave] rescue view-kanban:', e); }
+        ['view-kanban','view-canvas','view-okrs','view-registry','view-chat'].forEach(id => {
+          if (body.querySelector('#' + id)) {
+            if (typeof _txRestoreViewHome === 'function') _txRestoreViewHome(id);
+            console.log('[lk-leave]', id, 'resgatado antes de lk-body.remove()');
+          }
+        });
+      } catch(e) { console.warn('[lk-leave] rescue views:', e); }
       body.remove();
     }
     const controls = ov.querySelector('.tx-controls');
@@ -59287,48 +59310,62 @@ function _txRenderBoardPanel() {
 // (drag-drop, modais, edição, render) continua funcionando porque é
 // o mesmo DOM e os mesmos handlers.
 //
-// Blindagem (5 camadas — self-heal): o move-DOM é frágil porque qualquer
-// race (lk-body removido antes do unmount, erro silencioso, sessão crashada)
-// pode deixar view-kanban orfão ou destruído, quebrando shares futuros.
-// Os helpers abaixo tornam mount/unmount idempotentes e auto-curáveis.
-let _kanbanHomeParent = null; // referência module-level — sobrevive a state resets do _chatState
-function _txKanbanHomeParent() {
-  if (_kanbanHomeParent && document.contains(_kanbanHomeParent)) return _kanbanHomeParent;
-  const board = document.querySelector('main.main-area .board');
-  if (board) { _kanbanHomeParent = board; return board; }
-  return null;
+// Blindagem (self-heal genérica): o move-DOM é frágil porque qualquer race
+// (lk-body removido antes do unmount, erro silencioso, sessão crashada) pode
+// deixar a view orfã ou destruída, quebrando shares futuros. Os helpers
+// abaixo tornam mount/unmount idempotentes e auto-curáveis pra qualquer view
+// gerenciada (kanban, canvas, okrs, registry, chat).
+//
+// Estrutura: todos os view-* moram dentro de `<main.main-area> .board` como
+// irmãos — então o "home" é compartilhado. Cache module-level sobrevive a
+// state resets de _chatState.
+let _txViewHomeCache = null;
+function _txViewHome() {
+  if (_txViewHomeCache && document.contains(_txViewHomeCache)) return _txViewHomeCache;
+  const home = document.querySelector('main.main-area .board');
+  if (home) _txViewHomeCache = home;
+  return home;
 }
-function _txEnsureKanbanView() {
-  // Garante que view-kanban existe no DOM. Se sumiu (race anterior), recria
-  // a div vazia — o estado real tá em allBoards/currentBoardId e render() repovoa.
-  let view = document.getElementById('view-kanban');
+// Defaults usados se a view sumir e precisar ser recriada do zero.
+// Conteúdo real é repovoado pelas funções de render() do módulo.
+const _TX_VIEW_DEFAULTS = {
+  'view-kanban':   '<div class="cols" id="cols"></div>',
+  'view-canvas':   '<div id="canvas-root"></div>',
+  'view-okrs':     '<div id="okrs-root"></div>',
+  'view-registry': '<div id="registry-root"></div>',
+  'view-chat':     '<div id="chat-root"></div>',
+};
+function _txEnsureView(viewId) {
+  let view = document.getElementById(viewId);
   if (view) return view;
-  const home = _txKanbanHomeParent();
-  if (!home) { console.warn('🎬 [tx-share] não consegui localizar .board pra recriar view-kanban'); return null; }
+  const home = _txViewHome();
+  if (!home) { console.warn('🎬 [tx-share] sem home pra recriar', viewId); return null; }
   view = document.createElement('div');
-  view.id = 'view-kanban';
+  view.id = viewId;
   view.style.display = 'none';
-  view.innerHTML = '<div class="cols" id="cols"></div>';
+  view.innerHTML = _TX_VIEW_DEFAULTS[viewId] || '';
   home.appendChild(view);
-  console.log('🎬 [tx-share] view-kanban recriado (estava ausente — self-heal)');
+  console.log('🎬 [tx-share]', viewId, 'recriado (self-heal)');
   return view;
 }
-function _txRestoreKanbanHome() {
-  // Devolve view-kanban pro .board original, esteja onde estiver. Idempotente.
-  const view = document.getElementById('view-kanban');
+function _txRestoreViewHome(viewId) {
+  const view = document.getElementById(viewId);
   if (!view) return;
-  const home = _txKanbanHomeParent();
+  const home = _txViewHome();
   if (!home || view.parentNode === home) return;
-  try { home.appendChild(view); console.log('🎬 [tx-share] view-kanban devolvido pro home (self-heal)'); }
-  catch(e) { console.warn('🎬 [tx-share] restore home falhou:', e); }
+  try { home.appendChild(view); console.log('🎬 [tx-share]', viewId, 'devolvido pro home (self-heal)'); }
+  catch(e) { console.warn('🎬 [tx-share] restore', viewId, 'falhou:', e); }
 }
+// Aliases retrocompatíveis (caso algum chamador antigo persista)
+function _txRestoreKanbanHome() { return _txRestoreViewHome('view-kanban'); }
+function _txEnsureKanbanView()   { return _txEnsureView('view-kanban'); }
 
 function _txMountBoardEmbed(boardId) {
   console.log('🎬 [tx-share] mount board iniciado:', boardId);
   const mount = document.getElementById('tx-board-mount');
   if (!mount) { console.warn('🎬 [tx-share] tx-board-mount não existe'); return; }
-  _txKanbanHomeParent(); // memoiza o home antes de mover qualquer coisa
-  const view = _txEnsureKanbanView();
+  _txViewHome(); // memoiza o home antes de mover qualquer coisa
+  const view = _txEnsureView('view-kanban');
   if (!view) {
     console.warn('🎬 [tx-share] view-kanban ausente e recriação falhou');
     mount.innerHTML = `<div style="padding:40px;text-align:center;color:var(--tatami-ink-soft,#5C4F3F);font-style:italic;">
@@ -59404,23 +59441,31 @@ function _txMountBoardEmbed(boardId) {
 }
 
 function _txMountLabEmbed(labId) {
+  console.log('🎬 [tx-share] mount lab iniciado:', labId);
   const mount = document.getElementById('tx-lab-mount');
-  if (!mount) return;
-  const view = document.getElementById('view-canvas');
-  if (!view) return;
+  if (!mount) { console.warn('🎬 [tx-share] tx-lab-mount não existe'); return; }
+  _txViewHome();
+  const view = _txEnsureView('view-canvas');
+  if (!view) {
+    console.warn('🎬 [tx-share] view-canvas ausente e recriação falhou');
+    mount.innerHTML = `<div style="padding:40px;text-align:center;color:var(--tatami-ink-soft,#5C4F3F);font-style:italic;">
+      ⚠️ Não foi possível carregar a view do Lab.<br/>
+      <small>Tente fechar e abrir o tatame de novo.</small>
+    </div>`;
+    return;
+  }
   const ext = _chatState.extended;
   if (!ext) return;
   if (!ext._canvasOrig) {
     ext._canvasOrig = {
-      parent: view.parentNode,
-      next: view.nextSibling,
       origCanvasId: (typeof _currentCanvasId !== 'undefined') ? _currentCanvasId : null,
       origView: (typeof _canvasView !== 'undefined') ? _canvasView : null,
-      origDisplay: view.style.display,
     };
   }
   _txUnmountBoardEmbedOnly();
   _txUnmountOkrsEmbedOnly();
+  _txUnmountSynconnectEmbedOnly();
+  _txUnmountChatEmbedOnly();
   // Aponta pro lab escolhido
   if (typeof _currentCanvasId !== 'undefined') _currentCanvasId = labId;
   if (typeof _canvasView !== 'undefined') _canvasView = 'editor';
@@ -59453,61 +59498,132 @@ function _txUnmountBoardEmbedOnly() {
 }
 
 function _txUnmountLabEmbedOnly() {
-  const ext = _chatState.extended;
-  if (!ext || !ext._canvasOrig) return;
+  // Idempotente: traz view-canvas pro home esteja onde estiver.
+  _txRestoreViewHome('view-canvas');
   const view = document.getElementById('view-canvas');
-  if (!view) return;
-  const o = ext._canvasOrig;
-  try {
-    if (o.next && o.next.parentNode === o.parent) o.parent.insertBefore(view, o.next);
-    else o.parent.appendChild(view);
-  } catch(e){}
-  view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'canvas') ? '' : 'none';
-  if (typeof _currentCanvasId !== 'undefined') _currentCanvasId = o.origCanvasId;
-  if (typeof _canvasView !== 'undefined') _canvasView = o.origView || 'list';
-  ext._canvasOrig = null;
+  if (view) {
+    view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'canvas') ? '' : 'none';
+  }
+  const ext = _chatState.extended;
+  if (ext?._canvasOrig) {
+    const o = ext._canvasOrig;
+    if (typeof _currentCanvasId !== 'undefined') _currentCanvasId = o.origCanvasId;
+    if (typeof _canvasView !== 'undefined') _canvasView = o.origView || 'list';
+    ext._canvasOrig = null;
+  }
 }
 
 function _txMountOkrsEmbed() {
+  console.log('🎬 [tx-share] mount okrs iniciado');
   const mount = document.getElementById('tx-okrs-mount');
-  if (!mount) return;
-  const view = document.getElementById('view-okrs');
-  if (!view) return;
-  const ext = _chatState.extended;
-  if (!ext) return;
-  if (!ext._okrsOrig) {
-    ext._okrsOrig = {
-      parent: view.parentNode,
-      next: view.nextSibling,
-      origDisplay: view.style.display,
-    };
+  if (!mount) { console.warn('🎬 [tx-share] tx-okrs-mount não existe'); return; }
+  _txViewHome();
+  const view = _txEnsureView('view-okrs');
+  if (!view) {
+    console.warn('🎬 [tx-share] view-okrs ausente e recriação falhou');
+    mount.innerHTML = `<div style="padding:40px;text-align:center;color:var(--tatami-ink-soft,#5C4F3F);font-style:italic;">
+      ⚠️ Não foi possível carregar os OKRs.<br/>
+      <small>Tente fechar e abrir o tatame de novo.</small>
+    </div>`;
+    return;
   }
   // Desmonta os outros embeds primeiro
   _txUnmountBoardEmbedOnly();
   _txUnmountLabEmbedOnly();
+  _txUnmountSynconnectEmbedOnly();
+  _txUnmountChatEmbedOnly();
   if (view.parentNode !== mount) mount.appendChild(view);
   view.style.display = '';
   if (typeof renderOKRs === 'function') { try { renderOKRs(); } catch(e){} }
 }
 
 function _txUnmountOkrsEmbedOnly() {
-  const ext = _chatState.extended;
-  if (!ext || !ext._okrsOrig) return;
+  // Idempotente: traz view-okrs pro home esteja onde estiver.
+  _txRestoreViewHome('view-okrs');
   const view = document.getElementById('view-okrs');
-  if (!view) return;
-  const o = ext._okrsOrig;
-  try {
-    if (o.next && o.next.parentNode === o.parent) o.parent.insertBefore(view, o.next);
-    else o.parent.appendChild(view);
-  } catch(e){}
-  view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'okrs') ? '' : 'none';
-  ext._okrsOrig = null;
+  if (view) {
+    view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'okrs') ? '' : 'none';
+  }
+  const ext = _chatState.extended;
+  if (ext?._okrsOrig) ext._okrsOrig = null;
+}
+
+// ── Synconnect (view-registry) ──
+function _txMountSynconnectEmbed() {
+  console.log('🎬 [tx-share] mount synconnect iniciado');
+  const mount = document.getElementById('tx-synconnect-mount');
+  if (!mount) { console.warn('🎬 [tx-share] tx-synconnect-mount não existe'); return; }
+  _txViewHome();
+  const view = _txEnsureView('view-registry');
+  if (!view) {
+    console.warn('🎬 [tx-share] view-registry ausente e recriação falhou');
+    mount.innerHTML = `<div style="padding:40px;text-align:center;color:var(--tatami-ink-soft,#5C4F3F);font-style:italic;">
+      ⚠️ Não foi possível carregar o Synconnect.<br/>
+      <small>Tente fechar e abrir o tatame de novo.</small>
+    </div>`;
+    return;
+  }
+  _txUnmountBoardEmbedOnly();
+  _txUnmountLabEmbedOnly();
+  _txUnmountOkrsEmbedOnly();
+  _txUnmountChatEmbedOnly();
+  if (view.parentNode !== mount) mount.appendChild(view);
+  view.style.display = '';
+  if (typeof renderRegistry === 'function') { try { renderRegistry(); } catch(e){} }
+}
+
+function _txUnmountSynconnectEmbedOnly() {
+  _txRestoreViewHome('view-registry');
+  const view = document.getElementById('view-registry');
+  if (view) {
+    view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'registry') ? '' : 'none';
+  }
+}
+
+// ── Chat (view-chat — chat do canal onde o tatame foi aberto) ──
+function _txMountChatEmbed() {
+  console.log('🎬 [tx-share] mount chat iniciado');
+  const mount = document.getElementById('tx-chat-mount');
+  if (!mount) { console.warn('🎬 [tx-share] tx-chat-mount não existe'); return; }
+  _txViewHome();
+  const view = _txEnsureView('view-chat');
+  if (!view) {
+    console.warn('🎬 [tx-share] view-chat ausente e recriação falhou');
+    mount.innerHTML = `<div style="padding:40px;text-align:center;color:var(--tatami-ink-soft,#5C4F3F);font-style:italic;">
+      ⚠️ Não foi possível carregar o chat.<br/>
+      <small>Tente fechar e abrir o tatame de novo.</small>
+    </div>`;
+    return;
+  }
+  _txUnmountBoardEmbedOnly();
+  _txUnmountLabEmbedOnly();
+  _txUnmountOkrsEmbedOnly();
+  _txUnmountSynconnectEmbedOnly();
+  if (view.parentNode !== mount) mount.appendChild(view);
+  view.style.display = '';
+  // Tenta repovoar usando o render principal do chat. Nomes possíveis variam
+  // entre versões — tenta os mais comuns.
+  const renderFn = (typeof _renderChat === 'function') ? _renderChat
+                 : (typeof renderChat === 'function') ? renderChat
+                 : (typeof _chatRender === 'function') ? _chatRender
+                 : null;
+  if (renderFn) { try { renderFn(); } catch(e) { console.warn('🎬 [tx-share] render chat:', e); } }
+}
+
+function _txUnmountChatEmbedOnly() {
+  _txRestoreViewHome('view-chat');
+  const view = document.getElementById('view-chat');
+  if (view) {
+    view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'chat') ? '' : 'none';
+  }
 }
 
 function _txUnmountEmbed() {
   _txUnmountBoardEmbedOnly();
   _txUnmountLabEmbedOnly();
   _txUnmountOkrsEmbedOnly();
+  _txUnmountSynconnectEmbedOnly();
+  _txUnmountChatEmbedOnly();
 }
 
 // ── Board legacy (drag-drop custom) — mantido pra fallback caso algo dê erro no mount ──
