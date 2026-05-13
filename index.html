@@ -57079,13 +57079,17 @@ function _bunkoInsertLink() {
   const sel = window.getSelection();
   const range = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0).cloneRange() : null;
   const selectedText = range ? range.toString().trim() : '';
-  // Se já tem link na seleção, pega URL atual pra pré-preencher
+  // Acha o <a> ancestral (se cursor estiver dentro de link) — guarda o NODE
+  // pra manipular direto, sem depender de execCommand+selection (que falha
+  // quando o foco muda pro modal).
+  let existingAnchor = null;
   let existingUrl = '';
   let existingText = selectedText;
   try {
     let node = sel?.anchorNode;
     while (node && node !== document.body) {
       if (node.nodeType === 1 && node.tagName === 'A') {
+        existingAnchor = node;
         existingUrl = node.getAttribute('href') || '';
         if (!existingText) existingText = node.textContent || '';
         break;
@@ -57093,6 +57097,8 @@ function _bunkoInsertLink() {
       node = node.parentNode;
     }
   } catch(_){}
+  // Guarda contexto em window pra _bunkoRemoveLink poder acessar o <a> direto
+  window._bunkoLinkCtx = { range, existingAnchor, existingUrl };
 
   // Cria modal customizado (mesmo z-index que appAlert: 10500)
   let ov = document.getElementById('bunko-link-modal');
@@ -57147,7 +57153,20 @@ function _bunkoInsertLink() {
     if (!/^(https?:|mailto:|tel:|#|\/)/i.test(url)) url = 'https://' + url;
     const customText = textInp ? (textInp.value || '').trim() : '';
 
-    // Restaura seleção que tinha antes do modal abrir
+    // MODO 1: já existe um <a> → edita ele diretamente (mais robusto que execCommand)
+    if (existingAnchor) {
+      existingAnchor.setAttribute('href', url);
+      existingAnchor.setAttribute('target', '_blank');
+      existingAnchor.setAttribute('rel', 'noopener noreferrer');
+      // Dispara input event pra autosave
+      const editor = existingAnchor.closest('.bunko-page-content');
+      if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+      ov.remove();
+      document.removeEventListener('keydown', onKey);
+      return;
+    }
+
+    // MODO 2: novo link — restaura seleção e usa execCommand
     try {
       if (range) {
         const newSel = window.getSelection();
@@ -57156,22 +57175,27 @@ function _bunkoInsertLink() {
       }
     } catch(_){}
 
-    if (selectedText || existingText) {
-      // Tinha texto selecionado / link existente: aplica createLink na seleção
+    if (selectedText) {
+      // Texto selecionado: aplica createLink
       try { document.execCommand('createLink', false, url); } catch(_){}
     } else if (customText) {
-      // Nenhum texto selecionado mas user digitou: insere <a> com o texto
+      // Sem seleção mas user digitou texto: insere <a>
       try {
         const html = `<a href="${_esc(url)}" target="_blank" rel="noopener noreferrer">${_esc(customText)}</a>`;
         document.execCommand('insertHTML', false, html);
       } catch(_){}
     } else {
-      // Nada selecionado nem texto: insere a URL como texto + link
+      // Sem nada: URL vira texto + link
       try {
         const html = `<a href="${_esc(url)}" target="_blank" rel="noopener noreferrer">${_esc(url)}</a>`;
         document.execCommand('insertHTML', false, html);
       } catch(_){}
     }
+    // Dispara input event no editor pra forçar autosave (caso execCommand não dispare)
+    try {
+      const editor = document.querySelector('.bunko-page-content');
+      if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch(_){}
     ov.remove();
     document.removeEventListener('keydown', onKey);
   };
@@ -57181,11 +57205,37 @@ function _bunkoInsertLink() {
   if (textInp) textInp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); doInsert(); } };
 }
 
-// Remove link da seleção atual
+// Remove link mantendo o texto. Usa o anchor capturado no _bunkoInsertLink
+// (não execCommand('unlink'), que falha quando foco está no modal).
 window._bunkoRemoveLink = function() {
-  try { document.execCommand('unlink'); } catch(_){}
+  const ctx = window._bunkoLinkCtx || {};
+  const anchor = ctx.existingAnchor;
+  if (anchor && anchor.parentNode) {
+    // Substitui o <a> pelo seu próprio conteúdo (mantém texto, perde href)
+    const editor = anchor.closest('.bunko-page-content');
+    const parent = anchor.parentNode;
+    while (anchor.firstChild) {
+      parent.insertBefore(anchor.firstChild, anchor);
+    }
+    parent.removeChild(anchor);
+    // Força autosave
+    if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+  } else {
+    // Fallback: restaura range + execCommand('unlink')
+    try {
+      if (ctx.range) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(ctx.range);
+      }
+      document.execCommand('unlink');
+      const editor = document.querySelector('.bunko-page-content');
+      if (editor) editor.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch(_){}
+  }
   const ov = document.getElementById('bunko-link-modal');
   if (ov) ov.remove();
+  window._bunkoLinkCtx = null;
 };
 
 // Handler de click no editor — abre links externos com clique simples (sem Cmd).
