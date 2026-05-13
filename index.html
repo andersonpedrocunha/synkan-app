@@ -35784,57 +35784,47 @@ const _PPL_ROLE_EMOJI = {
 async function renderPeople() {
   const root = document.getElementById('people-root');
   if (!root) return;
-  _peopleState.loading = true;
-  root.innerHTML = `<div class="ppl-wrap"><div class="ppl-empty"><div class="ppl-empty-icon">道</div><div class="ppl-empty-title">Carregando trilhas…</div><div class="ppl-empty-sub" style="opacity:.55;">primeira vez pode levar uns segundos enquanto o servidor acorda</div></div></div>`;
-  // Sem timeout, sem banner. Apenas espera. Se Supabase tá em cold start,
-  // a primeira request pode levar 15-20s. Banner amarelo confundia mais
-  // do que ajudava (queries acabavam respondendo 200 mas banner ficava lá).
-  try {
-    await _peopleLoadAll();
-  } catch(e) {
-    console.warn('[people] load erro:', e?.message || e);
-  } finally {
-    _peopleState.loading = false;
-  }
-  try {
-    _peopleRenderMain();
-  } catch(renderErr) {
-    console.error('[people] render crashou:', renderErr);
-    root.innerHTML = `<div class="ppl-wrap">
-      <div class="ppl-empty">
-        <div class="ppl-empty-icon" style="color:#BC002D;">⚠</div>
-        <div class="ppl-empty-title">Erro ao renderizar o módulo People</div>
-        <div class="ppl-empty-sub">
-          <code style="font-size:11.5px;background:#FBEAEB;padding:4px 8px;border-radius:5px;color:#9F0026;display:inline-block;margin-top:6px;">${_esc(renderErr?.message || String(renderErr))}</code>
-        </div>
-      </div>
-    </div>`;
-  }
+  // Render OTIMISTA: pinta a UI imediatamente com o que tá no cache (ou zeros
+  // se for primeira vez). Não bloqueia o usuário esperando rede.
+  try { _peopleRenderMain(); }
+  catch(e) { console.error('[people] render inicial:', e); }
+  // Em background, busca dados. Quando chegar, re-renderiza com dados frescos.
+  // Sem timeout, sem banner, sem mensagem de "carregando" — só atualiza.
+  _peopleLoadAll().then(() => {
+    try { _peopleRenderMain(); }
+    catch(e) { console.error('[people] re-render:', e); }
+  }).catch(e => console.warn('[people] load:', e?.message || e));
 }
 
 async function _peopleLoadAll() {
   const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
-  // Roda as 3 queries em PARALELO via Promise.all — antes era sequencial
-  // (3× ~3s = ~9s, dava timeout). Agora ~3s no total (limited pela mais lenta).
+  if (!c) { console.warn('[people] sem cliente Supabase'); return; }
   const isLoggedIn = typeof supaUser !== 'undefined' && supaUser;
+  const t0 = Date.now();
+  console.log('[people] _peopleLoadAll start');
   const tasks = [
     c.rpc('people_dashboard').then(r => {
+      console.log(`[people] dashboard ← ${Date.now()-t0}ms`, r.error ? '❌ '+r.error.message : '✓', r.data);
       if (!r.error && r.data) _peopleState.dashboard = r.data;
-    }, () => {}),
+    }, e => console.warn('[people] dashboard rejected:', e?.message)),
     c.from('people_trail_templates')
       .select('id, workspace_owner, role, name, description, steps, is_public')
       .order('role')
       .then(r => {
+        console.log(`[people] templates ← ${Date.now()-t0}ms`, r.error ? '❌ '+r.error.message : `✓ ${r.data?.length||0} rows`);
         if (!r.error && Array.isArray(r.data)) _peopleState.templates = r.data;
-      }, () => {}),
+      }, e => console.warn('[people] templates rejected:', e?.message)),
     isLoggedIn
       ? c.from('people').select('*').eq('user_id', supaUser.id).is('deleted_at', null)
           .order('start_date', { ascending: false }).limit(1).maybeSingle()
-          .then(r => { _peopleState.myAprendiz = r.data || null; }, () => {})
+          .then(r => {
+            console.log(`[people] myAprendiz ← ${Date.now()-t0}ms`, r.error ? '❌ '+r.error.message : (r.data ? '✓ encontrei' : 'não é aprendiz'));
+            _peopleState.myAprendiz = r.data || null;
+          }, e => console.warn('[people] myAprendiz rejected:', e?.message))
       : Promise.resolve(),
   ];
   await Promise.all(tasks);
+  console.log(`[people] _peopleLoadAll done · ${Date.now()-t0}ms total`);
 }
 
 // ── Banner no home: aprendiz vê sua trilha resumida ──────────────────
