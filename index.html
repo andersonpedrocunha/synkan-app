@@ -23676,12 +23676,108 @@ async function _onSignedOut() {
   refreshAccountUI();
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HELPERS DE ROBUSTEZ JWT
+// ─────────────────────────────────────────────────────────────────────
+// Detecção universal de erros de JWT expirado + retry com refresh.
+// Cobre: "JWT expired", PGRST301, 401, "Invalid token", "JWS", etc.
+// Os módulos (Bunko, Synconnect, etc) devem usar _supaRunWithJwtRetry
+// pra evitar deslogamento silencioso quando o JWT expirou.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function _supaIsJwtError(e) {
+  if (!e) return false;
+  const msg  = (e?.message || String(e)).toLowerCase();
+  const code = (e?.code || '').toString().toLowerCase();
+  return (
+    (msg.includes('jwt') && (msg.includes('expired') || msg.includes('expir'))) ||
+    msg.includes('pgrst301') || code === 'pgrst301' ||
+    msg.includes('unauthorized') ||
+    msg.includes('invalid token') || msg.includes('invalid jwt') ||
+    msg.includes('jws') ||
+    e?.status === 401
+  );
+}
+
+// Tenta refresh de sessão. Retorna true se conseguiu, false se não.
+// Throttle de 5s entre tentativas (evita storm em loop de erro).
+let _supaLastRefreshAttempt = 0;
+let _supaLastRefreshOk = false;
+async function _supaTryRefresh(force) {
+  const now = Date.now();
+  if (!force && (now - _supaLastRefreshAttempt < 5000)) return _supaLastRefreshOk;
+  _supaLastRefreshAttempt = now;
+  _supaLastRefreshOk = false;
+  try {
+    if (typeof supaClient === 'undefined' || !supaClient?.auth?.refreshSession) return false;
+    const { data, error } = await supaClient.auth.refreshSession();
+    if (error) { console.warn('[auth] refresh falhou:', error.message); return false; }
+    if (data?.session) {
+      if (data.user) supaUser = data.user;
+      try { _capInvalidateJWTCache && _capInvalidateJWTCache(); } catch(_){}
+      _supaLastRefreshOk = true;
+      console.log('[auth] sessão renovada com sucesso');
+      return true;
+    }
+    return false;
+  } catch(e) {
+    console.warn('[auth] refresh exception:', e?.message || e);
+    return false;
+  }
+}
+
+// Wrapper genérico: roda fn(); se der JWT expired, tenta refresh e roda de novo.
+// Uso: const { data, error } = await _supaRunWithJwtRetry(() => c.from('x').select(...));
+async function _supaRunWithJwtRetry(fn) {
+  try {
+    const result = await fn();
+    // Supabase às vezes retorna error no objeto em vez de throw
+    if (result && result.error && _supaIsJwtError(result.error)) {
+      const ok = await _supaTryRefresh();
+      if (ok) return await fn();
+    }
+    return result;
+  } catch(e) {
+    if (_supaIsJwtError(e)) {
+      const ok = await _supaTryRefresh();
+      if (ok) return await fn();
+    }
+    throw e;
+  }
+}
+
+// Refresh proativo quando user volta pra aba — captura "tab idle, JWT expired".
+// Roda só se tem sessão ativa e o JWT tá perto de expirar (<2min).
+function _supaInstallVisibilityRefresh() {
+  if (window._supaVisInstalled) return;
+  window._supaVisInstalled = true;
+  const checkAndRefresh = async () => {
+    if (document.visibilityState !== 'visible') return;
+    if (typeof supaClient === 'undefined' || !supaClient?.auth) return;
+    try {
+      const { data } = await supaClient.auth.getSession();
+      const session = data?.session;
+      if (!session?.expires_at) return;
+      const expiresInMs = session.expires_at * 1000 - Date.now();
+      // Se expira em menos de 2 min OU já expirou, refresh
+      if (expiresInMs < 2 * 60 * 1000) {
+        console.log('[auth] tab ativada, JWT perto de expirar — refresh proativo');
+        await _supaTryRefresh(true);
+      }
+    } catch(_){}
+  };
+  document.addEventListener('visibilitychange', checkAndRefresh);
+  window.addEventListener('focus', checkAndRefresh);
+}
+
 async function bootSupabaseMode() {
   const c = _ensureSupaClient();
   if (!c) {
     alert('Não consegui inicializar o Supabase. Verifique URL/anon key na engrenagem.');
     return false;
   }
+  // Instala listener de visibility (uma vez só)
+  try { _supaInstallVisibilityRefresh(); } catch(_){}
   // Listener — fica ativo durante toda a sessão
   c.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
@@ -34451,13 +34547,29 @@ async function _synInitCloud(opts) {
       if (!user) return false;
       // 1) Garante estágios default existentes (idempotente — só insere se 0)
       try { await c.rpc('synconnect_seed_default_stages'); } catch(e){ console.warn('[syn] seed stages:', e?.message); }
-      // 2) Carrega tudo em paralelo
-      const [stagesR, contactsR, dealsR, actsR] = await Promise.all([
+      // 2) Carrega tudo em paralelo (com retry automático em JWT expired)
+      const loadAll = () => Promise.all([
         c.from('synconnect_pipeline_stages').select('*').order('position'),
         c.from('synconnect_contacts').select('*').order('updated_at', { ascending: false }),
         c.from('synconnect_deals').select('*').order('updated_at', { ascending: false }),
         c.from('synconnect_activities').select('*').order('occurred_at', { ascending: false }).limit(500),
       ]);
+      let stagesR, contactsR, dealsR, actsR;
+      try {
+        [stagesR, contactsR, dealsR, actsR] = await loadAll();
+        // Supabase às vezes retorna erro no objeto sem throw — detecta aqui
+        const firstJwtErr = [stagesR, contactsR, dealsR, actsR].find(r => r?.error && (typeof _supaIsJwtError === 'function') && _supaIsJwtError(r.error));
+        if (firstJwtErr && typeof _supaTryRefresh === 'function') {
+          const ok = await _supaTryRefresh();
+          if (ok) [stagesR, contactsR, dealsR, actsR] = await loadAll();
+        }
+      } catch(loadErr) {
+        if (typeof _supaIsJwtError === 'function' && _supaIsJwtError(loadErr) && typeof _supaTryRefresh === 'function') {
+          const ok = await _supaTryRefresh();
+          if (ok) [stagesR, contactsR, dealsR, actsR] = await loadAll();
+          else throw loadErr;
+        } else { throw loadErr; }
+      }
       if (stagesR.data)  _synStages     = stagesR.data;
       if (dealsR.data)   _synDeals      = dealsR.data;
       if (actsR.data)    _synActivities = actsR.data;
@@ -34481,9 +34593,16 @@ async function _synInitCloud(opts) {
       Promise.all([_synLoadTemplates(), _synLoadWorkflows(), _synLoadWebhooks(), _synLoadGoalProgress()]).catch(()=>{});
       try { _synStartFollowupBannerWatcher(); } catch(_){}
       try { _synInstallSearchHotkey(); } catch(_){}
+      _synCloudError = null;
       return true;
     } catch(e) {
       console.warn('[syn] init cloud falhou (modo offline):', e?.message);
+      _synCloudError = e;
+      // Re-renderiza Synconnect se tava visível (sai do "Carregando..." infinito)
+      try {
+        if (typeof renderRegistry === 'function' && _registryTab === 'pipeline') renderRegistry();
+        else if (typeof renderRegistry === 'function') renderRegistry();
+      } catch(_){}
       return false;
     } finally {
       _synCloudLoadPromise = null;
@@ -34491,6 +34610,7 @@ async function _synInitCloud(opts) {
   })();
   return _synCloudLoadPromise;
 }
+let _synCloudError = null;
 
 async function _synSaveContactCloud(contact, isMigration) {
   try {
@@ -36362,6 +36482,22 @@ async function _synSaveWebhook(webhookId) {
 function renderPipelineTab() {
   const body = document.getElementById('reg-body'); if (!body) return;
   if (!_synCloudReady) {
+    // Se falhou ao carregar, mostra erro com retry (não fica "Carregando..." pra sempre)
+    if (_synCloudError) {
+      const isJwt = (typeof _supaIsJwtError === 'function') && _supaIsJwtError(_synCloudError);
+      const errMsg = _esc(_synCloudError?.message || String(_synCloudError));
+      body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--color-text-tertiary);">
+        <div style="font-size:32px;margin-bottom:10px;">${isJwt ? '🔐' : '⚠️'}</div>
+        <div style="font-size:14px;color:var(--color-text-primary);font-weight:600;margin-bottom:6px;">${isJwt ? 'Sessão expirada' : 'Não consegui carregar o pipeline'}</div>
+        <div style="font-size:12.5px;margin-bottom:14px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.55;">${isJwt ? 'Sua sessão expirou — vamos renovar e seus dados continuam intactos.' : 'Tente de novo. Se for a primeira vez, rode <code>MIGRATIONS_SYNCONNECT_CRM.sql</code> no Supabase.'}</div>
+        <div style="font-size:10.5px;color:var(--color-text-tertiary);opacity:.6;margin-bottom:12px;">Detalhe: ${errMsg}</div>
+        ${isJwt
+          ? `<button class="btn-c" onclick="(async()=>{const ok=await _supaTryRefresh(true);if(ok){_synCloudError=null;await _synInitCloud({force:true});renderRegistry();}else{alert('Não consegui renovar. Entre de novo.');signOut&&signOut();}})()">↻ Renovar sessão</button>`
+          : `<button class="btn-c" onclick="(async()=>{_synCloudError=null;await _synInitCloud({force:true});renderRegistry();})()">↻ Tentar de novo</button>`
+        }
+      </div>`;
+      return;
+    }
     body.innerHTML = `<div style="padding:40px;text-align:center;color:var(--color-text-tertiary);">
       <div style="font-size:24px;margin-bottom:8px;">🎯</div>
       <div style="font-size:13px;">Carregando pipeline da cloud…</div>
@@ -53305,15 +53441,34 @@ async function _bunkoLoadAll() {
     try { _bunkoRefreshStorageUsed().then(() => _bunkoRenderStorageBanner()); } catch(_){}
   } catch(e) {
     console.warn('[bunko] load:', e);
+    // ── JWT expired? Tenta refresh automático antes de mostrar erro ──
+    if (typeof _supaIsJwtError === 'function' && _supaIsJwtError(e) && !_bunkoState._jwtRefreshTried) {
+      _bunkoState._jwtRefreshTried = true;
+      const ok = await _supaTryRefresh();
+      if (ok) {
+        _bunkoState._jwtRefreshTried = false;
+        return _bunkoLoadAll();  // retry
+      }
+    }
     const main = document.getElementById('bunko-main-content');
     if (main) {
       const msg = String(e?.message || e);
       const isMissing = /relation .* does not exist|function .* does not exist|list_bunko/i.test(msg);
+      const isJwt    = (typeof _supaIsJwtError === 'function') && _supaIsJwtError(e);
+      const title    = isJwt ? 'Sessão expirada' : 'Bunko Box ainda não está pronto';
+      const subMsg   = isJwt
+        ? 'Sua sessão expirou — vamos renovar e seus dados continuam intactos.'
+        : (isMissing
+            ? `Rode a migration <code>billing/MIGRATION_BUNKO_BOX.sql</code> no Supabase SQL Editor.`
+            : 'Não consegui falar com o Supabase.');
+      const cta = isJwt
+        ? `<button class="bunko-btn" onclick="(async()=>{const ok=await _supaTryRefresh(true);if(ok){_bunkoState._jwtRefreshTried=false;renderBunko();}else{alert('Não consegui renovar. Entre de novo.');signOut&&signOut();}})()">↻ Renovar sessão</button>`
+        : `<button class="bunko-btn" onclick="renderBunko()">↻ Tentar de novo</button>`;
       main.innerHTML = `<div class="bunko-empty"><div class="bunko-empty-ic">⚠️</div>
-        <h3>Bunko Box ainda não está pronto</h3>
-        <p>${isMissing ? `Rode a migration <code>billing/MIGRATION_BUNKO_BOX.sql</code> no Supabase SQL Editor.` : 'Não consegui falar com o Supabase.'}</p>
+        <h3>${title}</h3>
+        <p>${subMsg}</p>
         <p style="font-size:11px;color:#8B7250;">Detalhe: ${_esc(msg)}</p>
-        <button class="bunko-btn" onclick="renderBunko()">↻ Tentar de novo</button>
+        ${cta}
       </div>`;
     }
   }
