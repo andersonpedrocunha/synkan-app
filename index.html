@@ -3556,6 +3556,8 @@ body.density-compact .col{padding:7px;}
 .ppl-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
 .ppl-title{font-size:24px;font-weight:700;color:var(--color-text-primary);font-family:var(--font-sans);display:inline-flex;align-items:center;gap:10px;}
 .ppl-title-badge{font-size:11px;font-weight:600;background:linear-gradient(135deg,#6B4825 0%,#A88150 100%);color:#F5E8C8;padding:2px 9px;border-radius:999px;vertical-align:middle;font-family:var(--font-sans);}
+.ppl-help-btn{width:22px;height:22px;border-radius:50%;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-tertiary);font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;margin-left:8px;font-family:var(--font-sans);transition:all .12s;line-height:1;padding:0;}
+.ppl-help-btn:hover{border-color:#C19A3A;color:#C19A3A;background:rgba(193,154,58,.08);}
 .ppl-sub{font-size:13px;color:var(--color-text-secondary);font-family:'Noto Serif JP',serif;font-style:italic;margin-top:4px;}
 .ppl-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:6px 0 4px;}
 .ppl-stat{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:12px 14px;}
@@ -35796,6 +35798,78 @@ async function renderPeople() {
   }).catch(e => console.warn('[people] load:', e?.message || e));
 }
 
+// ════════════════════════════════════════════════════════════════════
+// _peopleApi — wrapper raw fetch que substitui a SDK do supabase-js
+// ────────────────────────────────────────────────────────────────────
+// A SDK trava queries específicas nessa codebase (bug não-identificado),
+// então tudo do People bate direto na REST API. AbortController em tudo
+// pra nunca pendurar promise.
+// ════════════════════════════════════════════════════════════════════
+const _peopleApi = {
+  _cache: null,
+  _resolveConfig() {
+    if (this._cache && (Date.now() - this._cache.at < 30000)) return this._cache;
+    const cfg = _peopleResolveSupabaseConfig();
+    const { token, uid } = _peopleResolveSupabaseToken(cfg.url);
+    this._cache = { ...cfg, token, uid, at: Date.now() };
+    return this._cache;
+  },
+  _refreshToken() {
+    // Força re-leitura do JWT (após auth state change ou em retry)
+    if (this._cache) {
+      const { token, uid } = _peopleResolveSupabaseToken(this._cache.url);
+      this._cache.token = token;
+      this._cache.uid = uid;
+    }
+  },
+  async _fetch(method, path, opts = {}) {
+    const cfg = this._resolveConfig();
+    if (!cfg.url || !cfg.anonKey) {
+      console.error('[people-api] config faltando', cfg);
+      throw new Error('Supabase config incompleta');
+    }
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), opts.timeout || 8000);
+    const t = Date.now();
+    try {
+      const headers = {
+        'apikey': cfg.anonKey,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
+      if (cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
+      if (opts.headers) Object.assign(headers, opts.headers);
+      // Prefer=return=representation pra INSERTs/UPDATEs devolverem o row
+      if ((method === 'POST' || method === 'PATCH') && !headers['Prefer']) {
+        headers['Prefer'] = 'return=representation';
+      }
+      const url = `${cfg.url}/rest/v1/${path}`;
+      const r = await fetch(url, {
+        method, signal: ctrl.signal, headers,
+        body: opts.body ? (typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body)) : undefined,
+      });
+      const text = await r.text();
+      const body = text ? (text.startsWith('[') || text.startsWith('{') ? JSON.parse(text) : text) : null;
+      if (!r.ok) {
+        console.warn(`[people-api] ${method} ${path.slice(0,60)} → ${r.status} (${Date.now()-t}ms)`, body);
+        return { data: null, error: body || { message: `HTTP ${r.status}` } };
+      }
+      return { data: body, error: null };
+    } catch(e) {
+      console.warn(`[people-api] ${method} ${path.slice(0,60)} ❌ (${Date.now()-t}ms)`, e?.message);
+      return { data: null, error: e };
+    } finally { clearTimeout(tid); }
+  },
+  // Açúcar pra operações comuns
+  get(path)          { return this._fetch('GET',    path); },
+  post(path, body)   { return this._fetch('POST',   path, { body }); },
+  patch(path, body)  { return this._fetch('PATCH',  path, { body }); },
+  del(path)          { return this._fetch('DELETE', path, { headers: { 'Prefer': 'return=minimal' } }); },
+  async rpc(fn, args) {
+    return this._fetch('POST', `rpc/${fn}`, { body: args ? JSON.stringify(args) : '{}' });
+  },
+};
+
 // Helpers globais pra obter URL/key/JWT do Supabase SEM depender da SDK.
 // Necessário porque a SDK do supabase-js eventualmente trava queries
 // específicas (causa raiz desconhecida — possivelmente bug em alguma versão
@@ -35940,23 +36014,18 @@ async function _peopleRenderHomeBanner() {
   // Remove banner antigo se houver
   const old = document.getElementById('ppl-home-banner');
   if (old) old.remove();
-  // Busca progresso da trilha
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
+  // Busca progresso da trilha via _peopleApi (raw fetch, sem SDK)
   let progress = 0, nextStep = null, totalSteps = 0, doneSteps = 0;
   try {
-    const { data: trail } = await c.from('people_trails')
-      .select('id').eq('person_id', me.id).eq('status', 'ativa').limit(1).maybeSingle();
+    const tRes = await _peopleApi.get(`people_trails?person_id=eq.${me.id}&status=eq.ativa&select=id&limit=1`);
+    const trail = Array.isArray(tRes.data) ? tRes.data[0] : null;
     if (trail?.id) {
-      const { data: steps } = await c.from('people_trail_steps')
-        .select('id, title, status, deadline_date, order_idx, day_offset')
-        .eq('trail_id', trail.id).order('order_idx');
-      if (Array.isArray(steps)) {
-        totalSteps = steps.length;
-        doneSteps = steps.filter(s => s.status === 'feito').length;
-        progress = totalSteps ? Math.round(100*doneSteps/totalSteps) : 0;
-        nextStep = steps.find(s => s.status === 'pendente' || s.status === 'fazendo');
-      }
+      const sRes = await _peopleApi.get(`people_trail_steps?trail_id=eq.${trail.id}&select=id,title,status,deadline_date,order_idx,day_offset&order=order_idx`);
+      const steps = Array.isArray(sRes.data) ? sRes.data : [];
+      totalSteps = steps.length;
+      doneSteps = steps.filter(s => s.status === 'feito').length;
+      progress = totalSteps ? Math.round(100*doneSteps/totalSteps) : 0;
+      nextStep = steps.find(s => s.status === 'pendente' || s.status === 'fazendo');
     }
   } catch(_) {}
   const belt = me.belt || 'branca';
@@ -35992,12 +36061,9 @@ async function _peopleRenderHomeBanner() {
 // (sentimento + summary) e o sensei vê histórico no drawer da pessoa.
 async function _peoplePulseCheckDue() {
   if (!_peopleState.myAprendiz) return;
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   try {
-    const { data, error } = await c.rpc('people_pulse_check_due');
+    const { data, error } = await _peopleApi.rpc('people_pulse_check_due');
     if (error || !data?.due) return;
-    // Pulse pendente — abre modal não-bloqueante
     _peoplePulseOpenModal(data.pulse_id);
   } catch(e) { console.warn('[people] pulse check_due:', e?.message); }
 }
@@ -36049,10 +36115,8 @@ async function _peoplePulseSubmit(pulseId) {
   const score = _peoplePulseSelectedScore;
   if (!score) return;
   const comment = (document.getElementById('ppl-pulse-comment')?.value || '').trim() || null;
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   try {
-    const { data, error } = await c.rpc('people_pulse_respond', { p_pulse_id: pulseId, p_score: score, p_comment: comment });
+    const { data, error } = await _peopleApi.rpc('people_pulse_respond', { p_pulse_id: pulseId, p_score: score, p_comment: comment });
     if (error) throw error;
     document.getElementById('ppl-pulse-modal')?.remove();
     _peoplePulseSelectedScore = null;
@@ -36084,7 +36148,11 @@ function _peopleRenderMain() {
     <div class="ppl-wrap">
       <div class="ppl-head">
         <div>
-          <div class="ppl-title">People Journey <span class="ppl-title-badge">道</span></div>
+          <div class="ppl-title">
+            People Journey
+            <span class="ppl-title-badge">道</span>
+            <button class="ppl-help-btn" onclick="_peopleOpenIntegrationsHelp()" title="Como o People Journey conversa com o resto do Synkan">?</button>
+          </div>
           <div class="ppl-sub">da lua nova à lua cheia — onboarding personalizado.</div>
         </div>
         <div class="ppl-actions">
@@ -36162,15 +36230,12 @@ function _peopleRenderTabContent() {
 
 async function _peopleRenderPulseHistory(el) {
   el.innerHTML = '<div class="ppl-empty"><div class="ppl-empty-title">Carregando…</div></div>';
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   try {
-    // Pega pulses + nome da pessoa (join via select expandido)
-    const { data, error } = await c.from('people_pulse')
-      .select('id, asked_at, responded_at, score, comment, sentiment, kan_summary, person_id, people(name, belt, photo_url, role_title, role_template)')
-      .order('asked_at', { ascending: false }).limit(50);
+    // Join via PostgREST embedding: people_pulse?select=...,people(...)
+    const select = 'id,asked_at,responded_at,score,comment,sentiment,kan_summary,person_id,people(name,belt,photo_url,role_title,role_template)';
+    const { data, error } = await _peopleApi.get(`people_pulse?select=${encodeURIComponent(select)}&order=asked_at.desc&limit=50`);
     if (error) throw error;
-    const rows = data || [];
+    const rows = Array.isArray(data) ? data : [];
     if (!rows.length) {
       el.innerHTML = _peopleEmptyHTML('Sem pulses ainda', 'Quando aprendizes têm contas Synkan e abrem o app, o Mestre Kan pergunta a cada 7 dias como está sendo. O histórico aparece aqui.');
       return;
@@ -36257,12 +36322,11 @@ function _peopleTemplateCardHTML(t) {
 
 // ── Marketplace: clonar template público pro workspace do user ──────
 async function _peopleCloneTemplate(templateId) {
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c || typeof supaUser === 'undefined' || !supaUser) return;
+  if (typeof supaUser === 'undefined' || !supaUser) return;
   const orig = _peopleState.templates.find(t => t.id === templateId);
   if (!orig) return;
   try {
-    const { error } = await c.from('people_trail_templates').insert({
+    const { error } = await _peopleApi.post('people_trail_templates', {
       workspace_owner: supaUser.id,
       role: orig.role,
       name: `${orig.name} (cópia)`,
@@ -36402,22 +36466,21 @@ async function _peopleSubmitTemplateCreate() {
   const form = document.getElementById('ppl-tmpl-form');
   if (!form) return;
   const fd = new FormData(form);
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c || typeof supaUser === 'undefined' || !supaUser) return;
+  if (typeof supaUser === 'undefined' || !supaUser) return;
   try {
-    const { data: newT, error } = await c.from('people_trail_templates').insert({
+    const { data, error } = await _peopleApi.post('people_trail_templates', {
       workspace_owner: supaUser.id,
       role: fd.get('role') || 'custom',
       name: (fd.get('name')||'').toString().trim() || 'Template sem nome',
       description: (fd.get('description')||'').toString().trim() || null,
       is_public: false,
       steps: [],
-    }).select('*').maybeSingle();
+    });
     if (error) throw error;
+    const newT = Array.isArray(data) ? data[0] : data;
     document.getElementById('ppl-tmpl-creator')?.remove();
     await _peopleLoadAll();
     _peopleRenderTabContent();
-    // Abre o editor de etapas pra preencher
     _peopleOpenTemplateEditor(newT.id);
   } catch(e) {
     console.warn('[people] create template:', e?.message);
@@ -36433,9 +36496,8 @@ function _peopleEditTemplate(templateId) {
 }
 
 async function _peopleOpenTemplateEditor(templateId) {
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
-  const { data: t } = await c.from('people_trail_templates').select('*').eq('id', templateId).maybeSingle();
+  const res = await _peopleApi.get(`people_trail_templates?id=eq.${templateId}&limit=1`);
+  const t = Array.isArray(res.data) ? res.data[0] : null;
   if (!t) { if (typeof appAlert === 'function') appAlert('Template não encontrado', '', { icon: '⚠️' }); return; }
   if (t.workspace_owner === null) {
     if (typeof appAlert === 'function') appAlert('Template público', 'Esse é um template público do sistema — clone primeiro pro seu workspace pra poder editar.', { icon: 'ⓘ' });
@@ -36513,33 +36575,23 @@ function _peopleTemplateStepRowHTML(s, idx) {
 }
 
 async function _peopleSaveTemplateMeta(templateId) {
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   const name = document.getElementById('ppl-tmpl-name')?.value?.trim() || 'Template sem nome';
   const role = document.getElementById('ppl-tmpl-role')?.value || 'custom';
   const description = document.getElementById('ppl-tmpl-desc')?.value?.trim() || null;
   try {
-    const { error } = await c.from('people_trail_templates').update({ name, role, description }).eq('id', templateId);
+    const { error } = await _peopleApi.patch(`people_trail_templates?id=eq.${templateId}`, { name, role, description });
     if (error) throw error;
   } catch(e) { console.warn('[people] save template meta:', e?.message); }
 }
 
 async function _peopleAddTemplateStep(templateId) {
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
-  const { data: t } = await c.from('people_trail_templates').select('steps').eq('id', templateId).maybeSingle();
+  const res = await _peopleApi.get(`people_trail_templates?id=eq.${templateId}&select=steps&limit=1`);
+  const t = Array.isArray(res.data) ? res.data[0] : null;
   const steps = Array.isArray(t?.steps) ? t.steps.slice() : [];
-  steps.push({
-    title: 'Nova etapa',
-    description: '',
-    category: 'plano',
-    day_offset: 0,
-    assignee_role: 'aprendiz',
-  });
+  steps.push({ title: 'Nova etapa', description: '', category: 'plano', day_offset: 0, assignee_role: 'aprendiz' });
   try {
-    await c.from('people_trail_templates').update({ steps }).eq('id', templateId);
+    await _peopleApi.patch(`people_trail_templates?id=eq.${templateId}`, { steps });
     await _peopleRefreshTemplateEditor(templateId);
-    // Já abre o editor inline da nova etapa
     setTimeout(() => _peopleEditTemplateStep(steps.length - 1), 50);
   } catch(e) {
     console.warn('[people] add template step:', e?.message);
@@ -36549,17 +36601,16 @@ async function _peopleAddTemplateStep(templateId) {
 
 async function _peopleDeleteTemplateStep(idx) {
   if (typeof appConfirm !== 'function') return;
-  const ok = await appConfirm('Remover etapa do template', 'Isso não afeta trilhas de aprendizes já criadas — só remove do template pra futuras criações.', { okLabel: 'Remover', cancelLabel: 'Cancelar', icon: '🗑' });
+  const ok = await appConfirm('Remover etapa do template', 'Isso não afeta trilhas de pessoas já criadas — só remove do template pra futuras criações.', { okLabel: 'Remover', cancelLabel: 'Cancelar', icon: '🗑' });
   if (!ok) return;
   const modal = document.getElementById('ppl-tmpl-editor');
   const templateId = modal?.dataset?.templateId;
   if (!templateId) return;
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
-  const { data: t } = await c.from('people_trail_templates').select('steps').eq('id', templateId).maybeSingle();
+  const res = await _peopleApi.get(`people_trail_templates?id=eq.${templateId}&select=steps&limit=1`);
+  const t = Array.isArray(res.data) ? res.data[0] : null;
   const steps = Array.isArray(t?.steps) ? t.steps.slice() : [];
   steps.splice(idx, 1);
-  await c.from('people_trail_templates').update({ steps }).eq('id', templateId);
+  await _peopleApi.patch(`people_trail_templates?id=eq.${templateId}`, { steps });
   await _peopleRefreshTemplateEditor(templateId);
 }
 
@@ -36567,9 +36618,8 @@ async function _peopleEditTemplateStep(idx) {
   const modal = document.getElementById('ppl-tmpl-editor');
   const templateId = modal?.dataset?.templateId;
   if (!templateId) return;
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
-  const { data: t } = await c.from('people_trail_templates').select('steps').eq('id', templateId).maybeSingle();
+  const res = await _peopleApi.get(`people_trail_templates?id=eq.${templateId}&select=steps&limit=1`);
+  const t = Array.isArray(res.data) ? res.data[0] : null;
   const steps = Array.isArray(t?.steps) ? t.steps : [];
   const s = steps[idx];
   if (!s) return;
@@ -36628,9 +36678,8 @@ async function _peopleSaveTemplateStep(templateId, idx) {
   const form = document.getElementById('ppl-tmpl-step-form');
   if (!form) return;
   const fd = new FormData(form);
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
-  const { data: t } = await c.from('people_trail_templates').select('steps').eq('id', templateId).maybeSingle();
+  const res = await _peopleApi.get(`people_trail_templates?id=eq.${templateId}&select=steps&limit=1`);
+  const t = Array.isArray(res.data) ? res.data[0] : null;
   const steps = Array.isArray(t?.steps) ? t.steps.slice() : [];
   steps[idx] = {
     title: (fd.get('title')||'').toString().trim() || 'Etapa sem título',
@@ -36640,7 +36689,7 @@ async function _peopleSaveTemplateStep(templateId, idx) {
     assignee_role: fd.get('assignee_role'),
   };
   try {
-    await c.from('people_trail_templates').update({ steps }).eq('id', templateId);
+    await _peopleApi.patch(`people_trail_templates?id=eq.${templateId}`, { steps });
     document.getElementById('ppl-tmpl-step-edit')?.remove();
     await _peopleRefreshTemplateEditor(templateId);
   } catch(e) {
@@ -36650,9 +36699,8 @@ async function _peopleSaveTemplateStep(templateId, idx) {
 }
 
 async function _peopleRefreshTemplateEditor(templateId) {
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
-  const { data: t } = await c.from('people_trail_templates').select('*').eq('id', templateId).maybeSingle();
+  const res = await _peopleApi.get(`people_trail_templates?id=eq.${templateId}&limit=1`);
+  const t = Array.isArray(res.data) ? res.data[0] : null;
   if (!t) return;
   const list = document.getElementById('ppl-tmpl-steps-list');
   const steps = Array.isArray(t.steps) ? t.steps : [];
@@ -36680,6 +36728,57 @@ function _peopleFmtDate(d) {
     if (diff < 8) return `em ${diff}d`;
     return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   } catch(_) { return ''; }
+}
+
+// ── Modal explicativo: como People Journey integra com outros módulos ─
+function _peopleOpenIntegrationsHelp() {
+  let modal = document.getElementById('ppl-help-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-help-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10005';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `
+    <div class="modal" style="max-width:600px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;display:inline-flex;align-items:center;gap:8px;">🔗 People Journey · integrações</h3>
+        <button onclick="document.getElementById('ppl-help-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <p style="font-size:13px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 14px;">Como o People Journey conversa com o resto do Synkan durante o onboarding de uma pessoa:</p>
+        <ul style="margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:10px;">
+          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;">
+            <span style="font-size:18px;flex-shrink:0;">🎴</span>
+            <div style="flex:1;font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;"><strong style="color:var(--color-text-primary);">Tatami</strong> — etapas tipo "Reunião de boas-vindas" / "Check-in 30 dias" sugerem ao sensei abrir um tatame com a pessoa. Transcrição automática via Mestre Kan vira pergaminho no Bunko. <em style="color:#C19A3A;">(auto-agendamento: roadmap)</em></div>
+          </li>
+          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;">
+            <span style="font-size:18px;flex-shrink:0;">📋</span>
+            <div style="flex:1;font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;"><strong style="color:var(--color-text-primary);">Boards</strong> — etapas podem virar cards de board específico (ex: "Primeiro PR", "Primeira venda fechada") pra ficarem visíveis no fluxo do time. <em style="color:#C19A3A;">(promoção manual: roadmap)</em></div>
+          </li>
+          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
+            <span style="font-size:18px;flex-shrink:0;">📦</span>
+            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Bunko Box</strong> — ao criar a pessoa, sistema gera pasta automática <code>People · [Nome]</code> com 4 sub-pastas: Documentos pessoais · Contratos · Materiais de boas-vindas · Gravações dos check-ins. <strong style="color:#3B6D11;">✓ ativo</strong></div>
+          </li>
+          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
+            <span style="font-size:18px;flex-shrink:0;">💬</span>
+            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Chat</strong> — canal privado <code>#aprendiz-[nome]</code> criado automaticamente com a pessoa + sensei + padrinho. <strong style="color:#3B6D11;">✓ ativo</strong></div>
+          </li>
+          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
+            <span style="font-size:18px;flex-shrink:0;">💚</span>
+            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Check-ins</strong> — a cada 7 dias, Mestre Kan pergunta "como tá indo?" no chat. Resposta vira histórico que o sensei acompanha. <strong style="color:#3B6D11;">✓ ativo</strong></div>
+          </li>
+          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;">
+            <span style="font-size:18px;flex-shrink:0;">🎯</span>
+            <div style="flex:1;font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;"><strong style="color:var(--color-text-primary);">OKRs</strong> — etapas tipo "Definir OKRs trimestrais" linkam pro módulo OKRs pra a pessoa montar seus primeiros objetivos. <em style="color:#C19A3A;">(auto-sugestão: roadmap)</em></div>
+          </li>
+        </ul>
+        <div style="margin-top:14px;padding:9px 11px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11px;color:#7A5500;line-height:1.55;">
+          <strong>Legenda:</strong> <span style="color:#3B6D11;">✓ ativo</span> = funciona hoje · <em style="color:#C19A3A;">roadmap</em> = planejado mas não implementado ainda
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 // ── Modal de criação de aprendiz ────────────────────────────────────
@@ -36800,10 +36899,8 @@ async function _peopleSubmitCreate() {
     p_template_id:    activeTmpl.dataset.templateId,
     p_duration_days:  Math.max(7, Math.min(365, duration||90)),
   };
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   try {
-    const { data, error } = await c.rpc('people_create_aprendiz', payload);
+    const { data, error } = await _peopleApi.rpc('people_create_aprendiz', payload);
     if (error) throw error;
     const trailId  = data?.trail_id;
     const personId = data?.person_id;
@@ -36812,7 +36909,7 @@ async function _peopleSubmitCreate() {
     let linkResult = null;
     if (tryLink && personId) {
       try {
-        const { data: linkData } = await c.rpc('people_link_user_by_email', { p_person_id: personId, p_email: email });
+        const { data: linkData } = await _peopleApi.rpc('people_link_user_by_email', { p_person_id: personId, p_email: email });
         linkResult = linkData;
       } catch(linkErr) { console.warn('[people] auto-link:', linkErr?.message); }
     }
@@ -36839,21 +36936,19 @@ async function _peopleSubmitCreate() {
 // people_trails (board_id, bunko_folder_id, channel_id) pra referência.
 async function _peopleProvisionIntegrations(trailId, personName) {
   if (!trailId) return;
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c || typeof supaUser === 'undefined' || !supaUser) return;
+  if (typeof supaUser === 'undefined' || !supaUser) return;
   const slug = (personName || 'aprendiz').toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '') // remove acentos
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const updates = {};
 
-  // 1) Pasta Bunko "People · [Nome]" com sub-pastas pré-criadas
+  // 1) Pasta Bunko "People · [Nome]" com sub-pastas pré-criadas (via _peopleApi raw fetch)
   try {
-    const { data: folder, error: fErr } = await c.rpc('create_bunko_folder', {
+    const { data: folder, error: fErr } = await _peopleApi.rpc('create_bunko_folder', {
       p_name: `People · ${personName}`, p_parent_id: null, p_icon: '🥋', p_color: '#6B4825'
     });
     if (!fErr && folder?.id) {
       updates.bunko_folder_id = folder.id;
-      // Sub-pastas comuns
       const subs = [
         { name: 'Documentos pessoais', icon: '📄' },
         { name: 'Contratos',           icon: '📑' },
@@ -36861,9 +36956,8 @@ async function _peopleProvisionIntegrations(trailId, personName) {
         { name: 'Gravações dos check-ins', icon: '🎬' },
       ];
       for (const s of subs) {
-        try {
-          await c.rpc('create_bunko_folder', { p_name: s.name, p_parent_id: folder.id, p_icon: s.icon, p_color: '#A88150' });
-        } catch(_) {}
+        try { await _peopleApi.rpc('create_bunko_folder', { p_name: s.name, p_parent_id: folder.id, p_icon: s.icon, p_color: '#A88150' }); }
+        catch(_){}
       }
     } else if (fErr) {
       console.warn('[people] bunko folder falhou:', fErr.message);
@@ -36873,27 +36967,27 @@ async function _peopleProvisionIntegrations(trailId, personName) {
   // 2) Canal de chat #aprendiz-[slug] (privado, type='custom')
   try {
     const channelName = `aprendiz-${slug}`.slice(0, 60);
-    // Idempotência: se já existe um canal igual, não duplica
-    const { data: existing } = await c.from('chat_channels')
-      .select('id').eq('workspace_owner', supaUser.id).eq('name', channelName).maybeSingle();
+    const exRes = await _peopleApi.get(`chat_channels?workspace_owner=eq.${supaUser.id}&name=eq.${encodeURIComponent(channelName)}&select=id&limit=1`);
+    const existing = Array.isArray(exRes.data) ? exRes.data[0] : null;
     if (existing) {
       updates.channel_id = existing.id;
     } else {
-      const { data: ch, error: chErr } = await c.from('chat_channels').insert({
+      const { data: chData, error: chErr } = await _peopleApi.post('chat_channels', {
         workspace_owner: supaUser.id,
         type: 'custom',
         name: channelName,
-        description: `Onboarding de ${personName} — sensei, padrinho e aprendiz conversam aqui.`,
+        description: `Onboarding de ${personName} — sensei, padrinho e a pessoa conversam aqui.`,
         created_by: supaUser.id,
-      }).select('id').maybeSingle();
+      });
+      const ch = Array.isArray(chData) ? chData[0] : chData;
       if (!chErr && ch?.id) updates.channel_id = ch.id;
       else if (chErr) console.warn('[people] channel falhou:', chErr.message);
     }
   } catch(e) { console.warn('[people] channel ex:', e?.message); }
 
-  // 3) Persiste os IDs criados na trilha
+  // 3) Persiste os IDs criados na trilha (via raw fetch — SDK-free)
   if (Object.keys(updates).length) {
-    try { await c.from('people_trails').update(updates).eq('id', trailId); }
+    try { await _peopleApi.patch(`people_trails?id=eq.${trailId}`, updates); }
     catch(e) { console.warn('[people] update trail integrations:', e?.message); }
   }
 }
@@ -36901,23 +36995,20 @@ async function _peopleProvisionIntegrations(trailId, personName) {
 // ── Drawer com trilha completa da pessoa ────────────────────────────
 async function _peopleOpenPersonDrawer(personId) {
   _peopleState.currentPersonId = personId;
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   _peopleRenderDrawer({ person: null, trail: null, steps: [], pulses: [] }, true);
   try {
-    // Paraleliza as 4 queries
     const [pRes, tRes, pulseRes] = await Promise.all([
-      c.from('people').select('*').eq('id', personId).limit(1).maybeSingle(),
-      c.from('people_trails').select('*').eq('person_id', personId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      c.from('people_pulse').select('*').eq('person_id', personId).order('asked_at', { ascending: false }).limit(10),
+      _peopleApi.get(`people?id=eq.${personId}&limit=1`),
+      _peopleApi.get(`people_trails?person_id=eq.${personId}&order=created_at.desc&limit=1`),
+      _peopleApi.get(`people_pulse?person_id=eq.${personId}&order=asked_at.desc&limit=10`),
     ]);
-    const person = pRes.data;
-    const trail  = tRes.data;
-    const pulses = pulseRes.data || [];
+    const person = Array.isArray(pRes.data) ? pRes.data[0] : null;
+    const trail  = Array.isArray(tRes.data) ? tRes.data[0] : null;
+    const pulses = Array.isArray(pulseRes.data) ? pulseRes.data : [];
     let steps = [];
     if (trail) {
-      const { data: s } = await c.from('people_trail_steps').select('*').eq('trail_id', trail.id).order('order_idx');
-      steps = s || [];
+      const sRes = await _peopleApi.get(`people_trail_steps?trail_id=eq.${trail.id}&order=order_idx`);
+      steps = Array.isArray(sRes.data) ? sRes.data : [];
     }
     _peopleState.currentTrail = { person, trail, steps, pulses };
     _peopleRenderDrawer({ person, trail, steps, pulses }, false);
@@ -37087,15 +37178,12 @@ async function _peopleOpenTrailEditor(trailId) {
     if (typeof appAlert === 'function') appAlert('Sem trilha', 'Esta pessoa ainda não tem trilha ativa pra editar.', { icon: '⚠️' });
     return;
   }
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
-  // Carrega trilha + steps
   const [tRes, sRes] = await Promise.all([
-    c.from('people_trails').select('*').eq('id', trailId).maybeSingle(),
-    c.from('people_trail_steps').select('*').eq('trail_id', trailId).order('order_idx'),
+    _peopleApi.get(`people_trails?id=eq.${trailId}&limit=1`),
+    _peopleApi.get(`people_trail_steps?trail_id=eq.${trailId}&order=order_idx`),
   ]);
-  const trail = tRes.data;
-  const steps = sRes.data || [];
+  const trail = Array.isArray(tRes.data) ? tRes.data[0] : null;
+  const steps = Array.isArray(sRes.data) ? sRes.data : [];
   if (!trail) {
     if (typeof appAlert === 'function') appAlert('Trilha não encontrada', '', { icon: '⚠️' });
     return;
@@ -37160,15 +37248,12 @@ function _peopleStepEditorRowHTML(s) {
 }
 
 async function _peopleAddStep(trailId, currentLen) {
-  // Cria um step novo direto, depois abre o editor inline
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
-  const { data: trail } = await c.from('people_trails').select('start_date').eq('id', trailId).maybeSingle();
-  const startDate = trail?.start_date;
+  const tRes = await _peopleApi.get(`people_trails?id=eq.${trailId}&select=start_date&limit=1`);
+  const startDate = Array.isArray(tRes.data) ? tRes.data[0]?.start_date : null;
   const dayOffset = 0;
   const deadline = startDate ? new Date(new Date(startDate).getTime() + dayOffset*86400000).toISOString().slice(0,10) : null;
   try {
-    const { data: newStep, error } = await c.from('people_trail_steps').insert({
+    const { data, error } = await _peopleApi.post('people_trail_steps', {
       trail_id: trailId,
       title: 'Nova etapa',
       description: '',
@@ -37178,11 +37263,10 @@ async function _peopleAddStep(trailId, currentLen) {
       status: 'pendente',
       assignee_role: 'aprendiz',
       order_idx: currentLen,
-    }).select('*').maybeSingle();
+    });
     if (error) throw error;
-    // Re-render lista
+    const newStep = Array.isArray(data) ? data[0] : data;
     await _peopleRefreshTrailEditor(trailId);
-    // Já abre o editor inline
     setTimeout(() => _peopleEditStep(newStep.id), 50);
   } catch(e) {
     console.warn('[people] add step:', e?.message);
@@ -37194,12 +37278,10 @@ async function _peopleDeleteStep(stepId) {
   if (typeof appConfirm !== 'function') return;
   const ok = await appConfirm('Remover etapa', 'Tem certeza? Isso não pode ser desfeito.', { okLabel: 'Remover', cancelLabel: 'Cancelar', icon: '🗑' });
   if (!ok) return;
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   const editor = document.getElementById('ppl-trail-editor');
   const trailId = editor?.dataset?.trailId;
   try {
-    const { error } = await c.from('people_trail_steps').delete().eq('id', stepId);
+    const { error } = await _peopleApi.del(`people_trail_steps?id=eq.${stepId}`);
     if (error) throw error;
     await _peopleRefreshTrailEditor(trailId);
   } catch(e) {
@@ -37209,9 +37291,8 @@ async function _peopleDeleteStep(stepId) {
 }
 
 async function _peopleEditStep(stepId) {
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
-  const { data: s } = await c.from('people_trail_steps').select('*').eq('id', stepId).maybeSingle();
+  const sRes = await _peopleApi.get(`people_trail_steps?id=eq.${stepId}&limit=1`);
+  const s = Array.isArray(sRes.data) ? sRes.data[0] : null;
   if (!s) return;
   let modal = document.getElementById('ppl-step-edit-modal');
   if (modal) modal.remove();
@@ -37269,26 +37350,23 @@ async function _peopleSaveStep(stepId) {
   if (!form) return;
   const fd = new FormData(form);
   const dayOffset = parseInt(fd.get('day_offset')||'0', 10);
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   const editor = document.getElementById('ppl-trail-editor');
   const trailId = editor?.dataset?.trailId;
-  // Pega start_date pra recalcular deadline
   let startDate = null;
   if (trailId) {
-    const { data: t } = await c.from('people_trails').select('start_date').eq('id', trailId).maybeSingle();
-    startDate = t?.start_date;
+    const tRes = await _peopleApi.get(`people_trails?id=eq.${trailId}&select=start_date&limit=1`);
+    startDate = Array.isArray(tRes.data) ? tRes.data[0]?.start_date : null;
   }
   const deadline = startDate ? new Date(new Date(startDate).getTime() + dayOffset*86400000).toISOString().slice(0,10) : null;
   try {
-    const { error } = await c.from('people_trail_steps').update({
+    const { error } = await _peopleApi.patch(`people_trail_steps?id=eq.${stepId}`, {
       title:         (fd.get('title')||'').toString().trim(),
       description:   (fd.get('description')||'').toString().trim() || null,
       day_offset:    dayOffset,
       deadline_date: deadline,
       category:      fd.get('category'),
       assignee_role: fd.get('assignee_role'),
-    }).eq('id', stepId);
+    });
     if (error) throw error;
     document.getElementById('ppl-step-edit-modal')?.remove();
     await _peopleRefreshTrailEditor(trailId);
@@ -37300,11 +37378,10 @@ async function _peopleSaveStep(stepId) {
 
 async function _peopleRefreshTrailEditor(trailId) {
   if (!trailId) return;
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
-  const { data: steps } = await c.from('people_trail_steps').select('*').eq('trail_id', trailId).order('order_idx');
+  const sRes = await _peopleApi.get(`people_trail_steps?trail_id=eq.${trailId}&order=order_idx`);
+  const steps = Array.isArray(sRes.data) ? sRes.data : [];
   const list = document.getElementById('ppl-steps-editor-list');
-  if (list) list.innerHTML = (steps||[]).map(s => _peopleStepEditorRowHTML(s)).join('');
+  if (list) list.innerHTML = steps.map(s => _peopleStepEditorRowHTML(s)).join('');
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -37363,10 +37440,8 @@ async function _peopleSubmitLinkUser(personId) {
   const fd = new FormData(form);
   const email = (fd.get('email')||'').toString().trim();
   if (!email) return;
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   try {
-    const { data, error } = await c.rpc('people_link_user_by_email', { p_person_id: personId, p_email: email });
+    const { data, error } = await _peopleApi.rpc('people_link_user_by_email', { p_person_id: personId, p_email: email });
     if (error) throw error;
     document.getElementById('ppl-link-user-modal')?.remove();
     if (!data?.found) {
@@ -37389,10 +37464,8 @@ async function _peopleUnlinkUser(personId) {
   if (typeof appConfirm !== 'function') return;
   const ok = await appConfirm('Desvincular conta?', 'A pessoa não vai mais aparecer em @-menções nem receber pulses. Isso não exclui a conta Synkan dela.', { okLabel: 'Desvincular', cancelLabel: 'Cancelar', icon: '⚠️' });
   if (!ok) return;
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   try {
-    const { error } = await c.rpc('people_unlink_user', { p_person_id: personId });
+    const { error } = await _peopleApi.rpc('people_unlink_user', { p_person_id: personId });
     if (error) throw error;
     document.getElementById('ppl-link-user-modal')?.remove();
     if (_peopleState.currentPersonId) await _peopleOpenPersonDrawer(_peopleState.currentPersonId);
@@ -37404,10 +37477,8 @@ async function _peopleUnlinkUser(personId) {
 
 // Cria um pulse pendente pra esta pessoa (manual, do sensei)
 async function _peopleRequestPulse(personId, hasUserAccount) {
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   try {
-    const { error } = await c.from('people_pulse').insert({
+    const { error } = await _peopleApi.post('people_pulse', {
       person_id: personId,
       asked_at: new Date().toISOString(),
     });
@@ -37447,28 +37518,20 @@ function _peopleStepHTML(s) {
 }
 
 async function _peopleToggleStep(stepId, makeChecked) {
-  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-  if (!c) return;
   try {
     if (makeChecked) {
-      const { data, error } = await c.rpc('people_step_complete', { p_step_id: stepId });
+      const { data, error } = await _peopleApi.rpc('people_step_complete', { p_step_id: stepId });
       if (error) throw error;
-      // Se graduou, mostra mensagem
       if (data?.graduated) {
         if (typeof appAlert === 'function') {
-          appAlert('🌕 Lua Cheia!', 'Trilha 100% completa! O aprendiz chegou à <strong>Lua Cheia</strong> — graduação oficial. 90 dias de jornada concluídos.', { icon: '満月', html: true });
+          appAlert('🌕 Lua Cheia!', 'Trilha 100% completa! Chegou à <strong>Lua Cheia</strong> — graduação oficial.', { icon: '満月', html: true });
         }
-      } else if (data?.new_belt) {
-        // (opcional) toast de subida de faixa
       }
     } else {
-      // Desmarcar — update direto na tabela (RLS permite owner)
-      const { error } = await c.from('people_trail_steps').update({ status: 'pendente', completed_at: null, completed_by: null }).eq('id', stepId);
+      const { error } = await _peopleApi.patch(`people_trail_steps?id=eq.${stepId}`, { status: 'pendente', completed_at: null, completed_by: null });
       if (error) throw error;
     }
-    // Recarrega drawer
     if (_peopleState.currentPersonId) await _peopleOpenPersonDrawer(_peopleState.currentPersonId);
-    // Atualiza grid em background
     _peopleLoadAll().then(() => { if (_peopleState.tab === 'aprendizes' || _peopleState.tab === 'graduados') _peopleRenderMain(); });
   } catch(e) {
     console.warn('[people] toggle step falhou:', e);
