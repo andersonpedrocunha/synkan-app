@@ -35785,26 +35785,14 @@ async function renderPeople() {
   const root = document.getElementById('people-root');
   if (!root) return;
   _peopleState.loading = true;
-  root.innerHTML = `<div class="ppl-wrap"><div class="ppl-empty"><div class="ppl-empty-icon">道</div><div class="ppl-empty-title">Carregando trilhas…</div></div></div>`;
-  let loadError = null;
-  // Timeout 30s. Cobre cold-start de Supabase free tier (primeira request
-  // após pausa pode levar 10-20s pra acordar pooler + warm cache). Se ainda
-  // assim demora, deixa em background e re-renderiza quando chegar.
-  let loadCompletedAfterTimeout = false;
-  const loadPromise = _peopleLoadAll().then(() => { loadCompletedAfterTimeout = true; });
+  root.innerHTML = `<div class="ppl-wrap"><div class="ppl-empty"><div class="ppl-empty-icon">道</div><div class="ppl-empty-title">Carregando trilhas…</div><div class="ppl-empty-sub" style="opacity:.55;">primeira vez pode levar uns segundos enquanto o servidor acorda</div></div></div>`;
+  // Sem timeout, sem banner. Apenas espera. Se Supabase tá em cold start,
+  // a primeira request pode levar 15-20s. Banner amarelo confundia mais
+  // do que ajudava (queries acabavam respondendo 200 mas banner ficava lá).
   try {
-    await Promise.race([
-      loadPromise,
-      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout 30s — Supabase cold start?')), 30_000))
-    ]);
+    await _peopleLoadAll();
   } catch(e) {
-    loadError = e;
-    console.warn('[people] load lento ou falhou:', e?.message || e);
-    // Continua em background — quando completar, re-renderiza com dados frescos
-    loadPromise.then(() => {
-      console.log('[people] dados chegaram tardiamente — re-renderizando');
-      _peopleRenderMain();
-    }).catch(() => {});
+    console.warn('[people] load erro:', e?.message || e);
   } finally {
     _peopleState.loading = false;
   }
@@ -35817,30 +35805,10 @@ async function renderPeople() {
         <div class="ppl-empty-icon" style="color:#BC002D;">⚠</div>
         <div class="ppl-empty-title">Erro ao renderizar o módulo People</div>
         <div class="ppl-empty-sub">
-          <code style="font-size:11.5px;background:#FBEAEB;padding:4px 8px;border-radius:5px;color:#9F0026;display:inline-block;margin-top:6px;">${_esc(renderErr?.message || String(renderErr))}</code><br/><br/>
-          Abra o console (Cmd+Option+J) e me passa a stack trace.
+          <code style="font-size:11.5px;background:#FBEAEB;padding:4px 8px;border-radius:5px;color:#9F0026;display:inline-block;margin-top:6px;">${_esc(renderErr?.message || String(renderErr))}</code>
         </div>
       </div>
     </div>`;
-    return;
-  }
-  // Só mostra o banner se REALMENTE não temos dados após o timeout. Se as
-  // queries lentas tiverem populado o state antes do render, não mostra.
-  const hasData = !!_peopleState.dashboard || (_peopleState.templates && _peopleState.templates.length > 0);
-  if (loadError && !hasData) {
-    const wrap = root.querySelector('.ppl-wrap');
-    if (wrap) {
-      const banner = document.createElement('div');
-      banner.style.cssText = 'padding:10px 14px;background:#FFF4D1;border:1px solid #E6C84F;border-radius:8px;font-size:12px;color:#7A5500;font-family:var(--font-sans);';
-      banner.innerHTML = `⚠ <strong>Backend lento ou indisponível.</strong> Possíveis causas:
-        <ul style="margin:6px 0 0;padding-left:20px;">
-          <li>Migration <code>MIGRATIONS_PEOPLE.sql</code> ainda não foi aplicada no Supabase</li>
-          <li>Deploy do Cloudflare Pages ainda não propagou as últimas mudanças (espera 1-2min e recarrega)</li>
-          <li>Cold start do Supabase — recarregue em 30s</li>
-        </ul>
-        <em style="opacity:.7;">${_esc(loadError?.message||'')}</em>`;
-      wrap.insertBefore(banner, wrap.firstChild);
-    }
   }
 }
 
