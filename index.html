@@ -6352,13 +6352,19 @@ body.tx-active .belt-ring::after{
 }
 .tx-embed-mount > #view-kanban,
 .tx-embed-mount > #view-canvas,
-.tx-embed-mount > #view-okrs{
+.tx-embed-mount > #view-okrs,
+.tx-embed-mount > #view-registry,
+.tx-embed-mount > #view-chat,
+.tx-embed-mount > #view-bunko{
   display:block !important;
   /* No mínimo preenche o painel; cresce livremente se o conteúdo for maior */
   min-height:100%;
   min-width:100%;
   width:auto;
   height:auto;
+  /* Anula heights fixos que esses módulos têm no app principal
+     (ex: view-chat usa calc(100vh - X) que quebra dentro do embed) */
+  max-height:none;
 }
 
 /* Lab preview inline (custom) */
