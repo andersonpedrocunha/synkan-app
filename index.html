@@ -36171,6 +36171,7 @@ function _peopleRenderMain() {
       <div class="ppl-tabs">
         <button class="ppl-tab ${tab==='aprendizes'?'active':''}" onclick="_peopleSetTab('aprendizes')">🌙 Em trilha <span style="opacity:.55;">${aprendizes.length}</span></button>
         <button class="ppl-tab ${tab==='graduados'?'active':''}"  onclick="_peopleSetTab('graduados')">🎓 Graduados <span style="opacity:.55;">${graduados.length}</span></button>
+        <button class="ppl-tab ${tab==='historico'?'active':''}"  onclick="_peopleSetTab('historico')">📜 Histórico <span style="opacity:.55;">${Number(d.total_desligados)||0}</span></button>
         <button class="ppl-tab ${tab==='templates'?'active':''}"  onclick="_peopleSetTab('templates')">📋 Templates <span style="opacity:.55;">${_peopleState.templates.length}</span></button>
         <button class="ppl-tab ${tab==='pulse'?'active':''}"      onclick="_peopleSetTab('pulse')">💚 Check-ins <span style="opacity:.55;">${(d.pulse_count!==undefined)?d.pulse_count:''}</span></button>
       </div>
@@ -36213,7 +36214,9 @@ function _peopleRenderTabContent() {
     const list = pessoas.filter(p => p.status === 'graduado');
     el.innerHTML = list.length
       ? `<div class="ppl-grid">${list.map(_peopleCardHTML).join('')}</div>`
-      : _peopleEmptyHTML('Nenhum graduado ainda', 'Quando aprendizes completam 100% da trilha (faixa roxa), eles aparecem aqui.');
+      : _peopleEmptyHTML('Nenhum graduado ainda', 'Quando pessoas completam 100% da trilha (Lua Cheia), aparecem aqui.');
+  } else if (tab === 'historico') {
+    _peopleRenderHistorico(el);
   } else if (tab === 'templates') {
     const newCard = `
       <div class="ppl-card ppl-card-new" onclick="_peopleOpenTemplateCreator()" style="cursor:pointer;min-height:170px;border-style:dashed;border-color:var(--color-border-secondary);background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--color-text-tertiary);transition:all .15s;">
@@ -36226,6 +36229,128 @@ function _peopleRenderTabContent() {
   } else if (tab === 'pulse') {
     _peopleRenderPulseHistory(el);
   }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Histórico de não-efetivação · mini-dashboard + lista
+// ════════════════════════════════════════════════════════════════════
+const _PPL_DESLIG_CATEGORIAS = {
+  'nao-adequacao-cultural': { label: 'Adequação cultural',  color: '#6B5DC8' },
+  'nao-adequacao-tecnica':  { label: 'Adequação técnica',   color: '#3B6D11' },
+  'iniciativa-da-pessoa':   { label: 'Iniciativa da pessoa', color: '#7A5500' },
+  'decisao-mutua':          { label: 'Decisão mútua',       color: '#5C4F3F' },
+  'reorganizacao':          { label: 'Reorganização',       color: '#8B6634' },
+  'outro':                  { label: 'Outro',               color: '#A0A0A0' },
+};
+
+function _peopleRenderHistorico(el) {
+  const d = _peopleState.dashboard || {};
+  const pessoas = Array.isArray(d.pessoas_ativas) ? d.pessoas_ativas : [];
+  const desligados = pessoas.filter(p => p.status === 'desligado')
+    .sort((a,b) => (b.desligado_at||'').localeCompare(a.desligado_at||''));
+
+  if (!desligados.length) {
+    el.innerHTML = _peopleEmptyHTML(
+      'Histórico limpo',
+      'Quando uma pessoa não for efetivada (CLT em experiência, PJ não-renovado, etc), use o botão "Não efetivar" no drawer dela. Vai aparecer aqui pra registro, auditoria e análise de motivos.'
+    );
+    return;
+  }
+
+  // Métricas agregadas
+  const total = desligados.length;
+  const totalAtivosMaisGraduadosMaisDesligados = (Number(d.total_aprendizes)||0) + (Number(d.total_graduados)||0) + total;
+  const taxa = totalAtivosMaisGraduadosMaisDesligados > 0
+    ? Math.round(100 * total / totalAtivosMaisGraduadosMaisDesligados)
+    : 0;
+  const diasMedios = (() => {
+    const valid = desligados.filter(p => p.days_in_trail != null);
+    if (!valid.length) return null;
+    return Math.round(valid.reduce((s,p) => s + Number(p.days_in_trail), 0) / valid.length);
+  })();
+
+  // Agrupa por categoria pra "por que saem"
+  const porCategoria = {};
+  desligados.forEach(p => {
+    const k = p.desligamento_categoria || 'outro';
+    porCategoria[k] = (porCategoria[k] || 0) + 1;
+  });
+  const catEntries = Object.entries(porCategoria).sort((a,b) => b[1]-a[1]);
+
+  // Etapa mais comum onde travam (pega o título da etapa de bloqueio)
+  const porEtapa = {};
+  desligados.forEach(p => {
+    const title = p.desligamento_step?.title;
+    if (title) porEtapa[title] = (porEtapa[title] || 0) + 1;
+  });
+  const etapaMaisComum = Object.entries(porEtapa).sort((a,b) => b[1]-a[1])[0];
+
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <!-- ━━ Mini-dashboard ━━ -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+        <div class="ppl-stat"><div class="ppl-stat-label">Não efetivados</div><div class="ppl-stat-value">${total}</div></div>
+        <div class="ppl-stat"><div class="ppl-stat-label">Taxa global</div><div class="ppl-stat-value">${taxa}%</div></div>
+        <div class="ppl-stat"><div class="ppl-stat-label">Tempo médio na trilha</div><div class="ppl-stat-value">${diasMedios != null ? diasMedios + 'd' : '—'}</div></div>
+        <div class="ppl-stat"><div class="ppl-stat-label">Etapa-bloqueio + comum</div><div class="ppl-stat-value" style="font-size:13px;line-height:1.35;font-weight:600;">${etapaMaisComum ? _esc(etapaMaisComum[0].slice(0,40)) + (etapaMaisComum[0].length>40?'…':'') + ` <span style="opacity:.6;font-weight:400;font-size:11px;">(${etapaMaisComum[1]})</span>` : '<span style="opacity:.5;font-weight:400;">—</span>'}</div></div>
+      </div>
+
+      <!-- ━━ Distribuição por categoria ━━ -->
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
+        <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:10px;">📊 Por que saem · distribuição</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          ${catEntries.map(([k, count]) => {
+            const cat = _PPL_DESLIG_CATEGORIAS[k] || _PPL_DESLIG_CATEGORIAS['outro'];
+            const pct = Math.round(100 * count / total);
+            return `
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:160px;flex-shrink:0;font-size:12px;color:var(--color-text-secondary);">${_esc(cat.label)}</div>
+                <div style="flex:1;height:14px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden;position:relative;">
+                  <div style="height:100%;width:${pct}%;background:${cat.color};border-radius:4px;transition:width .3s ease;"></div>
+                </div>
+                <div style="width:60px;text-align:right;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--color-text-primary);font-weight:500;">${count} · ${pct}%</div>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- ━━ Lista cronológica de desligados ━━ -->
+      <div>
+        <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:10px;">⏳ Linha do tempo</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${desligados.map(_peopleHistoricoRowHTML).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function _peopleHistoricoRowHTML(p) {
+  const initials = (p.name || '?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+  const cat = _PPL_DESLIG_CATEGORIAS[p.desligamento_categoria] || _PPL_DESLIG_CATEGORIAS['outro'];
+  const dt = p.desligado_at ? new Date(p.desligado_at) : null;
+  const dtLabel = dt ? dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'2-digit' }) : '—';
+  const days = p.days_in_trail != null ? `${p.days_in_trail}d na trilha` : '';
+  const stepTitle = p.desligamento_step?.title;
+  // Janela de 7d pra reverter
+  const canRevert = dt && (Date.now() - dt.getTime()) < 7*24*60*60*1000;
+  return `
+    <div class="ppl-card" style="cursor:pointer;flex-direction:row;align-items:flex-start;gap:12px;padding:14px 16px;border-left:3px solid ${cat.color};" onclick="_peopleOpenPersonDrawer('${_esc(p.id)}')">
+      <div class="ppl-avatar" style="width:38px;height:38px;font-size:14px;background:linear-gradient(135deg,#5C4F3F,#3A332C);color:#F5E8C8;border-color:transparent;flex-shrink:0;">${_esc(initials)}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+          <div style="font-size:13.5px;font-weight:600;color:var(--color-text-primary);">${_esc(p.name)}</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary);">${_esc(p.role_title || _PPL_ROLE_LABELS[p.role_template] || '')}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap;">
+          <span style="font-size:10.5px;font-weight:600;background:${cat.color}22;color:${cat.color};padding:2px 7px;border-radius:5px;">${_esc(cat.label)}</span>
+          <span style="font-size:10.5px;color:var(--color-text-tertiary);">desligado em <strong>${dtLabel}</strong>${days?' · '+days:''}</span>
+          ${stepTitle ? `<span style="font-size:10.5px;color:var(--color-text-tertiary);">· estava em "${_esc(stepTitle.slice(0,40))}${stepTitle.length>40?'…':''}"</span>`:''}
+        </div>
+        ${p.desligamento_motivo ? `<div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:6px;padding:6px 10px;background:var(--color-background-secondary);border-radius:6px;font-style:italic;font-family:'Noto Serif JP',serif;line-height:1.45;">"${_esc(p.desligamento_motivo)}"</div>` : ''}
+      </div>
+      ${canRevert ? `<button onclick="event.stopPropagation();_peopleReverterDesligamento('${_esc(p.id)}', '${_esc(p.name)}')" title="Reverter desligamento (janela de 7 dias)" style="background:transparent;border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);font-size:11px;padding:4px 9px;border-radius:6px;cursor:pointer;flex-shrink:0;font-family:inherit;">↩ reverter</button>` : ''}
+    </div>`;
 }
 
 async function _peopleRenderPulseHistory(el) {
@@ -37077,6 +37202,7 @@ function _peopleRenderDrawer(state, loading) {
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
           ${accountChip}
           <button class="ppl-drawer-icon-btn" onclick="_peopleOpenTrailEditor('${_esc(trail?.id||'')}')" title="Configurar etapas da trilha (adicionar/remover/editar)">⚙</button>
+          ${person.status === 'ativo' ? `<button class="ppl-drawer-icon-btn" style="border-color:rgba(188,0,45,.30);color:#9F0026;" onclick="_peopleOpenDesligarModal('${_esc(person.id)}', '${_esc(person.name)}')" title="Marcar como não-efetivada">🚪</button>` : ''}
           <button class="ppl-drawer-close" onclick="_peopleCloseDrawer()" title="Fechar">×</button>
         </div>
       </div>
@@ -37472,6 +37598,101 @@ async function _peopleUnlinkUser(personId) {
   } catch(e) {
     console.warn('[people] unlink:', e?.message);
     if (typeof appAlert === 'function') appAlert('Erro ao desvincular', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Desligamento (não-efetivação)
+// ════════════════════════════════════════════════════════════════════
+function _peopleOpenDesligarModal(personId, personName) {
+  let modal = document.getElementById('ppl-desligar-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-desligar-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10006';
+  const today = new Date().toISOString().slice(0,10);
+  modal.innerHTML = `
+    <div class="modal" style="max-width:520px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">🚪 Não efetivar <strong>${_esc(personName)}</strong></h3>
+        <button onclick="document.getElementById('ppl-desligar-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <div style="padding:11px 13px;background:#FBEAEB;border-left:3px solid #BC002D;border-radius:0 7px 7px 0;font-size:12px;color:#9F0026;margin-bottom:14px;line-height:1.5;">
+          A trilha é cancelada e a pessoa some das abas <em>"Em trilha"</em> e <em>"Graduados"</em>, indo pra <em>"Histórico"</em>. Pasta no Bunko e canal de chat <strong>ficam mantidos</strong> (documentos contratuais e registros). Você tem <strong>7 dias</strong> pra reverter se for engano.
+        </div>
+        <form id="ppl-desligar-form" class="ppl-modal-form" onsubmit="event.preventDefault();_peopleSubmitDesligar('${_esc(personId)}', '${_esc(personName)}');">
+          <div class="ppl-modal-row cols">
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Data efetiva *</label>
+              <input class="ppl-modal-input" name="data_efetiva" type="date" required value="${today}"/>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Categoria *</label>
+              <select class="ppl-modal-select" name="categoria" required>
+                <option value="nao-adequacao-cultural">Não adequação cultural</option>
+                <option value="nao-adequacao-tecnica">Não adequação técnica</option>
+                <option value="iniciativa-da-pessoa">Iniciativa da pessoa</option>
+                <option value="decisao-mutua">Decisão mútua</option>
+                <option value="reorganizacao">Reorganização interna</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Motivo (opcional, mas recomendado)</label>
+            <textarea class="ppl-modal-input" name="motivo" rows="3" style="resize:vertical;" placeholder="Contexto curto — ajuda em análise futura de padrões."></textarea>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+            <button type="button" class="ppl-btn" onclick="document.getElementById('ppl-desligar-modal').remove()">Cancelar</button>
+            <button type="submit" class="ppl-btn" style="background:#BC002D;border-color:#BC002D;color:#fff;font-weight:600;">Confirmar não-efetivação</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => { try { modal.querySelector('select[name="categoria"]').focus(); } catch(_){} }, 50);
+}
+
+async function _peopleSubmitDesligar(personId, personName) {
+  const form = document.getElementById('ppl-desligar-form');
+  if (!form) return;
+  const fd = new FormData(form);
+  try {
+    const { data, error } = await _peopleApi.rpc('people_desligar', {
+      p_person_id: personId,
+      p_motivo: (fd.get('motivo')||'').toString().trim() || null,
+      p_categoria: fd.get('categoria') || 'outro',
+      p_data_efetiva: fd.get('data_efetiva') || null,
+    });
+    if (error) throw error;
+    document.getElementById('ppl-desligar-modal')?.remove();
+    _peopleCloseDrawer();
+    if (typeof appAlert === 'function') {
+      appAlert('Registrado 🚪', `<strong>${_esc(personName)}</strong> marcada como não-efetivada. Aparece agora na aba <em>Histórico</em> com motivo e categoria. Janela de 7 dias pra reverter caso seja engano.`, { icon: '✓', html: true });
+    }
+    await _peopleLoadAll();
+    _peopleSetTab('historico');
+  } catch(e) {
+    console.warn('[people] desligar falhou:', e);
+    if (typeof appAlert === 'function') appAlert('Erro ao desligar', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+async function _peopleReverterDesligamento(personId, personName) {
+  if (typeof appConfirm !== 'function') return;
+  const ok = await appConfirm('Reverter desligamento?', `<strong>${_esc(personName)}</strong> volta pra "Em trilha" com a trilha reativada. Use isso só se foi engano — janela de 7 dias.`, { okLabel: 'Sim, reverter', cancelLabel: 'Cancelar', icon: '↩', html: true });
+  if (!ok) return;
+  try {
+    const { error } = await _peopleApi.rpc('people_reverter_desligamento', { p_person_id: personId });
+    if (error) throw error;
+    if (typeof appAlert === 'function') appAlert('Revertido ↩', `<strong>${_esc(personName)}</strong> voltou pra "Em trilha".`, { icon: '✓', html: true });
+    await _peopleLoadAll();
+    _peopleRenderMain();
+  } catch(e) {
+    console.warn('[people] reverter falhou:', e);
+    if (typeof appAlert === 'function') appAlert('Erro ao reverter', e?.message || String(e), { icon: '⚠️' });
   }
 }
 
