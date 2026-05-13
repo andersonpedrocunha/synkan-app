@@ -13351,10 +13351,10 @@ function renderSearch() {
   let aiPrefix = '';
   if (looksLikeQuestion) {
     aiPrefix = `<div class="search-section">Pergunte ao Mestre Kan</div>
-      <div class="search-row" onclick="runAISearch();">
+      <div class="search-row" onclick="runAISearch();" title="⚔️ Consome chamada de IA">
         <div class="search-row-icon" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;padding:0;overflow:hidden;"><img class="kan-avatar sm" src="mestre_kan_avatar.png?v=6" alt="" style="width:28px;height:28px;box-shadow:none;" onerror="this.outerHTML='🥋'"/></div>
         <div class="search-row-text">
-          <div class="search-row-title">Perguntar ao Mestre Kan: "${_esc(q)}"</div>
+          <div class="search-row-title">Perguntar ao Mestre Kan: "${_esc(q)}" <span style="font-size:11px;opacity:.6;">⚔️</span></div>
           <div class="search-row-meta">A IA analisa todos os boards e responde com sabedoria</div>
         </div>
       </div>`;
@@ -14115,6 +14115,12 @@ const OB_STEPS = [
     hero: '<img src="mestre_kan_avatar.png?v=6" alt="Mestre Kan" style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;box-shadow:0 4px 14px rgba(0,0,0,.12);" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'),{textContent:\'🧘\',style:\'font-size:72px;display:block;text-align:center\'}))" />',
     title: 'Mestre Kan · grátis e transparente',
     body: 'Um sensei silencioso que escuta cada reunião. <strong>Transcrição é grátis</strong> e roda no Whisper — você fala, ele transcreve, o pergaminho fica no Bunko.<br/><br/><strong>🧘 Grátis (use à vontade):</strong> transcrição ao vivo, busca, exportar Word.<br/><strong>⚔️ Consome chamada (opt-in):</strong> extrair ações, resumir página, Customer 360 narrativo, daily brief CRM, próxima ação por deal.<br/><br/>Veja tudo em <strong>menu → O Caminho do Mestre</strong>.',
+    primary: 'Próximo',
+  },
+  {
+    type: 'centered',
+    title: '🥋 Dojo · sua jornada gamificada',
+    body: 'Cada ação no app vira XP. XP acumula em <strong>faixas</strong> (Branca → Amarela → Laranja → Verde → Azul → Roxa → Marrom → Preta). Tem também <strong>conquistas permanentes</strong> (14), <strong>conquistas sazonais</strong> (5 por trimestre, rotam 春 夏 秋 冬), e <strong>efemérides japonesas anuais</strong> (1 por estação por ano — pré-cadastradas até 2035).<br/><br/>Acompanhe o <strong>⚡ Pulse</strong> de vitalidade do seu avatar: brilha quando você está ativo, vai opacando se você some. Não afeta XP nem faixa — só o brilho. Considera fins de semana, feriados BR e <strong>30 dias úteis de férias por ano</strong> sem decay.<br/><br/>Tudo opcional — dá pra desligar em Configurações → Dojo.',
     primary: 'Próximo',
   },
   {
@@ -24841,11 +24847,12 @@ function _renderHelpRecursosTopic(id) {
 
         <h4 class="help-topic-h">O Mestre Kan dentro dos cards</h4>
         <p>Em qualquer card do Kanban, abra o painel e clique no ícone de IA pra acessar o Mestre Kan. Ele faz:</p>
-        <p><strong>Quebrar em subtarefas</strong> — descreve o card e ele sugere 3-7 subtarefas concretas.<br/>
-        <strong>Redigir email</strong> — gera email profissional pra cliente/fornecedor com tom apropriado.<br/>
-        <strong>Resumir thread</strong> — TLDR de comentários longos.<br/>
-        <strong>OCR de recibo/NF</strong> — anexa imagem e ele extrai valor, data, fornecedor, número da NF.<br/>
-        <strong>Daily Brief</strong> — na home, manhã com prioridades do dia baseado em deadlines, prioridade alta, e cards parados há mais tempo.</p>
+        <p>⚔️ <strong>Quebrar em subtarefas</strong> — descreve o card e ele sugere 3-7 subtarefas concretas.<br/>
+        ⚔️ <strong>Redigir email</strong> — gera email profissional pra cliente/fornecedor com tom apropriado.<br/>
+        ⚔️ <strong>Resumir thread</strong> — TLDR de comentários longos.<br/>
+        ⚔️ <strong>OCR de recibo/NF</strong> — anexa imagem e ele extrai valor, data, fornecedor, número da NF.<br/>
+        ⚔️ <strong>Daily Brief</strong> — na home, manhã com prioridades do dia baseado em deadlines, prioridade alta, e cards parados há mais tempo.</p>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin-top:8px;">⚔️ = consome 1 chamada da sua quota mensal · 🧘 = grátis (transcrição, busca, exportar, navegação)</p>
 
         <h4 class="help-topic-h">Limite mensal</h4>
         <p>Cada chamada conta 1 interação. Faixa Azul = 100/mês, Roxa = 300/mês, Preta = 1.000/mês. Reseta dia 1°. Quando passa de 80% o Mestre Kan avisa. Se acabar antes, você pode comprar pacotes avulsos (100, 300 ou 1.000 chamadas).</p>
@@ -29066,12 +29073,12 @@ function renderDashAIPanel() {
       </span>
     </div>
     <div class="ai-presets" id="dash-ai-presets">
-      ${presets.map(p=>`<button class="ai-preset" onclick="runDashAI('${p.id}')"><span class="ai-preset-icon">${p.icon}</span><span>${_esc(p.label)}</span></button>`).join('')}
+      ${presets.map(p=>`<button class="ai-preset" onclick="runDashAI('${p.id}')" title="⚔️ Consome chamada de IA"><span class="ai-preset-icon">${p.icon}</span><span>${_esc(p.label)}</span><span style="margin-left:auto;font-size:10px;opacity:.6;">⚔️</span></button>`).join('')}
     </div>
     <div class="ai-prompt">
       <input id="dash-ai-prompt" type="text" placeholder="${placeholder}"
              onkeydown="if(event.key==='Enter'){event.preventDefault();runDashAICustom();}" />
-      <button id="dash-ai-send" onclick="runDashAICustom()">Perguntar</button>
+      <button id="dash-ai-send" onclick="runDashAICustom()" title="⚔️ Consome chamada de IA">Perguntar <span style="font-size:10px;opacity:.7;">⚔️</span></button>
     </div>
     <div id="dash-ai-output" class="ai-output empty">A análise do Mestre Kan aparece aqui.</div>
     <div id="dash-ai-actions" class="ai-actions" style="display:none;"></div>
@@ -29170,15 +29177,15 @@ function renderModalAI(cardId) {
   _aiLastCardId = cardId || null;
   const panel = document.getElementById('modal-ai-panel'); if (!panel) return;
   const presetsHTML = AI_PRESETS.map(p=>`
-    <button class="ai-preset" onclick="runAIPreset('${p.id}')">
-      <span class="ai-preset-icon">${p.icon}</span><span>${_esc(p.label)}</span>
+    <button class="ai-preset" onclick="runAIPreset('${p.id}')" title="⚔️ Consome chamada de IA">
+      <span class="ai-preset-icon">${p.icon}</span><span>${_esc(p.label)}</span><span style="margin-left:auto;font-size:10px;opacity:.6;">⚔️</span>
     </button>`).join('');
   panel.innerHTML = `
     <div class="ai-presets">${presetsHTML}</div>
     <div class="ai-prompt">
       <input id="ai-custom-prompt" type="text" placeholder="Pergunta livre… (ex: avalie risco deste card)"
              onkeydown="if(event.key==='Enter'){event.preventDefault();runAICustom();}" />
-      <button id="ai-send-btn" onclick="runAICustom()">Perguntar</button>
+      <button id="ai-send-btn" onclick="runAICustom()" title="⚔️ Consome chamada de IA">Perguntar <span style="font-size:10px;opacity:.7;">⚔️</span></button>
     </div>
     <div id="ai-output" class="ai-output empty">O Mestre Kan responde aqui. Pergunte ou escolha um preset acima.</div>
     <div id="ai-actions" class="ai-actions" style="display:none;"></div>
@@ -30706,7 +30713,7 @@ function renderBlankEditor() {
         <span style="font-size:18px;line-height:1;">✨</span>
         <input class="ct-name" id="canvas-name-input" value="${_esc(cv.name)}" oninput="onCanvasNameInput(this.value)" />
         <button class="ct-btn" onclick="_lab_pickImageAndInsert()" title="Inserir imagem (Cmd+V e drag também funcionam)">📷 Imagem</button>
-        <button class="ct-btn" onclick="openAIGenerateCanvas()" title="Mestre Kan gera o conteúdo a partir de um tema" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA</button>
+        <button class="ct-btn" onclick="openAIGenerateCanvas()" title="Mestre Kan gera o conteúdo a partir de um tema (⚔️ consome chamada de IA)" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA <span style="font-size:11px;opacity:.85;">⚔️</span></button>
         <span class="ct-spacer"></span>
         <button class="ct-btn" onclick="openConvertModal()" title="Cria um board novo onde cada parágrafo vira um card" style="background:#1FAD5C;color:#fff;border-color:#1FAD5C;">↗ Criar board</button>
       </div>
@@ -30924,7 +30931,7 @@ function renderCanvasEditor() {
         <button class="ct-btn" onclick="addCanvasFrame()" title="Adicionar grupo (área que agrupa cards)">▢ Grupo</button>
         <button class="ct-btn" onclick="addCanvasImage()" title="Adicionar imagem (PNG, JPG, GIF)">📷 Imagem</button>
         <button class="ct-btn" onclick="addCanvasTextbox()" title="Caixa de texto com fonte, tamanho e cor configuráveis">T Texto</button>
-        <button class="ct-btn" onclick="openAIGenerateCanvas()" title="Mestre Kan gera um mapa de ideias inteiro a partir de um tema" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA</button>
+        <button class="ct-btn" onclick="openAIGenerateCanvas()" title="Mestre Kan gera um mapa de ideias inteiro a partir de um tema (⚔️ consome chamada de IA)" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA <span style="font-size:11px;opacity:.85;">⚔️</span></button>
         <span class="ct-sep"></span>
         <button class="ct-btn" id="canvas-mode-connect" onclick="toggleConnectMode()" title="Conectar dois cards">↔ Conectar</button>
         <button class="ct-btn" onclick="autoArrangeCanvas()" title="Organiza os cards em grade automaticamente">🔀 Arranjar</button>
@@ -30985,9 +30992,9 @@ function renderDocumentEditor() {
         <button onclick="docExec('bold')"   title="Negrito"><b>B</b></button>
         <button onclick="docExec('italic')" title="Itálico"><i>I</i></button>
         <button onclick="_lab_pickImageAndInsert()" title="Inserir imagem (também aceita Cmd+V de screenshots e arrastar arquivos)">📷 Imagem</button>
-        <button onclick="openAIGenerateCanvas()" title="Mestre Kan gera o documento" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:5px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:14px;height:14px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA</button>
+        <button onclick="openAIGenerateCanvas()" title="Mestre Kan gera o documento (⚔️ consome chamada de IA)" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:5px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:14px;height:14px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA <span style="font-size:11px;opacity:.85;">⚔️</span></button>
         <div class="promote-section">
-          <button onclick="extractActionsFromDoc()" title="Mestre Kan analisa o texto e identifica tarefas acionáveis (mesmo sem bullets)" style="background:linear-gradient(135deg,#BC002D,#8E0022);color:#fff;border-color:#BC002D;display:inline-flex;align-items:center;gap:5px;">🥋 Extrair ações</button>
+          <button onclick="extractActionsFromDoc()" title="Mestre Kan analisa o texto e identifica tarefas acionáveis (⚔️ consome chamada de IA)" style="background:linear-gradient(135deg,#BC002D,#8E0022);color:#fff;border-color:#BC002D;display:inline-flex;align-items:center;gap:5px;">⚔️ Extrair ações</button>
           <button onclick="promoteAllBullets()" title="Cria um card pra cada bullet (li) do documento">→ Promover bullets a cards</button>
           <button onclick="openConvertModal()" title="Cria um board novo onde cada H2 vira coluna" style="background:#1FAD5C;color:#fff;border-color:#1FAD5C;">↗ Criar board</button>
         </div>
@@ -31081,7 +31088,7 @@ function renderTableEditor() {
       </div>
       <div class="canvas-table-toolbar">
         <button class="ct-btn" onclick="addTableRow()">+ Linha</button>
-        <button class="ct-btn" onclick="openAIGenerateCanvas()" title="Mestre Kan preenche a tabela" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:5px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:14px;height:14px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA</button>
+        <button class="ct-btn" onclick="openAIGenerateCanvas()" title="Mestre Kan preenche a tabela (⚔️ consome chamada de IA)" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:5px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:14px;height:14px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Gerar com IA <span style="font-size:11px;opacity:.85;">⚔️</span></button>
         <span style="font-size:11.5px;color:var(--color-text-tertiary);">Marque as linhas e clique em promover. Linhas com ✓ já viraram card.</span>
         <div class="promote-section">
           <button class="ct-btn" onclick="promoteSelectedRows()" style="background:#111;color:#fff;border-color:#111;">→ Promover selecionadas</button>
@@ -31327,7 +31334,7 @@ function renderSheetEditor() {
         <button class="ct-btn" onclick="sheetSetNote()" title="Adicionar nota à célula ativa">📝 Nota</button>
         <button class="ct-btn" onclick="sheetClearType()" title="Voltar pra texto normal">↺</button>
         <span class="ct-sep"></span>
-        <button class="ct-btn" onclick="openAISheetGen()" title="Mestre Kan gera dados pra você" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Mestre Kan</button>
+        <button class="ct-btn" onclick="openAISheetGen()" title="Mestre Kan gera dados pra você (⚔️ consome chamada de IA)" style="background:linear-gradient(135deg,#1a1a2e,#3C3489);color:#fff;border-color:#3C3489;display:inline-flex;align-items:center;gap:6px;"><img src="mestre_kan_avatar.png?v=6" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;object-position:center 18%;border:1px solid rgba(255,255,255,.4);"/> Mestre Kan <span style="font-size:11px;opacity:.85;">⚔️</span></button>
         <span class="ct-sep"></span>
         <button class="ct-btn" onclick="sheetCreateBoard()" title="Cria board com cards a partir das linhas" style="background:#1FAD5C;color:#fff;border-color:#1FAD5C;">↗ Criar board</button>
       </div>
@@ -35345,7 +35352,7 @@ async function _synAISummarizeContact(contactId, btnEl) {
     if (typeof appAlert === 'function') appAlert('IA não respondeu', String(e.message||e), { icon:'⚠️' });
     else alert('Erro: ' + (e.message||e));
   } finally {
-    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '✦ Resumir com IA'; }
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '⚔️ Resumir com IA'; }
   }
 }
 
@@ -35384,7 +35391,7 @@ function _synRenderDailyBriefSlot() {
         <strong>Daily brief do Mestre Kan</strong> — leitura do seu pipeline + prioridades do dia. ${isPreta ? '' : '<span style="background:#3C3489;color:#fff;font-size:9px;padding:1px 6px;border-radius:999px;margin-left:5px;font-weight:600;letter-spacing:.04em;">FAIXA PRETA</span>'}
       </div>
     </div>
-    <button class="syn-btn-primary" onclick="_synGenerateDailyBrief(this)" style="background:linear-gradient(135deg,#3C3489,#7F77DD);border:none;flex-shrink:0;">✦ Gerar brief de hoje</button>
+    <button class="syn-btn-primary" onclick="_synGenerateDailyBrief(this)" title="Mestre Kan lê seu pipeline e devolve as 3-4 prioridades do dia (⚔️ consome chamada de IA)" style="background:linear-gradient(135deg,#3C3489,#7F77DD);border:none;flex-shrink:0;">⚔️ Gerar brief de hoje</button>
   </div>`;
 }
 
@@ -35416,7 +35423,7 @@ async function _synAINextAction(dealId, btnEl, force) {
           <div style="font-size:10.5px;font-weight:600;color:#3C3489;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Próxima ação${cached?' · cache':''}</div>
           <div style="font-size:13px;line-height:1.5;">${_esc(next_action)}</div>
         </div>
-        ${cached ? `<button onclick="_synAINextAction('${_esc(dealId)}', this.closest('div').querySelector('button'), true)" title="Recalcular agora" style="background:transparent;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:14px;">↻</button>` : ''}
+        ${cached ? `<button onclick="_synAINextAction('${_esc(dealId)}', this.closest('div').querySelector('button'), true)" title="Recalcular agora (⚔️ consome chamada de IA)" style="background:transparent;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:14px;">↻ <span style="font-size:10px;">⚔️</span></button>` : ''}
       </div>`;
     }
     // Atualiza cache local no deal
@@ -35426,7 +35433,7 @@ async function _synAINextAction(dealId, btnEl, force) {
     const out = document.getElementById('syn-ai-nextact-out');
     if (out) out.innerHTML = `<div style="font-size:12px;color:#A32D2D;padding:8px 12px;background:rgba(163,45,45,.08);border-radius:7px;">⚠ ${_esc(e.message||e)}</div>`;
   } finally {
-    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '✦ Sugerir próxima ação'; }
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '⚔️ Sugerir próxima ação'; }
   }
 }
 
@@ -36400,7 +36407,7 @@ async function _synOpenDealModal(dealId, presetStageId) {
         <div style="margin-top:6px;padding:11px 14px;background:rgba(60,52,137,.04);border:0.5px dashed rgba(60,52,137,.30);border-radius:9px;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
             <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">Mestre Kan · Próxima ação ${_synIsFaixaPreta()?'':'<span style="background:#3C3489;color:#fff;font-size:9px;padding:1px 6px;border-radius:999px;margin-left:5px;font-weight:600;letter-spacing:.04em;">FAIXA PRETA</span>'}</div>
-            <button class="syn-btn-secondary" onclick="_synAINextAction('${_esc(deal.id)}', this)" style="font-size:11.5px;padding:5px 10px;">✦ Sugerir próxima ação</button>
+            <button class="syn-btn-secondary" onclick="_synAINextAction('${_esc(deal.id)}', this)" title="Mestre Kan analisa a timeline e sugere o próximo passo (⚔️ consome chamada de IA)" style="font-size:11.5px;padding:5px 10px;">⚔️ Sugerir próxima ação</button>
           </div>
           <div id="syn-ai-nextact-out">
             ${deal.next_action_text ? `<div style="display:flex;gap:10px;align-items:flex-start;background:linear-gradient(135deg,rgba(60,52,137,.08),rgba(127,119,221,.04));border:1px solid rgba(60,52,137,.30);border-radius:9px;padding:11px 14px;">
@@ -36409,8 +36416,8 @@ async function _synOpenDealModal(dealId, presetStageId) {
                 <div style="font-size:10.5px;font-weight:600;color:#3C3489;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Próxima ação · cache</div>
                 <div style="font-size:13px;line-height:1.5;">${_esc(deal.next_action_text)}</div>
               </div>
-              <button onclick="_synAINextAction('${_esc(deal.id)}', this, true)" title="Recalcular agora" style="background:transparent;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:14px;">↻</button>
-            </div>` : `<div style="font-size:12px;color:var(--color-text-tertiary);font-style:italic;">Clique em "✦ Sugerir próxima ação" pra Mestre Kan analisar timeline e propor o que fazer.</div>`}
+              <button onclick="_synAINextAction('${_esc(deal.id)}', this, true)" title="Recalcular agora (⚔️ consome chamada de IA)" style="background:transparent;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:14px;">↻ <span style="font-size:10px;">⚔️</span></button>
+            </div>` : `<div style="font-size:12px;color:var(--color-text-tertiary);font-style:italic;">Clique em "⚔️ Sugerir próxima ação" pra Mestre Kan analisar timeline e propor o que fazer.</div>`}
           </div>
           <div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end;">
             <a href="${_synGoogleCalendarLink(deal)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#1A73E8;text-decoration:none;padding:4px 10px;border:0.5px solid #1A73E8;border-radius:7px;background:transparent;">📅 Adicionar ao Google Calendar</a>
@@ -37343,7 +37350,7 @@ function _renderCustomer360() {
       </div>` : ''}
     </div>
     <div class="c360-foot">
-      <button class="btn-c" onclick="_synAISummarizeContact('${_c360ContactId}', this)" title="Mestre Kan analisa e resume tudo sobre este contato em 3 linhas">✦ Resumir com IA${_synIsFaixaPreta()?'':' 🔒'}</button>
+      <button class="btn-c" onclick="_synAISummarizeContact('${_c360ContactId}', this)" title="Mestre Kan analisa e resume tudo sobre este contato em 3 linhas (⚔️ consome chamada de IA)">⚔️ Resumir com IA${_synIsFaixaPreta()?'':' 🔒'}</button>
       <button class="btn-c" onclick="_synOpenMergePicker('${_c360ContactId}')" title="Mesclar com outro contato duplicado">⇆ Mesclar</button>
       <button class="btn-c" onclick="closeCustomer360();openContactModal('${_c360ContactId}')">✎ Editar cadastro</button>
       <button class="btn-c" onclick="closeCustomer360()">Fechar</button>
@@ -37435,14 +37442,14 @@ function _renderCustomer360Body(cards, docs) {
     body.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="ai-preset" onclick="_runC360AI('summary')" style="flex:1;min-width:200px;">
-            <span class="ai-preset-icon">❑</span><span>Resumir cliente</span>
+          <button class="ai-preset" onclick="_runC360AI('summary')" title="⚔️ Consome chamada de IA" style="flex:1;min-width:200px;">
+            <span class="ai-preset-icon">❑</span><span>Resumir cliente</span><span style="margin-left:auto;font-size:10px;opacity:.6;">⚔️</span>
           </button>
-          <button class="ai-preset" onclick="_runC360AI('next_actions')" style="flex:1;min-width:200px;">
-            <span class="ai-preset-icon">➜</span><span>Próximas ações</span>
+          <button class="ai-preset" onclick="_runC360AI('next_actions')" title="⚔️ Consome chamada de IA" style="flex:1;min-width:200px;">
+            <span class="ai-preset-icon">➜</span><span>Próximas ações</span><span style="margin-left:auto;font-size:10px;opacity:.6;">⚔️</span>
           </button>
-          ${isLead ? `<button class="ai-preset" onclick="_runC360AI('categorize')" style="flex:1;min-width:200px;">
-            <span class="ai-preset-icon">🌡</span><span>Categorizar este lead</span>
+          ${isLead ? `<button class="ai-preset" onclick="_runC360AI('categorize')" title="⚔️ Consome chamada de IA" style="flex:1;min-width:200px;">
+            <span class="ai-preset-icon">🌡</span><span>Categorizar este lead</span><span style="margin-left:auto;font-size:10px;opacity:.6;">⚔️</span>
           </button>` : ''}
         </div>
         <div id="c360-ai-output" class="ai-output empty" style="min-height:140px;">
