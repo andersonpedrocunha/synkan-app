@@ -55254,6 +55254,7 @@ async function _bunkoSharePagePrompt(pageId) {
   window._bunkoShareOv = ov;
 }
 window._bunkoShareDoToggle = async function(pageId, enabled) {
+  console.log('🔗 [share] toggle iniciado', { pageId, enabled });
   // Visual feedback imediato — disable o checkbox enquanto roda
   const cb = document.getElementById('bunko-share-toggle');
   if (cb) cb.disabled = true;
@@ -55270,22 +55271,36 @@ window._bunkoShareDoToggle = async function(pageId, enabled) {
   let result;
   try {
     result = await tryToggle();
+    console.log('🔗 [share] resposta:', result);
     // Retry com refresh se JWT expirou
     if (result.error && typeof _supaIsJwtError === 'function' && _supaIsJwtError(result.error)) {
+      console.log('🔗 [share] JWT expirado, tentando refresh');
       if (typeof _supaTryRefresh === 'function') {
         const refreshed = await _supaTryRefresh();
         if (refreshed) result = await tryToggle();
       }
     }
-    if (result.error) throw result.error;
+    if (result.error) {
+      // Loga o erro DETALHADO antes de jogar pro catch (pra debugar 400 silencioso)
+      console.error('🔗 [share] erro Supabase:', {
+        message: result.error.message,
+        code: result.error.code,
+        details: result.error.details,
+        hint: result.error.hint,
+        status: result.status,
+      });
+      throw result.error;
+    }
+    console.log('🔗 [share] sucesso!', result.data);
     // Sucesso — reabre modal com estado novo
     if (window._bunkoShareOv) window._bunkoShareOv.remove();
     _bunkoSharePagePrompt(pageId);
   } catch(e) {
     if (cb) { cb.disabled = false; cb.checked = !enabled; }
     const msg = (e?.message || String(e)).toLowerCase();
-    // Erro específico de migration faltando
-    if (msg.includes('gen_random_bytes') || msg.includes('does not exist')) {
+    const code = (e?.code || '').toString();
+    // Erro específico de migration faltando (gen_random_bytes do pgcrypto)
+    if (msg.includes('gen_random_bytes') || msg.includes('pgcrypto')) {
       appAlert(
         'Migration pendente',
         `Pra ativar links públicos, rode esta migration no Supabase:<br/><br/>` +
@@ -55294,8 +55309,32 @@ window._bunkoShareDoToggle = async function(pageId, enabled) {
         `<small style="color:#8B6634;">Detalhe técnico: ${_esc(e?.message || String(e))}</small>`,
         { icon: '🛠️', html: true }
       );
+    } else if (msg.includes('function') && msg.includes('does not exist')) {
+      // RPC inteira não existe → migration do Bunko Box não foi rodada
+      appAlert(
+        'RPC não existe',
+        `A função <code>toggle_bunko_share</code> não foi encontrada no Supabase.<br/><br/>` +
+        `Rode as migrations do Bunko Box:<br/>` +
+        `<code style="background:#FFF6E0;padding:4px 8px;border-radius:4px;font-family:Menlo,monospace;font-size:11.5px;">billing/MIGRATION_BUNKO_BOX.sql</code><br/>` +
+        `<code style="background:#FFF6E0;padding:4px 8px;border-radius:4px;font-family:Menlo,monospace;font-size:11.5px;margin-top:6px;display:inline-block;">MIGRATIONS_FIX_BUNKO_SHARE.sql</code><br/><br/>` +
+        `<small style="color:#8B6634;">Detalhe: ${_esc(e?.message || String(e))}</small>`,
+        { icon: '🛠️', html: true }
+      );
+    } else if (msg.includes('share_token') && msg.includes('unique')) {
+      // Conflito de UNIQUE no token (raríssimo, mas teoricamente possível)
+      appAlert('Conflito de token', 'Token duplicado raríssimo. Tente de novo — vai gerar outro.', { icon:'🔁' });
     } else {
-      appAlert('Erro ao ativar link', e?.message || String(e), { icon:'⚠️' });
+      // Erro genérico — mostra detalhes pra debugar
+      const detail = e?.details ? `<br/><small style="color:#8B6634;">Details: ${_esc(e.details)}</small>` : '';
+      const hint = e?.hint ? `<br/><small style="color:#8B6634;">Hint: ${_esc(e.hint)}</small>` : '';
+      appAlert(
+        'Erro ao ativar link',
+        `<strong>${_esc(e?.message || 'Erro desconhecido')}</strong>` +
+        (code ? `<br/><small style="color:#8B6634;">Código: ${_esc(code)}</small>` : '') +
+        detail + hint +
+        `<br/><br/><small style="color:#8B6634;font-style:italic;">Veja o DevTools Console pra mais detalhes.</small>`,
+        { icon:'⚠️', html: true }
+      );
     }
   }
 };
