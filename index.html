@@ -52303,21 +52303,25 @@ async function _lkStartSynkanShareTrack() {
   try { await _ensureHtml2Canvas(); }
   catch(e) { console.warn('[lk]', e.message); return; }
 
-  // Canvas off-screen em FullHD pro Egress receber qualidade
+  // Canvas off-screen em 720p — pro Egress isso é mais que suficiente pra
+  // texto legível. Antes era 1920×1080 (FullHD) o que é overkill pra
+  // conteúdo estático tipo board/chat e dobra o custo de drawImage.
+  const CANVAS_W = 1280, CANVAS_H = 720;
   const canvas = document.createElement('canvas');
-  canvas.width = 1920;
-  canvas.height = 1080;
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
   const ctx = canvas.getContext('2d', { alpha: false });
   ctx.fillStyle = '#FFFCF5';
-  ctx.fillRect(0, 0, 1920, 1080);
-  // Texto "Carregando…" inicial
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
   ctx.fillStyle = '#5C4F3F';
-  ctx.font = 'italic 36px serif';
+  ctx.font = 'italic 28px serif';
   ctx.textAlign = 'center';
-  ctx.fillText('Preparando apresentação…', 960, 540);
+  ctx.fillText('Preparando apresentação…', CANVAS_W/2, CANVAS_H/2);
 
-  // captureStream 15fps — conteúdo geralmente estático, 15fps já é suave
-  const stream = canvas.captureStream(15);
+  // captureStream em 4fps — conteúdo é praticamente estático (board/chat/etc).
+  // O encoder VP8/H264 da LiveKit faz temporal compression, então frames
+  // idênticos custam ~zero bandwidth. fps baixo aqui só reduz CPU local.
+  const stream = canvas.captureStream(4);
   const videoTrack = stream.getVideoTracks()[0];
   if (!videoTrack) { console.warn('[lk] captureStream não devolveu video track'); return; }
 
@@ -52328,7 +52332,8 @@ async function _lkStartSynkanShareTrack() {
       source: LK.Track?.Source?.ScreenShare,
       name: 'synkan_share',
       simulcast: false,
-      videoEncoding: { maxBitrate: 2_500_000, maxFramerate: 15 },
+      // 800 kbps a 4fps é mais que folgado pra recording de board/chat.
+      videoEncoding: { maxBitrate: 800_000, maxFramerate: 4 },
     });
     console.log('[lk] ✓ synkan share track publicado:', pub?.trackSid || pub);
   } catch(e) {
@@ -52336,39 +52341,47 @@ async function _lkStartSynkanShareTrack() {
     try { videoTrack.stop(); } catch(_){}
     return;
   }
-  _lkSynkanShareState = { canvas, ctx, stream, pub, loop: null, busy: false };
+  _lkSynkanShareState = { canvas, ctx, stream, pub, loop: null, busy: false, lastHash: null, lastForce: 0 };
 
-  // Loop de captura: a cada 1000ms tira "snapshot" do DOM e desenha no canvas.
-  // Antes era 500ms — mas html2canvas renderiza o DOM inteiro a cada chamada,
-  // o que é caro e trava o main thread. Como o main thread também processa
-  // os frames do <video> da câmera, isso causava jank visível na própria
-  // imagem do usuário durante apresentação. Board é conteúdo estático, 1fps
-  // já dá uma recording suave. Também pula quando a aba tá em background.
-  const captureOnce = async () => {
+  // Loop de captura SMART: cada 2.5s checa se o DOM mudou (hash leve de
+  // dimensões + innerHTML length). Se mudou, faz html2canvas (custoso).
+  // Se NÃO mudou, pula — economiza CPU. Mas a cada 15s força uma captura
+  // mesmo sem mudança pra evitar que o stream do canvas pareça morto.
+  // html2canvas é o grande vilão da performance — cada call renderiza o
+  // DOM inteiro num canvas, o que trava o main thread por 200-500ms em
+  // conteúdo denso tipo lista de chat. Antes rodava a cada 1s sempre.
+  const captureOnce = async (force=false) => {
     if (_lkSynkanShareState.busy) return;
     if (document.hidden) return;
     const wrap = document.getElementById('lk-share-content');
     if (!wrap || !ext.lk?.sharedItem) return;
+    // Hash leve: usa scrollHeight + scrollWidth + innerHTML.length como
+    // proxy de "houve mudança". Custa ~0ms.
+    const hash = `${wrap.scrollWidth}x${wrap.scrollHeight}:${wrap.innerHTML.length}`;
+    const now = Date.now();
+    const forceRefresh = force || (now - _lkSynkanShareState.lastForce > 15000);
+    if (!forceRefresh && hash === _lkSynkanShareState.lastHash) return;
+    _lkSynkanShareState.lastHash = hash;
+    if (forceRefresh) _lkSynkanShareState.lastForce = now;
     _lkSynkanShareState.busy = true;
     try {
       const snap = await window.html2canvas(wrap, {
         backgroundColor: '#FFFCF5',
-        scale: 1,
+        scale: 0.75,           // reduz custo de html2canvas em ~44% (1 - 0.75²)
         useCORS: true,
         allowTaint: true,
         logging: false,
-        // Estima dimensões — html2canvas usa as REAIS do elemento
       });
-      // Desenha mantendo aspect ratio
+      // Desenha mantendo aspect ratio no canvas 1280×720
       ctx.fillStyle = '#FFFCF5';
-      ctx.fillRect(0, 0, 1920, 1080);
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
       const srcRatio = snap.width / snap.height;
-      const dstRatio = 1920 / 1080;
+      const dstRatio = CANVAS_W / CANVAS_H;
       let dw, dh;
-      if (srcRatio > dstRatio) { dw = 1920; dh = 1920 / srcRatio; }
-      else                     { dh = 1080; dw = 1080 * srcRatio; }
-      const dx = (1920 - dw) / 2;
-      const dy = (1080 - dh) / 2;
+      if (srcRatio > dstRatio) { dw = CANVAS_W; dh = CANVAS_W / srcRatio; }
+      else                     { dh = CANVAS_H; dw = CANVAS_H * srcRatio; }
+      const dx = (CANVAS_W - dw) / 2;
+      const dy = (CANVAS_H - dh) / 2;
       ctx.drawImage(snap, dx, dy, dw, dh);
     } catch(e) {
       console.warn('[lk] captureOnce:', e?.message || e);
@@ -52376,9 +52389,9 @@ async function _lkStartSynkanShareTrack() {
       _lkSynkanShareState.busy = false;
     }
   };
-  // Primeira captura imediata, depois loop
-  captureOnce();
-  _lkSynkanShareState.loop = setInterval(captureOnce, 1000);
+  // Primeira captura forçada, depois loop em 2.5s
+  captureOnce(true);
+  _lkSynkanShareState.loop = setInterval(captureOnce, 2500);
 }
 
 async function _lkStopSynkanShareTrack() {
