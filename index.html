@@ -23570,7 +23570,7 @@ function _refreshAccountUIInternal() {
           if (typeof pv === 'number') {
             const tone = pv >= 70 ? '#27500A' : pv >= 40 ? '#8B6914' : pv >= 10 ? '#A88224' : '#9B2226';
             const label = pv >= 70 ? 'afiado' : pv >= 40 ? 'estável' : pv >= 10 ? 'fosco' : 'descolorido';
-            pulseHTML = ` · <span class="sb-pulse-pill" style="color:${tone};" title="Pulse · ${pv}/100 (${label})&#10;Decai 3 pts/dia útil sem usar. Restaura ao agir. Não conta fins de semana, feriados ou banco anual de 28 dias úteis de férias.">⚡${pv}</span>`;
+            pulseHTML = ` · <span class="sb-pulse-pill" style="color:${tone};" title="Pulse · ${pv}/100 (${label})&#10;Decai 3 pts/dia útil sem usar. Restaura ao agir. Não conta fins de semana, feriados ou banco anual de 30 dias úteis de férias.">⚡${pv}</span>`;
           }
         } catch(_){}
         return `<div class="sb-account-title"><strong>${_esc(gst.name)}</strong> · ${_esc(gst.title)}${gst.next?` · <span style="opacity:.7;">${gst.xp}/${gst.next.threshold} XP</span>`:` · ${gst.xp} XP`}${pulseHTML}</div>`;
@@ -23728,7 +23728,7 @@ function openPulseHelpModal() {
     pv = _gamif?.pulse?.value || 100;
     vacUsed = _gamif?.pulse?.vacationDaysUsedThisYear || 0;
   } catch(_){}
-  const vacAvail = Math.max(0, 28 - vacUsed);
+  const vacAvail = Math.max(0, 30 - vacUsed);
   ov.innerHTML = `
     <div class="pulse-help-pane">
       <button class="pulse-help-close" onclick="closePulseHelpModal()" aria-label="Fechar">✕</button>
@@ -23753,7 +23753,7 @@ function openPulseHelpModal() {
           <div><b>+5</b><span>cada ação significativa (concluir card, criar deal, enviar mensagem…). Cap em 100.</span></div>
           <div><b>−3</b><span>por dia útil ocioso (sem você abrir o app ou agir).</span></div>
           <div><b>0</b><span>fins de semana e feriados nacionais BR — nunca perdem pulse.</span></div>
-          <div><b>0</b><span>banco anual de <strong>28 dias úteis de férias</strong>. Antes do 29º dia, o pulse fica congelado.</span></div>
+          <div><b>0</b><span>banco anual de <strong>30 dias úteis de férias</strong>. Antes do 31º dia, o pulse fica congelado.</span></div>
         </div>
 
         <h3>Seu status hoje</h3>
@@ -24263,6 +24263,28 @@ const SYN_GLOSSARY = [
   { term:'Faixa',      romaji:'obi',       meaning:'cinturão',                  context:'Sistema de progressão por XP — Branca, Amarela, Laranja, Verde, Azul, Roxa, Marrom, Preta 1º e 2º dan.', category:'conceito' },
   { term:'Pergaminho', romaji:'maki',      meaning:'rolo · documento',          context:'Como o Mestre Kan chama uma transcrição completa de reunião — guardada no Bunko Box.', category:'conceito' },
   { term:'Katana',     romaji:'katana',    meaning:'espada japonesa',           context:'Símbolo das ações que cortam (consomem IA). "Desembainhar a katana" = usar função paga.', category:'conceito' },
+
+  // ─── Gamificação · Pulse + Conquistas Sazonais ───
+  { term:'Pulse',      romaji:'pulse',     meaning:'vitalidade efêmera',        context:'Indicador 0-100 que mostra "presença ativa" do user. Diminui 3 pts por dia útil ocioso, restaura 5 pts por ação. Não conta fins de semana, feriados BR e banco anual de 30 dias de férias. NÃO afeta XP nem faixa.', category:'conceito' },
+  { term:'Streak',     romaji:'streak',    meaning:'sequência · constância',    context:'Contador de dias úteis ativos consecutivos. Fim de semana não quebra. Mostrado com 🔥 ao lado do nome.', category:'conceito' },
+  { term:'Hanami',     native:'花見',      romaji:'hanami',                     meaning:'contemplar flores',         context:'Tradição japonesa de piquenique sob cerejeiras na primavera. Conquista sazonal 春 do Dojo — streak de 21 dias úteis.', category:'conceito' },
+  { term:'Tsukimi',    native:'月見',      romaji:'tsukimi',                    meaning:'contemplar a lua',          context:'Festival japonês de outono pra apreciar a lua cheia, com mochis. Conquista sazonal 秋 do Dojo — 10 transcrições do Mestre Kan.', category:'conceito' },
+  { term:'Daruma',     native:'達磨',      romaji:'daruma',                     meaning:'boneco da persistência',    context:'Boneco japonês de papel-machê — pinta um olho ao começar uma meta, o outro ao concluir. Símbolo de não desistir. Conquista sazonal 冬 do Dojo — zero deadlines perdidos em 30 dias.', category:'conceito' },
+  { term:'Matsuri',    native:'祭り',      romaji:'matsuri',                    meaning:'festival',                  context:'Festival popular japonês com música, comida e barracas. Conquista sazonal 夏 do Dojo — 100 mensagens no Tatami.', category:'conceito' },
+  { term:'Oshōgatsu',  native:'お正月',    romaji:'oshōgatsu',                  meaning:'Ano Novo',                  context:'Primeiros dias do ano no Japão — tempo de propósitos e reflexão. Conquista sazonal 冬 do Dojo — definir 3 OKRs do novo trimestre.', category:'conceito' },
+  { term:'Kasa',       native:'笠',        romaji:'kasa',                       meaning:'chapéu cônico de palha',    context:'Chapéu tradicional de monges e camponeses japoneses, protege do sol/chuva. É o que o Mestre Kan usa em seu retrato oficial.', category:'conceito' },
+  { term:'Ginkgo',     native:'銀杏',      romaji:'ichō / ginnan',              meaning:'árvore-relíquia japonesa',  context:'Árvore das folhas douradas em formato de leque, símbolo de longevidade. Conquista 秋 do Dojo — arquivar 30 cards.', category:'conceito' },
+  { term:'Momiji',     native:'紅葉',      romaji:'momiji',                     meaning:'folhagem de outono',        context:'Folhas vermelhas/laranjas do bordo japonês — paisagem icônica do outono. Conquista 秋 do Dojo — 10 páginas no Bunko.', category:'conceito' },
+
+  // ─── Faixas do dojo ───
+  { term:'Branca',  romaji:'shiro-obi',   meaning:'iniciante',         context:'Primeira faixa. XP 0. Recém-chegou ao dojo.', category:'conceito' },
+  { term:'Amarela', romaji:'kiiro-obi',   meaning:'discípulo',         context:'Segunda faixa. 300 XP. Plantou a semente.', category:'conceito' },
+  { term:'Laranja', romaji:'daidaiiro',   meaning:'discípulo avançado', context:'Terceira faixa. 900 XP. Disciplina já visível.', category:'conceito' },
+  { term:'Verde',   romaji:'midori-obi',  meaning:'senpai',            context:'Quarta faixa. 2.200 XP. Pronto pra orientar quem chega.', category:'conceito' },
+  { term:'Azul',    romaji:'ao-obi',      meaning:'sensei iniciante',  context:'Quinta faixa. 5.000 XP. Começou a ensinar.', category:'conceito' },
+  { term:'Roxa',    romaji:'murasaki-obi', meaning:'sensei',           context:'Sexta faixa. 11.000 XP. É o caminho, não busca o caminho.', category:'conceito' },
+  { term:'Marrom',  romaji:'cha-obi',     meaning:'mestre',            context:'Sétima faixa. 22.000 XP. Sustenta os que vêm depois.', category:'conceito' },
+  { term:'Preta',   romaji:'kuro-obi',    meaning:'grão-mestre',       context:'Faixa preta. 45.000 XP (1° dan), 90.000 (2° dan). Sinal de que agora está pronto pra começar de verdade.', category:'conceito' },
 ];
 
 // Lookup rápido pelo termo (case-insensitive)
@@ -38950,7 +38972,7 @@ function _saveGamif() {
 
 const PULSE_DECAY_PER_DAY = 3;     // pontos perdidos por dia útil ocioso
 const PULSE_GAIN_PER_ACTION = 5;   // pontos ganhos ao agir (cap 100)
-const PULSE_VACATION_LIMIT = 28;   // dias úteis "congelados" por ano
+const PULSE_VACATION_LIMIT = 30;   // dias úteis "congelados" por ano
 
 // Feriados nacionais BR fixos (móveis serão acrescentados em runtime)
 function _gamifBRHolidays(year) {
@@ -41240,7 +41262,7 @@ function renderDojo() {
         if (!p) return '';
         const pv = p.value || 0;
         const vacUsed = p.vacationDaysUsedThisYear || 0;
-        const vacAvail = Math.max(0, 28 - vacUsed);
+        const vacAvail = Math.max(0, 30 - vacUsed);
         const tone = pv >= 70 ? '#27500A' : pv >= 40 ? '#8B6914' : pv >= 10 ? '#A88224' : '#9B2226';
         const stateLbl = pv >= 70 ? 'Afiado' : pv >= 40 ? 'Estável' : pv >= 10 ? 'Fosco' : 'Descolorido';
         return `
@@ -41250,7 +41272,7 @@ function renderDojo() {
               <span class="dojo-pulse-icon">⚡</span>
               <div>
                 <div class="dojo-pulse-title">Pulse · ${_esc(stateLbl)}</div>
-                <div class="dojo-pulse-meta">Vitalidade do avatar · ${vacAvail}d de férias restantes este ano</div>
+                <div class="dojo-pulse-meta">Vitalidade do avatar</div>
               </div>
             </div>
             <div class="dojo-pulse-h-r">
