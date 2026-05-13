@@ -57847,42 +57847,68 @@ async function _tpLoadProfile(userId, opts) {
   //    Cobre o caso da migration antiga ainda não ter sido aplicada.
   try {
     if (cards.length === 0) {
+      // CRÍTICO: filtra boards.archived=false pra não trazer cards de boards arquivados
+      // (que aparecem como duplicatas no profile quando há boards duplicados arquivados).
+      // PostgREST: usa filtro embedado com `boards.archived=eq.false` na URL.
       const { data: directCards, error: directErr } = await c.from('cards')
-        .select('id, board_id, name, col, deadline, priority, tag_ids, boards!inner(name)')
+        .select('id, board_id, name, col, deadline, priority, tag_ids, boards!inner(name,archived)')
         .eq('assigned_user_id', userId)
+        .eq('boards.archived', false)
         .is('done_at', null)
         .order('deadline', { ascending: true, nullsFirst: false })
         .limit(5);
       if (directErr) {
         console.warn('[tp] fallback direct cards query erro:', directErr.message);
       } else if (Array.isArray(directCards) && directCards.length) {
-        cards = directCards.map(c => ({
-          id: String(c.id),
-          board_id: String(c.board_id),
-          board_name: c.boards?.name || 'board',
-          name: c.name,
-          col: c.col,
-          deadline: c.deadline,
-          priority: c.priority,
-          tag_ids: c.tag_ids,
-        }));
-        // Atualiza count nas stats também
+        // Filtro adicional defensivo no JS (caso o embed filter não pegue)
+        cards = directCards
+          .filter(c => c.boards && !c.boards.archived)
+          .map(c => ({
+            id: String(c.id),
+            board_id: String(c.board_id),
+            board_name: c.boards?.name || 'board',
+            name: c.name,
+            col: c.col,
+            deadline: c.deadline,
+            priority: c.priority,
+            tag_ids: c.tag_ids,
+          }));
+        // Atualiza count com filtro de archived
         const { count: openCount } = await c.from('cards')
-          .select('id', { count: 'exact', head: true })
+          .select('id, boards!inner(archived)', { count: 'exact', head: true })
           .eq('assigned_user_id', userId)
+          .eq('boards.archived', false)
           .is('done_at', null);
         if (typeof openCount === 'number') stats.cards_in_progress = openCount;
-        console.info(`[tp] fallback cards aplicado · ${cards.length} cards via tabela direta`);
+        console.info(`[tp] fallback cards aplicado · ${cards.length} cards via tabela direta (filtrado archived)`);
       } else if (!stats.cards_in_progress) {
-        // Conta cards mesmo se a lista vier vazia (pra mostrar "X cards" certo)
         const { count: openCount } = await c.from('cards')
-          .select('id', { count: 'exact', head: true })
+          .select('id, boards!inner(archived)', { count: 'exact', head: true })
           .eq('assigned_user_id', userId)
+          .eq('boards.archived', false)
           .is('done_at', null);
         if (typeof openCount === 'number') stats.cards_in_progress = openCount;
       }
     }
   } catch(e) { console.warn('[tp] fallback cards falhou:', e?.message||e); }
+
+  // ── FILTRO PÓS-RPC: mesmo que a RPC tatami_profile_cards tenha trazido cards,
+  //    filtra os que vieram de boards arquivados (RPC pode não estar atualizada).
+  if (cards.length > 0) {
+    try {
+      const boardIds = [...new Set(cards.map(c => c.board_id).filter(Boolean))];
+      if (boardIds.length > 0) {
+        const { data: bArchive } = await c.from('boards')
+          .select('id, archived').in('id', boardIds);
+        const archivedSet = new Set((bArchive||[]).filter(b => b.archived).map(b => b.id));
+        if (archivedSet.size > 0) {
+          const before = cards.length;
+          cards = cards.filter(c => !archivedSet.has(c.board_id));
+          console.info(`[tp] filtro pós-RPC: removeu ${before - cards.length} card(s) de boards arquivados`);
+        }
+      }
+    } catch(e) { console.warn('[tp] filtro pós-RPC archived falhou:', e?.message); }
+  }
 
   // Kudos — stats + últimos recebidos
   let kudos = { received_total:0, received_this_month:0, given_this_month:0, remaining_this_month:5, cap_per_month:5, is_self:false, recent:[] };
