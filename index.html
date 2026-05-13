@@ -53561,6 +53561,36 @@ async function renderBunko() {
         .bunko-page-content pre { background: #1A1611; color: #F5E8C8; padding: 14px 18px; border-radius: 8px; overflow: auto; }
         .bunko-page-content pre code { background: transparent; color: inherit; padding: 0; }
         .bunko-page-content ul, .bunko-page-content ol { padding-left: 26px; margin: 8px 0; }
+        /* Links externos clicáveis com 1 click (handler em _bunkoEditorClick).
+           Cursor de pointer indica visualmente que abre em nova aba. */
+        .bunko-page-content a[href^="http"],
+        .bunko-page-content a[href^="mailto:"],
+        .bunko-page-content a[href^="tel:"] {
+          cursor: pointer;
+          color: #3C3489;
+          text-decoration: underline;
+          text-decoration-color: rgba(60,52,137,.40);
+          text-underline-offset: 2px;
+          transition: text-decoration-color .12s, color .12s;
+        }
+        .bunko-page-content a[href^="http"]:hover,
+        .bunko-page-content a[href^="mailto:"]:hover,
+        .bunko-page-content a[href^="tel:"]:hover {
+          color: #1A1666;
+          text-decoration-color: #1A1666;
+          background: rgba(60,52,137,.06);
+          border-radius: 3px;
+        }
+        /* Hint discreto em hover indicando que abre em nova aba */
+        .bunko-page-content a[href^="http"]::after {
+          content: '↗';
+          font-size: .75em;
+          margin-left: 2px;
+          opacity: .55;
+          font-weight: 400;
+          text-decoration: none;
+          display: inline-block;
+        }
         .bunko-page-content li { margin: 3px 0; }
         .bunko-page-savestatus { font-size: 11px; color: #8B7250; font-style: italic; font-family: var(--tatami-mincho,serif); margin-left: auto; }
 
@@ -53845,9 +53875,21 @@ function _bunkoRenderStorageBanner() {
     const bg     = full ? 'rgba(188,0,45,.08)' : near ? 'rgba(193,154,58,.12)' : 'rgba(245,232,200,.30)';
     const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : 'trial';
     const isPreta = planCode === 'faixa_preta';
-    const cta = isPreta
-      ? `<button onclick="openTalkToSalesModal('Bunko storage extra')" style="background:transparent;border:1px solid ${tone};color:${tone};font-size:11.5px;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:inherit;">💼 Falar com vendas</button>`
-      : `<button onclick="window.open(getUpgradeURL(),'_blank')" style="background:transparent;border:1px solid ${tone};color:${tone};font-size:11.5px;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:inherit;">Fazer upgrade</button>`;
+    const isPaid = ['faixa_azul','faixa_roxa','faixa_preta'].includes(planCode);
+    // Preta: só "Falar com vendas" (não tem upgrade superior)
+    // Azul/Roxa: upgrade + falar com vendas (pode comprar pacote extra direto)
+    let cta = '';
+    if (isPreta) {
+      cta = `<button onclick="openTalkToSalesModal('Bunko storage extra')" style="background:transparent;border:1px solid ${tone};color:${tone};font-size:11.5px;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:inherit;">💼 Falar com vendas</button>`;
+    } else if (isPaid) {
+      cta = `
+        <div style="display:inline-flex;gap:6px;">
+          <button onclick="window.open(getUpgradeURL(),'_blank')" style="background:transparent;border:1px solid ${tone};color:${tone};font-size:11.5px;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:inherit;">Fazer upgrade</button>
+          <button onclick="openTalkToSalesModal('Bunko storage extra')" style="background:transparent;border:1px solid ${tone};color:${tone};font-size:11.5px;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:inherit;">💼 Vendas</button>
+        </div>`;
+    } else {
+      cta = `<button onclick="window.open(getUpgradeURL(),'_blank')" style="background:transparent;border:1px solid ${tone};color:${tone};font-size:11.5px;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:inherit;">Fazer upgrade</button>`;
+    }
     const msg = full
       ? `Espaço esgotado: <strong>${usedGB.toFixed(2)} GB de ${maxGB} GB</strong>. Uploads bloqueados.`
       : near
@@ -56190,6 +56232,7 @@ async function _bunkoOpenPage(pageId) {
            contenteditable="true"
            oninput="_bunkoOnPageInput('${_esc(pageId)}'); _bunkoOnEditorInput(event, '${_esc(pageId)}')"
            onkeydown="_bunkoOnEditorKeydown(event, '${_esc(pageId)}')"
+           onclick="_bunkoEditorClick(event)"
            onblur="setTimeout(_bunkoCloseWikiPop, 200)">${page.content_html || '<p></p>'}</div>
 
       <!-- Anexos (arquivos da página) — funciona como pasta também -->
@@ -57107,6 +57150,35 @@ window._bunkoRemoveLink = function() {
   try { document.execCommand('unlink'); } catch(_){}
   const ov = document.getElementById('bunko-link-modal');
   if (ov) ov.remove();
+};
+
+// Handler de click no editor — abre links externos com clique simples (sem Cmd).
+// Detecta ancestor <a> e, se for URL absoluta, abre em nova aba.
+// Cmd/Ctrl+Click cai no comportamento normal (posiciona cursor pra editar).
+window._bunkoEditorClick = function(e) {
+  // Se segurar Cmd/Ctrl/Alt → comportamento padrão (edit), permite posicionar cursor no link
+  if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+  let node = e.target;
+  // Walk up até achar <a> ou sair do editor
+  while (node && node.nodeType === 1 && node.tagName !== 'A' && !node.classList?.contains('bunko-page-content')) {
+    node = node.parentNode;
+  }
+  if (!node || node.tagName !== 'A') return;
+  const href = node.getAttribute('href');
+  if (!href) return;
+  // Wikilink (interno) tem class própria, deixa o handler dele cuidar
+  if (node.classList && node.classList.contains('wikilink')) return;
+  // URL externa (http/https/mailto/tel) → abre em nova aba
+  if (/^(https?:|mailto:|tel:)/i.test(href)) {
+    e.preventDefault();
+    window.open(href, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  // URL relativa / anchor → segue normalmente
+  if (href.startsWith('#') || href.startsWith('/')) {
+    e.preventDefault();
+    window.open(href, '_blank', 'noopener,noreferrer');
+  }
 };
 
 // Biblioteca grande de ícones, organizados por categoria + tags pra busca
