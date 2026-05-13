@@ -3652,7 +3652,7 @@ body.density-compact .col{padding:7px;}
 .ppl-modal-label{font-size:11.5px;font-weight:600;color:var(--color-text-secondary);letter-spacing:.02em;}
 .ppl-modal-input,.ppl-modal-select{padding:8px 11px;font-size:13px;font-family:inherit;border:0.5px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-primary);color:var(--color-text-primary);outline:none;}
 .ppl-modal-input:focus,.ppl-modal-select:focus{border-color:#BC002D;}
-.ppl-tmpl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.ppl-tmpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;max-height:340px;overflow-y:auto;padding-right:4px;}
 .ppl-tmpl-card{padding:12px;border:1px solid var(--color-border-tertiary);border-radius:9px;cursor:pointer;font-family:inherit;background:var(--color-background-primary);text-align:left;transition:all .12s;}
 .ppl-tmpl-card.active{border-color:#BC002D;background:#FDF7F3;}
 .ppl-tmpl-card:hover{border-color:var(--color-text-secondary);}
@@ -35737,11 +35737,34 @@ const _PPL_BELT_STAGE = {
   preta:   'além da graduação',
 };
 const _PPL_ROLE_LABELS = {
-  dev:       'Desenvolvedor(a)',
-  vendas:    'Vendas',
-  marketing: 'Marketing',
-  ops:       'Operações',
-  custom:    'Custom',
+  dev:        'Desenvolvedor(a)',
+  vendas:     'Vendas',
+  marketing:  'Marketing',
+  ops:        'Operações',
+  design:     'Design',
+  suporte:    'Suporte / CS',
+  financeiro: 'Financeiro',
+  lideranca:  'Liderança',
+  produto:    'Produto',
+  estagio:    'Estágio / Trainee',
+  dados:      'Dados / BI',
+  rh:         'Pessoas / People',
+  custom:     'Custom',
+};
+const _PPL_ROLE_EMOJI = {
+  dev:        '⌨️',
+  vendas:     '🤝',
+  marketing:  '📣',
+  ops:        '⚙️',
+  design:     '✎',
+  suporte:    '🎧',
+  financeiro: '¥',
+  lideranca:  '⛩',
+  produto:    '◎',
+  estagio:    '🌱',
+  dados:      '📊',
+  rh:         '人',
+  custom:     '✦',
 };
 
 async function renderPeople() {
@@ -36099,23 +36122,27 @@ function _peopleCardHTML(p) {
 }
 
 function _peopleTemplateCardHTML(t) {
-  const stepsCount = Array.isArray(t.steps) ? t.steps.length : (typeof t.steps === 'object' && t.steps !== null ? 0 : 0);
+  const stepsCount = Array.isArray(t.steps) ? t.steps.length : 0;
   const isPublic = t.workspace_owner === null;
-  const actionsHTML = isPublic
-    ? `<button class="ppl-btn" style="font-size:11.5px;padding:5px 10px;" onclick="event.stopPropagation();_peopleCloneTemplate('${_esc(t.id)}')">⎘ Clonar pra meu workspace</button>`
-    : `<button class="ppl-btn" style="font-size:11.5px;padding:5px 10px;" onclick="event.stopPropagation();_peopleEditTemplate('${_esc(t.id)}')">✎ Editar</button>`;
+  const actionLabel = isPublic ? '⎘ Clonar' : '✎ Editar';
+  const actionFn = isPublic
+    ? `_peopleCloneTemplate('${_esc(t.id)}')`
+    : `_peopleEditTemplate('${_esc(t.id)}')`;
+  const roleEmoji = _PPL_ROLE_EMOJI[t.role] || (_PPL_ROLE_LABELS[t.role]||'?')[0];
   return `
-    <div class="ppl-card" style="cursor:default;" onclick="_peoplePreviewTemplate('${_esc(t.id)}')">
-      <div class="ppl-card-h">
-        <div class="ppl-avatar belt-amarela" style="background:#FFF4D1;color:#7A5500;">${(_PPL_ROLE_LABELS[t.role]||'?')[0]}</div>
-        <div style="flex:1;min-width:0;">
-          <div class="ppl-card-name">${_esc(t.name)}</div>
-          <div class="ppl-card-role">${_esc(_PPL_ROLE_LABELS[t.role] || t.role)} ${isPublic ? '· <em>público</em>' : '· do workspace'}</div>
+    <div class="ppl-card" style="cursor:pointer;min-height:170px;" onclick="_peoplePreviewTemplate('${_esc(t.id)}')">
+      <div class="ppl-card-h" style="align-items:flex-start;">
+        <div class="ppl-avatar" style="width:40px;height:40px;font-size:18px;background:linear-gradient(135deg,#FFF4D1 0%,#E6C84F 100%);color:#7A5500;border-color:transparent;flex-shrink:0;">${_esc(roleEmoji)}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+          <div style="font-size:13.5px;font-weight:600;color:var(--color-text-primary);line-height:1.3;">${_esc(t.name)}</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary);">${_esc(_PPL_ROLE_LABELS[t.role] || t.role)} · ${isPublic ? '<em>público</em>' : '<em>do workspace</em>'}</div>
         </div>
-        <span class="ppl-belt-badge" style="background:rgba(0,0,0,.06);color:var(--color-text-secondary);">${stepsCount} etapas</span>
       </div>
-      <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5;">${_esc(t.description||'')}</div>
-      <div style="display:flex;justify-content:flex-end;margin-top:4px;">${actionsHTML}</div>
+      ${t.description ? `<div style="font-size:11.5px;color:var(--color-text-secondary);line-height:1.55;flex:1;">${_esc(t.description)}</div>` : '<div style="flex:1;"></div>'}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:4px;gap:8px;">
+        <span class="ppl-belt-badge" style="background:rgba(0,0,0,.04);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);font-weight:500;text-transform:none;font-size:10.5px;">${stepsCount} etapas</span>
+        <button class="ppl-btn" style="font-size:11px;padding:5px 11px;flex-shrink:0;" onclick="event.stopPropagation();${actionFn}">${actionLabel}</button>
+      </div>
     </div>
   `;
 }
@@ -36274,7 +36301,7 @@ function _peopleOpenCreateModal() {
             <div class="ppl-tmpl-grid">
               ${tmpls.map((t,i) => `
                 <button type="button" class="ppl-tmpl-card${i===0?' active':''}" data-template-id="${_esc(t.id)}" data-role="${_esc(t.role)}" onclick="_peopleSelectTemplate(this)">
-                  <div class="ppl-tmpl-name">${_esc(t.name)}</div>
+                  <div class="ppl-tmpl-name">${_esc(_PPL_ROLE_EMOJI[t.role]||'·')} ${_esc(t.name)}</div>
                   <div class="ppl-tmpl-meta">${Array.isArray(t.steps)?t.steps.length:0} etapas · ${_esc(_PPL_ROLE_LABELS[t.role]||t.role)}</div>
                 </button>
               `).join('')}
