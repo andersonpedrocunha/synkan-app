@@ -23774,6 +23774,8 @@ function _supaIsJwtError(e) {
 
 // Tenta refresh de sessão. Retorna true se conseguiu, false se não.
 // Throttle de 5s entre tentativas (evita storm em loop de erro).
+// CRÍTICO: invalida o _supaIsolatedClient após refresh, pois ele cacheia o JWT
+// no Authorization header e fica usando token velho mesmo após refresh.
 let _supaLastRefreshAttempt = 0;
 let _supaLastRefreshOk = false;
 async function _supaTryRefresh(force) {
@@ -23788,8 +23790,11 @@ async function _supaTryRefresh(force) {
     if (data?.session) {
       if (data.user) supaUser = data.user;
       try { _capInvalidateJWTCache && _capInvalidateJWTCache(); } catch(_){}
+      // ⚠️ CRÍTICO: o cliente isolado tem o JWT antigo cacheado no header.
+      // Invalida pra forçar criação de um novo com o JWT fresco.
+      try { _invalidateIsolatedClient && _invalidateIsolatedClient(); } catch(_){}
       _supaLastRefreshOk = true;
-      console.log('[auth] sessão renovada com sucesso');
+      console.log('[auth] sessão renovada com sucesso (isolated client invalidado)');
       return true;
     }
     return false;
@@ -23821,26 +23826,30 @@ async function _supaRunWithJwtRetry(fn) {
 
 // Refresh proativo quando user volta pra aba — captura "tab idle, JWT expired".
 // Roda só se tem sessão ativa e o JWT tá perto de expirar (<2min).
+// + Interval a cada 5min independente da aba estar focada (usuário que deixa o
+//   app aberto direto trabalhando sem fechar nunca).
 function _supaInstallVisibilityRefresh() {
   if (window._supaVisInstalled) return;
   window._supaVisInstalled = true;
-  const checkAndRefresh = async () => {
-    if (document.visibilityState !== 'visible') return;
+  const checkAndRefresh = async (reason) => {
     if (typeof supaClient === 'undefined' || !supaClient?.auth) return;
     try {
       const { data } = await supaClient.auth.getSession();
       const session = data?.session;
       if (!session?.expires_at) return;
       const expiresInMs = session.expires_at * 1000 - Date.now();
-      // Se expira em menos de 2 min OU já expirou, refresh
-      if (expiresInMs < 2 * 60 * 1000) {
-        console.log('[auth] tab ativada, JWT perto de expirar — refresh proativo');
+      // Se expira em menos de 5 min OU já expirou, refresh
+      if (expiresInMs < 5 * 60 * 1000) {
+        console.log(`[auth] ${reason} — JWT perto de expirar (${Math.round(expiresInMs/1000)}s), refresh proativo`);
         await _supaTryRefresh(true);
       }
     } catch(_){}
   };
-  document.addEventListener('visibilitychange', checkAndRefresh);
-  window.addEventListener('focus', checkAndRefresh);
+  const onVisible = () => { if (document.visibilityState === 'visible') checkAndRefresh('tab ativada'); };
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('focus', () => checkAndRefresh('window focus'));
+  // Interval contínuo (5 min) — captura tab que fica aberta horas direto
+  setInterval(() => checkAndRefresh('interval 5min'), 5 * 60 * 1000);
 }
 
 async function bootSupabaseMode() {
@@ -23861,7 +23870,10 @@ async function bootSupabaseMode() {
       // JWT renovado em background — atualiza cache mas não re-roda _onSignedIn
       // (que dispararia user-change check + recarregamentos desnecessários)
       try { _capInvalidateJWTCache && _capInvalidateJWTCache(); } catch(_){}
+      // ⚠️ Isolated client cacheia JWT no header — invalida pra ele pegar o novo
+      try { _invalidateIsolatedClient && _invalidateIsolatedClient(); } catch(_){}
       try { supaUser = session.user; } catch(_){}
+      console.log('[auth] TOKEN_REFRESHED — isolated client invalidado');
     }
   });
   // ── Estado inicial — robusto contra token expirado ────────────────
