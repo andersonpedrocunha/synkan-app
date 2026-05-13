@@ -57935,7 +57935,19 @@ function _chatRenderDMAvatar(ch, size) {
   if (!ch.dm_user_a || !ch.dm_user_b || (ch.dm_user_a === ch.dm_user_b)) {
     isSelfDM = true;
     const myName = (myId && supaUser?.user_metadata?.full_name) || supaUser?.email || 'Você';
-    displayUser = { name: myName, avatar: supaUser?.user_metadata?.avatar_url || null };
+    // Cascata de fontes pra avatar próprio: auth metadata → cache do chat (profiles) → getProfileAvatar() → local profile
+    let myAvatar = null;
+    try { myAvatar = supaUser?.user_metadata?.avatar_url || null; } catch(_){}
+    if (!myAvatar) {
+      try {
+        const me = myId && _chatState?.userMap?.[myId];
+        myAvatar = me?.avatar || me?.avatar_url || null;
+      } catch(_){}
+    }
+    if (!myAvatar && typeof getProfileAvatar === 'function') {
+      try { myAvatar = getProfileAvatar() || null; } catch(_){}
+    }
+    displayUser = { name: myName, avatar: myAvatar };
   } else {
     otherId = (myId && ch.dm_user_a === myId) ? ch.dm_user_b : ch.dm_user_a;
     displayUser = _chatState.userMap[otherId] || { name: ch.name || 'Usuário', avatar: null };
