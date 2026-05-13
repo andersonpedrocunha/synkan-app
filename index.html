@@ -3577,21 +3577,23 @@ body.density-compact .col{padding:7px;}
 .ppl-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:10px;}
 .ppl-card:hover{border-color:var(--color-text-secondary);box-shadow:0 6px 20px rgba(0,0,0,.06);transform:translateY(-1px);}
 .ppl-card-h{display:flex;align-items:center;gap:11px;}
-.ppl-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3A2410,#6B4825);display:flex;align-items:center;justify-content:center;color:#F5E8C8;font-weight:600;font-size:17px;flex-shrink:0;border:2.5px solid transparent;font-family:var(--font-sans);}
-.ppl-avatar.belt-branca{border-color:#FAFAFA;box-shadow:0 0 0 1px rgba(0,0,0,.08);}
-.ppl-avatar.belt-amarela{border-color:#F0C419;}
-.ppl-avatar.belt-verde{border-color:#3B6D11;}
-.ppl-avatar.belt-roxa{border-color:#6B5DC8;}
-.ppl-avatar.belt-preta{border-color:#1A1611;}
+.ppl-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3A2410,#6B4825);display:flex;align-items:center;justify-content:center;color:#F5E8C8;font-weight:600;font-size:17px;flex-shrink:0;border:2.5px solid transparent;font-family:var(--font-sans);position:relative;}
+/* Cores evocando fases da lua: nova (céu escuro) → crescente (dourado leve)
+   → quase cheia (prateada) → cheia (dourado pleno) */
+.ppl-avatar.belt-branca{border-color:#3A332C;box-shadow:0 0 0 1px rgba(0,0,0,.15);}
+.ppl-avatar.belt-amarela{border-color:#C19A3A;box-shadow:0 0 0 1px rgba(193,154,58,.20), 0 0 12px rgba(193,154,58,.15);}
+.ppl-avatar.belt-verde{border-color:#C5C0B4;box-shadow:0 0 0 1px rgba(197,192,180,.30), 0 0 14px rgba(255,255,255,.20);}
+.ppl-avatar.belt-roxa{border-color:#FBE7A4;box-shadow:0 0 0 1px rgba(251,231,164,.40), 0 0 18px rgba(251,231,164,.40);}
+.ppl-avatar.belt-preta{border-color:#FFD17A;box-shadow:0 0 0 1px rgba(255,209,122,.45), 0 0 20px rgba(255,209,122,.55);}
 .ppl-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover;}
 .ppl-card-name{font-size:14.5px;font-weight:600;color:var(--color-text-primary);line-height:1.25;}
 .ppl-card-role{font-size:11.5px;color:var(--color-text-tertiary);margin-top:1px;}
-.ppl-belt-badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;font-family:var(--font-sans);text-transform:uppercase;letter-spacing:.04em;}
-.ppl-belt-badge.belt-branca{background:#F5F5F5;color:#3A332C;border:0.5px solid #D9D9D9;}
-.ppl-belt-badge.belt-amarela{background:#FFF4D1;color:#7A5500;}
-.ppl-belt-badge.belt-verde{background:#E2F0D0;color:#2A4F0A;}
-.ppl-belt-badge.belt-roxa{background:#E8E3F5;color:#3D2D7A;}
-.ppl-belt-badge.belt-preta{background:#1A1611;color:#F5E8C8;}
+.ppl-belt-badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;font-family:var(--font-sans);letter-spacing:.02em;}
+.ppl-belt-badge.belt-branca{background:#EDE5D0;color:#3A332C;border:0.5px solid #B8A878;}
+.ppl-belt-badge.belt-amarela{background:#FFF4D1;color:#7A5500;border:0.5px solid #E6C84F;}
+.ppl-belt-badge.belt-verde{background:#F0EEDE;color:#5C4F3F;border:0.5px solid #C5C0B4;}
+.ppl-belt-badge.belt-roxa{background:linear-gradient(135deg,#FBE7A4,#FFD17A);color:#3A2410;border:0.5px solid #C19A3A;}
+.ppl-belt-badge.belt-preta{background:linear-gradient(135deg,#FFD17A,#C19A3A);color:#1A1611;border:0.5px solid #8B6634;}
 
 .ppl-prog{display:flex;flex-direction:column;gap:5px;}
 .ppl-prog-bar{height:6px;background:#E8E1D4;border-radius:999px;overflow:hidden;position:relative;}
@@ -35715,19 +35717,24 @@ let _peopleState = {
   loading: false,
 };
 
+// Metáfora: fases da lua (新月→満月). Substitui "faixas" pra não conflitar
+// com a gamificação de plano/rank que já usa belts (Faixa Branca/Azul/Roxa/
+// Preta) e o sistema de XP de "Sensei Iniciante" etc. Os keys do DB
+// continuam sendo branca/amarela/verde/roxa por compatibilidade — só os
+// labels mudam.
 const _PPL_BELT_LABELS = {
-  branca:  'Faixa Branca',
-  amarela: 'Faixa Amarela',
-  verde:   'Faixa Verde',
-  roxa:    'Faixa Roxa',
-  preta:   'Faixa Preta',
+  branca:  '🌑 Lua Nova',
+  amarela: '🌒 Lua Crescente',
+  verde:   '🌓 Quase Cheia',
+  roxa:    '🌕 Lua Cheia',
+  preta:   '⭐ Constelação',
 };
 const _PPL_BELT_STAGE = {
-  branca:  'novato · primeiros passos',
-  amarela: 'aprendendo · ritmo crescente',
-  verde:   'autônomo · contribuindo',
-  roxa:    'graduado · 90 dias completos',
-  preta:   'veterano · sensei em potencial',
+  branca:  'recém-chegado · 新月 (shingetsu)',
+  amarela: 'ganhando luz · 三日月 (mikazuki)',
+  verde:   'metade do caminho · 半月 (hangetsu)',
+  roxa:    'plenitude · 満月 (mangetsu) — graduado',
+  preta:   'além da graduação',
 };
 const _PPL_ROLE_LABELS = {
   dev:       'Desenvolvedor(a)',
@@ -35788,27 +35795,26 @@ async function renderPeople() {
 async function _peopleLoadAll() {
   const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
   if (!c) return;
-  // Dashboard agregado (1 RPC)
-  try {
-    const { data, error } = await c.rpc('people_dashboard');
-    if (!error && data) _peopleState.dashboard = data;
-  } catch(_) {}
-  // Templates (públicos + do user)
-  try {
-    const { data, error } = await c.from('people_trail_templates')
+  // Roda as 3 queries em PARALELO via Promise.all — antes era sequencial
+  // (3× ~3s = ~9s, dava timeout). Agora ~3s no total (limited pela mais lenta).
+  const isLoggedIn = typeof supaUser !== 'undefined' && supaUser;
+  const tasks = [
+    c.rpc('people_dashboard').then(r => {
+      if (!r.error && r.data) _peopleState.dashboard = r.data;
+    }, () => {}),
+    c.from('people_trail_templates')
       .select('id, workspace_owner, role, name, description, steps, is_public')
-      .order('role');
-    if (!error && Array.isArray(data)) _peopleState.templates = data;
-  } catch(_) {}
-  // Detecta se o user atual é um aprendiz (tem row em people com user_id = auth.uid())
-  try {
-    if (typeof supaUser !== 'undefined' && supaUser) {
-      const { data: me } = await c.from('people')
-        .select('*').eq('user_id', supaUser.id).is('deleted_at', null)
-        .order('start_date', { ascending: false }).limit(1).maybeSingle();
-      _peopleState.myAprendiz = me || null;
-    }
-  } catch(_) {}
+      .order('role')
+      .then(r => {
+        if (!r.error && Array.isArray(r.data)) _peopleState.templates = r.data;
+      }, () => {}),
+    isLoggedIn
+      ? c.from('people').select('*').eq('user_id', supaUser.id).is('deleted_at', null)
+          .order('start_date', { ascending: false }).limit(1).maybeSingle()
+          .then(r => { _peopleState.myAprendiz = r.data || null; }, () => {})
+      : Promise.resolve(),
+  ];
+  await Promise.all(tasks);
 }
 
 // ── Banner no home: aprendiz vê sua trilha resumida ──────────────────
@@ -35845,15 +35851,15 @@ async function _peopleRenderHomeBanner() {
     }
   } catch(_) {}
   const belt = me.belt || 'branca';
-  const beltLabel = _PPL_BELT_LABELS[belt] || 'Faixa Branca';
+  const beltLabel = _PPL_BELT_LABELS[belt] || '🌑 Lua Nova';
   const banner = document.createElement('div');
   banner.id = 'ppl-home-banner';
   banner.style.cssText = 'margin:0 0 20px;padding:18px 22px;background:linear-gradient(135deg,#3A2410 0%,#6B4825 60%,#A88150 100%);color:#F5E8C8;border-radius:14px;box-shadow:0 8px 24px rgba(58,36,16,.25);position:relative;overflow:hidden;cursor:pointer;';
   banner.onclick = () => { try { switchTab('people'); } catch(_){} };
   banner.innerHTML = `
-    <div style="position:absolute;top:-20px;right:-20px;font-family:'Hiragino Mincho ProN',serif;font-size:120px;opacity:.08;line-height:1;pointer-events:none;">道</div>
+    <div style="position:absolute;top:-30px;right:-10px;font-family:'Hiragino Mincho ProN',serif;font-size:140px;opacity:.10;line-height:1;pointer-events:none;">月</div>
     <div style="display:flex;align-items:center;gap:16px;position:relative;z-index:1;">
-      <div style="width:54px;height:54px;border-radius:50%;background:rgba(245,232,200,.18);border:2.5px solid #F5E8C8;display:flex;align-items:center;justify-content:center;font-family:'Noto Serif JP',serif;font-size:20px;font-weight:600;flex-shrink:0;">🥋</div>
+      <div style="width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 30% 30%, rgba(255,255,255,.20), rgba(245,232,200,.05));border:2.5px solid #F5E8C8;display:flex;align-items:center;justify-content:center;font-family:'Noto Serif JP',serif;font-size:22px;font-weight:600;flex-shrink:0;box-shadow:inset 0 0 20px rgba(0,0,0,.30);">${belt==='roxa'?'🌕':belt==='verde'?'🌓':belt==='amarela'?'🌒':'🌑'}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;opacity:.7;font-weight:600;font-family:var(--font-sans);">SUA TRILHA DE INICIAÇÃO · ${_esc(beltLabel.toUpperCase())}</div>
         <div style="font-size:18px;font-weight:600;font-family:'Noto Serif JP',serif;margin:4px 0 6px;line-height:1.3;">${doneSteps} de ${totalSteps} etapas concluídas <span style="font-style:italic;opacity:.85;font-weight:400;">· ${progress}% do caminho</span></div>
@@ -35897,9 +35903,9 @@ function _peoplePulseOpenModal(pulseId) {
   modal.innerHTML = `
     <div class="modal" style="max-width:480px;width:95%;background:linear-gradient(180deg,#FFFCF5 0%,#F5E8C8 100%);">
       <div style="padding:24px 26px;text-align:center;">
-        <div style="font-family:'Hiragino Mincho ProN',serif;font-size:48px;color:#6B4825;line-height:1;margin-bottom:8px;">心</div>
+        <div style="font-family:'Hiragino Mincho ProN',serif;font-size:42px;color:#6B4825;line-height:1;margin-bottom:6px;">月</div>
         <h3 style="margin:0;font-size:20px;font-family:'Noto Serif JP',serif;color:#1A1611;">Check-in da semana</h3>
-        <p style="margin:8px 0 22px;font-size:13px;color:#5C4F3F;font-style:italic;font-family:'Noto Serif JP',serif;line-height:1.55;">Mestre Kan pergunta: como está sendo sua trilha esta semana?</p>
+        <p style="margin:8px 0 22px;font-size:13px;color:#5C4F3F;font-style:italic;font-family:'Noto Serif JP',serif;line-height:1.55;">Mestre Kan pergunta: como você está nessa fase da trilha?</p>
         <div style="display:flex;justify-content:center;gap:10px;margin-bottom:18px;">
           ${[1,2,3,4,5].map(n => `
             <button class="ppl-pulse-score" data-score="${n}" onclick="_peoplePulseSelectScore(${n})" style="width:54px;height:54px;border-radius:14px;border:2px solid #B8A878;background:#FFFCF5;cursor:pointer;font-family:'Noto Serif JP',serif;font-size:24px;font-weight:600;color:#3A2410;transition:all .12s;">${'☆'.repeat(0)}${n}</button>
@@ -35962,15 +35968,15 @@ function _peopleRenderMain() {
   const me = _peopleState.myAprendiz;
   const myCardHTML = me ? `
     <button class="ppl-btn" onclick="_peopleOpenPersonDrawer('${_esc(me.id)}')" style="background:linear-gradient(135deg,#3A2410 0%,#6B4825 100%);color:#F5E8C8;border-color:#6B4825;font-weight:600;">
-      🥋 Minha trilha (${_esc(_PPL_BELT_LABELS[me.belt]||'Faixa Branca')})
+      Minha trilha · ${_esc(_PPL_BELT_LABELS[me.belt]||'Lua Nova')}
     </button>
   ` : '';
   root.innerHTML = `
     <div class="ppl-wrap">
       <div class="ppl-head">
         <div>
-          <div class="ppl-title">People <span class="ppl-title-badge">道場</span></div>
-          <div class="ppl-sub">do faixa branca à faixa preta — todos juntos no dojo.</div>
+          <div class="ppl-title">People <span class="ppl-title-badge">道</span></div>
+          <div class="ppl-sub">da lua nova à lua cheia — 90 dias de jornada.</div>
         </div>
         <div class="ppl-actions">
           ${myCardHTML}
@@ -35986,10 +35992,10 @@ function _peopleRenderMain() {
       </div>
 
       <div class="ppl-tabs">
-        <button class="ppl-tab ${tab==='aprendizes'?'active':''}" onclick="_peopleSetTab('aprendizes')">🥋 Aprendizes <span style="opacity:.55;">${aprendizes.length}</span></button>
+        <button class="ppl-tab ${tab==='aprendizes'?'active':''}" onclick="_peopleSetTab('aprendizes')">🌙 Em trilha <span style="opacity:.55;">${aprendizes.length}</span></button>
         <button class="ppl-tab ${tab==='graduados'?'active':''}"  onclick="_peopleSetTab('graduados')">🎓 Graduados <span style="opacity:.55;">${graduados.length}</span></button>
         <button class="ppl-tab ${tab==='templates'?'active':''}"  onclick="_peopleSetTab('templates')">📋 Templates <span style="opacity:.55;">${_peopleState.templates.length}</span></button>
-        <button class="ppl-tab ${tab==='pulse'?'active':''}"      onclick="_peopleSetTab('pulse')">💚 Pulse <span style="opacity:.55;font-style:italic;">em breve</span></button>
+        <button class="ppl-tab ${tab==='pulse'?'active':''}"      onclick="_peopleSetTab('pulse')">💚 Pulse <span style="opacity:.55;">${(d.pulse_count!==undefined)?d.pulse_count:''}</span></button>
       </div>
 
       <div id="ppl-tab-content"></div>
@@ -36081,7 +36087,7 @@ function _peopleCardHTML(p) {
           <div class="ppl-card-name">${_esc(p.name)}</div>
           <div class="ppl-card-role">${_esc(p.role_title || role || 'colaborador(a)')}</div>
         </div>
-        <span class="ppl-belt-badge belt-${belt}">${(_PPL_BELT_LABELS[belt]||'').replace('Faixa ','')}</span>
+        <span class="ppl-belt-badge belt-${belt}">${_esc(_PPL_BELT_LABELS[belt]||'')}</span>
       </div>
       <div class="ppl-prog">
         <div class="ppl-prog-bar"><div class="ppl-prog-fill" style="width:${progress}%;"></div></div>
@@ -36247,7 +36253,7 @@ function _peopleOpenCreateModal() {
         <form id="ppl-create-form" class="ppl-modal-form" onsubmit="event.preventDefault();_peopleSubmitCreate();">
           <div class="ppl-modal-row">
             <label class="ppl-modal-label">Nome completo *</label>
-            <input class="ppl-modal-input" name="name" required placeholder="Ex: Anderson Cunha" autocomplete="off"/>
+            <input class="ppl-modal-input" name="name" required placeholder="Nome do novo colaborador" autocomplete="off"/>
           </div>
           <div class="ppl-modal-row cols">
             <div class="ppl-modal-row" style="margin:0;">
@@ -36261,7 +36267,7 @@ function _peopleOpenCreateModal() {
           </div>
           <div class="ppl-modal-row">
             <label class="ppl-modal-label">Cargo / Função</label>
-            <input class="ppl-modal-input" name="role_title" placeholder="Ex: Desenvolvedora Backend Sênior"/>
+            <input class="ppl-modal-input" name="role_title" placeholder="Cargo / função na empresa"/>
           </div>
           <div class="ppl-modal-row">
             <label class="ppl-modal-label">Template de trilha *</label>
@@ -36275,7 +36281,7 @@ function _peopleOpenCreateModal() {
             </div>
           </div>
           <div style="margin-top:6px;padding:10px 12px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11.5px;color:var(--color-text-secondary);line-height:1.55;">
-            <strong>O que vai acontecer:</strong> o aprendiz é criado como <em>faixa branca</em> e a trilha de 90 dias começa hoje. As etapas do template viram cards com deadlines relativos à data de início. Conforme o aprendiz progride, ele sobe de faixa (35% → amarela, 75% → verde, 100% → roxa = graduado).
+            <strong>O que vai acontecer:</strong> o aprendiz começa em <em>🌑 Lua Nova</em> e a trilha de 90 dias começa hoje. As etapas do template viram cards com deadlines relativos à data de início. Conforme o aprendiz avança, a lua "ganha luz" (🌒 35% Crescente · 🌓 75% Quase Cheia · 🌕 100% Cheia = graduação).
           </div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
             <button type="button" class="ppl-btn" onclick="document.getElementById('ppl-create-modal').remove()">Cancelar</button>
@@ -36321,7 +36327,7 @@ async function _peopleSubmitCreate() {
     _peopleProvisionIntegrations(trailId, personName).catch(e => console.warn('[people] integrations:', e?.message || e));
     document.getElementById('ppl-create-modal')?.remove();
     if (typeof appAlert === 'function') {
-      appAlert('Trilha criada 🥋', `Aprendiz <strong>${_esc(personName)}</strong> está agora em faixa branca, com ${Number(data?.steps_count)||0} etapas a cumprir até ${_peopleFmtDate(data?.target_graduation_date)}.<br/><br/><em style="font-size:11.5px;color:var(--color-text-tertiary);">Pasta no Bunko e canal de chat sendo criados em background…</em>`, { icon: '✓', html: true });
+      appAlert('Trilha aberta 🌑', `<strong>${_esc(personName)}</strong> entrou em <em>Lua Nova</em>, com ${Number(data?.steps_count)||0} etapas a percorrer até a <em>Lua Cheia</em> em ${_peopleFmtDate(data?.target_graduation_date)}.<br/><br/><em style="font-size:11.5px;color:var(--color-text-tertiary);">Pasta no Bunko e canal de chat sendo criados em background…</em>`, { icon: '🌑', html: true });
     }
     await renderPeople();
   } catch(e) {
@@ -36400,18 +36406,24 @@ async function _peopleOpenPersonDrawer(personId) {
   _peopleState.currentPersonId = personId;
   const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
   if (!c) return;
-  // Mostra drawer com loading enquanto busca
-  _peopleRenderDrawer({ person: null, trail: null, steps: [] }, true);
+  _peopleRenderDrawer({ person: null, trail: null, steps: [], pulses: [] }, true);
   try {
-    const { data: person } = await c.from('people').select('*').eq('id', personId).limit(1).maybeSingle();
-    const { data: trail } = await c.from('people_trails').select('*').eq('person_id', personId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    // Paraleliza as 4 queries
+    const [pRes, tRes, pulseRes] = await Promise.all([
+      c.from('people').select('*').eq('id', personId).limit(1).maybeSingle(),
+      c.from('people_trails').select('*').eq('person_id', personId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      c.from('people_pulse').select('*').eq('person_id', personId).order('asked_at', { ascending: false }).limit(10),
+    ]);
+    const person = pRes.data;
+    const trail  = tRes.data;
+    const pulses = pulseRes.data || [];
     let steps = [];
     if (trail) {
       const { data: s } = await c.from('people_trail_steps').select('*').eq('trail_id', trail.id).order('order_idx');
       steps = s || [];
     }
-    _peopleState.currentTrail = { person, trail, steps };
-    _peopleRenderDrawer({ person, trail, steps }, false);
+    _peopleState.currentTrail = { person, trail, steps, pulses };
+    _peopleRenderDrawer({ person, trail, steps, pulses }, false);
   } catch(e) {
     console.warn('[people] drawer load falhou:', e);
   }
@@ -36434,7 +36446,7 @@ function _peopleRenderDrawer(state, loading) {
     ov.onclick = (e) => { if (e.target === ov) _peopleCloseDrawer(); };
     document.body.appendChild(ov);
   }
-  const { person, trail, steps } = state;
+  const { person, trail, steps, pulses } = state;
   if (loading || !person) {
     ov.innerHTML = `<div class="ppl-drawer"><div class="ppl-drawer-h"><div class="ppl-drawer-h-l"><div class="ppl-drawer-name">Carregando…</div></div><button class="ppl-drawer-close" onclick="_peopleCloseDrawer()">×</button></div></div>`;
     setTimeout(() => ov.classList.add('is-open'), 10);
@@ -36485,10 +36497,85 @@ function _peopleRenderDrawer(state, loading) {
           </div>
         </div>
         ${total ? groupedHTML : '<div style="padding:30px;text-align:center;color:var(--color-text-tertiary);font-style:italic;">Trilha sem etapas — algo deu errado na criação.</div>'}
+        ${_peoplePulseSectionHTML(person, pulses)}
       </div>
     </div>
   `;
   setTimeout(() => ov.classList.add('is-open'), 10);
+}
+
+// ── Seção de Pulse dentro do drawer da pessoa ───────────────────────
+function _peoplePulseSectionHTML(person, pulses) {
+  const list = pulses || [];
+  const hasUserAccount = !!person.user_id;
+  const pendingPulse = list.find(p => !p.responded_at);
+  return `
+    <div style="margin-top:24px;padding-top:18px;border-top:1px solid var(--color-border-tertiary);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;">💚 Pulse · check-ins de bem-estar</div>
+        <button class="ppl-btn" style="font-size:11px;padding:4px 10px;" onclick="_peopleRequestPulse('${_esc(person.id)}', ${hasUserAccount})" ${pendingPulse?'disabled style="opacity:.4;cursor:not-allowed;font-size:11px;padding:4px 10px;"':''}>
+          ${pendingPulse?'⏳ pulse pendente':'🌙 pedir pulse agora'}
+        </button>
+      </div>
+      ${!hasUserAccount ? `
+        <div style="padding:9px 11px;background:#FFF4D1;border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11.5px;color:#7A5500;margin-bottom:10px;line-height:1.45;">
+          ⓘ Esta pessoa ainda não tem conta Synkan vinculada (<code>user_id</code> vazio). O pulse só roda automaticamente quando o aprendiz tem login próprio. Você pode criar um pulse manual mesmo assim — ele fica registrado pra histórico.
+        </div>` : ''}
+      ${list.length ? list.map(_peoplePulseRowHTML).join('') : `
+        <div style="padding:16px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12.5px;font-family:'Noto Serif JP',serif;">Sem pulses ainda. Clique em "pedir pulse" pra criar o primeiro.</div>`}
+    </div>
+  `;
+}
+
+function _peoplePulseRowHTML(p) {
+  const date = new Date(p.asked_at).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'2-digit' });
+  if (!p.responded_at) {
+    return `
+      <div style="padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;margin-bottom:5px;display:flex;align-items:center;gap:10px;border-left:3px solid #C19A3A;">
+        <div style="flex:1;">
+          <div style="font-size:12.5px;font-weight:500;">Pulse pendente</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary);">enviado em ${date} · aguardando resposta do aprendiz</div>
+        </div>
+        <div style="font-size:20px;">⏳</div>
+      </div>`;
+  }
+  const score = p.score || 0;
+  const scoreColor = score >= 4 ? '#3B6D11' : score === 3 ? '#7A5500' : '#BC002D';
+  const scoreEmoji = score >= 4 ? '😊' : score === 3 ? '😐' : '😟';
+  return `
+    <div style="padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;margin-bottom:5px;border-left:3px solid ${scoreColor};">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:22px;">${scoreEmoji}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12.5px;font-weight:500;color:var(--color-text-primary);">${date} · <span style="color:${scoreColor};">${score}/5</span></div>
+          <div style="font-size:11.5px;color:var(--color-text-secondary);font-style:italic;font-family:'Noto Serif JP',serif;margin-top:2px;line-height:1.45;">${_esc(p.kan_summary || '')}</div>
+          ${p.comment ? `<div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:5px;padding:5px 9px;background:var(--color-background-primary);border-radius:5px;">"${_esc(p.comment)}"</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+// Cria um pulse pendente pra esta pessoa (manual, do sensei)
+async function _peopleRequestPulse(personId, hasUserAccount) {
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  try {
+    const { error } = await c.from('people_pulse').insert({
+      person_id: personId,
+      asked_at: new Date().toISOString(),
+    });
+    if (error) throw error;
+    if (typeof appAlert === 'function') {
+      appAlert('Pulse pendente criado 🌙', hasUserAccount
+        ? 'Na próxima vez que o aprendiz abrir o Synkan, o modal de check-in aparece automaticamente. A resposta dele vai virar registro aqui.'
+        : 'O pulse foi registrado como pendente. Quando o aprendiz tiver conta Synkan e fizer login, ele responde. Pra acompanhamento offline, vale registrar manualmente via SQL.', { icon: '🌙', html: false });
+    }
+    // Recarrega drawer
+    if (_peopleState.currentPersonId) await _peopleOpenPersonDrawer(_peopleState.currentPersonId);
+  } catch(e) {
+    console.warn('[people] request pulse:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao criar pulse', e?.message || String(e), { icon: '⚠️' });
+  }
 }
 
 function _peopleStepHTML(s) {
@@ -36522,7 +36609,7 @@ async function _peopleToggleStep(stepId, makeChecked) {
       // Se graduou, mostra mensagem
       if (data?.graduated) {
         if (typeof appAlert === 'function') {
-          appAlert('🎓 Graduação!', 'Trilha 100% completa! O aprendiz subiu pra <strong>Faixa Roxa</strong> — graduado oficial.', { icon: '🥋', html: true });
+          appAlert('🌕 Lua Cheia!', 'Trilha 100% completa! O aprendiz chegou à <strong>Lua Cheia</strong> — graduação oficial. 90 dias de jornada concluídos.', { icon: '満月', html: true });
         }
       } else if (data?.new_belt) {
         // (opcional) toast de subida de faixa
