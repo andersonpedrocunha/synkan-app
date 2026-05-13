@@ -35787,14 +35787,15 @@ async function renderPeople() {
   _peopleState.loading = true;
   root.innerHTML = `<div class="ppl-wrap"><div class="ppl-empty"><div class="ppl-empty-icon">道</div><div class="ppl-empty-title">Carregando trilhas…</div></div></div>`;
   let loadError = null;
-  // Timeout de segurança 15s. Se passou e a query continua rodando, deixa em
-  // background — quando responder, re-renderiza tudo automaticamente.
+  // Timeout 30s. Cobre cold-start de Supabase free tier (primeira request
+  // após pausa pode levar 10-20s pra acordar pooler + warm cache). Se ainda
+  // assim demora, deixa em background e re-renderiza quando chegar.
   let loadCompletedAfterTimeout = false;
   const loadPromise = _peopleLoadAll().then(() => { loadCompletedAfterTimeout = true; });
   try {
     await Promise.race([
       loadPromise,
-      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout 15s — checar console (network ou RLS)')), 15_000))
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout 30s — Supabase cold start?')), 30_000))
     ]);
   } catch(e) {
     loadError = e;
