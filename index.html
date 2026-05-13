@@ -55254,14 +55254,50 @@ async function _bunkoSharePagePrompt(pageId) {
   window._bunkoShareOv = ov;
 }
 window._bunkoShareDoToggle = async function(pageId, enabled) {
+  // Visual feedback imediato — disable o checkbox enquanto roda
+  const cb = document.getElementById('bunko-share-toggle');
+  if (cb) cb.disabled = true;
   const c = await _chatGetClient();
+  if (!c) {
+    if (cb) { cb.disabled = false; cb.checked = !enabled; }
+    appAlert('Sem cliente', 'Não foi possível conectar com o Supabase. Verifique se você está logado.', { icon:'⚠️' });
+    return;
+  }
+  // Helper pra tentar a chamada (com retry em JWT expired)
+  const tryToggle = async () => {
+    return await c.rpc('toggle_bunko_share', { p_page_id: pageId, p_enabled: enabled });
+  };
+  let result;
   try {
-    const { error } = await c.rpc('toggle_bunko_share', { p_page_id: pageId, p_enabled: enabled });
-    if (error) throw error;
-    // Reabre modal com novo estado (incluindo URL recém-gerada)
+    result = await tryToggle();
+    // Retry com refresh se JWT expirou
+    if (result.error && typeof _supaIsJwtError === 'function' && _supaIsJwtError(result.error)) {
+      if (typeof _supaTryRefresh === 'function') {
+        const refreshed = await _supaTryRefresh();
+        if (refreshed) result = await tryToggle();
+      }
+    }
+    if (result.error) throw result.error;
+    // Sucesso — reabre modal com estado novo
     if (window._bunkoShareOv) window._bunkoShareOv.remove();
     _bunkoSharePagePrompt(pageId);
-  } catch(e) { appAlert('Erro', e?.message || String(e), { icon:'⚠️' }); }
+  } catch(e) {
+    if (cb) { cb.disabled = false; cb.checked = !enabled; }
+    const msg = (e?.message || String(e)).toLowerCase();
+    // Erro específico de migration faltando
+    if (msg.includes('gen_random_bytes') || msg.includes('does not exist')) {
+      appAlert(
+        'Migration pendente',
+        `Pra ativar links públicos, rode esta migration no Supabase:<br/><br/>` +
+        `<code style="background:#FFF6E0;padding:4px 8px;border-radius:4px;font-family:Menlo,monospace;font-size:11.5px;">MIGRATIONS_FIX_BUNKO_SHARE.sql</code><br/><br/>` +
+        `Está na raiz do projeto. Cola no <em>SQL Editor</em> do Supabase e clica Run. Depois tenta de novo aqui.<br/><br/>` +
+        `<small style="color:#8B6634;">Detalhe técnico: ${_esc(e?.message || String(e))}</small>`,
+        { icon: '🛠️', html: true }
+      );
+    } else {
+      appAlert('Erro ao ativar link', e?.message || String(e), { icon:'⚠️' });
+    }
+  }
 };
 window._bunkoShareCopyUrl = function() {
   const inp = document.getElementById('bunko-share-url');
