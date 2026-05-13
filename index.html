@@ -8545,6 +8545,12 @@ function _bunkoStorageUsedGB() {
 // Estratégia: usa RPC `bunko_storage_total` (rápido, 1 round-trip).
 // Se a migration ainda não foi aplicada, cai pro fallback de 2 queries diretas.
 // Fail-soft: se tudo falhar, mantém o cache antigo.
+//
+// Gravações com size_bytes NULL: algumas versões da API do LiveKit Egress
+// não retornam `file.size` no webhook, então a coluna fica nula no banco.
+// Pra evitar mostrar "0 GB usados" quando o usuário tem várias gravações,
+// estimamos a partir do duration_sec (~15 MB/min @ 1.5 Mbps).
+let _bunkoStorageCounts = { files: 0, recordings: 0, estimated: false };
 async function _bunkoRefreshStorageUsed(force) {
   if (_bunkoStorageRefreshing) return;
   // Throttle: 60s mínimo entre refreshes não-forçados
@@ -8553,28 +8559,61 @@ async function _bunkoRefreshStorageUsed(force) {
   try {
     const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
     if (!c || typeof supaUser === 'undefined' || !supaUser) { _bunkoStorageRefreshing = false; return; }
-    // ── Caminho preferido: RPC dedicada ──
-    let total = null;
+    let total = 0;
+    let counts = { files: 0, recordings: 0, estimated: false };
+    // ── Tenta RPC primeiro pra files (rápido, soma direto) ──
+    let rpcOk = false;
     try {
       const { data, error } = await c.rpc('bunko_storage_total');
       if (!error && data && typeof data === 'object') {
         total = Number(data.total_bytes) || 0;
+        counts.files = Number(data.files_count) || 0;
+        counts.recordings = Number(data.recordings_count) || 0;
+        // Migration MIGRATIONS_BACKFILL_RECORDING_SIZES já estimou os
+        // size_bytes via duration_sec — o RPC retorna quantas dessas são
+        // estimadas pra a UI mostrar "≈" no banner.
+        if (Number(data.estimated_recordings_count) > 0) counts.estimated = true;
+        rpcOk = true;
       }
     } catch(_) {}
-    // ── Fallback: queries diretas (caso a migration de RPC não esteja aplicada) ──
-    if (total === null) {
-      total = 0;
+    // ── Fallback se RPC falhou: queries diretas ──
+    if (!rpcOk) {
       try {
         const { data: filesRows } = await c.from('bunko_files').select('size_bytes').eq('owner_id', supaUser.id).is('deleted_at', null);
-        if (Array.isArray(filesRows)) total += filesRows.reduce((s,r) => s + (Number(r.size_bytes) || 0), 0);
-      } catch(_) {}
-      try {
-        // ATENÇÃO: coluna correta é `workspace_owner` (não `owner_id`)
-        const { data: recRows } = await c.from('tatame_recordings').select('size_bytes').eq('workspace_owner', supaUser.id).is('deleted_at', null).eq('status', 'ready');
-        if (Array.isArray(recRows)) total += recRows.reduce((s,r) => s + (Number(r.size_bytes) || 0), 0);
+        if (Array.isArray(filesRows)) {
+          counts.files = filesRows.length;
+          total += filesRows.reduce((s,r) => s + (Number(r.size_bytes) || 0), 0);
+        }
       } catch(_) {}
     }
+    // ── Sempre busca recordings com duration_sec pra cobrir size_bytes NULL ──
+    // (o RPC já somou size_bytes não-nulos; aqui completamos com estimativa
+    // pros recordings que ficaram sem tamanho)
+    try {
+      const { data: recs } = await c.from('tatame_recordings')
+        .select('size_bytes, duration_sec')
+        .eq('workspace_owner', supaUser.id)
+        .is('deleted_at', null)
+        .eq('status', 'ready');
+      if (Array.isArray(recs)) {
+        if (!rpcOk) counts.recordings = recs.length;
+        let estimatedAny = false;
+        for (const r of recs) {
+          const sz = Number(r.size_bytes) || 0;
+          if (sz > 0) {
+            // Já foi contado pelo RPC ou pelo fallback acima (se rpcOk=false a gente não duplica)
+            if (!rpcOk) total += sz;
+          } else if (r.duration_sec) {
+            // Estimativa: ~15 MB/min = 262144 bytes/sec (720p @ 1.5 Mbps)
+            total += Math.round(Number(r.duration_sec) * 262144);
+            estimatedAny = true;
+          }
+        }
+        if (estimatedAny) counts.estimated = true;
+      }
+    } catch(_) {}
     _bunkoStorageUsedBytes = total;
+    _bunkoStorageCounts = counts;
     _bunkoStorageUsedAt = Date.now();
   } catch(e) {
     console.warn('[bunko-storage] refresh falhou:', e?.message || e);
@@ -54141,11 +54180,19 @@ function _bunkoRenderStorageBanner() {
     } else {
       cta = `<button onclick="window.open(getUpgradeURL(),'_blank')" style="background:transparent;border:1px solid ${tone};color:${tone};font-size:11.5px;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:inherit;">Fazer upgrade</button>`;
     }
+    // Contagem de itens + marca "≈" quando algum recording teve size_bytes
+    // estimado a partir da duração (webhook do LiveKit não devolveu size).
+    const cts = _bunkoStorageCounts || { files: 0, recordings: 0, estimated: false };
+    const totalItems = (cts.files || 0) + (cts.recordings || 0);
+    const itemsLabel = totalItems > 0
+      ? ` <span style="opacity:.8;font-weight:400;">· ${cts.recordings || 0} grav. + ${cts.files || 0} arq.</span>`
+      : '';
+    const prefix = cts.estimated ? '≈ ' : '';
     const msg = full
-      ? `Espaço esgotado: <strong>${usedGB.toFixed(2)} GB de ${maxGB} GB</strong>. Uploads bloqueados.`
+      ? `Espaço esgotado: <strong>${prefix}${usedGB.toFixed(2)} GB de ${maxGB} GB</strong>. Uploads bloqueados.${itemsLabel}`
       : near
-      ? `Atenção: <strong>${usedGB.toFixed(2)} GB de ${maxGB} GB</strong> usados (${pct}%).`
-      : `<strong>${usedGB.toFixed(2)} GB de ${maxGB} GB</strong> usados (${pct}%)`;
+      ? `Atenção: <strong>${prefix}${usedGB.toFixed(2)} GB de ${maxGB} GB</strong> usados (${pct}%).${itemsLabel}`
+      : `<strong>${prefix}${usedGB.toFixed(2)} GB de ${maxGB} GB</strong> usados (${pct}%)${itemsLabel}`;
     el.innerHTML = `
       <div style="padding:7px 11px;font-size:12px;color:${tone};background:${bg};border:1px solid ${tone};border-radius:7px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-family:var(--font-sans);">
         <span style="display:inline-flex;align-items:center;gap:8px;">📦 ${msg}</span>
