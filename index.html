@@ -3809,6 +3809,28 @@ body.density-compact .col{padding:7px;}
 .dojo-hero-title{font-size:28px;font-weight:700;letter-spacing:-0.01em;line-height:1.1;margin-bottom:6px;text-shadow:0 2px 10px rgba(0,0,0,.6);}
 .dojo-hero-sub{font-size:14px;color:#E5E1F8;text-shadow:0 1px 5px rgba(0,0,0,.45);}
 .dojo-hero-sub strong{color:#fff;}
+/* ━━ Card dedicado do Pulse (vitalidade) no Dojo ━━ */
+.dojo-pulse-card{background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(245,232,200,.45));border:1px solid var(--color-border-tertiary);border-left:4px solid var(--pulse-tone,#C19A3A);border-radius:12px;padding:20px 22px;margin:18px 0;box-shadow:0 2px 10px rgba(58,36,16,.05);}
+.dojo-pulse-h{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;}
+.dojo-pulse-kanji{font-size:24px;line-height:1;margin-bottom:4px;color:var(--pulse-tone,#C19A3A);}
+.dojo-pulse-card h3{font-family:'Noto Serif JP',serif;font-size:18px;font-weight:600;margin:0 0 4px;color:var(--color-text-primary);letter-spacing:-.01em;}
+.dojo-pulse-sub{font-size:12.5px;color:var(--color-text-secondary);margin:0;line-height:1.5;font-style:italic;font-family:'Noto Serif JP',serif;}
+.dojo-pulse-bignum{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:46px;font-weight:700;line-height:1;color:var(--pulse-tone,#C19A3A);text-shadow:0 2px 4px rgba(0,0,0,.06);}
+.dojo-pulse-bignum small{font-size:18px;color:var(--color-text-tertiary);font-weight:500;}
+.dojo-pulse-bar{background:rgba(0,0,0,.06);height:10px;border-radius:999px;overflow:hidden;margin-bottom:10px;}
+.dojo-pulse-bar-fill{height:100%;border-radius:999px;transition:width .5s ease, background .3s;box-shadow:inset 0 -1px 2px rgba(255,255,255,.3);}
+.dojo-pulse-state{font-size:13px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.55;}
+.dojo-pulse-state strong{color:var(--pulse-tone,#C19A3A);}
+.dojo-pulse-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;}
+.dojo-pulse-stat{background:rgba(255,255,255,.55);border:1px solid rgba(184,168,120,.4);border-radius:8px;padding:10px 12px;}
+.dojo-pulse-stat-num{font-family:'Noto Serif JP',serif;font-size:22px;font-weight:700;color:var(--color-text-primary);line-height:1;margin-bottom:4px;}
+.dojo-pulse-stat-num small{font-size:13px;color:var(--color-text-tertiary);font-weight:500;margin-left:2px;}
+.dojo-pulse-stat-lbl{font-size:10.5px;color:var(--color-text-tertiary);line-height:1.4;text-transform:uppercase;letter-spacing:.03em;}
+.dojo-pulse-foot{font-family:'Noto Serif JP',serif;font-size:12.5px;color:var(--color-text-tertiary);font-style:italic;padding-top:10px;border-top:1px dotted rgba(184,168,120,.5);}
+.dojo-pulse-foot em{color:var(--pulse-tone,#C19A3A);font-style:normal;font-weight:600;margin-right:4px;}
+:root.dark .dojo-pulse-card{background:linear-gradient(180deg,rgba(245,232,200,.06),rgba(245,232,200,.02));border-color:#5C4F3F;}
+:root.dark .dojo-pulse-stat{background:rgba(245,232,200,.04);border-color:#5C4F3F;}
+
 .dojo-hero-bar{margin-top:14px;background:rgba(0,0,0,.5);border:0.5px solid rgba(255,255,255,.15);height:9px;border-radius:999px;overflow:hidden;position:relative;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
 .dojo-hero-bar-fill{height:100%;background:linear-gradient(90deg,var(--belt-color,#FFD56B),#fff);border-radius:999px;transition:width .4s;box-shadow:0 0 12px rgba(255,213,107,.45);}
 .dojo-hero-bar-text{font-size:12px;color:#D5D0F0;margin-top:7px;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px rgba(0,0,0,.5);font-weight:500;}
@@ -40976,9 +40998,78 @@ function renderDojo() {
             <span class="dojo-hero-stat-num">${_gamif.stats.cardsDone||0}</span>
             <span class="dojo-hero-stat-lbl">cards concluídos</span>
           </div>
+          ${(() => {
+            try {
+              if (typeof _gamifApplyPulseDecay === 'function') _gamifApplyPulseDecay();
+              const p = _gamif?.pulse || { value: 100, vacationDaysUsedThisYear: 0 };
+              const pv = p.value || 0;
+              const emoji = pv >= 70 ? '⚡' : pv >= 40 ? '✨' : pv >= 10 ? '🌫' : '🧊';
+              return `<div class="dojo-hero-stat">
+                <span class="dojo-hero-stat-num">${emoji}${pv}</span>
+                <span class="dojo-hero-stat-lbl">pulse</span>
+              </div>`;
+            } catch(_) { return ''; }
+          })()}
         </div>
       </div>
     </div>
+
+    ${(() => {
+      // Card dedicado do Pulse — explicação visual + métricas
+      try {
+        if (typeof _gamifApplyPulseDecay === 'function') _gamifApplyPulseDecay();
+        const p = _gamif?.pulse;
+        if (!p) return '';
+        const pv = p.value || 0;
+        const vacUsed = p.vacationDaysUsedThisYear || 0;
+        const vacAvail = Math.max(0, 28 - vacUsed);
+        const tone = pv >= 70 ? '#27500A' : pv >= 40 ? '#8B6914' : pv >= 10 ? '#A88224' : '#9B2226';
+        const stateLbl = pv >= 70 ? 'Afiado' : pv >= 40 ? 'Estável' : pv >= 10 ? 'Fosco' : 'Descolorido';
+        const stateDesc = pv >= 70 ? 'Sua faixa brilha. Continue assim.'
+                       : pv >= 40 ? 'Em forma. Algumas sessões e volta ao brilho máximo.'
+                       : pv >= 10 ? 'A faixa está perdendo a saturação. Use o app pra recuperar.'
+                       : 'A faixa quase apagou. O dojo te espera.';
+        return `
+        <div class="dojo-pulse-card" style="--pulse-tone:${tone};">
+          <div class="dojo-pulse-h">
+            <div>
+              <div class="dojo-pulse-kanji">⚡</div>
+              <h3>Pulse · Vitalidade</h3>
+              <p class="dojo-pulse-sub">Indicador efêmero de presença. <strong>Não afeta XP nem faixa</strong>. Só o brilho do avatar.</p>
+            </div>
+            <div class="dojo-pulse-bignum">${pv}<small>/100</small></div>
+          </div>
+          <div class="dojo-pulse-bar">
+            <div class="dojo-pulse-bar-fill" style="width:${pv}%;background:${tone};"></div>
+          </div>
+          <div class="dojo-pulse-state"><strong>${stateLbl}.</strong> ${stateDesc}</div>
+          <div class="dojo-pulse-grid">
+            <div class="dojo-pulse-stat">
+              <div class="dojo-pulse-stat-num">−3</div>
+              <div class="dojo-pulse-stat-lbl">por dia útil ocioso</div>
+            </div>
+            <div class="dojo-pulse-stat">
+              <div class="dojo-pulse-stat-num">+5</div>
+              <div class="dojo-pulse-stat-lbl">por ação significativa</div>
+            </div>
+            <div class="dojo-pulse-stat">
+              <div class="dojo-pulse-stat-num">${vacAvail}<small>d</small></div>
+              <div class="dojo-pulse-stat-lbl">banco de férias restante (${vacUsed}/28 usados)</div>
+            </div>
+            <div class="dojo-pulse-stat">
+              <div class="dojo-pulse-stat-num">0</div>
+              <div class="dojo-pulse-stat-lbl">decay em fim de semana e feriado BR</div>
+            </div>
+          </div>
+          <div class="dojo-pulse-foot">
+            <em>O Mestre Kan diz:</em> «${pv >= 70 ? 'A katana bem polida não enferruja.'
+                                           : pv >= 40 ? 'O treino é constância, não pressa.'
+                                           : pv >= 10 ? 'Voltar é parte do caminho.'
+                                           : 'O dojo nunca fechou.'}»
+          </div>
+        </div>`;
+      } catch(_) { return ''; }
+    })()}
 
     <div>
       <div class="dojo-section-title" data-kanji="日課">🎯 Missões diárias</div>
