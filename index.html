@@ -3809,6 +3809,36 @@ body.density-compact .col{padding:7px;}
 .dojo-hero-title{font-size:28px;font-weight:700;letter-spacing:-0.01em;line-height:1.1;margin-bottom:6px;text-shadow:0 2px 10px rgba(0,0,0,.6);}
 .dojo-hero-sub{font-size:14px;color:#E5E1F8;text-shadow:0 1px 5px rgba(0,0,0,.45);}
 .dojo-hero-sub strong{color:#fff;}
+/* ━━ Card de Conquistas Sazonais no Dojo (春 夏 秋 冬) ━━ */
+.dojo-seasonal-card{background:linear-gradient(135deg,rgba(255,255,255,.85),rgba(245,232,200,.50));border:1px solid var(--color-border-tertiary);border-top:4px solid var(--season-color,#C19A3A);border-radius:12px;padding:20px 22px;margin:18px 0;box-shadow:0 2px 10px rgba(58,36,16,.05);position:relative;overflow:hidden;}
+.dojo-seasonal-card::before{content:'';position:absolute;top:-30px;right:-20px;width:160px;height:160px;background:radial-gradient(circle,var(--season-color,#C19A3A) 0%,transparent 70%);opacity:.10;pointer-events:none;}
+.dojo-seasonal-h{display:flex;gap:18px;align-items:flex-start;margin-bottom:16px;position:relative;z-index:1;}
+.dojo-seasonal-kanji{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:56px;font-weight:700;line-height:1;flex-shrink:0;}
+.dojo-seasonal-titles{flex:1;}
+.dojo-seasonal-titles h3{font-family:'Noto Serif JP',serif;font-size:20px;font-weight:600;margin:0 0 4px;color:var(--color-text-primary);letter-spacing:-.01em;}
+.dojo-seasonal-sub{font-size:12.5px;color:var(--color-text-secondary);margin:0;line-height:1.55;font-style:italic;font-family:'Noto Serif JP',serif;}
+.dojo-seasonal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:14px;}
+.dojo-seasonal-item{background:rgba(255,255,255,.65);border:1px solid rgba(184,168,120,.4);border-radius:8px;padding:11px 13px;transition:all .15s;}
+.dojo-seasonal-item.is-done{background:linear-gradient(135deg,rgba(39,80,10,.10),rgba(255,255,255,.6));border-color:rgba(39,80,10,.30);}
+.dojo-seasonal-item-h{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.dojo-seasonal-icon{font-size:24px;line-height:1;flex-shrink:0;}
+.dojo-seasonal-name{font-family:'Noto Serif JP',serif;font-size:13.5px;font-weight:600;color:var(--color-text-primary);margin-bottom:2px;display:flex;align-items:center;gap:6px;}
+.dojo-seasonal-pill{font-size:9.5px;background:#27500A;color:#fff;padding:1px 7px;border-radius:999px;font-weight:600;letter-spacing:.04em;}
+.dojo-seasonal-desc{font-size:11.5px;color:var(--color-text-secondary);line-height:1.45;}
+.dojo-seasonal-bar{background:rgba(0,0,0,.06);height:6px;border-radius:999px;overflow:hidden;margin-bottom:5px;}
+.dojo-seasonal-bar-fill{height:100%;border-radius:999px;transition:width .5s ease, background .3s;}
+.dojo-seasonal-progress{font-size:10.5px;color:var(--color-text-tertiary);text-align:right;font-variant-numeric:tabular-nums;}
+.dojo-seasonal-history{margin-top:10px;padding-top:12px;border-top:1px dotted rgba(184,168,120,.5);}
+.dojo-seasonal-history summary{cursor:pointer;font-size:12px;color:var(--color-text-tertiary);user-select:none;padding:4px 0;}
+.dojo-seasonal-history-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:8px;}
+.dojo-seasonal-history-item{display:flex;align-items:center;gap:8px;padding:7px 9px;background:rgba(255,255,255,.4);border-radius:6px;border:1px solid rgba(184,168,120,.30);}
+.dojo-seasonal-foot{font-family:'Noto Serif JP',serif;font-size:12.5px;color:var(--color-text-tertiary);font-style:italic;padding-top:12px;border-top:1px dotted rgba(184,168,120,.5);margin-top:10px;}
+.dojo-seasonal-foot em{color:var(--season-color,#C19A3A);font-style:normal;font-weight:600;margin-right:4px;}
+:root.dark .dojo-seasonal-card{background:linear-gradient(135deg,rgba(245,232,200,.06),rgba(245,232,200,.02));border-color:#5C4F3F;}
+:root.dark .dojo-seasonal-item{background:rgba(245,232,200,.04);border-color:#5C4F3F;}
+:root.dark .dojo-seasonal-item.is-done{background:linear-gradient(135deg,rgba(168,208,138,.10),rgba(245,232,200,.05));border-color:rgba(168,208,138,.30);}
+:root.dark .dojo-seasonal-history-item{background:rgba(245,232,200,.05);border-color:#5C4F3F;}
+
 /* ━━ Card dedicado do Pulse (vitalidade) no Dojo ━━ */
 .dojo-pulse-card{background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(245,232,200,.45));border:1px solid var(--color-border-tertiary);border-left:4px solid var(--pulse-tone,#C19A3A);border-radius:12px;padding:20px 22px;margin:18px 0;box-shadow:0 2px 10px rgba(58,36,16,.05);}
 .dojo-pulse-h{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px;}
@@ -38955,7 +38985,7 @@ const SEASONAL_ACHIEVEMENTS = {
   haru: [
     { id:'haru_sakura',    icon:'🌸', name:'Sakura',          desc:'Conclua 30 cards em 1 mês',                    target:30,  type:'cardsDoneMonth' },
     { id:'haru_seed',      icon:'🌱', name:'Broto novo',      desc:'Crie 5 novos boards',                          target:5,   type:'boardsCreatedSeason' },
-    { id:'haru_wind',      icon:'💨', name:'Vento de Sakura', desc:'Streak de 21 dias úteis',                      target:21,  type:'streakInSeason' },
+    { id:'haru_hanami',    icon:'🪷', name:'Hanami',          desc:'Streak de 21 dias úteis',                      target:21,  type:'streakInSeason' },
     { id:'haru_dawn',      icon:'🌅', name:'Amanhecer',       desc:'Abra o app antes das 8h em 10 dias',           target:10,  type:'earlyOpensSeason' },
     { id:'haru_first',     icon:'🎴', name:'Primeira lição',  desc:'Complete 5 missões diárias',                   target:5,   type:'dailyMissionsSeason' },
   ],
@@ -38973,7 +39003,7 @@ const SEASONAL_ACHIEVEMENTS = {
     { id:'aki_ginkgo',     icon:'🍂', name:'Ginkgo',          desc:'Arquive 30 cards (limpeza)',                   target:30,  type:'cardsArchivedSeason' },
     { id:'aki_momiji',     icon:'🍁', name:'Momiji',           desc:'Escreva 10 páginas no Bunko',                  target:10,  type:'bunkoPagesSeason' },
     { id:'aki_kuri',       icon:'🌰', name:'Castanhas',       desc:'Feche 5 deals no Synconnect',                  target:5,   type:'dealsWonSeason' },
-    { id:'aki_kaze',       icon:'🌬', name:'Vento do outono',  desc:'10 transcrições do Mestre Kan',                target:10,  type:'transcriptsSeason' },
+    { id:'aki_tsukimi',    icon:'🥮', name:'Tsukimi',         desc:'10 transcrições do Mestre Kan',                target:10,  type:'transcriptsSeason' },
   ],
   // 冬 Fuyu (Inverno · Dez-Fev) — disciplina, silêncio
   fuyu: [
@@ -41013,6 +41043,101 @@ function renderDojo() {
         </div>
       </div>
     </div>
+
+    ${(() => {
+      // ━━ Card de Conquistas Sazonais — rotam por trimestre (春 夏 秋 冬) ━━
+      try {
+        if (typeof SEASONAL_ACHIEVEMENTS === 'undefined' || typeof _gamifCurrentSeason !== 'function') return '';
+        const season = _gamifCurrentSeason();
+        const info = SEASON_INFO[season];
+        const list = SEASONAL_ACHIEVEMENTS[season] || [];
+        const yearNow = new Date().getFullYear();
+        const seasonal = _gamif?.seasonal || { progress: {}, completed: [] };
+        const completedSet = new Set(
+          (seasonal.completed||[]).filter(c => c.season === season && c.year === yearNow).map(c => c.id)
+        );
+        const completedCount = list.filter(ach => completedSet.has(ach.id)).length;
+
+        // Calcula próxima rotação (1º dia do próximo trimestre)
+        const m = new Date().getMonth() + 1;
+        const seasonEnd = info.months[info.months.length - 1];
+        // próxima estação começa no mês +1 do último mês desta estação
+        const nextStartM = seasonEnd === 12 ? 1 : seasonEnd + 1;
+        const nextStartY = (season === 'fuyu' && m >= 12) ? yearNow + 1 : yearNow;
+        const nextStart = new Date(nextStartY, nextStartM - 1, 1);
+        const daysToNext = Math.max(0, Math.ceil((nextStart - new Date()) / 86400000));
+        const nextSeasonKey = season === 'haru' ? 'natsu' : season === 'natsu' ? 'aki' : season === 'aki' ? 'fuyu' : 'haru';
+        const nextSeasonInfo = SEASON_INFO[nextSeasonKey];
+
+        // Conquistas históricas (anteriores)
+        const historic = (seasonal.completed||[])
+          .filter(c => !(c.season === season && c.year === yearNow))
+          .slice(-12); // últimas 12
+
+        const allFromAllSeasons = Object.values(SEASONAL_ACHIEVEMENTS).flat();
+        const findAch = (id) => allFromAllSeasons.find(a => a.id === id);
+
+        return `
+        <div class="dojo-seasonal-card" style="--season-color:${info.color};">
+          <div class="dojo-seasonal-h">
+            <div class="dojo-seasonal-kanji" style="color:${info.color};">${info.kanji}</div>
+            <div class="dojo-seasonal-titles">
+              <h3>Conquistas de ${info.name}</h3>
+              <p class="dojo-seasonal-sub">5 badges rotativas a cada estação. ${completedCount}/${list.length} desbloqueada${completedCount===1?'':'s'} este trimestre · próxima estação (${nextSeasonInfo.kanji} ${nextSeasonInfo.name}) em ${daysToNext} dia${daysToNext===1?'':'s'}.</p>
+            </div>
+          </div>
+          <div class="dojo-seasonal-grid">
+            ${list.map(ach => {
+              const isDone = completedSet.has(ach.id);
+              const prog = (seasonal.progress||{})[ach.id] || 0;
+              const pct = Math.min(100, Math.round((prog / ach.target) * 100));
+              return `
+                <div class="dojo-seasonal-item ${isDone?'is-done':''}">
+                  <div class="dojo-seasonal-item-h">
+                    <span class="dojo-seasonal-icon">${ach.icon}</span>
+                    <div>
+                      <div class="dojo-seasonal-name">${_esc(ach.name)}${isDone?' <span class="dojo-seasonal-pill">✓ feito</span>':''}</div>
+                      <div class="dojo-seasonal-desc">${_esc(ach.desc)}</div>
+                    </div>
+                  </div>
+                  <div class="dojo-seasonal-bar">
+                    <div class="dojo-seasonal-bar-fill" style="width:${pct}%;background:${isDone?'#27500A':info.color};"></div>
+                  </div>
+                  <div class="dojo-seasonal-progress">${Math.min(prog, ach.target)} / ${ach.target}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          ${historic.length ? `
+            <details class="dojo-seasonal-history">
+              <summary>📜 Histórico de conquistas anteriores (${historic.length})</summary>
+              <div class="dojo-seasonal-history-grid">
+                ${historic.map(c => {
+                  const ach = findAch(c.id);
+                  if (!ach) return '';
+                  const seasonHistInfo = SEASON_INFO[c.season];
+                  return `<div class="dojo-seasonal-history-item" title="${_esc(seasonHistInfo?.name || c.season)} ${c.year}">
+                    <span style="font-size:18px;">${ach.icon}</span>
+                    <div>
+                      <div style="font-size:11.5px;font-weight:600;">${_esc(ach.name)}</div>
+                      <div style="font-size:10px;color:var(--color-text-tertiary);">${seasonHistInfo?.kanji || ''} ${seasonHistInfo?.name || c.season} ${c.year}</div>
+                    </div>
+                  </div>`;
+                }).join('')}
+              </div>
+            </details>
+          ` : ''}
+          <div class="dojo-seasonal-foot">
+            <em>Mestre Kan:</em> «${
+              completedCount === list.length ? 'Conquistou todas. Aguarde a próxima estação.'
+              : completedCount >= list.length / 2 ? 'Bom ritmo. Mais da metade já está.'
+              : completedCount > 0 ? 'O caminho começou. Continue.'
+              : 'Cada estação traz seu treino. Comece pela mais simples.'
+            }»
+          </div>
+        </div>`;
+      } catch(_) { return ''; }
+    })()}
 
     ${(() => {
       // Card dedicado do Pulse — explicação visual + métricas
