@@ -3742,6 +3742,7 @@ body.density-compact .col{padding:7px;}
 .belt-ring.belt-preta{box-shadow:0 0 0 1px rgba(255,215,0,.4) inset, 0 0 8px rgba(255,215,0,.25);}
 .sb-account-title{font-size:10.5px;color:var(--color-text-tertiary);margin-top:1px;line-height:1.2;}
 .sb-account-title strong{color:var(--color-text-secondary);font-weight:500;}
+.sb-pulse-pill{font-weight:600;cursor:help;font-size:10.5px;letter-spacing:.01em;}
 .sb-streak-flame{display:inline-flex;align-items:center;gap:2px;font-size:11px;font-weight:600;color:#FF6B35;background:#FFF4E0;padding:1px 6px;border-radius:999px;margin-left:6px;}
 :root.dark .sb-streak-flame{background:#3A2818;color:#FFB088;}
 .sb-streak-flame.is-cold{color:var(--color-text-tertiary);background:var(--color-background-secondary);}
@@ -23479,7 +23480,20 @@ function _refreshAccountUIInternal() {
     ? `<span class="sb-streak-flame" title="${streakC} dia${streakC!==1?'s':''} útil${streakC!==1?'eis':''} ativos · recorde ${gst.streak.longest||0} · fins de semana e até 1 dia útil de falta/semana não quebram">🔥 ${streakC}</span>`
     : '';
   const titleHTML = gst
-    ? `<div class="sb-account-title"><strong>${_esc(gst.name)}</strong> · ${_esc(gst.title)}${gst.next?` · <span style="opacity:.7;">${gst.xp}/${gst.next.threshold} XP</span>`:` · ${gst.xp} XP`}</div>`
+    ? (() => {
+        // Pulse de vitalidade — indicador visível na linha do título
+        let pulseHTML = '';
+        try {
+          if (typeof _gamifApplyPulseDecay === 'function') _gamifApplyPulseDecay();
+          const pv = _gamif?.pulse?.value;
+          if (typeof pv === 'number') {
+            const tone = pv >= 70 ? '#27500A' : pv >= 40 ? '#8B6914' : pv >= 10 ? '#A88224' : '#9B2226';
+            const label = pv >= 70 ? 'afiado' : pv >= 40 ? 'estável' : pv >= 10 ? 'fosco' : 'descolorido';
+            pulseHTML = ` · <span class="sb-pulse-pill" style="color:${tone};" title="Pulse · ${pv}/100 (${label})&#10;Decai 3 pts/dia útil sem usar. Restaura ao agir. Não conta fins de semana, feriados ou banco anual de 28 dias úteis de férias.">⚡${pv}</span>`;
+          }
+        } catch(_){}
+        return `<div class="sb-account-title"><strong>${_esc(gst.name)}</strong> · ${_esc(gst.title)}${gst.next?` · <span style="opacity:.7;">${gst.xp}/${gst.next.threshold} XP</span>`:` · ${gst.xp} XP`}${pulseHTML}</div>`;
+      })()
     : '';
   const notifBadgeHTML = unread > 0 ? `<span class="sb-account-menu-badge">${unread > 99 ? '99+' : unread}</span>` : '';
   let dojoItem = '';
