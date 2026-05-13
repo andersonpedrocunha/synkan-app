@@ -52109,6 +52109,10 @@ function _lkSharePickerHTML() {
   tabs.push({ key:'chat', label:'Chat', items: [
     { id: 'chat', name: `Chat #${_chName}`, meta: 'mensagens do canal' }
   ] });
+  // Bunko Box — também módulo único (view-bunko)
+  tabs.push({ key:'bunko', label:'Bunko', items: [
+    { id: 'bunko', name: 'Abrir Bunko Box', meta: 'conhecimento e pergaminhos' }
+  ] });
   // Zai (boards com kind=zai)
   const zais = boards.filter(b => b.kind === 'zai' || b.isZai);
   if (zais.length) {
@@ -52123,6 +52127,7 @@ function _lkSharePickerHTML() {
     lab:        '<svg viewBox="0 0 24 24"><path d="M9 3 L 15 3 L 18 8 L 18 21 L 6 21 L 6 8 Z"/><path d="M9 3 L 9 8 L 18 8"/></svg>',
     synconnect: '<svg viewBox="0 0 24 24"><path d="M5.5 6V4.4a1.4 1.4 0 0 1 1.4-1.4h10.2a1.4 1.4 0 0 1 1.4 1.4V6"/><rect x="2" y="6" width="20" height="15" rx="2"/><path d="M2 12h20"/></svg>',
     chat:       '<svg viewBox="0 0 24 24"><path d="M3 5 a2 2 0 0 1 2-2 h14 a2 2 0 0 1 2 2 v10 a2 2 0 0 1 -2 2 h-9 l-5 4 v-4 h-0 a2 2 0 0 1 -2-2 z"/></svg>',
+    bunko:      '<svg viewBox="0 0 24 24"><path d="M3 5L12 2L21 5V18L12 22L3 18Z"/><path d="M3 5L12 8.5L21 5"/><path d="M12 8.5V22"/></svg>',
     zai:        '<svg viewBox="0 0 24 24"><path d="M3 17 L 9 11 L 13 15 L 21 7"/><polyline points="17 7 21 7 21 11"/></svg>',
   };
 
@@ -52453,6 +52458,7 @@ function _lkRenderShareWrap() {
                 : item.type === 'okr'        ? 'tx-okrs-mount'
                 : item.type === 'synconnect' ? 'tx-synconnect-mount'
                 : item.type === 'chat'       ? 'tx-chat-mount'
+                : item.type === 'bunko'      ? 'tx-bunko-mount'
                 : 'tx-board-mount'; // boards e zais usam o mesmo mount do kanban
   wrap.innerHTML = `
     <div class="lk-share-bar">
@@ -52479,6 +52485,8 @@ function _lkRenderShareWrap() {
         if (typeof _txMountSynconnectEmbed === 'function') _txMountSynconnectEmbed();
       } else if (item.type === 'chat') {
         if (typeof _txMountChatEmbed === 'function') _txMountChatEmbed();
+      } else if (item.type === 'bunko') {
+        if (typeof _txMountBunkoEmbed === 'function') _txMountBunkoEmbed();
       } else {
         const mount = document.getElementById(mountId);
         if (mount) mount.innerHTML = `<div style="padding:30px;text-align:center;font-style:italic;color:var(--tatami-ink-soft,#5C4F3F);">Tipo "${_esc(item.type)}" ainda não tem embed implementado.</div>`;
@@ -58938,7 +58946,7 @@ async function _lkLeave() {
       // chegou a rodar), devolve pro home ANTES de destruir o body — sem
       // isso, body.remove() leva a view junto e o próximo share fica quebrado.
       try {
-        ['view-kanban','view-canvas','view-okrs','view-registry','view-chat'].forEach(id => {
+        ['view-kanban','view-canvas','view-okrs','view-registry','view-chat','view-bunko'].forEach(id => {
           if (body.querySelector('#' + id)) {
             if (typeof _txRestoreViewHome === 'function') _txRestoreViewHome(id);
             console.log('[lk-leave]', id, 'resgatado antes de lk-body.remove()');
@@ -58989,6 +58997,8 @@ const _TX_ICO = {
   board:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
   lab:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6"/><path d="M10 2v6L5.5 17a2 2 0 0 0 1.7 3h9.6a2 2 0 0 0 1.7-3L14 8V2"/><path d="M7 14h10"/></svg>',
   okrs:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>',
+  synconnect: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 6V4.4a1.4 1.4 0 0 1 1.4-1.4h10.2a1.4 1.4 0 0 1 1.4 1.4V6"/><rect x="2.5" y="6" width="19" height="14" rx="2"/><path d="M2.5 11h19"/></svg>',
+  bunko:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5L12 2L21 5V18L12 22L3 18Z"/><path d="M3 5L12 8.5L21 5"/><path d="M12 8.5V22"/></svg>',
 };
 
 // Estado sob _chatState.extended:
@@ -59232,11 +59242,15 @@ function _txRenderOverlay() {
               <button class="tx-work-tab is-active" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Board</span></button>
               <button class="tx-work-tab is-locked" disabled title="Canal de board · só mostra esse board. Pra Lab use outro canal.">${_TX_ICO.lab}<span>Lab</span></button>
               <button class="tx-work-tab is-locked" disabled title="Canal de board · só mostra esse board. Pra OKRs use outro canal.">${_TX_ICO.okrs}<span>OKRs</span></button>
+              <button class="tx-work-tab is-locked" disabled title="Canal de board · use outro canal pro Synconnect.">${_TX_ICO.synconnect}<span>Synconnect</span></button>
+              <button class="tx-work-tab is-locked" disabled title="Canal de board · use outro canal pro Bunko.">${_TX_ICO.bunko}<span>Bunko</span></button>
             ` : `
               <button class="tx-work-tab ${ext.panelMode==='empty'?'is-active':''}" onclick="_txSetPanel('empty')">${_TX_ICO.lobby}<span>Lobby</span></button>
               <button class="tx-work-tab ${ext.panelMode==='board'?'is-active':''}" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Board</span></button>
               <button class="tx-work-tab ${ext.panelMode==='lab'?'is-active':''}" onclick="_txSetPanel('lab')">${_TX_ICO.lab}<span>Lab</span></button>
               <button class="tx-work-tab ${ext.panelMode==='okrs'?'is-active':''}" onclick="_txSetPanel('okrs')">${_TX_ICO.okrs}<span>OKRs</span></button>
+              <button class="tx-work-tab ${ext.panelMode==='synconnect'?'is-active':''}" onclick="_txSetPanel('synconnect')">${_TX_ICO.synconnect}<span>Synconnect</span></button>
+              <button class="tx-work-tab ${ext.panelMode==='bunko'?'is-active':''}" onclick="_txSetPanel('bunko')">${_TX_ICO.bunko}<span>Bunko</span></button>
             `}
           </div>
           <div class="tx-work-content" id="tx-work-content">${_txRenderWork()}</div>
@@ -59304,12 +59318,16 @@ function _txRenderWork() {
         <button class="tx-work-empty-btn" onclick="_txSetPanel('board')">${_TX_ICO.board}<span>Abrir um Board</span></button>
         <button class="tx-work-empty-btn" onclick="_txSetPanel('lab')">${_TX_ICO.lab}<span>Abrir um Lab</span></button>
         <button class="tx-work-empty-btn" onclick="_txSetPanel('okrs')">${_TX_ICO.okrs}<span>Abrir OKRs</span></button>
+        <button class="tx-work-empty-btn" onclick="_txSetPanel('synconnect')">${_TX_ICO.synconnect}<span>Abrir Synconnect</span></button>
+        <button class="tx-work-empty-btn" onclick="_txSetPanel('bunko')">${_TX_ICO.bunko}<span>Abrir Bunko Box</span></button>
       </div>
     </div>`;
   }
-  if (ext.panelMode === 'board') return _txRenderBoardPanel();
-  if (ext.panelMode === 'lab')   return _txRenderLabPanel();
-  if (ext.panelMode === 'okrs')  return _txRenderOkrsPanel();
+  if (ext.panelMode === 'board')      return _txRenderBoardPanel();
+  if (ext.panelMode === 'lab')        return _txRenderLabPanel();
+  if (ext.panelMode === 'okrs')       return _txRenderOkrsPanel();
+  if (ext.panelMode === 'synconnect') return _txRenderSynconnectPanel();
+  if (ext.panelMode === 'bunko')      return _txRenderBunkoPanel();
   return '';
 }
 
@@ -59322,6 +59340,30 @@ function _txRenderOkrsPanel() {
       <div class="tx-embed-title">${_TX_ICO.okrs} OKRs <span style="font-size:11px;font-weight:400;color:var(--tatami-ink-soft);font-style:italic;margin-left:6px;">· objetivos e key-results</span></div>
     </div>
     <div id="tx-okrs-mount" class="tx-embed-mount"></div>
+  </div>`;
+}
+
+function _txRenderSynconnectPanel() {
+  const ext = _chatState.extended;
+  if (!ext) return '';
+  setTimeout(() => _txMountSynconnectEmbed(), 0);
+  return `<div class="tx-embed tx-embed-live">
+    <div class="tx-embed-h">
+      <div class="tx-embed-title">${_TX_ICO.synconnect} Synconnect <span style="font-size:11px;font-weight:400;color:var(--tatami-ink-soft);font-style:italic;margin-left:6px;">· CRM</span></div>
+    </div>
+    <div id="tx-synconnect-mount" class="tx-embed-mount"></div>
+  </div>`;
+}
+
+function _txRenderBunkoPanel() {
+  const ext = _chatState.extended;
+  if (!ext) return '';
+  setTimeout(() => _txMountBunkoEmbed(), 0);
+  return `<div class="tx-embed tx-embed-live">
+    <div class="tx-embed-h">
+      <div class="tx-embed-title">${_TX_ICO.bunko} Bunko Box <span style="font-size:11px;font-weight:400;color:var(--tatami-ink-soft);font-style:italic;margin-left:6px;">· conhecimento e pergaminhos</span></div>
+    </div>
+    <div id="tx-bunko-mount" class="tx-embed-mount"></div>
   </div>`;
 }
 
@@ -59408,6 +59450,7 @@ const _TX_VIEW_DEFAULTS = {
   'view-okrs':     '<div id="okrs-root"></div>',
   'view-registry': '<div id="registry-root"></div>',
   'view-chat':     '<div id="chat-root"></div>',
+  'view-bunko':    '<div id="bunko-root"></div>',
 };
 function _txEnsureView(viewId) {
   let view = document.getElementById(viewId);
@@ -59540,6 +59583,7 @@ function _txMountLabEmbed(labId) {
   _txUnmountOkrsEmbedOnly();
   _txUnmountSynconnectEmbedOnly();
   _txUnmountChatEmbedOnly();
+  _txUnmountBunkoEmbedOnly();
   // Aponta pro lab escolhido
   if (typeof _currentCanvasId !== 'undefined') _currentCanvasId = labId;
   if (typeof _canvasView !== 'undefined') _canvasView = 'editor';
@@ -59606,6 +59650,7 @@ function _txMountOkrsEmbed() {
   _txUnmountLabEmbedOnly();
   _txUnmountSynconnectEmbedOnly();
   _txUnmountChatEmbedOnly();
+  _txUnmountBunkoEmbedOnly();
   if (view.parentNode !== mount) mount.appendChild(view);
   view.style.display = '';
   if (typeof renderOKRs === 'function') { try { renderOKRs(); } catch(e){} }
@@ -59641,6 +59686,7 @@ function _txMountSynconnectEmbed() {
   _txUnmountLabEmbedOnly();
   _txUnmountOkrsEmbedOnly();
   _txUnmountChatEmbedOnly();
+  _txUnmountBunkoEmbedOnly();
   if (view.parentNode !== mount) mount.appendChild(view);
   view.style.display = '';
   if (typeof renderRegistry === 'function') { try { renderRegistry(); } catch(e){} }
@@ -59692,12 +59738,53 @@ function _txUnmountChatEmbedOnly() {
   }
 }
 
+// ── Bunko Box (view-bunko) ──
+function _txMountBunkoEmbed() {
+  console.log('🎬 [tx-share] mount bunko iniciado');
+  const mount = document.getElementById('tx-bunko-mount');
+  if (!mount) { console.warn('🎬 [tx-share] tx-bunko-mount não existe'); return; }
+  _txViewHome();
+  const view = _txEnsureView('view-bunko');
+  if (!view) {
+    console.warn('🎬 [tx-share] view-bunko ausente e recriação falhou');
+    mount.innerHTML = `<div style="padding:40px;text-align:center;color:var(--tatami-ink-soft,#5C4F3F);font-style:italic;">
+      ⚠️ Não foi possível carregar o Bunko Box.<br/>
+      <small>Tente fechar e abrir o tatame de novo.</small>
+    </div>`;
+    return;
+  }
+  _txUnmountBoardEmbedOnly();
+  _txUnmountLabEmbedOnly();
+  _txUnmountOkrsEmbedOnly();
+  _txUnmountSynconnectEmbedOnly();
+  _txUnmountChatEmbedOnly();
+  _txUnmountBunkoEmbedOnly();
+  if (view.parentNode !== mount) mount.appendChild(view);
+  view.style.display = '';
+  // Tenta repovoar usando o render principal do Bunko. Nomes possíveis variam
+  // entre versões — tenta os mais comuns.
+  const renderFn = (typeof renderBunko === 'function') ? renderBunko
+                 : (typeof _renderBunko === 'function') ? _renderBunko
+                 : (typeof renderBunkoBox === 'function') ? renderBunkoBox
+                 : null;
+  if (renderFn) { try { renderFn(); } catch(e) { console.warn('🎬 [tx-share] render bunko:', e); } }
+}
+
+function _txUnmountBunkoEmbedOnly() {
+  _txRestoreViewHome('view-bunko');
+  const view = document.getElementById('view-bunko');
+  if (view) {
+    view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'bunko') ? '' : 'none';
+  }
+}
+
 function _txUnmountEmbed() {
   _txUnmountBoardEmbedOnly();
   _txUnmountLabEmbedOnly();
   _txUnmountOkrsEmbedOnly();
   _txUnmountSynconnectEmbedOnly();
   _txUnmountChatEmbedOnly();
+  _txUnmountBunkoEmbedOnly();
 }
 
 // ── Board legacy (drag-drop custom) — mantido pra fallback caso algo dê erro no mount ──
