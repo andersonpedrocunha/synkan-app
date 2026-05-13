@@ -35799,31 +35799,78 @@ async function renderPeople() {
 async function _peopleLoadAll() {
   const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
   if (!c) { console.warn('[people] sem cliente Supabase'); return; }
-  const isLoggedIn = typeof supaUser !== 'undefined' && supaUser;
   const t0 = Date.now();
-  console.log('[people] _peopleLoadAll start');
-  const tasks = [
-    c.rpc('people_dashboard').then(r => {
-      console.log(`[people] dashboard ← ${Date.now()-t0}ms`, r.error ? '❌ '+r.error.message : '✓', r.data);
-      if (!r.error && r.data) _peopleState.dashboard = r.data;
-    }, e => console.warn('[people] dashboard rejected:', e?.message)),
-    c.from('people_trail_templates')
-      .select('id, workspace_owner, role, name, description, steps, is_public')
-      .order('role')
-      .then(r => {
-        console.log(`[people] templates ← ${Date.now()-t0}ms`, r.error ? '❌ '+r.error.message : `✓ ${r.data?.length||0} rows`);
-        if (!r.error && Array.isArray(r.data)) _peopleState.templates = r.data;
-      }, e => console.warn('[people] templates rejected:', e?.message)),
-    isLoggedIn
-      ? c.from('people').select('*').eq('user_id', supaUser.id).is('deleted_at', null)
-          .order('start_date', { ascending: false }).limit(1).maybeSingle()
-          .then(r => {
-            console.log(`[people] myAprendiz ← ${Date.now()-t0}ms`, r.error ? '❌ '+r.error.message : (r.data ? '✓ encontrei' : 'não é aprendiz'));
-            _peopleState.myAprendiz = r.data || null;
-          }, e => console.warn('[people] myAprendiz rejected:', e?.message))
-      : Promise.resolve(),
-  ];
-  await Promise.all(tasks);
+  console.log('[people] _peopleLoadAll start (raw fetch)');
+
+  // Pega o JWT direto via SDK (não falha porque é uma operação síncrona local
+  // depois da auth). Se não tiver session, sai cedo.
+  let session = null;
+  try { session = (await c.auth.getSession()).data?.session; } catch(_){}
+  if (!session) { console.warn('[people] sem session — aborta'); return; }
+
+  // Helper: fetch direto na REST API com timeout firme. Bypassa o builder
+  // do supabase-js, que tava ficando preso sem resolver mesmo com Pro plan.
+  const apiFetch = async (path, label) => {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 10000);
+    const t = Date.now();
+    try {
+      const r = await fetch(`${c.supabaseUrl}/rest/v1/${path}`, {
+        signal: ctrl.signal,
+        headers: {
+          'apikey': c.supabaseKey,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
+      });
+      const body = await r.json();
+      console.log(`[people] ${label} ← ${Date.now()-t}ms · ${r.status}`, Array.isArray(body) ? `${body.length} rows` : body);
+      return r.ok ? body : null;
+    } catch(e) {
+      console.warn(`[people] ${label} ❌ ${Date.now()-t}ms:`, e?.message);
+      return null;
+    } finally { clearTimeout(tid); }
+  };
+
+  // RPC via POST direto
+  const callRpc = async (fn, label) => {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 10000);
+    const t = Date.now();
+    try {
+      const r = await fetch(`${c.supabaseUrl}/rest/v1/rpc/${fn}`, {
+        method: 'POST',
+        signal: ctrl.signal,
+        headers: {
+          'apikey': c.supabaseKey,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: '{}'
+      });
+      const body = await r.json();
+      console.log(`[people] ${label} ← ${Date.now()-t}ms · ${r.status}`, body && typeof body === 'object' ? Object.keys(body).join(',') : body);
+      return r.ok ? body : null;
+    } catch(e) {
+      console.warn(`[people] ${label} ❌ ${Date.now()-t}ms:`, e?.message);
+      return null;
+    } finally { clearTimeout(tid); }
+  };
+
+  const uid = session.user.id;
+  const [dashboard, templates, myArr] = await Promise.all([
+    callRpc('people_dashboard', 'dashboard'),
+    apiFetch('people_trail_templates?select=id,workspace_owner,role,name,description,steps,is_public&order=role', 'templates'),
+    apiFetch(`people?select=*&user_id=eq.${uid}&deleted_at=is.null&order=start_date.desc&limit=1`, 'myAprendiz'),
+  ]);
+
+  if (dashboard) _peopleState.dashboard = dashboard;
+  if (Array.isArray(templates)) _peopleState.templates = templates;
+  if (Array.isArray(myArr) && myArr.length > 0) _peopleState.myAprendiz = myArr[0];
+  else _peopleState.myAprendiz = null;
+
   console.log(`[people] _peopleLoadAll done · ${Date.now()-t0}ms total`);
 }
 
@@ -35986,7 +36033,7 @@ function _peopleRenderMain() {
       <div class="ppl-head">
         <div>
           <div class="ppl-title">People <span class="ppl-title-badge">道</span></div>
-          <div class="ppl-sub">da lua nova à lua cheia — 90 dias de jornada.</div>
+          <div class="ppl-sub">da lua nova à lua cheia — onboarding personalizado.</div>
         </div>
         <div class="ppl-actions">
           ${myCardHTML}
@@ -36267,7 +36314,7 @@ function _peopleOpenCreateModal() {
         <form id="ppl-create-form" class="ppl-modal-form" onsubmit="event.preventDefault();_peopleSubmitCreate();">
           <div class="ppl-modal-row">
             <label class="ppl-modal-label">Nome completo *</label>
-            <input class="ppl-modal-input" name="name" required placeholder="Nome do novo colaborador" autocomplete="off"/>
+            <input class="ppl-modal-input" name="name" required placeholder="Nome completo da pessoa" autocomplete="off"/>
           </div>
           <div class="ppl-modal-row cols">
             <div class="ppl-modal-row" style="margin:0;">
