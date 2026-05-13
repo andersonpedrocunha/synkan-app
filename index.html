@@ -34507,6 +34507,7 @@ function _genRegId(prefix) { return prefix + '_' + Date.now().toString(36) + Mat
 let _synDeals      = [];
 let _synStages     = [];
 let _synActivities = [];   // todas do user; filtra por contact_id/deal_id na UI
+let _synSellers    = [];   // vendedores/representantes (interno + externo)
 let _synCloudReady = false;
 let _synCloudLoadPromise = null;
 
@@ -34553,22 +34554,29 @@ async function _synInitCloud(opts) {
         c.from('synconnect_contacts').select('*').order('updated_at', { ascending: false }),
         c.from('synconnect_deals').select('*').order('updated_at', { ascending: false }),
         c.from('synconnect_activities').select('*').order('occurred_at', { ascending: false }).limit(500),
+        // Vendedores — pode falhar 42P01 se migration ainda não foi rodada (fail-soft)
+        c.from('synconnect_sellers').select('*').eq('active', true).order('name'),
       ]);
-      let stagesR, contactsR, dealsR, actsR;
+      let stagesR, contactsR, dealsR, actsR, sellersR;
       try {
-        [stagesR, contactsR, dealsR, actsR] = await loadAll();
+        [stagesR, contactsR, dealsR, actsR, sellersR] = await loadAll();
         // Supabase às vezes retorna erro no objeto sem throw — detecta aqui
         const firstJwtErr = [stagesR, contactsR, dealsR, actsR].find(r => r?.error && (typeof _supaIsJwtError === 'function') && _supaIsJwtError(r.error));
         if (firstJwtErr && typeof _supaTryRefresh === 'function') {
           const ok = await _supaTryRefresh();
-          if (ok) [stagesR, contactsR, dealsR, actsR] = await loadAll();
+          if (ok) [stagesR, contactsR, dealsR, actsR, sellersR] = await loadAll();
         }
       } catch(loadErr) {
         if (typeof _supaIsJwtError === 'function' && _supaIsJwtError(loadErr) && typeof _supaTryRefresh === 'function') {
           const ok = await _supaTryRefresh();
-          if (ok) [stagesR, contactsR, dealsR, actsR] = await loadAll();
+          if (ok) [stagesR, contactsR, dealsR, actsR, sellersR] = await loadAll();
           else throw loadErr;
         } else { throw loadErr; }
+      }
+      // Vendedores são opcionais — se a migration não foi rodada, ignora silenciosamente
+      if (sellersR?.data) _synSellers = sellersR.data;
+      else if (sellersR?.error && !/relation .* does not exist/i.test(sellersR.error.message || '')) {
+        console.warn('[syn] sellers load:', sellersR.error.message);
       }
       if (stagesR.data)  _synStages     = stagesR.data;
       if (dealsR.data)   _synDeals      = dealsR.data;
@@ -34683,6 +34691,9 @@ async function _synSaveDeal(deal) {
       notes:             deal.notes || null,
       tags:              deal.tags || [],
     };
+    // Vendedores — só envia se o feature está habilitado (migration rodada)
+    if (deal.primary_seller_id !== undefined) payload.primary_seller_id = deal.primary_seller_id || null;
+    if (deal.commission_splits !== undefined) payload.commission_splits = deal.commission_splits || [];
     let result;
     if (deal.id) {
       result = await c.from('synconnect_deals').update(payload).eq('id', deal.id).select().single();
@@ -35080,6 +35091,165 @@ async function _synShowDuplicateDialog(newPayload, dupContact, matchField) {
   });
 }
 
+// ── Vendedores / Representantes ─────────────────────────────────────
+async function _synLoadSellers() {
+  try {
+    const c = await _synGetClient(); if (!c) return;
+    const r = await c.from('synconnect_sellers').select('*').eq('active', true).order('name');
+    if (r.data) _synSellers = r.data;
+    else if (r.error && !/relation .* does not exist/i.test(r.error.message || '')) {
+      console.warn('[syn] sellers load:', r.error.message);
+    }
+  } catch(e) { console.warn('[syn] load sellers:', e?.message); }
+}
+
+// Cria/atualiza vendedor. Se id é null, cria. Retorna o seller resultante.
+async function _synSaveSeller(seller) {
+  const c = await _synGetClient(); if (!c) return null;
+  const { data: { user } } = await c.auth.getUser(); if (!user) return null;
+  const payload = {
+    user_id:                user.id,
+    name:                   (seller.name || '').trim(),
+    email:                  (seller.email || '').trim() || null,
+    phone:                  (seller.phone || '').trim() || null,
+    type:                   seller.type || 'external',
+    linked_user_id:         seller.linked_user_id || null,
+    default_commission_pct: seller.default_commission_pct ?? null,
+    notes:                  seller.notes || null,
+    active:                 seller.active !== false,
+  };
+  if (!payload.name) return null;
+  try {
+    let result;
+    if (seller.id) {
+      result = await c.from('synconnect_sellers').update(payload).eq('id', seller.id).select().single();
+    } else {
+      result = await c.from('synconnect_sellers').insert(payload).select().single();
+    }
+    if (result.error) { console.warn('[syn] save seller:', result.error.message); return null; }
+    // Atualiza cache
+    const idx = _synSellers.findIndex(s => s.id === result.data.id);
+    if (idx >= 0) _synSellers[idx] = result.data;
+    else _synSellers.push(result.data);
+    return result.data;
+  } catch(e) { console.warn('[syn] save seller exception:', e?.message); return null; }
+}
+
+function _synSellerById(id) { return _synSellers.find(s => s.id === id) || null; }
+
+// Constrói as <option> do dropdown de vendedor (com "+ Novo" no fim)
+function _synBuildSellerOptions(selectedId) {
+  const opts = [`<option value="">— sem vendedor —</option>`];
+  const internal = _synSellers.filter(s => s.type === 'internal');
+  const external = _synSellers.filter(s => s.type === 'external');
+  if (internal.length) {
+    opts.push('<optgroup label="Membros do workspace">');
+    internal.forEach(s => opts.push(`<option value="${_esc(s.id)}" ${s.id === selectedId ? 'selected' : ''}>👤 ${_esc(s.name)}</option>`));
+    opts.push('</optgroup>');
+  }
+  if (external.length) {
+    opts.push('<optgroup label="Vendedores externos">');
+    external.forEach(s => opts.push(`<option value="${_esc(s.id)}" ${s.id === selectedId ? 'selected' : ''}>🤝 ${_esc(s.name)}</option>`));
+    opts.push('</optgroup>');
+  }
+  opts.push(`<option value="__new__" style="font-weight:600;color:#3B6D11;">+ Cadastrar novo vendedor…</option>`);
+  return opts.join('');
+}
+
+// Estado dos splits no modal atual (não persiste até salvar o deal)
+let _synEditingSplits = [];
+
+// Renderiza os rows de split de comissão
+function _synRenderCommissionSplits() {
+  const el = document.getElementById('syn-d-commission-splits');
+  const wrap = document.getElementById('syn-d-commission-wrap');
+  const balance = document.getElementById('syn-d-commission-balance');
+  if (!el || !wrap) return;
+  const primaryId = document.getElementById('syn-d-seller')?.value || '';
+  // Esconde se não tem vendedor principal
+  if (!primaryId && _synEditingSplits.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  el.innerHTML = _synEditingSplits.map((sp, i) => {
+    const seller = _synSellerById(sp.seller_id);
+    return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+      <select onchange="_synEditingSplits[${i}].seller_id=this.value;_synRenderCommissionSplits();" style="flex:1;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;background:var(--color-background-primary);">
+        <option value="">— escolha vendedor —</option>
+        ${_synSellers.filter(s => s.id !== primaryId).map(s => `<option value="${_esc(s.id)}" ${s.id === sp.seller_id ? 'selected' : ''}>${s.type==='internal'?'👤':'🤝'} ${_esc(s.name)}</option>`).join('')}
+      </select>
+      <input type="number" min="0" max="100" step="0.5" value="${sp.pct}" onchange="_synEditingSplits[${i}].pct=parseFloat(this.value)||0;_synRenderCommissionSplits();" style="width:72px;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:5px 8px;font-size:12px;font-variant-numeric:tabular-nums;text-align:right;font-family:inherit;"/>
+      <span style="font-size:11px;color:var(--color-text-tertiary);">%</span>
+      <button type="button" onclick="_synEditingSplits.splice(${i},1);_synRenderCommissionSplits();" style="background:transparent;border:none;color:#BC002D;cursor:pointer;font-size:14px;padding:2px 6px;" title="Remover">×</button>
+    </div>`;
+  }).join('');
+  const totalSplit = _synEditingSplits.reduce((s, sp) => s + (parseFloat(sp.pct) || 0), 0);
+  const primaryShare = Math.max(0, 100 - totalSplit);
+  const primaryName = primaryId ? (_synSellerById(primaryId)?.name || 'principal') : '—';
+  const overflow = totalSplit > 100;
+  balance.innerHTML = overflow
+    ? `<strong style="color:#BC002D;">⚠ Total ${totalSplit.toFixed(1)}% &gt; 100%</strong> — ajuste pra não ultrapassar.`
+    : `<strong>${primaryShare.toFixed(1)}%</strong> pro vendedor principal (${_esc(primaryName)}) · <strong>${totalSplit.toFixed(1)}%</strong> dividido${_synEditingSplits.length > 1 ? 's' : ''}`;
+}
+
+// Adiciona um row vazio de split
+function _synAddCommissionSplit() {
+  _synEditingSplits.push({ seller_id: '', pct: 0 });
+  _synRenderCommissionSplits();
+}
+
+// Modal de cadastro/edição de vendedor — usado tanto pelo deal modal quanto
+// pela tela "Vendedores" no dashboard.
+function _synOpenSellerModal(sellerId, onSaved) {
+  const existing = sellerId ? _synSellerById(sellerId) : null;
+  const isEdit = !!existing;
+  let ov = document.getElementById('syn-seller-modal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'syn-seller-modal';
+    ov.className = 'rg-modal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:9700;';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div style="background:var(--color-background-primary);border-radius:12px;padding:22px 26px;max-width:460px;width:92%;max-height:88vh;overflow:auto;box-shadow:0 16px 48px rgba(0,0,0,.30);font-family:var(--font-sans);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h3 style="margin:0;font-size:18px;color:var(--color-text-primary);">${isEdit ? '✎ Editar' : '+ Novo'} vendedor</h3>
+        <button onclick="document.getElementById('syn-seller-modal').style.display='none';" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Nome*<input id="ssm-name" type="text" value="${_esc(existing?.name||'')}" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;"/></label>
+        <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">E-mail<input id="ssm-email" type="email" value="${_esc(existing?.email||'')}" placeholder="opcional" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;"/></label>
+        <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Telefone<input id="ssm-phone" type="tel" value="${_esc(existing?.phone||'')}" placeholder="opcional" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;"/></label>
+        <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">% comissão padrão<input id="ssm-pct" type="number" min="0" max="100" step="0.5" value="${existing?.default_commission_pct ?? ''}" placeholder="opcional · ex: 10" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;"/></label>
+        <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Notas<textarea id="ssm-notes" rows="2" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13px;font-family:inherit;resize:vertical;">${_esc(existing?.notes||'')}</textarea></label>
+        ${isEdit ? `<div style="font-size:11px;color:var(--color-text-tertiary);padding:6px 8px;background:var(--color-background-secondary);border-radius:6px;">Tipo: <strong>${existing.type === 'internal' ? '👤 interno (membro do workspace)' : '🤝 externo (representante)'}</strong></div>` : `<div style="font-size:11px;color:var(--color-text-tertiary);padding:6px 8px;background:var(--color-background-secondary);border-radius:6px;">Tipo: <strong>🤝 externo</strong> · pra vincular um membro do workspace, use o picker do deal.</div>`}
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
+        ${isEdit ? `<button onclick="(async()=>{if(confirm('Desativar este vendedor? (não exclui histórico)')){await _synSaveSeller({id:'${existing.id}',active:false});document.getElementById('syn-seller-modal').style.display='none';if(typeof renderRegistry==='function')renderRegistry();}})()" style="margin-right:auto;background:transparent;border:1px solid #BC002D;color:#BC002D;padding:7px 14px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">Desativar</button>` : ''}
+        <button onclick="document.getElementById('syn-seller-modal').style.display='none';" style="background:transparent;border:1px solid var(--color-border-secondary);color:var(--color-text-secondary);padding:7px 14px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">Cancelar</button>
+        <button id="ssm-save" style="background:#111;color:#fff;border:none;padding:7px 16px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">${isEdit ? 'Salvar' : 'Cadastrar'}</button>
+      </div>
+    </div>
+  `;
+  ov.style.display = 'flex';
+  document.getElementById('ssm-save').onclick = async () => {
+    const name = document.getElementById('ssm-name').value.trim();
+    if (!name) { alert('Nome é obrigatório.'); return; }
+    const payload = {
+      id: existing?.id,
+      name,
+      email: document.getElementById('ssm-email').value,
+      phone: document.getElementById('ssm-phone').value,
+      type: existing?.type || 'external',
+      linked_user_id: existing?.linked_user_id || null,
+      default_commission_pct: parseFloat(document.getElementById('ssm-pct').value) || null,
+      notes: document.getElementById('ssm-notes').value,
+    };
+    const saved = await _synSaveSeller(payload);
+    ov.style.display = 'none';
+    if (saved && typeof onSaved === 'function') onSaved(saved);
+  };
+}
+
 // ── #10 Templates de deal ───────────────────────────────────────────
 let _synTemplates = [];
 async function _synLoadTemplates() {
@@ -35368,12 +35538,20 @@ async function renderAnalyticsTab() {
   }
   const c = await _synGetClient();
   if (!c) { body.innerHTML = `<div class="reg-empty"><strong>Cloud não disponível</strong>Conecte ao Supabase pra ver análise.</div>`; return; }
-  const [vel, wr, fc, ch, ag] = await Promise.all([
+  // Calcula days do período filtrado pra passar pra RPC de vendedores
+  const _periodDays = _synAnalyticsPeriod === '7d' ? 7
+                    : _synAnalyticsPeriod === '30d' ? 30
+                    : _synAnalyticsPeriod === '90d' ? 90
+                    : _synAnalyticsPeriod === 'all' ? 3650 // ~10 anos
+                    : 90;
+  const [vel, wr, fc, ch, ag, sellersAnal] = await Promise.all([
     c.rpc('synconnect_analytics_velocity').then(r => r.data || []).catch(()=>[]),
     c.rpc('synconnect_analytics_winrate').then(r => r.data || []).catch(()=>[]),
     c.rpc('synconnect_analytics_forecast').then(r => r.data || []).catch(()=>[]),
     c.rpc('synconnect_analytics_capture_cohort').then(r => r.data || []).catch(()=>[]),
     c.rpc('synconnect_analytics_aging').then(r => r.data || []).catch(()=>[]),
+    // Sellers analytics — fail-soft se a migration ainda não foi rodada
+    c.rpc('synconnect_sellers_analytics', { p_period_days: _periodDays }).then(r => r.data || []).catch(()=>[]),
   ]);
   // KPIs computados client-side com filtro de período
   const filteredDeals = (_synDeals || []).filter(_synPeriodFilterDeal);
@@ -35544,8 +35722,81 @@ async function renderAnalyticsTab() {
         <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 14px;">Volume em cada estágio do seu pipeline (largura = quantidade de deals)</p>
         ${_synFunnelSVG() || '<div style="padding:18px;text-align:center;color:var(--color-text-tertiary);font-size:12.5px;font-style:italic;">Crie deals em estágios diferentes pra ver o funil.</div>'}
       </div>
+
+      <!-- ── Vendedores · ranking + win rate ───────────────────────── -->
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:18px;grid-column:1 / -1;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <h3 style="font-size:14px;font-weight:600;margin:0;">👥 Vendedores · ranking ${_periodDays === 3650 ? 'desde sempre' : `(${_periodDays}d)`}</h3>
+          <button class="syn-btn-secondary" style="font-size:11px;padding:4px 9px;" onclick="_synOpenSellerModal(null, (s)=>{ if(s) renderAnalyticsTab(); })">+ Cadastrar vendedor</button>
+        </div>
+        <p style="font-size:11.5px;color:var(--color-text-tertiary);margin:0 0 14px;">Performance por representante (principal do deal). Externos e internos juntos.</p>
+        ${_synRenderSellersAnalytics(sellersAnal || [])}
+      </div>
     </div>
   `;
+}
+
+// Renderiza a tabela de ranking de vendedores
+function _synRenderSellersAnalytics(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return `<div style="padding:24px;text-align:center;color:var(--color-text-tertiary);font-size:12.5px;font-style:italic;">
+      Nenhum vendedor cadastrado ainda.<br/>
+      Cadastre vendedores e vincule a deals pra ver ranking de performance aqui.
+    </div>`;
+  }
+  // Ordena por valor fechado decrescente (RPC já faz, mas garante)
+  const sorted = rows.slice().sort((a,b) => (b.won_value_cents||0) - (a.won_value_cents||0));
+  const maxWon = Math.max(1, ...sorted.map(r => r.won_value_cents || 0));
+  return `
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+      <thead>
+        <tr style="border-bottom:0.5px solid var(--color-border-tertiary);">
+          <th style="text-align:left;padding:8px 10px;font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">#</th>
+          <th style="text-align:left;padding:8px 10px;font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">Vendedor</th>
+          <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:500;color:#27500A;text-transform:uppercase;letter-spacing:.04em;">Ganhos R$</th>
+          <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">Ganhos #</th>
+          <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:500;color:#791F1F;text-transform:uppercase;letter-spacing:.04em;">Perdidos</th>
+          <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">Win %</th>
+          <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:500;color:#3C3489;text-transform:uppercase;letter-spacing:.04em;">Em aberto</th>
+          <th style="padding:8px 10px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map((r, i) => {
+          const won = parseInt(r.won_value_cents || 0, 10);
+          const open = parseInt(r.open_value_cents || 0, 10);
+          const winPct = r.win_rate;
+          const barWidth = Math.max(2, Math.round(won / maxWon * 100));
+          const winColor = winPct === null ? 'var(--color-text-tertiary)'
+                          : winPct >= 50 ? '#3B6D11'
+                          : winPct >= 25 ? '#854F0B'
+                          : '#A32D2D';
+          const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:var(--color-text-tertiary);">${i+1}</span>`;
+          const typeIco = r.type === 'internal' ? '<span title="Membro do workspace">👤</span>' : '<span title="Vendedor externo">🤝</span>';
+          return `<tr style="border-bottom:0.5px solid var(--color-border-tertiary);">
+            <td style="padding:9px 10px;font-size:14px;">${medal}</td>
+            <td style="padding:9px 10px;">
+              <div style="display:flex;align-items:center;gap:8px;">${typeIco}<strong>${_esc(r.name)}</strong></div>
+              ${r.email ? `<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;margin-left:24px;">${_esc(r.email)}</div>` : ''}
+            </td>
+            <td style="padding:9px 10px;text-align:right;font-variant-numeric:tabular-nums;color:#3B6D11;font-weight:600;">
+              ${_synFmtMoney(won)}
+              <div style="margin-top:4px;background:var(--color-background-secondary);height:4px;border-radius:2px;overflow:hidden;width:100px;margin-left:auto;"><div style="background:#3B6D11;height:100%;width:${barWidth}%;"></div></div>
+            </td>
+            <td style="padding:9px 10px;text-align:right;font-variant-numeric:tabular-nums;">${r.won_count || 0}</td>
+            <td style="padding:9px 10px;text-align:right;font-variant-numeric:tabular-nums;color:#A32D2D;">${r.lost_count || 0}</td>
+            <td style="padding:9px 10px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:${winColor};">${winPct === null ? '—' : winPct + '%'}</td>
+            <td style="padding:9px 10px;text-align:right;font-variant-numeric:tabular-nums;color:#3C3489;">
+              ${_synFmtMoney(open)}
+              <div style="font-size:10.5px;color:var(--color-text-tertiary);">${r.open_count || 0} deal${r.open_count==1?'':'s'}</div>
+            </td>
+            <td style="padding:9px 10px;text-align:right;">
+              <button onclick="_synOpenSellerModal('${_esc(r.seller_id)}', ()=>renderAnalyticsTab())" title="Editar vendedor" style="background:transparent;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:14px;padding:2px 6px;">✎</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -36674,6 +36925,10 @@ async function _synOpenDealModal(dealId, presetStageId) {
   const contacts = _contacts.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
   const defaultStageId = deal?.stage_id || presetStageId || stages[0]?.id || '';
   const followLocal = deal?.follow_up_at ? new Date(deal.follow_up_at).toISOString().slice(0,16) : '';
+  // Inicializa splits a partir do deal (deep copy pra não mutar o cache)
+  _synEditingSplits = Array.isArray(deal?.commission_splits)
+    ? deal.commission_splits.map(s => ({ seller_id: s.seller_id, pct: parseFloat(s.pct) || 0 }))
+    : [];
   ov.innerHTML = `
     <div class="syn-modal" onclick="event.stopPropagation()">
       <div class="syn-modal-h">
@@ -36721,13 +36976,30 @@ async function _synOpenDealModal(dealId, presetStageId) {
         </div>
         <div class="syn-row">
           <div class="syn-field">
+            <label>Vendedor principal <span style="font-weight:400;color:var(--color-text-tertiary);font-size:11px;">· dono do deal</span></label>
+            <select id="syn-d-seller" onchange="if(this.value==='__new__'){_synOpenSellerModal(null,(s)=>{_synSellers.push(s);document.getElementById('syn-d-seller').innerHTML=_synBuildSellerOptions(s.id);document.getElementById('syn-d-seller').value=s.id;_synRenderCommissionSplits();});this.value='';}">
+              ${_synBuildSellerOptions(deal?.primary_seller_id)}
+            </select>
+          </div>
+          <div class="syn-field">
             <label>Fechamento previsto</label>
             <input id="syn-d-close" type="date" value="${deal?.expected_close_at || ''}" />
           </div>
-          <div class="syn-field">
+        </div>
+        <div class="syn-row">
+          <div class="syn-field" style="flex:1;">
             <label>Próximo follow-up</label>
             <input id="syn-d-followup" type="datetime-local" value="${_esc(followLocal)}" />
           </div>
+        </div>
+        <!-- Split de comissão (opcional) — só aparece se tem vendedor principal -->
+        <div id="syn-d-commission-wrap" style="display:${(deal?.primary_seller_id || (deal?.commission_splits||[]).length) ? 'block' : 'none'};margin-top:6px;padding:11px 13px;background:rgba(60,109,17,.04);border:0.5px dashed rgba(60,109,17,.30);border-radius:9px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">Split de comissão <span style="font-weight:400;opacity:.65;text-transform:none;letter-spacing:0;">· opcional</span></div>
+            <button type="button" class="syn-btn-secondary" style="font-size:11px;padding:4px 9px;" onclick="_synAddCommissionSplit()">+ Dividir comissão</button>
+          </div>
+          <div id="syn-d-commission-splits"></div>
+          <div id="syn-d-commission-balance" style="margin-top:6px;font-size:11.5px;color:var(--color-text-tertiary);"></div>
         </div>
         <div class="syn-field">
           <label>Notas</label>
@@ -36802,6 +37074,12 @@ async function _synOpenDealModal(dealId, presetStageId) {
     </div>`;
   ov.classList.add('is-open');
   ov.onclick = (e) => { if (e.target === ov) _synCloseDealModal(); };
+  // Inicializa o pintor de splits + listener pra esconder/mostrar baseado no vendedor principal
+  try { _synRenderCommissionSplits(); } catch(_){}
+  try {
+    const sellerSel = document.getElementById('syn-d-seller');
+    if (sellerSel) sellerSel.addEventListener('change', _synRenderCommissionSplits);
+  } catch(_){}
   if (isEdit) {
     _synRenderDealTimeline(deal.id);
     _synRenderDealContacts(deal.id);
@@ -37061,6 +37339,14 @@ async function _synSaveDealFromModal(dealId) {
   const valueStr = document.getElementById('syn-d-value').value.replace(',', '.');
   const probStr  = document.getElementById('syn-d-prob').value;
   const followLocal = document.getElementById('syn-d-followup').value;
+  // Valida splits — total não pode passar de 100%
+  const totalSplit = (_synEditingSplits || []).reduce((s, sp) => s + (parseFloat(sp.pct) || 0), 0);
+  if (totalSplit > 100) {
+    alert('A soma dos splits de comissão passou de 100%. Ajuste antes de salvar.');
+    return;
+  }
+  // Limpa splits sem seller_id (rows vazios)
+  const cleanSplits = (_synEditingSplits || []).filter(sp => sp.seller_id && parseFloat(sp.pct) > 0);
   const data = {
     id: dealId,
     title,
@@ -37068,6 +37354,8 @@ async function _synSaveDealFromModal(dealId) {
     probability: probStr === '' ? null : parseInt(probStr, 10),
     stage_id:    document.getElementById('syn-d-stage').value,
     contact_id:  document.getElementById('syn-d-contact').value || null,
+    primary_seller_id: document.getElementById('syn-d-seller')?.value || null,
+    commission_splits: cleanSplits,
     expected_close_at: document.getElementById('syn-d-close').value || null,
     follow_up_at: followLocal ? new Date(followLocal).toISOString() : null,
     notes: document.getElementById('syn-d-notes').value,
