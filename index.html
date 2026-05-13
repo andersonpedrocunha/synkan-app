@@ -523,6 +523,38 @@ body{font-family:var(--font-sans);background:var(--app-bg);color:var(--color-tex
 :root.dark .mk-section-sub{color:#B0A593;}
 :root.dark .mk-principles > div{background:rgba(245,232,200,.05);border-color:#5C4F3F;}
 
+/* ━━━━━━━━━━ DEDUPE BOARDS · consolidação de duplicados ━━━━━━━━━━ */
+.dedupe-ov{position:fixed;inset:0;background:rgba(20,16,12,0);backdrop-filter:blur(0);z-index:10005;padding:32px 16px;overflow-y:auto;transition:background .25s,backdrop-filter .25s;}
+.dedupe-ov.is-open{background:rgba(20,16,12,.78);backdrop-filter:blur(8px);}
+.dedupe-pane{position:relative;max-width:720px;width:100%;margin:0 auto;background:#fff;border:1px solid #B8A878;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5);transform:translateY(8px) scale(.98);opacity:0;transition:all .28s cubic-bezier(.2,.7,.2,1);}
+.dedupe-ov.is-open .dedupe-pane{transform:translateY(0) scale(1);opacity:1;}
+.dedupe-hero{padding:30px 36px 18px;background:linear-gradient(135deg,#F5C518 0%,#D4A40E 100%);color:#3A332C;}
+.dedupe-hero h1{font-family:'Noto Serif JP',serif;font-size:24px;font-weight:700;margin:0 0 8px;}
+.dedupe-hero p{font-size:13.5px;line-height:1.55;margin:6px 0;color:#3A332C;}
+.dedupe-warn{background:rgba(255,255,255,.40);padding:10px 14px;border-radius:8px;border-left:3px solid #8B6634;}
+.dedupe-body{padding:24px 36px;max-height:50vh;overflow-y:auto;}
+.dedupe-group{margin-bottom:24px;}
+.dedupe-group-h h3{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:600;margin:0 0 4px;color:#1A1611;}
+.dedupe-help{font-size:11.5px;color:var(--color-text-tertiary);font-style:italic;}
+.dedupe-rows{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+.dedupe-row{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border:1px solid var(--color-border-tertiary);border-radius:8px;cursor:pointer;transition:all .15s;background:var(--color-background-primary);}
+.dedupe-row:hover{border-color:#C19A3A;background:rgba(193,154,58,.04);}
+.dedupe-row.is-recommended{border-color:#C19A3A;border-width:2px;}
+.dedupe-row input[type="radio"]{margin-top:4px;cursor:pointer;accent-color:#BC002D;}
+.dedupe-row-body{flex:1;min-width:0;}
+.dedupe-row-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.dedupe-row-h strong{font-size:14px;color:var(--color-text-primary);}
+.dedupe-pill{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:rgba(193,154,58,.18);color:#5C0A0A;}
+.dedupe-pill.is-current{background:#BC002D;color:#fff;}
+.dedupe-pill.is-recommended{background:#27500A;color:#fff;}
+.dedupe-row-meta{font-size:11.5px;color:var(--color-text-secondary);line-height:1.5;}
+.dedupe-row-meta code{font-family:Menlo,monospace;background:var(--color-background-secondary);padding:1px 5px;border-radius:3px;font-size:10.5px;}
+.dedupe-foot{padding:14px 36px 24px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--color-border-tertiary);background:var(--color-background-secondary);}
+
+:root.dark .dedupe-pane{background:#1F1A14;color:#E8DDC4;border-color:#5C4F3F;}
+:root.dark .dedupe-row{background:rgba(245,232,200,.05);border-color:#5C4F3F;}
+:root.dark .dedupe-row:hover{background:rgba(245,232,200,.10);}
+
 /* ━━━━━━━━━━ GLOSSÁRIO · tooltip + página ━━━━━━━━━━ */
 /* Termo com glossário — underline pontilhada bem sutil, cursor de ajuda */
 .syn-gloss-term{border-bottom:1px dotted rgba(120,100,70,.4);cursor:help;text-decoration:none;transition:border-color .15s,background .15s;}
@@ -14856,6 +14888,26 @@ function _settingsContaSection() {
     </div>`;
     })()}
 
+    ${(() => {
+      // Mostra card de consolidação só se houver duplicados detectados
+      try {
+        const groups = (typeof _findDuplicateBoardGroups === 'function') ? _findDuplicateBoardGroups() : [];
+        if (!groups.length) return '';
+        const total = groups.reduce((acc, g) => acc + g.boards.length - 1, 0);
+        return `
+        <div class="settings-card" style="border-left:3px solid #F5C518;background:linear-gradient(180deg,rgba(245,197,24,.06),transparent 40%);">
+          <div class="settings-card-h">
+            <span class="settings-card-title">⚠ Boards duplicados detectados</span>
+            <span class="settings-status-pill" style="background:#F5C518;color:#3A332C;">${total} extra${total!==1?'s':''}</span>
+          </div>
+          <div class="settings-card-sub">Você tem <strong>${groups.length} grupo${groups.length!==1?'s':''}</strong> de boards com mesmo nome (provavelmente criados em race conditions). Consolide pra ter só um de cada — cards não são deletados, só boards extras ficam arquivados.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+            <button class="btn-s" onclick="openDedupeBoardsModal()">🔧 Consolidar duplicados…</button>
+          </div>
+        </div>`;
+      } catch(_) { return ''; }
+    })()}
+
     <div class="settings-card">
       <div class="settings-card-h">
         <span class="settings-card-title">LGPD &amp; meus dados</span>
@@ -23762,6 +23814,148 @@ function _mkDojoHTML() {
       <button class="mk-dojo-btn-primary" onclick="closeMestreKanDojo()">Voltar</button>
     </div>
   </div>`;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CONSOLIDAR BOARDS DUPLICADOS
+// ─────────────────────────────────────────────────────────────────────
+// Detecta grupos de boards com mesmo nome (caso típico: vários "Board principal"
+// criados durante race conditions no boot). Oferece ao user mesclar mantendo
+// um deles + arquivar os outros (não deleta — pode restaurar).
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function _findDuplicateBoardGroups() {
+  if (typeof allBoards !== 'object' || !allBoards) return [];
+  const byName = new Map();
+  Object.entries(allBoards).forEach(([id, b]) => {
+    if (id === 'unified' || !b || !b.name) return;
+    if (b.archived) return; // ignora arquivados
+    const key = (b.name || '').trim().toLowerCase();
+    if (!key) return;
+    if (!byName.has(key)) byName.set(key, []);
+    byName.get(key).push({ id, ...b });
+  });
+  const groups = [];
+  for (const [name, list] of byName.entries()) {
+    if (list.length > 1) groups.push({ name, boards: list });
+  }
+  return groups;
+}
+
+async function openDedupeBoardsModal() {
+  const groups = _findDuplicateBoardGroups();
+  if (groups.length === 0) {
+    if (typeof appAlert === 'function') {
+      appAlert('Sem duplicados', 'Você não tem boards com nomes duplicados. Tudo limpo.', { icon:'✓' });
+    }
+    return;
+  }
+  let ov = document.getElementById('dedupe-boards-ov');
+  if (ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'dedupe-boards-ov';
+  ov.className = 'dedupe-ov';
+  ov.innerHTML = _dedupeBoardsHTML(groups);
+  document.body.appendChild(ov);
+  requestAnimationFrame(() => ov.classList.add('is-open'));
+  ov.addEventListener('click', e => { if (e.target === ov) closeDedupeBoardsModal(); });
+}
+function closeDedupeBoardsModal() {
+  const ov = document.getElementById('dedupe-boards-ov');
+  if (!ov) return;
+  ov.classList.remove('is-open');
+  setTimeout(() => ov.remove(), 220);
+}
+function _dedupeBoardsHTML(groups) {
+  const sections = groups.map((g, gi) => {
+    // Ordena: mais atualizado primeiro
+    const sorted = [...g.boards].sort((a,b) => {
+      const ta = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const tb = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return tb - ta;
+    });
+    return `
+      <div class="dedupe-group" data-group="${gi}">
+        <div class="dedupe-group-h">
+          <h3>"${_esc(g.name)}" · ${sorted.length} boards</h3>
+          <span class="dedupe-help">Escolha qual <strong>manter</strong>. Os outros vão ser arquivados (recuperáveis em Lixeira).</span>
+        </div>
+        <div class="dedupe-rows">
+          ${sorted.map((b, bi) => {
+            const cardCount = (b.cards||[]).length;
+            const assignedCount = (b.cards||[]).filter(c => c.assignedUserId).length;
+            const isCurrent = b.id === currentBoardId;
+            return `
+              <label class="dedupe-row ${bi === 0 ? 'is-recommended' : ''}">
+                <input type="radio" name="keep-${gi}" value="${_esc(b.id)}" ${bi === 0 ? 'checked' : ''} />
+                <div class="dedupe-row-body">
+                  <div class="dedupe-row-h">
+                    <strong>${_esc(b.name)}</strong>
+                    ${isCurrent ? '<span class="dedupe-pill is-current">atual</span>' : ''}
+                    ${bi === 0 ? '<span class="dedupe-pill is-recommended">recomendado</span>' : ''}
+                  </div>
+                  <div class="dedupe-row-meta">
+                    ${cardCount} card${cardCount!==1?'s':''}
+                    ${assignedCount > 0 ? ` · <strong style="color:#27500A;">${assignedCount} atribuído${assignedCount!==1?'s':''} a alguém</strong>` : ''}
+                    · ID <code>${_esc(b.id.slice(0,14))}…</code>
+                    · atualizado ${b.updatedAt ? new Date(b.updatedAt).toLocaleDateString('pt-BR') : '—'}
+                  </div>
+                </div>
+              </label>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="dedupe-pane">
+      <button class="syn-gloss-close" onclick="closeDedupeBoardsModal()" aria-label="Fechar">✕</button>
+      <header class="dedupe-hero">
+        <h1>⚠ Boards duplicados detectados</h1>
+        <p>Você tem <strong>${groups.length} grupo${groups.length!==1?'s':''}</strong> de boards com mesmo nome. Isso provavelmente foi criado durante problemas de sincronização (race conditions no boot). Recomendo consolidar — mantenha um e arquive os outros.</p>
+        <p class="dedupe-warn">⚠ Cards <strong>não serão deletados</strong> — apenas os boards extras ficam arquivados (visíveis em <em>Boards arquivados</em>). Pode desarquivar a qualquer momento se quiser revisar.</p>
+      </header>
+      <div class="dedupe-body">
+        ${sections}
+      </div>
+      <footer class="dedupe-foot">
+        <button class="btn-c" onclick="closeDedupeBoardsModal()">Cancelar</button>
+        <button class="mk-dojo-btn-primary" onclick="_executeDedupeBoards()">Arquivar duplicados</button>
+      </footer>
+    </div>`;
+}
+async function _executeDedupeBoards() {
+  const ov = document.getElementById('dedupe-boards-ov');
+  if (!ov) return;
+  const groups = _findDuplicateBoardGroups();
+  const archived = [];
+  for (let gi = 0; gi < groups.length; gi++) {
+    const radio = ov.querySelector(`input[name="keep-${gi}"]:checked`);
+    if (!radio) continue;
+    const keepId = radio.value;
+    const toArchive = groups[gi].boards.filter(b => b.id !== keepId).map(b => b.id);
+    for (const bid of toArchive) {
+      if (allBoards[bid]) {
+        allBoards[bid].archived = true;
+        archived.push({ id: bid, name: allBoards[bid].name });
+        // Sync cloud
+        try {
+          const c = (typeof _getOrCreateIsolatedClient === 'function') ? await _getOrCreateIsolatedClient() : _ensureSupaClient();
+          if (c) await c.from('boards').update({ archived: true }).eq('id', bid);
+        } catch(e) { console.warn('[dedupe] cloud archive falhou:', e?.message); }
+      }
+    }
+  }
+  if (typeof saveData === 'function') saveData();
+  if (typeof renderBoardsList === 'function') renderBoardsList();
+  if (typeof renderHome === 'function') try { renderHome(); } catch(_){}
+  closeDedupeBoardsModal();
+  if (typeof appAlert === 'function') {
+    appAlert('Boards consolidados ✓',
+      `<strong>${archived.length} board${archived.length!==1?'s':''} arquivado${archived.length!==1?'s':''}.</strong><br/><br/>` +
+      archived.map(b => `• ${_esc(b.name)} <code style="font-size:11px;color:#999;">${b.id.slice(0,14)}…</code>`).join('<br/>') +
+      `<br/><br/>Os boards continuam acessíveis em <strong>Boards arquivados</strong> (engrenagem do Home) — não foram deletados.`,
+      { icon:'✓', html:true });
+  }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
