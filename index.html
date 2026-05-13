@@ -36887,7 +36887,7 @@ function _peopleOpenIntegrationsHelp() {
           </li>
           <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
             <span style="font-size:18px;flex-shrink:0;">💬</span>
-            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Chat</strong> — canal privado <code>#aprendiz-[nome]</code> criado automaticamente com a pessoa + sensei + padrinho. <strong style="color:#3B6D11;">✓ ativo</strong></div>
+            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Chat</strong> — canal workspace privado <code>#onboarding-[nome]</code> criado automaticamente com a pessoa + sensei + padrinho. <strong style="color:#3B6D11;">✓ ativo</strong></div>
           </li>
           <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
             <span style="font-size:18px;flex-shrink:0;">💚</span>
@@ -37089,24 +37089,30 @@ async function _peopleProvisionIntegrations(trailId, personName) {
     }
   } catch(e) { console.warn('[people] bunko folder ex:', e?.message); }
 
-  // 2) Canal de chat #aprendiz-[slug] (privado, type='custom')
+  // 2) Canal de chat workspace privado pro onboarding
+  // Usa RPC `create_chat_channel` (SECURITY DEFINER) — mesmo padrão que o
+  // resto do app usa. Type 'workspace' + is_private=true. Insert direto
+  // em chat_channels falha silenciosamente por CHECK constraint no type.
   try {
-    const channelName = `aprendiz-${slug}`.slice(0, 60);
+    const channelName = `onboarding-${slug}`.slice(0, 60);
     const exRes = await _peopleApi.get(`chat_channels?workspace_owner=eq.${supaUser.id}&name=eq.${encodeURIComponent(channelName)}&select=id&limit=1`);
     const existing = Array.isArray(exRes.data) ? exRes.data[0] : null;
     if (existing) {
       updates.channel_id = existing.id;
+      console.log('[people] channel já existia:', channelName);
     } else {
-      const { data: chData, error: chErr } = await _peopleApi.post('chat_channels', {
-        workspace_owner: supaUser.id,
-        type: 'custom',
-        name: channelName,
-        description: `Onboarding de ${personName} — sensei, padrinho e a pessoa conversam aqui.`,
-        created_by: supaUser.id,
+      const { data: newId, error: chErr } = await _peopleApi.rpc('create_chat_channel', {
+        p_type: 'workspace',
+        p_name: channelName,
+        p_is_private: true,
+        p_description: `Onboarding de ${personName} — pessoa + sensei + padrinho conversam aqui.`,
       });
-      const ch = Array.isArray(chData) ? chData[0] : chData;
-      if (!chErr && ch?.id) updates.channel_id = ch.id;
-      else if (chErr) console.warn('[people] channel falhou:', chErr.message);
+      if (!chErr && newId) {
+        updates.channel_id = (typeof newId === 'string') ? newId : (newId.id || newId);
+        console.log('[people] channel criado:', channelName, '→', updates.channel_id);
+      } else if (chErr) {
+        console.warn('[people] channel falhou:', chErr?.message || chErr);
+      }
     }
   } catch(e) { console.warn('[people] channel ex:', e?.message); }
 
@@ -37115,6 +37121,39 @@ async function _peopleProvisionIntegrations(trailId, personName) {
     try { await _peopleApi.patch(`people_trails?id=eq.${trailId}`, updates); }
     catch(e) { console.warn('[people] update trail integrations:', e?.message); }
   }
+  // 4) Força refresh da sidebar de canais pra mostrar o novo canal imediatamente
+  if (updates.channel_id) {
+    try {
+      if (typeof _chatLoadChannels === 'function') await _chatLoadChannels();
+      if (typeof _chatRenderSidebar === 'function') _chatRenderSidebar();
+      console.log('[people] sidebar de canais atualizada');
+    } catch(e) { console.warn('[people] refresh sidebar:', e?.message); }
+  }
+  return updates;
+}
+
+// Re-provisiona integrações pra uma pessoa que já existe (caso bunko/canal
+// não tenham sido criados na origem por algum motivo). Idempotente: se já
+// existir pasta ou canal com o nome esperado, reusa em vez de duplicar.
+async function _peopleReprovisionar(personId) {
+  const pRes = await _peopleApi.get(`people?id=eq.${personId}&select=name&limit=1`);
+  const person = Array.isArray(pRes.data) ? pRes.data[0] : null;
+  if (!person) return null;
+  const tRes = await _peopleApi.get(`people_trails?person_id=eq.${personId}&select=id&order=created_at.desc&limit=1`);
+  const trail = Array.isArray(tRes.data) ? tRes.data[0] : null;
+  if (!trail) {
+    if (typeof appAlert === 'function') appAlert('Sem trilha', 'Essa pessoa não tem trilha pra associar integrações.', { icon: '⚠️' });
+    return null;
+  }
+  const updates = await _peopleProvisionIntegrations(trail.id, person.name);
+  if (typeof appAlert === 'function') {
+    const ok = updates && Object.keys(updates).length > 0;
+    appAlert(ok ? 'Integrações OK ✓' : 'Nada criado', ok
+      ? `Pasta Bunko ${updates.bunko_folder_id?'criada':'já existia'} · Canal ${updates.channel_id?'criado':'já existia'}.`
+      : 'Pode ser problema de permissão ou as integrações já existem. Check o console.', { icon: '🔄' });
+  }
+  // Recarrega drawer
+  if (_peopleState.currentPersonId === personId) await _peopleOpenPersonDrawer(personId);
 }
 
 // ── Drawer com trilha completa da pessoa ────────────────────────────
@@ -37201,6 +37240,7 @@ function _peopleRenderDrawer(state, loading) {
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
           ${accountChip}
+          <button class="ppl-drawer-icon-btn" onclick="_peopleReprovisionar('${_esc(person.id)}')" title="Re-provisionar integrações (criar pasta no Bunko + canal de chat caso estejam faltando)">🔄</button>
           <button class="ppl-drawer-icon-btn" onclick="_peopleOpenTrailEditor('${_esc(trail?.id||'')}')" title="Configurar etapas da trilha (adicionar/remover/editar)">⚙</button>
           ${person.status === 'ativo' ? `<button class="ppl-drawer-icon-btn" style="border-color:rgba(188,0,45,.30);color:#9F0026;" onclick="_peopleOpenDesligarModal('${_esc(person.id)}', '${_esc(person.name)}')" title="Marcar como não-efetivada">🚪</button>` : ''}
           <button class="ppl-drawer-close" onclick="_peopleCloseDrawer()" title="Fechar">×</button>
