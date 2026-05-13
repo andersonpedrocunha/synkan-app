@@ -22028,7 +22028,7 @@ function _updateAuthPlanBanner() {
   if (!validPlans.includes(plan)) { banner.style.display = 'none'; return; }
   const planNames = { faixa_azul:'Faixa Azul', faixa_roxa:'Faixa Roxa', faixa_preta:'Faixa Preta' };
   const prices    = { faixa_branca:'Grátis', faixa_azul:'R$ 14,90/mês', faixa_roxa:'R$ 27,90/usuário/mês', faixa_preta:'R$ 62,90/usuário/mês' };
-  const annualP   = { faixa_azul:'R$ 161/ano (10% off)', faixa_roxa:'R$ 323/usuário/ano (10% off)', faixa_preta:'R$ 863/usuário/ano (10% off)' };
+  const annualP   = { faixa_azul:'R$ 160,92/ano (10% off)', faixa_roxa:'R$ 301,32/usuário/ano (10% off)', faixa_preta:'R$ 679,32/usuário/ano (10% off)' };
   const priceLabel = cycle === 'annual' ? annualP[plan] : prices[plan];
   banner.style.display = 'block';
   banner.innerHTML = `<strong>📦 Você escolheu ${planNames[plan]}</strong> · ${priceLabel}<br/>Faça login (ou crie conta) e seguimos pro pagamento.`;
