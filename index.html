@@ -59213,12 +59213,20 @@ function _txRenderBoardPanel() {
 // (drag-drop, modais, edição, render) continua funcionando porque é
 // o mesmo DOM e os mesmos handlers.
 function _txMountBoardEmbed(boardId) {
+  console.log('🎬 [tx-share] mount board iniciado:', boardId);
   const mount = document.getElementById('tx-board-mount');
-  if (!mount) return;
+  if (!mount) { console.warn('🎬 [tx-share] tx-board-mount não existe'); return; }
   const view = document.getElementById('view-kanban');
-  if (!view) return;
+  if (!view) {
+    console.warn('🎬 [tx-share] view-kanban não existe no DOM');
+    mount.innerHTML = `<div style="padding:40px;text-align:center;color:var(--tatami-ink-soft,#5C4F3F);font-style:italic;">
+      ⚠️ Não foi possível carregar a view do kanban.<br/>
+      <small>Tente fechar e abrir o tatame de novo.</small>
+    </div>`;
+    return;
+  }
   const ext = _chatState.extended;
-  if (!ext) return;
+  if (!ext) { console.warn('🎬 [tx-share] _chatState.extended ausente'); return; }
   // Remember original location SOMENTE na primeira vez
   if (!ext._kanbanOrig) {
     ext._kanbanOrig = {
@@ -59228,21 +59236,59 @@ function _txMountBoardEmbed(boardId) {
       origTab: (typeof currentTab !== 'undefined') ? currentTab : null,
       origDisplay: view.style.display,
     };
+    console.log('🎬 [tx-share] origem salva:', ext._kanbanOrig);
   }
   // Desmonta lab/okrs embed se houver
   _txUnmountLabEmbedOnly();
   _txUnmountOkrsEmbedOnly();
+
+  // Confere se o board existe nos dados carregados
+  const boardExists = (typeof allBoards !== 'undefined' && allBoards && allBoards[boardId]);
+  console.log('🎬 [tx-share] board existe em allBoards?', boardExists, 'boardId:', boardId);
+  if (!boardExists) {
+    console.warn('🎬 [tx-share] board não encontrado em allBoards — provavelmente não foi carregado da cloud');
+    mount.innerHTML = `<div style="padding:40px;text-align:center;color:var(--tatami-ink-soft,#5C4F3F);font-style:italic;">
+      📋 <strong>Board não disponível</strong><br/><br/>
+      Esse board pode ter sido criado por outra pessoa e ainda não está sincronizado pra você.<br/>
+      <small style="opacity:.7;">ID: ${_esc(boardId)}</small><br/><br/>
+      <button onclick="_txMountBoardEmbed('${_esc(boardId)}')" style="background:#BC002D;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;">↻ Tentar de novo</button>
+    </div>`;
+    return;
+  }
+
   // Switch board pra carregar globals
   if (typeof currentBoardId === 'undefined' || currentBoardId !== boardId) {
     if (typeof switchBoard === 'function') {
-      try { switchBoard(boardId, { goTo: false }); } catch(e){}
+      try {
+        console.log('🎬 [tx-share] chamando switchBoard');
+        switchBoard(boardId, { goTo: false });
+      } catch(e){ console.error('🎬 [tx-share] switchBoard erro:', e); }
     }
   }
   // Move o view-kanban pro painel
-  if (view.parentNode !== mount) mount.appendChild(view);
+  if (view.parentNode !== mount) {
+    console.log('🎬 [tx-share] movendo view-kanban pro mount');
+    mount.appendChild(view);
+  }
   view.style.display = '';
-  // Re-renderiza pra garantir conteúdo
-  if (typeof render === 'function') { try { render(); } catch(e){} }
+  // Re-renderiza pra garantir conteúdo (em 2 frames pra dar tempo do switchBoard pegar)
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (typeof render === 'function') {
+        try {
+          console.log('🎬 [tx-share] chamando render()');
+          render();
+          // Sanity check: depois do render, view-kanban deveria ter conteúdo
+          if (view.children.length === 0 || !view.innerHTML.trim()) {
+            console.warn('🎬 [tx-share] view-kanban ficou vazio após render — força re-render');
+            setTimeout(() => { try { render(); } catch(_){} }, 200);
+          } else {
+            console.log('🎬 [tx-share] ✓ board montado com sucesso');
+          }
+        } catch(e){ console.error('🎬 [tx-share] render erro:', e); }
+      }
+    });
+  });
 }
 
 function _txMountLabEmbed(labId) {
