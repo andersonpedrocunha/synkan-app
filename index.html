@@ -51612,6 +51612,54 @@ async function _lkStart() {
   window.addEventListener('pagehide', beforeUnloadHandler);
   ext.lk._beforeUnloadHandler = beforeUnloadHandler; // pra remover no leave
 
+  // ── Auto-leave por inatividade prolongada ──────────────────────────
+  // Se o tab ficar oculto por mais de 30 min, desconecta tudo pra liberar mic/cam.
+  // Evita o bug "mic aberto desde ontem".
+  let _txHiddenSince = null;
+  const _txInactivityCheck = setInterval(() => {
+    if (document.visibilityState === 'hidden') {
+      if (!_txHiddenSince) _txHiddenSince = Date.now();
+      const hiddenMs = Date.now() - _txHiddenSince;
+      if (hiddenMs > 30 * 60 * 1000) {
+        // 30 min oculto — disconecta pra liberar mic
+        console.warn('[lk] tab oculto há 30+ min, desconectando pra liberar mic/cam');
+        clearInterval(_txInactivityCheck);
+        try { if (typeof _lkLeave === 'function') _lkLeave(); } catch(_){}
+      }
+    } else {
+      _txHiddenSince = null;
+    }
+  }, 60_000); // checa a cada 1 min
+  ext.lk._inactivityTimer = _txInactivityCheck;
+
+  // ── Sessão máxima absoluta (3h) ────────────────────────────────────
+  // Mesmo se a pessoa fica trabalhando ativamente, depois de 3h o tatame
+  // se encerra (pra evitar uso indevido / esquecimento + custo LiveKit).
+  // Avisa em 2h45 antes.
+  const _MAX_SESSION_MS = 3 * 60 * 60 * 1000;
+  const _WARN_AT_MS     = 2.75 * 60 * 60 * 1000;
+  ext.lk._warnTimer = setTimeout(() => {
+    if (typeof _showKanWarning === 'function') {
+      _showKanWarning('Sessão longa', 'Tatame ativo há quase 3h. Será encerrado automaticamente em 15 min.', 'warning');
+    }
+  }, _WARN_AT_MS);
+  ext.lk._maxTimer = setTimeout(() => {
+    console.warn('[lk] sessão de 3h — encerrando automaticamente');
+    try { if (typeof _lkLeave === 'function') _lkLeave(); } catch(_){}
+  }, _MAX_SESSION_MS);
+
+  // Escape hatch global pro user emergencial:
+  // No console, digita: killMic()
+  window.killMic = async function() {
+    console.warn('[killMic] forçando saída do tatame');
+    try { if (typeof _lkLeave === 'function') await _lkLeave(); } catch(_){}
+    try { if (typeof _txClose === 'function') _txClose(); } catch(_){}
+    // Para qualquer stream global que possa ter ficado
+    try { if (typeof _kanMicStream !== 'undefined' && _kanMicStream) _kanMicStream.getTracks().forEach(t => t.stop()); } catch(_){}
+    console.log('[killMic] ✓ mic liberado');
+    return 'Mic liberado. Recarrega a página se ainda aparecer no menu bar.';
+  };
+
   // Listeners do LiveKit
   room.on(LK.RoomEvent.ParticipantConnected, _lkOnParticipantConnected);
   room.on(LK.RoomEvent.ParticipantDisconnected, _lkOnParticipantDisconnected);
@@ -58606,6 +58654,10 @@ async function _lkLeave() {
 
   // 0) Para JWT refresh timer + remove handler de beforeunload (sem leak)
   try { _lkStopJwtRefresh(); } catch(_){}
+  // 0a) Para timers de inatividade/auto-leave
+  try { if (ext.lk._inactivityTimer) clearInterval(ext.lk._inactivityTimer); } catch(_){}
+  try { if (ext.lk._warnTimer) clearTimeout(ext.lk._warnTimer); } catch(_){}
+  try { if (ext.lk._maxTimer) clearTimeout(ext.lk._maxTimer); } catch(_){}
   // 0b) Para canvas-stream de synkan share (sem isso, html2canvas/canvas vazam)
   try { await _lkStopSynkanShareTrack(); } catch(_){}
   try {
