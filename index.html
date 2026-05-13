@@ -58827,7 +58827,19 @@ async function _lkLeave() {
   if (ov) {
     ov.classList.remove('tx-livekit-mode');
     const body = ov.querySelector('.lk-body');
-    if (body) body.remove();
+    if (body) {
+      // Rescue: se view-kanban ainda tá dentro do lk-body (unmount falhou
+      // silenciosamente ou nem chegou a rodar), devolve pro home ANTES de
+      // destruir o body — sem isso, body.remove() leva o view-kanban junto
+      // e o próximo share fica quebrado.
+      try {
+        if (body.querySelector('#view-kanban')) {
+          if (typeof _txRestoreKanbanHome === 'function') _txRestoreKanbanHome();
+          console.log('[lk-leave] view-kanban resgatado antes de lk-body.remove()');
+        }
+      } catch(e) { console.warn('[lk-leave] rescue view-kanban:', e); }
+      body.remove();
+    }
     const controls = ov.querySelector('.tx-controls');
     if (controls) controls.remove();
     const kanMini = ov.querySelector('#lk-kan-mini');
@@ -59264,13 +59276,51 @@ function _txRenderBoardPanel() {
 // do tatame e devolve quando troca/fecha. Toda a lógica original
 // (drag-drop, modais, edição, render) continua funcionando porque é
 // o mesmo DOM e os mesmos handlers.
+//
+// Blindagem (5 camadas — self-heal): o move-DOM é frágil porque qualquer
+// race (lk-body removido antes do unmount, erro silencioso, sessão crashada)
+// pode deixar view-kanban orfão ou destruído, quebrando shares futuros.
+// Os helpers abaixo tornam mount/unmount idempotentes e auto-curáveis.
+let _kanbanHomeParent = null; // referência module-level — sobrevive a state resets do _chatState
+function _txKanbanHomeParent() {
+  if (_kanbanHomeParent && document.contains(_kanbanHomeParent)) return _kanbanHomeParent;
+  const board = document.querySelector('main.main-area .board');
+  if (board) { _kanbanHomeParent = board; return board; }
+  return null;
+}
+function _txEnsureKanbanView() {
+  // Garante que view-kanban existe no DOM. Se sumiu (race anterior), recria
+  // a div vazia — o estado real tá em allBoards/currentBoardId e render() repovoa.
+  let view = document.getElementById('view-kanban');
+  if (view) return view;
+  const home = _txKanbanHomeParent();
+  if (!home) { console.warn('🎬 [tx-share] não consegui localizar .board pra recriar view-kanban'); return null; }
+  view = document.createElement('div');
+  view.id = 'view-kanban';
+  view.style.display = 'none';
+  view.innerHTML = '<div class="cols" id="cols"></div>';
+  home.appendChild(view);
+  console.log('🎬 [tx-share] view-kanban recriado (estava ausente — self-heal)');
+  return view;
+}
+function _txRestoreKanbanHome() {
+  // Devolve view-kanban pro .board original, esteja onde estiver. Idempotente.
+  const view = document.getElementById('view-kanban');
+  if (!view) return;
+  const home = _txKanbanHomeParent();
+  if (!home || view.parentNode === home) return;
+  try { home.appendChild(view); console.log('🎬 [tx-share] view-kanban devolvido pro home (self-heal)'); }
+  catch(e) { console.warn('🎬 [tx-share] restore home falhou:', e); }
+}
+
 function _txMountBoardEmbed(boardId) {
   console.log('🎬 [tx-share] mount board iniciado:', boardId);
   const mount = document.getElementById('tx-board-mount');
   if (!mount) { console.warn('🎬 [tx-share] tx-board-mount não existe'); return; }
-  const view = document.getElementById('view-kanban');
+  _txKanbanHomeParent(); // memoiza o home antes de mover qualquer coisa
+  const view = _txEnsureKanbanView();
   if (!view) {
-    console.warn('🎬 [tx-share] view-kanban não existe no DOM');
+    console.warn('🎬 [tx-share] view-kanban ausente e recriação falhou');
     mount.innerHTML = `<div style="padding:40px;text-align:center;color:var(--tatami-ink-soft,#5C4F3F);font-style:italic;">
       ⚠️ Não foi possível carregar a view do kanban.<br/>
       <small>Tente fechar e abrir o tatame de novo.</small>
@@ -59370,25 +59420,26 @@ function _txMountLabEmbed(labId) {
 }
 
 function _txUnmountBoardEmbedOnly() {
-  const ext = _chatState.extended;
-  if (!ext || !ext._kanbanOrig) return;
+  // Idempotente: traz view-kanban de volta pro home, esteja onde estiver.
+  // Não depende mais de ext._kanbanOrig (que pode ter sido perdido em race ou
+  // zerado em state reset). Pode rodar 10× sem efeito colateral.
+  _txRestoreKanbanHome();
   const view = document.getElementById('view-kanban');
-  if (!view) return;
-  const o = ext._kanbanOrig;
-  // Devolve view-kanban ao parent original
-  try {
-    if (o.next && o.next.parentNode === o.parent) o.parent.insertBefore(view, o.next);
-    else o.parent.appendChild(view);
-  } catch(e){}
-  // Visibilidade: visível só se a aba kanban está ativa no app
-  view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'kanban') ? '' : 'none';
-  // Restaura board original
-  if (o.origBoardId && typeof currentBoardId !== 'undefined' && currentBoardId !== o.origBoardId) {
-    if (typeof switchBoard === 'function') {
-      try { switchBoard(o.origBoardId, { goTo: false }); } catch(e){}
-    }
+  if (view) {
+    // Visibilidade: visível só se a aba kanban está ativa no app
+    view.style.display = (typeof currentTab !== 'undefined' && currentTab === 'kanban') ? '' : 'none';
   }
-  ext._kanbanOrig = null;
+  // Restaura board original (se a sessão e os dados originais ainda existem)
+  const ext = _chatState.extended;
+  if (ext?._kanbanOrig) {
+    const o = ext._kanbanOrig;
+    if (o.origBoardId && typeof currentBoardId !== 'undefined' && currentBoardId !== o.origBoardId) {
+      if (typeof switchBoard === 'function') {
+        try { switchBoard(o.origBoardId, { goTo: false }); } catch(e){}
+      }
+    }
+    ext._kanbanOrig = null;
+  }
 }
 
 function _txUnmountLabEmbedOnly() {
