@@ -18683,9 +18683,9 @@ const FOLLOWUP_KEY = 'kanban_v8_followup';
 function _getFollowupCfg() {
   try {
     const raw = localStorage.getItem(FOLLOWUP_KEY);
-    if (raw) return Object.assign({ leadDays:14, clientDays:30 }, JSON.parse(raw));
+    if (raw) return Object.assign({ leadDays:14, clientDays:30, dealDays:7 }, JSON.parse(raw));
   } catch(e){}
-  return { leadDays:14, clientDays:30 };
+  return { leadDays:14, clientDays:30, dealDays:7 };
 }
 function _setFollowupCfg(cfg) {
   try { localStorage.setItem(FOLLOWUP_KEY, JSON.stringify(cfg||{})); } catch(e){}
@@ -18695,6 +18695,7 @@ function setFollowupThreshold(kind, days) {
   const cfg = _getFollowupCfg();
   if (kind === 'lead')    cfg.leadDays    = n;
   if (kind === 'client')  cfg.clientDays  = n;
+  if (kind === 'deal')    cfg.dealDays    = n;
   _setFollowupCfg(cfg);
   if (currentTab === 'home') renderHome();
 }
@@ -18751,38 +18752,69 @@ function _renderFollowupRulerPanel() {
       </div>`;
   }
   const cfg = _getFollowupCfg();
-  const items = _computeFollowupContacts();
-  const top = items.slice(0, 10);
-  const totalLeads = items.filter(x=>x.contact.type==='lead').length;
-  const totalClients = items.filter(x=>x.contact.type!=='lead').length;
-  const rowHTML = top.length ? top.map(({contact,days,level,last}) => {
-    const typeLabel = ({lead:'Lead',cliente:'Cliente',fornecedor:'Forn.',ambos:'Ambos'}[contact.type]||'Cliente');
-    const score = _computeLeadScore(contact.id);
-    const scorePill = score ? ` <span class="score-pill ${score.level}" style="font-size:9px;padding:1px 6px;" title="${_esc(score.reason||'')}">${score.level==='hot'?'🔥':score.level==='warm'?'🌤':'❄'}</span>` : '';
-    const dot = level === 'critical' ? '#A32D2D' : level === 'warn' ? '#854F0B' : '#9CA3AF';
-    const daysLbl = days === null ? 'sem interação registrada' : `${days}d sem contato`;
-    return `<div class="home-list-row" style="cursor:pointer;" onclick="openCustomer360('${contact.id}')">
-      <span class="home-list-name" style="display:flex;align-items:center;gap:8px;">
-        <span style="width:8px;height:8px;border-radius:50%;background:${dot};display:inline-block;flex-shrink:0;"></span>
-        <strong style="color:var(--color-text-primary);">${_esc(contact.name||'Sem nome')}</strong>
-        <span class="reg-pill ${contact.type||'cliente'}" style="font-size:9px;padding:1px 6px;">${typeLabel}</span>
-        ${scorePill}
-      </span>
-      <span class="home-list-meta" style="color:${dot};font-size:11.5px;">${daysLbl}${last?` · último ${new Date(last).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}`:''}</span>
-    </div>`;
-  }).join('') : '<div class="dash-empty">Tudo em dia. Nenhum lead ou cliente esfriando 🌿</div>';
+  const contactItems = _computeFollowupContacts();
+  const dealItems = _computeFollowupDeals();
+  // Combina contatos + deals num único array ordenado por dias (mais antigo primeiro)
+  const combined = [
+    ...contactItems.map(x => ({ kind: 'contact', ...x })),
+    ...dealItems.map(x => ({ kind: 'deal', ...x })),
+  ].sort((a, b) => {
+    if (a.days === null && b.days === null) return 0;
+    if (a.days === null) return 1;
+    if (b.days === null) return -1;
+    return b.days - a.days;
+  });
+  const top = combined.slice(0, 12);
+  const totalLeads = contactItems.filter(x=>x.contact.type==='lead').length;
+  const totalClients = contactItems.filter(x=>x.contact.type!=='lead').length;
+  const totalDeals = dealItems.length;
+  const rowHTML = top.length ? top.map(item => {
+    const dot = item.level === 'critical' ? '#A32D2D' : item.level === 'warn' ? '#854F0B' : '#9CA3AF';
+    const daysLbl = item.days === null ? 'sem interação registrada' : `${item.days}d sem contato`;
+    if (item.kind === 'contact') {
+      const contact = item.contact;
+      const typeLabel = ({lead:'Lead',cliente:'Cliente',fornecedor:'Forn.',ambos:'Ambos'}[contact.type]||'Cliente');
+      const score = _computeLeadScore(contact.id);
+      const scorePill = score ? ` <span class="score-pill ${score.level}" style="font-size:9px;padding:1px 6px;" title="${_esc(score.reason||'')}">${score.level==='hot'?'🔥':score.level==='warm'?'🌤':'❄'}</span>` : '';
+      return `<div class="home-list-row" style="cursor:pointer;" onclick="openCustomer360('${contact.id}')">
+        <span class="home-list-name" style="display:flex;align-items:center;gap:8px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:${dot};display:inline-block;flex-shrink:0;"></span>
+          <strong style="color:var(--color-text-primary);">${_esc(contact.name||'Sem nome')}</strong>
+          <span class="reg-pill ${contact.type||'cliente'}" style="font-size:9px;padding:1px 6px;">${typeLabel}</span>
+          ${scorePill}
+        </span>
+        <span class="home-list-meta" style="color:${dot};font-size:11.5px;">${daysLbl}${item.last?` · último ${new Date(item.last).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}`:''}</span>
+      </div>`;
+    } else {
+      // kind === 'deal'
+      const deal = item.deal;
+      const stage = (typeof _synStages !== 'undefined' && Array.isArray(_synStages)) ? _synStages.find(s => s.id === deal.stage_id) : null;
+      const stageName = stage?.name || '—';
+      const valueFmt = (typeof _synFmtMoney === 'function') ? _synFmtMoney(deal.value_cents || 0) : ('R$ ' + ((deal.value_cents||0)/100).toFixed(2));
+      return `<div class="home-list-row" style="cursor:pointer;" onclick="(typeof _synOpenDealModal==='function')?_synOpenDealModal('${_esc(deal.id)}'):switchTab('synconnect')">
+        <span class="home-list-name" style="display:flex;align-items:center;gap:8px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:${dot};display:inline-block;flex-shrink:0;"></span>
+          <strong style="color:var(--color-text-primary);">${_esc(deal.title || 'Deal sem título')}</strong>
+          <span class="reg-pill" style="background:#3C3489;color:#fff;font-size:9px;padding:1px 6px;">Deal · ${_esc(stageName)}</span>
+          <span style="font-size:11px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;">${valueFmt}</span>
+        </span>
+        <span class="home-list-meta" style="color:${dot};font-size:11.5px;">${daysLbl}${item.last?` · último ${new Date(item.last).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}`:''}</span>
+      </div>`;
+    }
+  }).join('') : '<div class="dash-empty">Tudo em dia. Nenhum lead, cliente ou deal esfriando 🌿</div>';
 
   return `
     <div class="dash-panel">
       <div class="dash-panel-head">
         <span class="dash-panel-title">🎯 Régua de follow-up</span>
-        <span class="dash-panel-sub">${totalLeads} lead${totalLeads!==1?'s':''} · ${totalClients} cliente${totalClients!==1?'s':''} sem contato recente</span>
+        <span class="dash-panel-sub">${totalLeads} lead${totalLeads!==1?'s':''} · ${totalClients} cliente${totalClients!==1?'s':''} · ${totalDeals} deal${totalDeals!==1?'s':''} sem contato recente</span>
       </div>
       <div style="font-size:11.5px;color:var(--color-text-tertiary);margin:-4px 0 10px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
         <span>Alerta:</span>
         <label style="display:inline-flex;gap:6px;align-items:center;">Lead após <input type="number" min="1" max="365" value="${cfg.leadDays}" onchange="setFollowupThreshold('lead',this.value)" style="width:54px;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:3px 6px;font:inherit;font-size:11px;text-align:center;" /> dias</label>
         <label style="display:inline-flex;gap:6px;align-items:center;">Cliente após <input type="number" min="1" max="365" value="${cfg.clientDays}" onchange="setFollowupThreshold('client',this.value)" style="width:54px;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:3px 6px;font:inherit;font-size:11px;text-align:center;" /> dias</label>
-        ${items.length > 10 ? `<span style="margin-left:auto;">+${items.length-10} além dos 10 listados</span>`:''}
+        <label style="display:inline-flex;gap:6px;align-items:center;">Deal após <input type="number" min="1" max="365" value="${cfg.dealDays}" onchange="setFollowupThreshold('deal',this.value)" style="width:54px;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:3px 6px;font:inherit;font-size:11px;text-align:center;" /> dias</label>
+        ${combined.length > 12 ? `<span style="margin-left:auto;">+${combined.length-12} além dos 12 listados</span>`:''}
       </div>
       <div class="dash-list">${rowHTML}</div>
     </div>
@@ -37961,16 +37993,70 @@ function _totalValueByContact(contactId) {
   return { total, won };
 }
 function _lastInteractionAt(contactId) {
-  const arr = _cardsByContact(contactId);
   let best = null;
-  arr.forEach(({card}) => {
-    const dates = [];
-    if (card.createdAt) dates.push(card.createdAt);
-    if (card.doneAt) dates.push(card.doneAt);
-    (card.threads||[]).forEach(t => { if (t.date) dates.push(t.date); });
-    dates.forEach(d => { if (!best || new Date(d) > new Date(best)) best = d; });
-  });
+  const upd = d => { if (d && (!best || new Date(d) > new Date(best))) best = d; };
+  // 1) Kanban: threads dos cards vinculados
+  try {
+    const arr = _cardsByContact(contactId);
+    arr.forEach(({card}) => {
+      if (card.createdAt) upd(card.createdAt);
+      if (card.doneAt) upd(card.doneAt);
+      (card.threads||[]).forEach(t => { if (t.date) upd(t.date); });
+    });
+  } catch(_){}
+  // 2) Synconnect: activities (note/call/email/meeting/etc) vinculadas ao contato
+  try {
+    if (Array.isArray(_synActivities)) {
+      _synActivities
+        .filter(a => a.contact_id === contactId)
+        .forEach(a => { if (a.occurred_at) upd(a.occurred_at); });
+    }
+  } catch(_){}
+  // 3) Synconnect: deals vinculados (updated_at conta como interação)
+  try {
+    if (Array.isArray(_synDeals)) {
+      _synDeals
+        .filter(d => d.contact_id === contactId)
+        .forEach(d => { if (d.updated_at) upd(d.updated_at); });
+    }
+  } catch(_){}
   return best;
+}
+
+// Computa última interação de um DEAL (não contato)
+function _lastInteractionAtDeal(dealId, dealUpdatedAt) {
+  let best = dealUpdatedAt || null;
+  const upd = d => { if (d && (!best || new Date(d) > new Date(best))) best = d; };
+  try {
+    if (Array.isArray(_synActivities)) {
+      _synActivities
+        .filter(a => a.deal_id === dealId)
+        .forEach(a => { if (a.occurred_at) upd(a.occurred_at); });
+    }
+  } catch(_){}
+  return best;
+}
+
+// Retorna deals abertos esfriando (acima do dealDays do config)
+function _computeFollowupDeals() {
+  const cfg = _getFollowupCfg();
+  const now = Date.now();
+  const limit = cfg.dealDays || 7;
+  const list = Array.isArray(_synDeals) ? _synDeals : [];
+  const out = [];
+  list.forEach(d => {
+    if (d.status !== 'open') return;  // só conta abertos
+    const last = _lastInteractionAtDeal(d.id, d.updated_at || d.created_at);
+    if (!last) return;
+    const days = Math.floor((now - new Date(last).getTime()) / 86400000);
+    if (days >= limit) {
+      let level = 'warn';
+      if (days >= limit*2) level = 'critical';
+      out.push({ deal: d, days, level, last });
+    }
+  });
+  out.sort((a,b) => b.days - a.days);
+  return out;
 }
 function _formatRelativeDate(iso) {
   if (!iso) return '—';
