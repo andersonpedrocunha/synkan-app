@@ -3733,7 +3733,12 @@ body.density-compact .col{padding:7px;}
 .okr-editor-kr-del:hover{background:var(--color-background-secondary);color:#A32D2D;}
 
 /* ── Gamificação (Dojo do Mestre Kan) ── */
-.belt-ring{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;padding:2px;background:linear-gradient(135deg,var(--belt-color,#E1DFDA),var(--belt-color-2,#CFCDC8));box-shadow:0 0 0 1px rgba(255,255,255,.3) inset;}
+.belt-ring{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;padding:2px;background:linear-gradient(135deg,var(--belt-color,#E1DFDA),var(--belt-color-2,#CFCDC8));box-shadow:0 0 0 1px rgba(255,255,255,.3) inset;transition:filter .35s ease, box-shadow .35s ease;}
+/* ━━ Pulse: brilho da faixa varia com vitalidade do user ━━ */
+.belt-ring.pulse-vivid{filter:saturate(1.15) brightness(1.04);box-shadow:0 0 0 1px rgba(255,255,255,.4) inset, 0 0 10px rgba(193,154,58,.25);}
+.belt-ring.pulse-mid{filter:saturate(1) brightness(1);}
+.belt-ring.pulse-fade{filter:saturate(.55) brightness(.92);}
+.belt-ring.pulse-dim{filter:saturate(.20) brightness(.80);box-shadow:0 0 0 1px rgba(0,0,0,.15) inset;}
 .belt-ring.belt-preta{box-shadow:0 0 0 1px rgba(255,215,0,.4) inset, 0 0 8px rgba(255,215,0,.25);}
 .sb-account-title{font-size:10.5px;color:var(--color-text-tertiary);margin-top:1px;line-height:1.2;}
 .sb-account-title strong{color:var(--color-text-secondary);font-weight:500;}
@@ -23459,7 +23464,16 @@ function _refreshAccountUIInternal() {
   const innerAvatar = av
     ? `<img class="sb-account-avatar" src="${_esc(av)}" alt="" style="object-fit:cover;width:22px;height:22px;"/>`
     : `<span class="sb-account-avatar" style="background:${avatarColor(name||'?')};width:22px;height:22px;">${_esc(avatarInitials(name||'?'))}${dotHTML}</span>`;
-  const beltedAvatar = `<span class="belt-ring${beltClass}" style="--belt-color:${beltCol};--belt-color-2:${beltCol2};">${innerAvatar}${dotHTML && av?dotHTML:''}</span>`;
+  // Calcula classe de pulse (visual de vitalidade)
+  let pulseCls = 'pulse-vivid';
+  try {
+    if (typeof _gamifApplyPulseDecay === 'function') _gamifApplyPulseDecay();
+    const pv = _gamif?.pulse?.value;
+    if (typeof pv === 'number') {
+      pulseCls = pv >= 70 ? 'pulse-vivid' : pv >= 40 ? 'pulse-mid' : pv >= 10 ? 'pulse-fade' : 'pulse-dim';
+    }
+  } catch(_){}
+  const beltedAvatar = `<span class="belt-ring${beltClass} ${pulseCls}" style="--belt-color:${beltCol};--belt-color-2:${beltCol2};" data-pulse="${_gamif?.pulse?.value || 100}" title="Pulse · ${_gamif?.pulse?.value || 100}/100">${innerAvatar}${dotHTML && av?dotHTML:''}</span>`;
   const streakC = gst?.streak?.count || 0;
   const streakHTML = streakC > 0
     ? `<span class="sb-streak-flame" title="${streakC} dia${streakC!==1?'s':''} útil${streakC!==1?'eis':''} ativos · recorde ${gst.streak.longest||0} · fins de semana e até 1 dia útil de falta/semana não quebram">🔥 ${streakC}</span>`
@@ -38709,6 +38723,25 @@ _gamif = {
   achievements: [],
   // Missões: { dailyDate, dailyDone:[ids], weeklyMonday, weeklyDone:[ids] }
   missions: { dailyDate: null, dailyDone: [], weeklyMonday: null, weeklyDone: [] },
+  // ━━ NOVO: Pulse de vitalidade ━━
+  // value 0-100, diminui apenas em DIAS ÚTEIS sem ação (não conta fins de semana
+  // nem feriados). Pessoa tem banco de 28 dias úteis de "férias" por ano —
+  // dentro desse limite, decay é congelado.
+  pulse: {
+    value: 100,
+    lastActiveDate: null,        // 'YYYY-MM-DD' da última ação
+    vacationDaysUsedThisYear: 0, // contador anual de dias congelados
+    vacationYear: null,          // ano corrente do contador
+  },
+  // ━━ NOVO: Conquistas rotativas por estação japonesa ━━
+  // Cada estação tem 5 conquistas. Rotacionam automaticamente quando muda
+  // o trimestre (春 mar-mai, 夏 jun-ago, 秋 set-nov, 冬 dez-fev).
+  seasonal: {
+    currentSeason: null,    // 'haru'|'natsu'|'aki'|'fuyu'
+    progress: {},           // { achievementId: progressCount }
+    completed: [],          // [{id, season, completedAt, year}]
+    lastCheckDate: null,
+  },
 };
 try {
   const raw = localStorage.getItem(GAMIF_KEY);
@@ -38722,6 +38755,8 @@ try {
       achievements: saved.achievements || [],
       missions: { ..._gamif.missions, ...(saved.missions||{}) },
       streak: { ..._gamif.streak, ...(saved.streak||{}) },
+      pulse: { ..._gamif.pulse, ...(saved.pulse||{}) },
+      seasonal: { ..._gamif.seasonal, ...(saved.seasonal||{}) },
     };
   }
 } catch(e) {}
@@ -38744,6 +38779,223 @@ function _saveGamif() {
   try { localStorage.setItem(GAMIF_KEY, JSON.stringify(_gamif)); } catch(e){}
   // ━━ Sync pra cloud (debounced) — só se logado no Supabase ━━
   try { _gamifScheduleCloudSync(); } catch(_){}
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PULSE DE VITALIDADE
+// ─────────────────────────────────────────────────────────────────────
+// Decai 3 pontos por DIA ÚTIL sem ação. Não conta:
+//   • Fins de semana (sáb/dom)
+//   • Feriados nacionais BR
+//   • Banco de 28 dias úteis de férias por ano (após exceder, decai normal)
+// Ações ao longo do dia restauram +5 (cap 100). Visual: brilho da faixa.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const PULSE_DECAY_PER_DAY = 3;     // pontos perdidos por dia útil ocioso
+const PULSE_GAIN_PER_ACTION = 5;   // pontos ganhos ao agir (cap 100)
+const PULSE_VACATION_LIMIT = 28;   // dias úteis "congelados" por ano
+
+// Feriados nacionais BR fixos (móveis serão acrescentados em runtime)
+function _gamifBRHolidays(year) {
+  const fixos = [
+    `${year}-01-01`, // Confraternização
+    `${year}-04-21`, // Tiradentes
+    `${year}-05-01`, // Trabalho
+    `${year}-09-07`, // Independência
+    `${year}-10-12`, // Nossa Senhora
+    `${year}-11-02`, // Finados
+    `${year}-11-15`, // República
+    `${year}-12-25`, // Natal
+  ];
+  return new Set(fixos);
+}
+
+function _gamifIsBusinessDay(d) {
+  const day = d.getDay(); // 0=dom, 6=sáb
+  if (day === 0 || day === 6) return false;
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  const iso = `${y}-${m}-${dd}`;
+  if (_gamifBRHolidays(y).has(iso)) return false;
+  return true;
+}
+
+function _gamifBusinessDaysBetween(fromISO, toISO) {
+  if (!fromISO || !toISO) return 0;
+  const from = new Date(fromISO + 'T00:00:00');
+  const to = new Date(toISO + 'T00:00:00');
+  if (to <= from) return 0;
+  let count = 0;
+  const cursor = new Date(from);
+  cursor.setDate(cursor.getDate() + 1); // não conta o dia "from"
+  while (cursor <= to) {
+    if (_gamifIsBusinessDay(cursor)) count++;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return count;
+}
+
+function _gamifTodayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Aplica decay baseado no tempo decorrido. Chamar sempre antes de mostrar pulse.
+function _gamifApplyPulseDecay() {
+  if (!_gamif.pulse) _gamif.pulse = { value: 100, lastActiveDate: null, vacationDaysUsedThisYear: 0, vacationYear: null };
+  const p = _gamif.pulse;
+  const today = _gamifTodayISO();
+  const currentYear = new Date().getFullYear();
+  // Reset anual do banco de férias
+  if (p.vacationYear !== currentYear) {
+    p.vacationYear = currentYear;
+    p.vacationDaysUsedThisYear = 0;
+  }
+  if (!p.lastActiveDate) {
+    // Nunca registrou — assume hoje (sem decay)
+    p.lastActiveDate = today;
+    return p;
+  }
+  if (p.lastActiveDate >= today) return p; // já está em dia
+  const businessDaysIdle = _gamifBusinessDaysBetween(p.lastActiveDate, today);
+  if (businessDaysIdle <= 0) {
+    // Só passou fim de semana/feriado — sem decay
+    p.lastActiveDate = today;
+    return p;
+  }
+  // Quantos desses dias podem ser "absorvidos" pelo banco de férias?
+  const remainingVacation = Math.max(0, PULSE_VACATION_LIMIT - p.vacationDaysUsedThisYear);
+  const congeladorIdle = Math.min(businessDaysIdle, remainingVacation);
+  const decayingIdle = businessDaysIdle - congeladorIdle;
+  p.vacationDaysUsedThisYear += congeladorIdle;
+  // Aplica decay nos dias que sobraram
+  if (decayingIdle > 0) {
+    p.value = Math.max(0, p.value - (decayingIdle * PULSE_DECAY_PER_DAY));
+  }
+  p.lastActiveDate = today;
+  return p;
+}
+
+// Chamar SEMPRE que o user faz uma ação significativa (criar/concluir card,
+// abrir página, mover deal, etc). Restaura pulse e marca lastActiveDate.
+function _gamifTouchPulse() {
+  if (!_gamif.pulse) _gamif.pulse = { value: 100, lastActiveDate: null, vacationDaysUsedThisYear: 0, vacationYear: null };
+  _gamifApplyPulseDecay();
+  const today = _gamifTodayISO();
+  if (_gamif.pulse.lastActiveDate === today && _gamif.pulse.value >= 100) return;
+  _gamif.pulse.value = Math.min(100, _gamif.pulse.value + PULSE_GAIN_PER_ACTION);
+  _gamif.pulse.lastActiveDate = today;
+  try { _saveGamif(); } catch(_){}
+  try { _gamifUpdateAvatarVitality(); } catch(_){}
+}
+
+// Aplica CSS de vitalidade no avatar de faixa (sidebar)
+function _gamifUpdateAvatarVitality() {
+  if (!_gamif.pulse) return;
+  _gamifApplyPulseDecay();
+  const v = _gamif.pulse.value;
+  // Classes: pulse-vivid (70+), pulse-mid (40-69), pulse-fade (10-39), pulse-dim (0-9)
+  const cls = v >= 70 ? 'pulse-vivid'
+            : v >= 40 ? 'pulse-mid'
+            : v >= 10 ? 'pulse-fade'
+            :           'pulse-dim';
+  document.querySelectorAll('.belt-ring').forEach(el => {
+    el.classList.remove('pulse-vivid','pulse-mid','pulse-fade','pulse-dim');
+    el.classList.add(cls);
+    el.dataset.pulse = v;
+    el.title = `Pulse · ${v}/100 — ${v>=70?'afiado':v>=40?'estável':v>=10?'meio fosco':'descolorido'}`;
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CONQUISTAS ROTATIVAS POR ESTAÇÃO (春 夏 秋 冬)
+// ─────────────────────────────────────────────────────────────────────
+// 4 estações × 5 conquistas = 20 badges totais, rotacionando 5 por trimestre.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const SEASONAL_ACHIEVEMENTS = {
+  // 春 Haru (Primavera · Mar-Mai) — começos, novos brotos
+  haru: [
+    { id:'haru_sakura',    icon:'🌸', name:'Sakura',          desc:'Conclua 30 cards em 1 mês',                    target:30,  type:'cardsDoneMonth' },
+    { id:'haru_seed',      icon:'🌱', name:'Broto novo',      desc:'Crie 5 novos boards',                          target:5,   type:'boardsCreatedSeason' },
+    { id:'haru_wind',      icon:'💨', name:'Vento de Sakura', desc:'Streak de 21 dias úteis',                      target:21,  type:'streakInSeason' },
+    { id:'haru_dawn',      icon:'🌅', name:'Amanhecer',       desc:'Abra o app antes das 8h em 10 dias',           target:10,  type:'earlyOpensSeason' },
+    { id:'haru_first',     icon:'🎴', name:'Primeira lição',  desc:'Complete 5 missões diárias',                   target:5,   type:'dailyMissionsSeason' },
+  ],
+  // 夏 Natsu (Verão · Jun-Ago) — energia, ação, festivais
+  natsu: [
+    { id:'natsu_matsuri',  icon:'🏮', name:'Matsuri',         desc:'100 mensagens no Tatami',                       target:100, type:'messagesSeason' },
+    { id:'natsu_taiyo',    icon:'☀️', name:'Sol do meio-dia', desc:'Conclua 50 cards no trimestre',                target:50,  type:'cardsDoneSeason' },
+    { id:'natsu_hanabi',   icon:'🎆', name:'Fogos de artifício', desc:'10 reuniões no Tatame',                     target:10,  type:'tatameMeetsSeason' },
+    { id:'natsu_kakigori', icon:'🍧', name:'Kakigōri',        desc:'5 OKRs com ao menos 1 KR concluído',           target:5,   type:'okrsAdvancedSeason' },
+    { id:'natsu_bon',      icon:'🔥', name:'Fogo de Bon',     desc:'30 dias com ao menos 1 ação no app',           target:30,  type:'activeDaysSeason' },
+  ],
+  // 秋 Aki (Outono · Set-Nov) — reflexão, colheita
+  aki: [
+    { id:'aki_tsuki',      icon:'🌕', name:'Lua das colheitas', desc:'Conclua 10 OKRs completos',                 target:10,  type:'okrsCompletedSeason' },
+    { id:'aki_ginkgo',     icon:'🍂', name:'Ginkgo',          desc:'Arquive 30 cards (limpeza)',                   target:30,  type:'cardsArchivedSeason' },
+    { id:'aki_momiji',     icon:'🍁', name:'Momiji',           desc:'Escreva 10 páginas no Bunko',                  target:10,  type:'bunkoPagesSeason' },
+    { id:'aki_kuri',       icon:'🌰', name:'Castanhas',       desc:'Feche 5 deals no Synconnect',                  target:5,   type:'dealsWonSeason' },
+    { id:'aki_kaze',       icon:'🌬', name:'Vento do outono',  desc:'10 transcrições do Mestre Kan',                target:10,  type:'transcriptsSeason' },
+  ],
+  // 冬 Fuyu (Inverno · Dez-Fev) — disciplina, silêncio
+  fuyu: [
+    { id:'fuyu_daruma',    icon:'🎎', name:'Daruma',          desc:'Zero deadlines perdidos em 30 dias',           target:30,  type:'noMissedDeadlinesDays' },
+    { id:'fuyu_sumi',      icon:'🖌️', name:'Sumi-ê',          desc:'7 dias seguidos editando Bunko',               target:7,   type:'bunkoStreakSeason' },
+    { id:'fuyu_kohaku',    icon:'❄', name:'Neve quieta',     desc:'Streak de 14 dias úteis sem quebrar',           target:14,  type:'streakInSeason' },
+    { id:'fuyu_oshogatsu', icon:'🎍', name:'Oshōgatsu',       desc:'Defina 3 OKRs do novo trimestre',              target:3,   type:'okrsCreatedSeason' },
+    { id:'fuyu_yuki',      icon:'⛄', name:'Yuki',            desc:'Conclua 5 cards quando faltam <24h pro deadline', target:5, type:'cardsDoneNearDeadline' },
+  ],
+};
+
+const SEASON_INFO = {
+  haru:  { name:'Primavera', kanji:'春', months:[3,4,5],    color:'#F5C0CB' },
+  natsu: { name:'Verão',     kanji:'夏', months:[6,7,8],    color:'#7CB9E8' },
+  aki:   { name:'Outono',    kanji:'秋', months:[9,10,11],  color:'#D2691E' },
+  fuyu:  { name:'Inverno',   kanji:'冬', months:[12,1,2],   color:'#94A3B8' },
+};
+
+function _gamifCurrentSeason() {
+  const m = new Date().getMonth() + 1;
+  for (const [key, info] of Object.entries(SEASON_INFO)) {
+    if (info.months.includes(m)) return key;
+  }
+  return 'haru';
+}
+
+function _gamifBumpSeasonal(type, amount = 1) {
+  if (!_gamif.seasonal) _gamif.seasonal = { currentSeason: null, progress: {}, completed: [], lastCheckDate: null };
+  const season = _gamifCurrentSeason();
+  // Se mudou de estação, reseta progresso da anterior (mas mantém o completed histórico)
+  if (_gamif.seasonal.currentSeason !== season) {
+    _gamif.seasonal.currentSeason = season;
+    _gamif.seasonal.progress = {};
+  }
+  const achievements = SEASONAL_ACHIEVEMENTS[season] || [];
+  let unlockedNow = [];
+  for (const ach of achievements) {
+    if (ach.type !== type) continue;
+    if (_gamif.seasonal.completed.some(c => c.id === ach.id && c.year === new Date().getFullYear())) continue;
+    const cur = (_gamif.seasonal.progress[ach.id] || 0) + amount;
+    _gamif.seasonal.progress[ach.id] = cur;
+    if (cur >= ach.target) {
+      _gamif.seasonal.completed.push({ id: ach.id, season, year: new Date().getFullYear(), completedAt: new Date().toISOString() });
+      unlockedNow.push(ach);
+    }
+  }
+  if (unlockedNow.length) {
+    unlockedNow.forEach(ach => {
+      try {
+        if (typeof _showKanWarning === 'function') {
+          _showKanWarning(`${ach.icon} ${ach.name}`, `Conquista da ${SEASON_INFO[season].name} desbloqueada!<br/><em>${_esc(ach.desc)}</em>`, 'success');
+        }
+      } catch(_){}
+    });
+    try { _saveGamif(); } catch(_){}
+  } else {
+    try { _saveGamif(); } catch(_){}
+  }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -38923,6 +39175,15 @@ function awardXP(rawAmount, label, category) {
   if (!_gamifCfg.enabled) return; // gamificação desligada
   if (!Number.isFinite(rawAmount) || rawAmount <= 0) return;
   _gamifTickDay();
+  // ━━ Pulse: restaura ao agir + Seasonal: cada ação significativa também
+  //    pode contar pra conquistas da estação. ━━
+  try { _gamifTouchPulse(); } catch(_){}
+  try {
+    if (category === 'cardDone') {
+      _gamifBumpSeasonal('cardsDoneSeason', 1);
+      _gamifBumpSeasonal('cardsDoneMonth', 1);
+    }
+  } catch(_){}
 
   // Cap diário por categoria (se houver)
   if (category && _gamifCfg.dailyCaps[category]) {
