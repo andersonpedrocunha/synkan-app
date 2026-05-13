@@ -6367,6 +6367,29 @@ body.tx-active .belt-ring::after{
   max-height:none;
 }
 
+/* ─── Overrides pros módulos legacy dentro do embed do tatame ───
+   Esses módulos foram desenhados pra ocupar 100vh da tela inteira (com regras
+   tipo max-height:74vh, height:calc(100vh - X)). Dentro do embed isso quebra:
+   - elementos ficam maiores que o painel
+   - sub-containers com overflow:auto capturam o wheel ANTES de chegar no mount
+   Resultado: o usuário não consegue scrollar pra ver o resto.
+   Esses overrides neutralizam os constraints, deixando o conteúdo crescer
+   naturalmente e o scroll do mount engajar pra cima/baixo. */
+/* Synconnect: stages têm max-height:74vh e syn-stage-body tem overflow-y:auto
+   próprio. Quebra ambos pra deixar scroll do mount engajar. */
+.tx-embed-mount .syn-stage{ max-height:none !important; }
+.tx-embed-mount .syn-stage-body{ overflow:visible !important; }
+.tx-embed-mount .syn-pipeline{ overflow-x:visible !important; }
+/* Bunko: shell tem height:calc(100vh-60px); sidebar e main-content têm
+   overflow-y:auto interno; main tem overflow:hidden que clipa. Tudo isso
+   quebra o scroll do mount. Anula pra deixar o mount escalar a página inteira. */
+.tx-embed-mount .bunko-shell{ height:auto !important; min-height:100%; }
+.tx-embed-mount .bunko-main{ overflow:visible !important; }
+.tx-embed-mount .bunko-main-content{ overflow:visible !important; }
+.tx-embed-mount .bunko-sidebar{ overflow:visible !important; }
+/* Chat: layout calc(100vh-0px) e tem scroll interno na lista. */
+.tx-embed-mount .chat-layout{ height:auto !important; min-height:100%; }
+
 /* Lab preview inline (custom) */
 .tx-lab-content{flex:1;min-height:0;overflow:auto;padding:18px 22px;background:var(--tatami-paper);}
 .tx-lab-doc{min-height:300px;font-family:Georgia,'Times New Roman',serif;font-size:14.5px;color:var(--tatami-sumi);line-height:1.7;outline:none;border:1px solid transparent;border-radius:6px;padding:8px;}
