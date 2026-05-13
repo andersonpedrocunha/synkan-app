@@ -8110,12 +8110,12 @@ const PLAN_LIMITS = {
                   seats: -1, editors: 3, viewers: 5,
                   chat_history_days: -1, integrations: true, shared_boards: true, synconnect: true,
                   tatame: 'live', synconnect_contacts: 2000, bunko_storage_gb: 35, rec_hours_per_month: 0,
-                  name: 'Faixa Roxa · Profissional',   price: 27.90 },
+                  name: 'Faixa Roxa · Profissional',   price: 29.90 },
   faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1, zai: -1,
                   seats: -1, editors: 5, viewers: 10,
                   chat_history_days: -1, integrations: true, shared_boards: true, synconnect: true,
                   tatame: 'full', synconnect_contacts: -1, bunko_storage_gb: 200, rec_hours_per_month: 30,
-                  name: 'Faixa Preta · Empresarial',   price: 62.90 },
+                  name: 'Faixa Preta · Empresarial',   price: 69.90 },
 };
 // seats   = ADMINS pagos (mesmo valor do plano; -1 = ilimitado).
 //           Trial = 1 (só o owner, não pode adicionar admin pago).
@@ -8362,8 +8362,8 @@ function _checkTrialOrBlock(action) {
       `Pra <strong>${what}</strong>, escolha um plano. Você continua com acesso aos boards e cards que já criou — só não dá pra criar novos.<br/><br/>` +
       `<strong>Faixa Branca · Grátis</strong> — 1 board, 1 OKR, 1 Zai, Tatami 30d.<br/>` +
       `<strong>Faixa Azul · R$ 14,90/mês</strong> — pessoal, 5 boards, Tatami 90d.<br/>` +
-      `<strong>Faixa Roxa · R$ 27,90/mês</strong> — profissional, 10 boards + 5 OKRs + 10 Zais + admins ilimitados.<br/>` +
-      `<strong>Faixa Preta · R$ 62,90/mês</strong> — empresarial, ilimitado.`,
+      `<strong>Faixa Roxa · R$ 29,90/mês</strong> — profissional, 10 boards + 5 OKRs + 10 Zais + admins ilimitados.<br/>` +
+      `<strong>Faixa Preta · R$ 69,90/mês</strong> — empresarial, ilimitado.`,
       { icon:'⏰', html:true, okLabel:'Ver planos', cancelLabel:'Agora não',
         onOk: () => { if (typeof _goToPlanTab === 'function') _goToPlanTab(); else window.open(getUpgradeURL(), '_blank'); } });
   }
@@ -8676,7 +8676,7 @@ const _RESOURCE_LABELS = {
   okr:       { what: 'OKRs',                              upgrade: 'Faixa Roxa (ilimitado)' },
   unified:   { what: 'boards no Board Unificado',         upgrade: 'Faixa Roxa (ilimitado)' },
   ai:        { what: 'chamadas Mestre Kan IA este mês',   upgrade: 'Faixa Roxa (300/mês)' },
-  seat:      { what: 'usuários pagos (editores/admins)',  upgrade: 'Faixa Roxa (sem limite, R$ 27,90/seat)' },
+  seat:      { what: 'usuários pagos (editores/admins)',  upgrade: 'Faixa Roxa (sem limite, R$ 29,90/seat)' },
   viewer:    { what: 'viewers (só leitura)',              upgrade: 'Faixa Roxa (5) ou Preta (20)' },
   convidado: { what: 'convidados externos',               upgrade: 'Faixa Preta (10 convidados, 3 boards cada)' },
   synconnect_contact: { what: 'contatos no Synconnect',   upgrade: 'Faixa Roxa (2.000 contatos) ou Preta (ilimitado)' },
@@ -18357,11 +18357,11 @@ function _settingsPlanoSection() {
             ai:'100',    boards:'5',     canvas:'5',  okrs:'3',  unified:'∞', tatami:'90d',
             zai:'3', integ:'✓', shared:'✓',
             admin:'só você', editor:'3 boards',  viewer:'5 boards' },
-          { code:'faixa_roxa',  label:'Faixa Roxa',   sub:'Profissional', price:'R$ 27,90/mês',
+          { code:'faixa_roxa',  label:'Faixa Roxa',   sub:'Profissional', price:'R$ 29,90/mês',
             ai:'300',    boards:'10',    canvas:'10', okrs:'5',  unified:'∞', tatami:'∞',
             zai:'10', integ:'✓', shared:'✓',
             admin:'∞',       editor:'3 boards',  viewer:'5 boards' },
-          { code:'faixa_preta', label:'Faixa Preta',  sub:'Empresarial', price:'R$ 62,90/mês',
+          { code:'faixa_preta', label:'Faixa Preta',  sub:'Empresarial', price:'R$ 69,90/mês',
             ai:'1000',   boards:'∞',     canvas:'∞',  okrs:'∞',  unified:'∞', tatami:'∞',
             zai:'∞', integ:'✓', shared:'✓',
             admin:'∞',       editor:'5 boards',  viewer:'10 boards' },
@@ -22284,8 +22284,8 @@ function _updateAuthPlanBanner() {
   const validPlans = ['faixa_azul','faixa_roxa','faixa_preta'];
   if (!validPlans.includes(plan)) { banner.style.display = 'none'; return; }
   const planNames = { faixa_azul:'Faixa Azul', faixa_roxa:'Faixa Roxa', faixa_preta:'Faixa Preta' };
-  const prices    = { faixa_branca:'Grátis', faixa_azul:'R$ 14,90/mês', faixa_roxa:'R$ 27,90/usuário/mês', faixa_preta:'R$ 62,90/usuário/mês' };
-  const annualP   = { faixa_azul:'R$ 160,92/ano (10% off)', faixa_roxa:'R$ 301,32/usuário/ano (10% off)', faixa_preta:'R$ 679,32/usuário/ano (10% off)' };
+  const prices    = { faixa_branca:'Grátis', faixa_azul:'R$ 14,90/mês', faixa_roxa:'R$ 29,90/usuário/mês', faixa_preta:'R$ 69,90/usuário/mês' };
+  const annualP   = { faixa_azul:'R$ 160,92/ano (10% off)', faixa_roxa:'R$ 322,92/usuário/ano (10% off)', faixa_preta:'R$ 754,92/usuário/ano (10% off)' };
   const priceLabel = cycle === 'annual' ? annualP[plan] : prices[plan];
   banner.style.display = 'block';
   banner.innerHTML = `<strong>📦 Você escolheu ${planNames[plan]}</strong> · ${priceLabel}<br/>Faça login (ou crie conta) e seguimos pro pagamento.`;
@@ -25232,7 +25232,7 @@ function _renderHelpRecursosTopic(id) {
         <p><strong>Lab / Canvas no comparativo de planos.</strong> A linha que era "Canvas" virou "Lab / Canvas" — alinhado com o nome usado no resto do app.</p>
         <p><strong>Zai com escolha de seed.</strong> Ao criar um board Zai novo, agora pergunta se você quer <em>vazio</em> ou <em>com dados de exemplo</em>. Antes vinha sempre com cards de demonstração.</p>
         <p><strong>Trial real com soft block.</strong> Os 5 dias do trial agora são contados de verdade. Após expirar, você ainda pode editar tudo que já tem, mas só pra criar novo board/OKR/Lab é preciso assinar.</p>
-        <p><strong>Faixa Branca de volta como tier grátis.</strong> Limites: 1 board, 1 OKR, 1 Zai (Zai ativo libera 2º board), 10 chamadas IA/mês, Tatami com histórico de 30 dias, sem Synconnect nem integrações. Faixa Azul agora inclui Tatami com 90d. Faixa Roxa: 5 OKRs e 10 Zais por R$ 27,90/mês. Faixa Preta: tudo ilimitado por R$ 62,90/usuário/mês.</p>
+        <p><strong>Faixa Branca de volta como tier grátis.</strong> Limites: 1 board, 1 OKR, 1 Zai (Zai ativo libera 2º board), 10 chamadas IA/mês, Tatami com histórico de 30 dias, sem Synconnect nem integrações. Faixa Azul agora inclui Tatami com 90d. Faixa Roxa: 5 OKRs e 10 Zais por R$ 29,90/mês. Faixa Preta: tudo ilimitado por R$ 69,90/usuário/mês.</p>
         <p><strong>Time tracking colaborativo.</strong> Tracker dentro do card mostra quem trabalhou quanto. Auto-tracking opcional por coluna (entra na coluna "Doing" → cronômetro liga). Relatório agregado com export PDF/CSV no menu Tracker.</p>
         <p><strong>Atribuído a (assigned).</strong> Campo separado de "Responsável manual". Atribuído puxa de membros reais do board (com avatar). Aparece no card e em filtros.</p>
         <p><strong>Granatum: histórico/pago_hoje contam como done.</strong> Cards puxados pela integração Granatum que estão em "histórico" ou "pago hoje" agora não mostram alerta de atraso — o sistema reconhece que já foram concluídos.</p>
