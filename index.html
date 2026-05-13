@@ -39078,7 +39078,7 @@ const SEASONAL_ACHIEVEMENTS = {
     { id:'haru_seed',      icon:'🌱', name:'Broto novo',      desc:'Crie 5 novos boards',                          target:5,   type:'boardsCreatedSeason' },
     { id:'haru_hanami',    icon:'🪷', name:'Hanami',          desc:'Streak de 21 dias úteis',                      target:21,  type:'streakInSeason' },
     { id:'haru_dawn',      icon:'🌅', name:'Amanhecer',       desc:'Abra o app antes das 8h em 10 dias',           target:10,  type:'earlyOpensSeason' },
-    { id:'haru_first',     icon:'🎴', name:'Primeira lição',  desc:'Complete 5 missões diárias',                   target:5,   type:'dailyMissionsSeason' },
+    { id:'haru_first',     icon:'📖', name:'Primeira lição',  desc:'Complete 5 missões diárias',                   target:5,   type:'dailyMissionsSeason' },
   ],
   // 夏 Natsu (Verão · Jun-Ago) — energia, ação, festivais
   natsu: [
@@ -41135,8 +41135,10 @@ function renderDojo() {
       </div>
     </div>
 
-    ${(() => {
-      // ━━ Card de Conquistas Sazonais — rotam por trimestre (春 夏 秋 冬) ━━
+    ${''/* SEASONAL_CARD movido pro final do dojo-wrap */}
+
+    ${'' && (() => {
+      // (movido — código abaixo mantido pra referência mas não executa)
       try {
         if (typeof SEASONAL_ACHIEVEMENTS === 'undefined' || typeof _gamifCurrentSeason !== 'function') return '';
         const season = _gamifCurrentSeason();
@@ -41297,6 +41299,95 @@ function renderDojo() {
         </details>
       ` : ''}
     </div>
+
+    ${(() => {
+      // ━━ Card de Conquistas Sazonais — rotam por trimestre (春 夏 秋 冬) ━━
+      // Renderiza no FIM da página (depois das conquistas permanentes)
+      try {
+        if (typeof SEASONAL_ACHIEVEMENTS === 'undefined' || typeof _gamifCurrentSeason !== 'function') return '';
+        const season = _gamifCurrentSeason();
+        const info = SEASON_INFO[season];
+        const list = SEASONAL_ACHIEVEMENTS[season] || [];
+        const yearNow = new Date().getFullYear();
+        const seasonal = _gamif?.seasonal || { progress: {}, completed: [] };
+        const completedSet = new Set(
+          (seasonal.completed||[]).filter(c => c.season === season && c.year === yearNow).map(c => c.id)
+        );
+        const completedCount = list.filter(ach => completedSet.has(ach.id)).length;
+        const m = new Date().getMonth() + 1;
+        const seasonEnd = info.months[info.months.length - 1];
+        const nextStartM = seasonEnd === 12 ? 1 : seasonEnd + 1;
+        const nextStartY = (season === 'fuyu' && m >= 12) ? yearNow + 1 : yearNow;
+        const nextStart = new Date(nextStartY, nextStartM - 1, 1);
+        const daysToNext = Math.max(0, Math.ceil((nextStart - new Date()) / 86400000));
+        const nextSeasonKey = season === 'haru' ? 'natsu' : season === 'natsu' ? 'aki' : season === 'aki' ? 'fuyu' : 'haru';
+        const nextSeasonInfo = SEASON_INFO[nextSeasonKey];
+        const historic = (seasonal.completed||[])
+          .filter(c => !(c.season === season && c.year === yearNow))
+          .slice(-12);
+        const allFromAllSeasons = Object.values(SEASONAL_ACHIEVEMENTS).flat();
+        const findAch = (id) => allFromAllSeasons.find(a => a.id === id);
+        return `
+        <div class="dojo-seasonal-card" style="--season-color:${info.color};">
+          <div class="dojo-seasonal-h">
+            <div class="dojo-seasonal-kanji" style="color:${info.color};">${info.kanji}</div>
+            <div class="dojo-seasonal-titles">
+              <h3>Conquistas de ${info.name}</h3>
+              <p class="dojo-seasonal-sub">5 badges rotativas a cada estação. ${completedCount}/${list.length} desbloqueada${completedCount===1?'':'s'} este trimestre · próxima estação (${nextSeasonInfo.kanji} ${nextSeasonInfo.name}) em ${daysToNext} dia${daysToNext===1?'':'s'}.</p>
+            </div>
+          </div>
+          <div class="dojo-seasonal-grid">
+            ${list.map(ach => {
+              const isDone = completedSet.has(ach.id);
+              const prog = (seasonal.progress||{})[ach.id] || 0;
+              const pct = Math.min(100, Math.round((prog / ach.target) * 100));
+              return `
+                <div class="dojo-seasonal-item ${isDone?'is-done':''}">
+                  <div class="dojo-seasonal-item-h">
+                    <span class="dojo-seasonal-icon">${ach.icon}</span>
+                    <div>
+                      <div class="dojo-seasonal-name">${_esc(ach.name)}${isDone?' <span class="dojo-seasonal-pill">✓ feito</span>':''}</div>
+                      <div class="dojo-seasonal-desc">${_esc(ach.desc)}</div>
+                    </div>
+                  </div>
+                  <div class="dojo-seasonal-bar">
+                    <div class="dojo-seasonal-bar-fill" style="width:${pct}%;background:${isDone?'#27500A':info.color};"></div>
+                  </div>
+                  <div class="dojo-seasonal-progress">${Math.min(prog, ach.target)} / ${ach.target}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          ${historic.length ? `
+            <details class="dojo-seasonal-history">
+              <summary>📜 Histórico de conquistas anteriores (${historic.length})</summary>
+              <div class="dojo-seasonal-history-grid">
+                ${historic.map(c => {
+                  const ach = findAch(c.id);
+                  if (!ach) return '';
+                  const seasonHistInfo = SEASON_INFO[c.season];
+                  return `<div class="dojo-seasonal-history-item" title="${_esc(seasonHistInfo?.name || c.season)} ${c.year}">
+                    <span style="font-size:18px;">${ach.icon}</span>
+                    <div>
+                      <div style="font-size:11.5px;font-weight:600;">${_esc(ach.name)}</div>
+                      <div style="font-size:10px;color:var(--color-text-tertiary);">${seasonHistInfo?.kanji || ''} ${seasonHistInfo?.name || c.season} ${c.year}</div>
+                    </div>
+                  </div>`;
+                }).join('')}
+              </div>
+            </details>
+          ` : ''}
+          <div class="dojo-seasonal-foot">
+            <em>Mestre Kan:</em> «${
+              completedCount === list.length ? 'Conquistou todas. Aguarde a próxima estação.'
+              : completedCount >= list.length / 2 ? 'Bom ritmo. Mais da metade já está.'
+              : completedCount > 0 ? 'O caminho começou. Continue.'
+              : 'Cada estação traz seu treino. Comece pela mais simples.'
+            }»
+          </div>
+        </div>`;
+      } catch(_) { return ''; }
+    })()}
   </div>`;
 }
 
