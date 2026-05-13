@@ -36243,33 +36243,43 @@ const _PPL_DESLIG_CATEGORIAS = {
   'outro':                  { label: 'Outro',               color: '#A0A0A0' },
 };
 
+// Filtro persistente do timeline do dashboard
+let _peopleHistFilter = 'todos';
+function _peopleSetHistFilter(f) {
+  _peopleHistFilter = f;
+  const el = document.getElementById('ppl-tab-content');
+  if (el) _peopleRenderHistorico(el);
+}
+
 function _peopleRenderHistorico(el) {
   const d = _peopleState.dashboard || {};
   const pessoas = Array.isArray(d.pessoas_ativas) ? d.pessoas_ativas : [];
-  const desligados = pessoas.filter(p => p.status === 'desligado')
-    .sort((a,b) => (b.desligado_at||'').localeCompare(a.desligado_at||''));
 
-  if (!desligados.length) {
+  if (!pessoas.length) {
     el.innerHTML = _peopleEmptyHTML(
-      'Histórico limpo',
-      'Quando uma pessoa não for efetivada (CLT em experiência, PJ não-renovado, etc), use o botão "Não efetivar" no drawer dela. Vai aparecer aqui pra registro, auditoria e análise de motivos.'
+      'Sem dados ainda',
+      'Crie pessoas em "+ Nova pessoa" pra começar a coletar dados. Aqui você vai ver métricas de gestão (taxa de graduação, tempo médio, performance por template, etapas-bloqueio, motivos de saída) conforme a operação rodar.'
     );
     return;
   }
 
-  // Métricas agregadas
-  const total = desligados.length;
-  const totalAtivosMaisGraduadosMaisDesligados = (Number(d.total_aprendizes)||0) + (Number(d.total_graduados)||0) + total;
-  const taxa = totalAtivosMaisGraduadosMaisDesligados > 0
-    ? Math.round(100 * total / totalAtivosMaisGraduadosMaisDesligados)
-    : 0;
-  const diasMedios = (() => {
-    const valid = desligados.filter(p => p.days_in_trail != null);
+  // ── Métricas agregadas ──
+  const ativos     = pessoas.filter(p => p.status === 'ativo');
+  const graduados  = pessoas.filter(p => p.status === 'graduado');
+  const desligados = pessoas.filter(p => p.status === 'desligado');
+  const finalizados = graduados.length + desligados.length;
+  const total = pessoas.length;
+  const taxaGrad   = finalizados > 0 ? Math.round(100*graduados.length/finalizados) : null;
+  const taxaDeslig = finalizados > 0 ? Math.round(100*desligados.length/finalizados) : null;
+  const avgDaysFor = (list) => {
+    const valid = list.filter(p => p.days_to_complete != null);
     if (!valid.length) return null;
-    return Math.round(valid.reduce((s,p) => s + Number(p.days_in_trail), 0) / valid.length);
-  })();
+    return Math.round(valid.reduce((s,p) => s + Number(p.days_to_complete), 0) / valid.length);
+  };
+  const diasGrad   = avgDaysFor(graduados);
+  const diasSair   = avgDaysFor(desligados);
 
-  // Agrupa por categoria pra "por que saem"
+  // Por categoria de desligamento
   const porCategoria = {};
   desligados.forEach(p => {
     const k = p.desligamento_categoria || 'outro';
@@ -36277,75 +36287,194 @@ function _peopleRenderHistorico(el) {
   });
   const catEntries = Object.entries(porCategoria).sort((a,b) => b[1]-a[1]);
 
-  // Etapa mais comum onde travam (pega o título da etapa de bloqueio)
+  // Etapas onde mais travam
   const porEtapa = {};
   desligados.forEach(p => {
     const title = p.desligamento_step?.title;
     if (title) porEtapa[title] = (porEtapa[title] || 0) + 1;
   });
-  const etapaMaisComum = Object.entries(porEtapa).sort((a,b) => b[1]-a[1])[0];
+  const etapaTop = Object.entries(porEtapa).sort((a,b) => b[1]-a[1]).slice(0, 5);
+
+  // Performance por template
+  const porTmpl = {};
+  pessoas.forEach(p => {
+    const k = p.role_template || 'custom';
+    if (!porTmpl[k]) porTmpl[k] = { total:0, grad:0, deslig:0, ativos:0, daysSum:0, daysCount:0 };
+    const x = porTmpl[k];
+    x.total++;
+    if (p.status === 'graduado')  x.grad++;
+    if (p.status === 'desligado') x.deslig++;
+    if (p.status === 'ativo')     x.ativos++;
+    if (p.days_to_complete != null) { x.daysSum += Number(p.days_to_complete); x.daysCount++; }
+  });
+  const tmplRows = Object.entries(porTmpl).map(([k, v]) => ({
+    role: k,
+    label: _PPL_ROLE_LABELS[k] || k,
+    emoji: _PPL_ROLE_EMOJI[k] || '·',
+    ...v,
+    avgDays: v.daysCount ? Math.round(v.daysSum / v.daysCount) : null,
+    taxaGrad: (v.grad + v.deslig) > 0 ? Math.round(100 * v.grad / (v.grad + v.deslig)) : null,
+  })).sort((a,b) => b.total - a.total);
+
+  // Filtro do timeline
+  const filter = _peopleHistFilter;
+  const filtered = pessoas.filter(p => filter === 'todos' || p.status === filter);
+  const sortedTimeline = filtered.slice().sort((a,b) => {
+    const da = a.desligado_at || a.graduated_at || a.start_date || '';
+    const db = b.desligado_at || b.graduated_at || b.start_date || '';
+    return db.localeCompare(da);
+  });
 
   el.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:18px;">
-      <!-- ━━ Mini-dashboard ━━ -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
-        <div class="ppl-stat"><div class="ppl-stat-label">Não efetivados</div><div class="ppl-stat-value">${total}</div></div>
-        <div class="ppl-stat"><div class="ppl-stat-label">Taxa global</div><div class="ppl-stat-value">${taxa}%</div></div>
-        <div class="ppl-stat"><div class="ppl-stat-label">Tempo médio na trilha</div><div class="ppl-stat-value">${diasMedios != null ? diasMedios + 'd' : '—'}</div></div>
-        <div class="ppl-stat"><div class="ppl-stat-label">Etapa-bloqueio + comum</div><div class="ppl-stat-value" style="font-size:13px;line-height:1.35;font-weight:600;">${etapaMaisComum ? _esc(etapaMaisComum[0].slice(0,40)) + (etapaMaisComum[0].length>40?'…':'') + ` <span style="opacity:.6;font-weight:400;font-size:11px;">(${etapaMaisComum[1]})</span>` : '<span style="opacity:.5;font-weight:400;">—</span>'}</div></div>
+
+      <!-- ━━ OVERVIEW · 5 stat cards ━━ -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">
+        <div class="ppl-stat"><div class="ppl-stat-label">Total já passou</div><div class="ppl-stat-value">${total}</div></div>
+        <div class="ppl-stat"><div class="ppl-stat-label">Taxa de graduação</div><div class="ppl-stat-value" style="color:${taxaGrad>=70?'#3B6D11':taxaGrad>=50?'#7A5500':'#BC002D'};">${taxaGrad != null ? taxaGrad+'%' : '—'}</div></div>
+        <div class="ppl-stat"><div class="ppl-stat-label">Tempo médio até ✓</div><div class="ppl-stat-value">${diasGrad!=null?diasGrad+'d':'—'}</div></div>
+        <div class="ppl-stat"><div class="ppl-stat-label">Tempo médio até ✗</div><div class="ppl-stat-value">${diasSair!=null?diasSair+'d':'—'}</div></div>
+        <div class="ppl-stat"><div class="ppl-stat-label">Em trilha agora</div><div class="ppl-stat-value">${ativos.length}</div></div>
       </div>
 
-      <!-- ━━ Distribuição por categoria ━━ -->
+      <!-- ━━ FUNIL ━━ -->
+      ${finalizados > 0 ? `
       <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
-        <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:10px;">📊 Por que saem · distribuição</div>
-        <div style="display:flex;flex-direction:column;gap:7px;">
-          ${catEntries.map(([k, count]) => {
-            const cat = _PPL_DESLIG_CATEGORIAS[k] || _PPL_DESLIG_CATEGORIAS['outro'];
-            const pct = Math.round(100 * count / total);
-            return `
-              <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:160px;flex-shrink:0;font-size:12px;color:var(--color-text-secondary);">${_esc(cat.label)}</div>
-                <div style="flex:1;height:14px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden;position:relative;">
-                  <div style="height:100%;width:${pct}%;background:${cat.color};border-radius:4px;transition:width .3s ease;"></div>
-                </div>
-                <div style="width:60px;text-align:right;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--color-text-primary);font-weight:500;">${count} · ${pct}%</div>
-              </div>`;
-          }).join('')}
+        <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:12px;">🔻 Funil de onboarding</div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:10px;">
+          <div style="background:#FFF4D1;border:1px solid #E6C84F;padding:14px;border-radius:9px;text-align:center;">
+            <div style="font-size:24px;font-weight:700;color:#7A5500;">${ativos.length}</div>
+            <div style="font-size:11px;color:#7A5500;font-weight:500;text-transform:uppercase;letter-spacing:.05em;">Em trilha</div>
+          </div>
+          <div style="color:var(--color-text-tertiary);font-size:18px;">→</div>
+          <div style="background:#E2F0D0;border:1px solid #3B6D11;padding:14px;border-radius:9px;text-align:center;">
+            <div style="font-size:24px;font-weight:700;color:#3B6D11;">${graduados.length}</div>
+            <div style="font-size:11px;color:#3B6D11;font-weight:500;text-transform:uppercase;letter-spacing:.05em;">🌕 Graduadas (${taxaGrad||0}%)</div>
+          </div>
+          <div style="color:var(--color-text-tertiary);font-size:18px;">↘</div>
+          <div style="background:#FBEAEB;border:1px solid #BC002D;padding:14px;border-radius:9px;text-align:center;">
+            <div style="font-size:24px;font-weight:700;color:#9F0026;">${desligados.length}</div>
+            <div style="font-size:11px;color:#9F0026;font-weight:500;text-transform:uppercase;letter-spacing:.05em;">Não efetivadas (${taxaDeslig||0}%)</div>
+          </div>
+        </div>
+      </div>
+      ` : ''}
+
+      <!-- ━━ POR TEMPLATE ━━ -->
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
+        <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:10px;">📋 Performance por template</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;">
+          <div style="display:grid;grid-template-columns:1.8fr .6fr .8fr .8fr .8fr 1fr;gap:8px;padding:6px 8px;color:var(--color-text-tertiary);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">
+            <div>Template</div><div style="text-align:center;">Total</div><div style="text-align:center;">Em trilha</div><div style="text-align:center;">✓ Grad</div><div style="text-align:center;">✗ Sai</div><div style="text-align:center;">Taxa · Média</div>
+          </div>
+          ${tmplRows.map(r => `
+            <div style="display:grid;grid-template-columns:1.8fr .6fr .8fr .8fr .8fr 1fr;gap:8px;padding:8px;background:var(--color-background-secondary);border-radius:6px;align-items:center;">
+              <div style="font-weight:500;">${_esc(r.emoji)} ${_esc(r.label)}</div>
+              <div style="text-align:center;font-variant-numeric:tabular-nums;">${r.total}</div>
+              <div style="text-align:center;font-variant-numeric:tabular-nums;color:#7A5500;">${r.ativos||'—'}</div>
+              <div style="text-align:center;font-variant-numeric:tabular-nums;color:#3B6D11;font-weight:600;">${r.grad||'—'}</div>
+              <div style="text-align:center;font-variant-numeric:tabular-nums;color:#BC002D;font-weight:600;">${r.deslig||'—'}</div>
+              <div style="text-align:center;font-variant-numeric:tabular-nums;font-size:11px;color:var(--color-text-secondary);">
+                ${r.taxaGrad!=null?`<strong style="color:${r.taxaGrad>=70?'#3B6D11':r.taxaGrad>=50?'#7A5500':'#BC002D'};">${r.taxaGrad}%</strong>`:'—'} · ${r.avgDays!=null?r.avgDays+'d':'—'}
+              </div>
+            </div>`).join('')}
         </div>
       </div>
 
-      <!-- ━━ Lista cronológica de desligados ━━ -->
+      <!-- ━━ DOIS QUADROS: motivos e etapas-bloqueio ━━ -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
+        ${desligados.length > 0 ? `
+        <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
+          <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:10px;">💔 Por que saem</div>
+          <div style="display:flex;flex-direction:column;gap:7px;">
+            ${catEntries.map(([k, count]) => {
+              const cat = _PPL_DESLIG_CATEGORIAS[k] || _PPL_DESLIG_CATEGORIAS['outro'];
+              const pct = Math.round(100 * count / desligados.length);
+              return `
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="flex:1;font-size:11.5px;color:var(--color-text-secondary);">${_esc(cat.label)}</div>
+                  <div style="flex:1.5;height:12px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden;">
+                    <div style="height:100%;width:${pct}%;background:${cat.color};border-radius:4px;"></div>
+                  </div>
+                  <div style="width:60px;text-align:right;font-size:11px;font-variant-numeric:tabular-nums;font-weight:500;">${count}·${pct}%</div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
+        ` : ''}
+        ${etapaTop.length > 0 ? `
+        <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
+          <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:10px;">⚠ Etapas-bloqueio · onde travam</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            ${etapaTop.map(([title, count]) => `
+              <div style="display:flex;align-items:center;gap:10px;padding:7px 9px;background:var(--color-background-secondary);border-radius:6px;border-left:2px solid #BC002D;">
+                <div style="flex:1;font-size:11.5px;color:var(--color-text-primary);line-height:1.35;">${_esc(title.slice(0,80))}${title.length>80?'…':''}</div>
+                <div style="font-size:11px;font-weight:600;color:#9F0026;font-variant-numeric:tabular-nums;flex-shrink:0;">${count}×</div>
+              </div>`).join('')}
+          </div>
+        </div>
+        ` : ''}
+      </div>
+
+      <!-- ━━ TIMELINE com filtros ━━ -->
       <div>
-        <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:10px;">⏳ Linha do tempo</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;flex-wrap:wrap;">
+          <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;">⏳ Linha do tempo · todas as pessoas</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button class="ppl-dur-btn ${filter==='todos'?'active':''}" onclick="_peopleSetHistFilter('todos')">Todos · ${total}</button>
+            <button class="ppl-dur-btn ${filter==='ativo'?'active':''}" onclick="_peopleSetHistFilter('ativo')">🌙 Em trilha · ${ativos.length}</button>
+            <button class="ppl-dur-btn ${filter==='graduado'?'active':''}" onclick="_peopleSetHistFilter('graduado')">🌕 Graduadas · ${graduados.length}</button>
+            <button class="ppl-dur-btn ${filter==='desligado'?'active':''}" onclick="_peopleSetHistFilter('desligado')">✗ Não efetivadas · ${desligados.length}</button>
+          </div>
+        </div>
         <div style="display:flex;flex-direction:column;gap:8px;">
-          ${desligados.map(_peopleHistoricoRowHTML).join('')}
+          ${sortedTimeline.length ? sortedTimeline.map(_peopleTimelineRowHTML).join('') :
+            '<div style="padding:30px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:13px;">Nenhuma pessoa nesse filtro.</div>'}
         </div>
       </div>
     </div>
   `;
 }
 
-function _peopleHistoricoRowHTML(p) {
+function _peopleTimelineRowHTML(p) {
   const initials = (p.name || '?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
-  const cat = _PPL_DESLIG_CATEGORIAS[p.desligamento_categoria] || _PPL_DESLIG_CATEGORIAS['outro'];
-  const dt = p.desligado_at ? new Date(p.desligado_at) : null;
-  const dtLabel = dt ? dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'2-digit' }) : '—';
-  const days = p.days_in_trail != null ? `${p.days_in_trail}d na trilha` : '';
-  const stepTitle = p.desligamento_step?.title;
-  // Janela de 7d pra reverter
-  const canRevert = dt && (Date.now() - dt.getTime()) < 7*24*60*60*1000;
+  const isGrad = p.status === 'graduado';
+  const isDeslig = p.status === 'desligado';
+  const borderColor = isGrad ? '#3B6D11' : isDeslig ? '#BC002D' : '#C19A3A';
+  const cat = isDeslig ? (_PPL_DESLIG_CATEGORIAS[p.desligamento_categoria] || _PPL_DESLIG_CATEGORIAS['outro']) : null;
+
+  let statusBadge = '';
+  let timeline = '';
+  if (isGrad) {
+    statusBadge = `<span style="font-size:10.5px;font-weight:600;background:#E2F0D0;color:#2A4F0A;padding:2px 7px;border-radius:5px;">🌕 Graduada</span>`;
+    const dt = p.graduated_at ? new Date(p.graduated_at).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'2-digit' }) : '—';
+    timeline = `em <strong>${dt}</strong>${p.days_to_complete!=null?' · '+p.days_to_complete+'d na trilha':''}`;
+  } else if (isDeslig) {
+    statusBadge = `<span style="font-size:10.5px;font-weight:600;background:${cat.color}22;color:${cat.color};padding:2px 7px;border-radius:5px;">${_esc(cat.label)}</span>`;
+    const dt = p.desligado_at ? new Date(p.desligado_at).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'2-digit' }) : '—';
+    timeline = `desligada em <strong>${dt}</strong>${p.days_to_complete!=null?' · '+p.days_to_complete+'d na trilha':''}`;
+  } else {
+    statusBadge = `<span style="font-size:10.5px;font-weight:600;background:#FFF4D1;color:#7A5500;padding:2px 7px;border-radius:5px;">${_esc(_PPL_BELT_LABELS[p.belt]||'Em trilha')} · ${p.progress||0}%</span>`;
+    const dt = p.start_date ? new Date(p.start_date).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'2-digit' }) : '—';
+    timeline = `iniciou em <strong>${dt}</strong>${p.overdue_steps?` · <span style="color:#BC002D;">⚠ ${p.overdue_steps} atrasada${p.overdue_steps>1?'s':''}</span>`:''}`;
+  }
+
+  const stepTitle = isDeslig ? p.desligamento_step?.title : null;
+  const dtCheck = p.desligado_at ? new Date(p.desligado_at) : null;
+  const canRevert = isDeslig && dtCheck && (Date.now() - dtCheck.getTime()) < 7*24*60*60*1000;
+
   return `
-    <div class="ppl-card" style="cursor:pointer;flex-direction:row;align-items:flex-start;gap:12px;padding:14px 16px;border-left:3px solid ${cat.color};" onclick="_peopleOpenPersonDrawer('${_esc(p.id)}')">
-      <div class="ppl-avatar" style="width:38px;height:38px;font-size:14px;background:linear-gradient(135deg,#5C4F3F,#3A332C);color:#F5E8C8;border-color:transparent;flex-shrink:0;">${_esc(initials)}</div>
+    <div class="ppl-card" style="cursor:pointer;flex-direction:row;align-items:flex-start;gap:12px;padding:12px 14px;border-left:3px solid ${borderColor};" onclick="_peopleOpenPersonDrawer('${_esc(p.id)}')">
+      <div class="ppl-avatar belt-${p.belt||'branca'}" style="width:38px;height:38px;font-size:14px;flex-shrink:0;">${p.photo_url ? `<img src="${_esc(p.photo_url)}" alt=""/>` : _esc(initials)}</div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
           <div style="font-size:13.5px;font-weight:600;color:var(--color-text-primary);">${_esc(p.name)}</div>
           <div style="font-size:11px;color:var(--color-text-tertiary);">${_esc(p.role_title || _PPL_ROLE_LABELS[p.role_template] || '')}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap;">
-          <span style="font-size:10.5px;font-weight:600;background:${cat.color}22;color:${cat.color};padding:2px 7px;border-radius:5px;">${_esc(cat.label)}</span>
-          <span style="font-size:10.5px;color:var(--color-text-tertiary);">desligado em <strong>${dtLabel}</strong>${days?' · '+days:''}</span>
-          ${stepTitle ? `<span style="font-size:10.5px;color:var(--color-text-tertiary);">· estava em "${_esc(stepTitle.slice(0,40))}${stepTitle.length>40?'…':''}"</span>`:''}
+          ${statusBadge}
+          <span style="font-size:10.5px;color:var(--color-text-tertiary);">${timeline}</span>
+          ${stepTitle ? `<span style="font-size:10.5px;color:var(--color-text-tertiary);">· travou em "${_esc(stepTitle.slice(0,40))}${stepTitle.length>40?'…':''}"</span>`:''}
         </div>
         ${p.desligamento_motivo ? `<div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:6px;padding:6px 10px;background:var(--color-background-secondary);border-radius:6px;font-style:italic;font-family:'Noto Serif JP',serif;line-height:1.45;">"${_esc(p.desligamento_motivo)}"</div>` : ''}
       </div>
@@ -36873,13 +37002,13 @@ function _peopleOpenIntegrationsHelp() {
       <div class="mb">
         <p style="font-size:13px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 14px;">Como o People Journey conversa com o resto do Synkan durante o onboarding de uma pessoa:</p>
         <ul style="margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:10px;">
-          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;">
+          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
             <span style="font-size:18px;flex-shrink:0;">🎴</span>
-            <div style="flex:1;font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;"><strong style="color:var(--color-text-primary);">Tatami</strong> — etapas tipo "Reunião de boas-vindas" / "Check-in 30 dias" sugerem ao sensei abrir um tatame com a pessoa. Transcrição automática via Mestre Kan vira pergaminho no Bunko. <em style="color:#C19A3A;">(auto-agendamento: roadmap)</em></div>
+            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Tatami</strong> — etapas tipo "Reunião de boas-vindas" / "Check-in 30 dias" mostram botão 🎴 no drawer que abre direto o canal da pessoa pro sensei subir no tatame. Transcrição via Mestre Kan vira pergaminho no Bunko. <strong style="color:#3B6D11;">✓ ativo</strong></div>
           </li>
-          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;">
+          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
             <span style="font-size:18px;flex-shrink:0;">📋</span>
-            <div style="flex:1;font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;"><strong style="color:var(--color-text-primary);">Boards</strong> — etapas podem virar cards de board específico (ex: "Primeiro PR", "Primeira venda fechada") pra ficarem visíveis no fluxo do time. <em style="color:#C19A3A;">(promoção manual: roadmap)</em></div>
+            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Boards</strong> — etapas de treinamento/plano mostram botão 📋 no drawer pra promover pra card de board específico (ex: "Primeiro PR"). Ficam vinculadas — o card aparece no fluxo normal do time. <strong style="color:#3B6D11;">✓ ativo</strong></div>
           </li>
           <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
             <span style="font-size:18px;flex-shrink:0;">📦</span>
@@ -36893,13 +37022,13 @@ function _peopleOpenIntegrationsHelp() {
             <span style="font-size:18px;flex-shrink:0;">💚</span>
             <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Check-ins</strong> — a cada 7 dias, Mestre Kan pergunta "como tá indo?" no chat. Resposta vira histórico que o sensei acompanha. <strong style="color:#3B6D11;">✓ ativo</strong></div>
           </li>
-          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;">
+          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
             <span style="font-size:18px;flex-shrink:0;">🎯</span>
-            <div style="flex:1;font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;"><strong style="color:var(--color-text-primary);">OKRs</strong> — etapas tipo "Definir OKRs trimestrais" linkam pro módulo OKRs pra a pessoa montar seus primeiros objetivos. <em style="color:#C19A3A;">(auto-sugestão: roadmap)</em></div>
+            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>OKRs</strong> — etapas com "OKR" no título mostram botão 🎯 no drawer que abre direto o módulo OKRs pra a pessoa montar seus primeiros objetivos. <strong style="color:#3B6D11;">✓ ativo</strong></div>
           </li>
         </ul>
-        <div style="margin-top:14px;padding:9px 11px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11px;color:#7A5500;line-height:1.55;">
-          <strong>Legenda:</strong> <span style="color:#3B6D11;">✓ ativo</span> = funciona hoje · <em style="color:#C19A3A;">roadmap</em> = planejado mas não implementado ainda
+        <div style="margin-top:14px;padding:9px 11px;background:rgba(59,109,17,.10);border-left:3px solid #3B6D11;border-radius:0 6px 6px 0;font-size:11px;color:#2A4F0A;line-height:1.55;">
+          <strong>Todas as 6 integrações ativas.</strong> Algumas rolam automáticas (Bunko/Chat/Check-ins) e outras são trigger no drawer da pessoa (botões 🎴 / 📋 / 🎯 nas etapas relevantes).
         </div>
       </div>
     </div>`;
@@ -37157,29 +37286,6 @@ async function _peopleProvisionIntegrations(trailId, personName, personId) {
   return updates;
 }
 
-// Re-provisiona integrações pra uma pessoa que já existe (caso bunko/canal
-// não tenham sido criados na origem por algum motivo). Idempotente: se já
-// existir pasta ou canal com o nome esperado, reusa em vez de duplicar.
-async function _peopleReprovisionar(personId) {
-  const pRes = await _peopleApi.get(`people?id=eq.${personId}&select=name&limit=1`);
-  const person = Array.isArray(pRes.data) ? pRes.data[0] : null;
-  if (!person) return null;
-  const tRes = await _peopleApi.get(`people_trails?person_id=eq.${personId}&select=id&order=created_at.desc&limit=1`);
-  const trail = Array.isArray(tRes.data) ? tRes.data[0] : null;
-  if (!trail) {
-    if (typeof appAlert === 'function') appAlert('Sem trilha', 'Essa pessoa não tem trilha pra associar integrações.', { icon: '⚠️' });
-    return null;
-  }
-  const updates = await _peopleProvisionIntegrations(trail.id, person.name, personId);
-  if (typeof appAlert === 'function') {
-    const ok = updates && Object.keys(updates).length > 0;
-    appAlert(ok ? 'Integrações OK ✓' : 'Nada criado', ok
-      ? `Pasta Bunko ${updates.bunko_folder_id?'criada':'já existia'} · Canal ${updates.channel_id?'criado':'já existia'}.`
-      : 'Pode ser problema de permissão ou as integrações já existem. Check o console.', { icon: '🔄' });
-  }
-  // Recarrega drawer
-  if (_peopleState.currentPersonId === personId) await _peopleOpenPersonDrawer(personId);
-}
 
 // ── Drawer com trilha completa da pessoa ────────────────────────────
 async function _peopleOpenPersonDrawer(personId) {
@@ -37265,7 +37371,6 @@ function _peopleRenderDrawer(state, loading) {
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
           ${accountChip}
-          <button class="ppl-drawer-icon-btn" onclick="_peopleReprovisionar('${_esc(person.id)}')" title="Re-provisionar integrações (criar pasta no Bunko + canal de chat caso estejam faltando)">🔄</button>
           <button class="ppl-drawer-icon-btn" onclick="_peopleOpenTrailEditor('${_esc(trail?.id||'')}')" title="Configurar etapas da trilha (adicionar/remover/editar)">⚙</button>
           ${person.status === 'ativo' ? `<button class="ppl-drawer-icon-btn" style="border-color:rgba(188,0,45,.30);color:#9F0026;" onclick="_peopleOpenDesligarModal('${_esc(person.id)}', '${_esc(person.name)}')" title="Marcar como não-efetivada">🚪</button>` : ''}
           <button class="ppl-drawer-close" onclick="_peopleCloseDrawer()" title="Fechar">×</button>
@@ -37788,6 +37893,29 @@ function _peopleStepHTML(s) {
   const dl = s.deadline_date ? new Date(s.deadline_date) : null;
   const isOverdue = !isFeito && dl && dl < today;
   const cat = (s.category || '').toLowerCase();
+  const title = (s.title || '').toLowerCase();
+
+  // ── Botões contextuais por tipo de etapa ──
+  // Detecta etapas que se beneficiam de integração com outros módulos:
+  //   - social (reunião/check-in/tatame) → botão pra abrir tatame
+  //   - "OKR" no título e categoria 'plano' → botão pra ir ao módulo OKRs
+  //   - 'treinamento' com card_id null → botão pra promover etapa pra card de board
+  const actions = [];
+  const isSocialMeeting = cat === 'social' && /reuni|check-in|tatam|boas-vindas|caf|1[\s]*[:a].*1/i.test(title);
+  if (isSocialMeeting && !isFeito) {
+    actions.push(`<button class="ppl-step-action" onclick="event.stopPropagation();_peopleStepOpenTatame()" title="Abrir tatame com esta pessoa">🎴</button>`);
+  }
+  if (/okr/i.test(title) && !isFeito) {
+    actions.push(`<button class="ppl-step-action" onclick="event.stopPropagation();_peopleStepOpenOKRs()" title="Ir pro módulo OKRs">🎯</button>`);
+  }
+  if ((cat === 'treinamento' || cat === 'plano') && !isFeito && !s.card_id) {
+    actions.push(`<button class="ppl-step-action" onclick="event.stopPropagation();_peopleStepPromoteToBoard('${_esc(s.id)}','${_esc(s.title)}')" title="Promover esta etapa pra card num board">📋</button>`);
+  }
+  // Se já promoveu pra board, mostra link pro card
+  if (s.card_id) {
+    actions.push(`<button class="ppl-step-action" onclick="event.stopPropagation();_peopleStepOpenLinkedCard('${_esc(s.card_id)}')" title="Abrir card vinculado no board">📋✓</button>`);
+  }
+
   return `
     <div class="ppl-step ${isFeito?'is-feito':''} ${isOverdue?'is-overdue':''}">
       <button class="ppl-step-check ${isFeito?'is-checked':''}" onclick="_peopleToggleStep('${_esc(s.id)}', ${!isFeito})" title="${isFeito?'Marcar como pendente':'Marcar como feito'}">${isFeito?'✓':''}</button>
@@ -37800,7 +37928,147 @@ function _peopleStepHTML(s) {
           ${s.assignee_role ? `<span style="font-size:10.5px;color:var(--color-text-tertiary);">· ${_esc(s.assignee_role)}</span>` : ''}
         </div>
       </div>
+      ${actions.length ? `<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-self:flex-start;">${actions.join('')}</div>` : ''}
     </div>`;
+}
+
+// CSS dos botões de ação inline nas etapas
+(function _peopleInjectStepActionCSS() {
+  if (document.getElementById('ppl-step-action-css')) return;
+  const s = document.createElement('style');
+  s.id = 'ppl-step-action-css';
+  s.textContent = `
+    .ppl-step-action{background:transparent;border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:4px 7px;border-radius:6px;line-height:1;transition:all .12s;font-family:inherit;}
+    .ppl-step-action:hover{border-color:#BC002D;color:#BC002D;background:rgba(188,0,45,.06);}
+  `;
+  document.head.appendChild(s);
+})();
+
+// ── Handlers das integrações contextuais ────────────────────────────
+function _peopleStepOpenTatame() {
+  // Acha o canal de onboarding da pessoa atual e navega pra ele
+  const trail = _peopleState.currentTrail;
+  const channelId = trail?.trail?.channel_id;
+  if (!channelId) {
+    if (typeof appAlert === 'function') {
+      appAlert('Canal não encontrado', 'O canal de onboarding ainda não foi criado pra essa pessoa. Cria uma pessoa nova ou re-provisiona via SQL.', { icon: '⚠️' });
+    }
+    return;
+  }
+  // Fecha drawer + navega pro chat + abre canal
+  _peopleCloseDrawer();
+  try {
+    if (typeof switchTab === 'function') switchTab('chat');
+    setTimeout(() => {
+      if (typeof _chatSelectChannel === 'function') _chatSelectChannel(channelId);
+      // Sugere abrir tatame (botão "subir no tatame" tá no canal)
+      setTimeout(() => {
+        if (typeof appAlert === 'function') {
+          appAlert('Tatame da pessoa', 'Clica no botão <strong>"🎴 Subir no tatame"</strong> ali no topo do canal pra abrir a sessão com a pessoa.', { icon: '🎴', html: true });
+        }
+      }, 300);
+    }, 200);
+  } catch(e) { console.warn('[people] open tatame:', e); }
+}
+
+function _peopleStepOpenOKRs() {
+  // Navega pro módulo OKRs
+  if (typeof switchTab === 'function') switchTab('okrs');
+  if (typeof appAlert === 'function') {
+    appAlert('Módulo OKRs aberto', 'Crie os OKRs do trimestre aqui. Quando terminar, volte pra People Journey e marque a etapa como feita.', { icon: '🎯' });
+  }
+}
+
+async function _peopleStepPromoteToBoard(stepId, stepTitle) {
+  // Modal pra escolher board + cria card lá
+  const boards = (typeof allBoards !== 'undefined' && allBoards)
+    ? Object.entries(allBoards).filter(([id, b]) => b && id !== '__unified__' && !b.archived)
+    : [];
+  if (!boards.length) {
+    if (typeof appAlert === 'function') appAlert('Sem boards', 'Você precisa de pelo menos um board ativo pra promover etapas.', { icon: '⚠️' });
+    return;
+  }
+  let modal = document.getElementById('ppl-promote-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-promote-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10007';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:480px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">📋 Promover etapa pra card</h3>
+        <button onclick="document.getElementById('ppl-promote-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <p style="font-size:13px;color:var(--color-text-secondary);margin:0 0 14px;line-height:1.55;">A etapa "<strong>${_esc(stepTitle)}</strong>" vai virar um card no board escolhido. Ficará vinculada — completar uma marca a outra.</p>
+        <div class="ppl-modal-row">
+          <label class="ppl-modal-label">Escolha o board</label>
+          <select id="ppl-promote-board" class="ppl-modal-select">
+            ${boards.map(([id, b]) => `<option value="${_esc(id)}">${_esc(b.icon || '▤')} ${_esc(b.name || 'Board')}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+          <button type="button" class="ppl-btn" onclick="document.getElementById('ppl-promote-modal').remove()">Cancelar</button>
+          <button type="button" class="ppl-btn ppl-btn-primary" onclick="_peopleStepDoPromote('${_esc(stepId)}','${_esc(stepTitle)}')">Promover</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function _peopleStepDoPromote(stepId, stepTitle) {
+  const boardId = document.getElementById('ppl-promote-board')?.value;
+  if (!boardId || typeof allBoards === 'undefined' || !allBoards[boardId]) return;
+  const board = allBoards[boardId];
+  // Cria um card no board com o título da etapa
+  try {
+    const cardId = (typeof _genCardId === 'function') ? _genCardId() : 'c_' + Date.now();
+    const newCard = {
+      id: cardId,
+      title: stepTitle,
+      description: '↩ Etapa vinda do People Journey · onboarding da pessoa',
+      col: (board.COLS && board.COLS[0]?.id) || 'backlog',
+      tagIds: [],
+      threads: [],
+      attachments: [],
+      subtasks: [],
+      createdAt: new Date().toISOString(),
+    };
+    board.cards = board.cards || [];
+    board.cards.push(newCard);
+    if (typeof saveData === 'function') saveData();
+    // Vincula o card à etapa
+    await _peopleApi.patch(`people_trail_steps?id=eq.${stepId}`, { card_id: String(cardId) });
+    document.getElementById('ppl-promote-modal')?.remove();
+    if (typeof appAlert === 'function') {
+      appAlert('Card criado ✓', `Etapa promovida pra "<strong>${_esc(board.name)}</strong>". Vai aparecer na coluna inicial do board.`, { icon: '📋', html: true });
+    }
+    // Recarrega drawer com card_id atualizado
+    if (_peopleState.currentPersonId) await _peopleOpenPersonDrawer(_peopleState.currentPersonId);
+  } catch(e) {
+    console.warn('[people] promote step:', e);
+    if (typeof appAlert === 'function') appAlert('Erro ao promover', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+function _peopleStepOpenLinkedCard(cardId) {
+  // Navega pra board e tenta abrir o card. Como não sabemos qual board,
+  // procura nos allBoards.
+  if (typeof allBoards === 'undefined') return;
+  for (const [bId, b] of Object.entries(allBoards)) {
+    if (b?.cards?.some(c => String(c.id) === String(cardId))) {
+      _peopleCloseDrawer();
+      try {
+        if (typeof switchBoard === 'function') switchBoard(bId, { goTo: 'kanban' });
+        setTimeout(() => {
+          if (typeof editCard === 'function') editCard(parseInt(cardId, 10) || cardId);
+        }, 300);
+      } catch(_){}
+      return;
+    }
+  }
+  if (typeof appAlert === 'function') appAlert('Card não encontrado', 'O card vinculado não existe mais. Pode ter sido excluído.', { icon: '⚠️' });
 }
 
 async function _peopleToggleStep(stepId, makeChecked) {
