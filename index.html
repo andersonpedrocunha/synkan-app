@@ -8088,32 +8088,33 @@ function setSupabaseConfig(cfg) {
 // tatame:              'none' | 'live' | 'full'  — none=bloqueado, live=voz+vídeo ao vivo (sem gravar/transcrever), full=tudo
 // synconnect_contacts: -1=ilimitado, N=número máx de contatos (leads + clientes + fornecedores somados)
 // bunko_storage_gb:    -1=ilimitado, N=GB de storage no Bunko Box
+// rec_hours_per_month: -1=ilimitado, N=horas máx de gravação Tatame por mês (só Preta tem >0)
 const PLAN_LIMITS = {
   trial:        { ai: 30,   boards: -1, canvas: -1, okrs: -1, unified: -1, zai: -1,
                   seats: 1, editors: 0, viewers: 1,
                   chat_history_days: -1, integrations: true, shared_boards: false, synconnect: true,
-                  tatame: 'full', synconnect_contacts: -1, bunko_storage_gb: 5,
+                  tatame: 'full', synconnect_contacts: -1, bunko_storage_gb: 5, rec_hours_per_month: 5,
                   name: 'Trial 5 dias',                price: 0     },
   faixa_branca: { ai: 10,   boards: 1,  canvas: 1,  okrs: 1,  unified: 1,  zai: 1,
                   seats: 1, editors: 0, viewers: 0,
                   chat_history_days: 30, integrations: false, shared_boards: false, synconnect: false,
                   boards_with_zai: 2, // bônus: 1 Zai ativo libera 2º board
-                  tatame: 'none', synconnect_contacts: 0, bunko_storage_gb: 0.1,  // 100MB
+                  tatame: 'none', synconnect_contacts: 0, bunko_storage_gb: 0.1, rec_hours_per_month: 0,  // 100MB
                   name: 'Faixa Branca · Grátis',       price: 0     },
   faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: -1, zai: 3,
                   seats: -1, editors: 3, viewers: 5,
                   chat_history_days: 90, integrations: true, shared_boards: true, synconnect: true,
-                  tatame: 'none', synconnect_contacts: 50, bunko_storage_gb: 1,
+                  tatame: 'none', synconnect_contacts: 50, bunko_storage_gb: 5, rec_hours_per_month: 0,
                   name: 'Faixa Azul · Pessoal',        price: 14.90 },
   faixa_roxa:   { ai: 300,  boards: 10, canvas: 10, okrs: 5,  unified: -1, zai: 10,
                   seats: -1, editors: 3, viewers: 5,
                   chat_history_days: -1, integrations: true, shared_boards: true, synconnect: true,
-                  tatame: 'live', synconnect_contacts: 2000, bunko_storage_gb: 25,
+                  tatame: 'live', synconnect_contacts: 2000, bunko_storage_gb: 35, rec_hours_per_month: 0,
                   name: 'Faixa Roxa · Profissional',   price: 27.90 },
   faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1, zai: -1,
                   seats: -1, editors: 5, viewers: 10,
                   chat_history_days: -1, integrations: true, shared_boards: true, synconnect: true,
-                  tatame: 'full', synconnect_contacts: -1, bunko_storage_gb: 200,
+                  tatame: 'full', synconnect_contacts: -1, bunko_storage_gb: 200, rec_hours_per_month: 30,
                   name: 'Faixa Preta · Empresarial',   price: 62.90 },
 };
 // seats   = ADMINS pagos (mesmo valor do plano; -1 = ilimitado).
@@ -8594,6 +8595,46 @@ function _tatameAccessLevel() {
 function _canUseTatame()           { return _tatameAccessLevel() !== 'none'; }
 function _canRecordTatame()        { return _tatameAccessLevel() === 'full'; }
 function _canTranscribeTatame()    { return _tatameAccessLevel() === 'full'; }
+
+// ── Cap de horas de gravação por mês (só Faixa Preta) ──────────────
+// Cache atualizado quando o user abre Tatame / clica em gravar.
+let _recHoursUsedThisMonth = 0;
+let _recHoursUsedAt = 0;
+async function _recRefreshHoursUsed(force) {
+  if (!force && _recHoursUsedAt && (Date.now() - _recHoursUsedAt < 60_000)) return;
+  try {
+    const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+    if (!c || typeof supaUser === 'undefined' || !supaUser) return;
+    // Início do mês corrente (UTC)
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const { data } = await c.from('tatame_recordings')
+      .select('duration_sec')
+      .eq('workspace_owner', supaUser.id)
+      .gte('started_at', monthStart)
+      .in('status', ['ready', 'processing', 'recording']);
+    if (Array.isArray(data)) {
+      const totalSec = data.reduce((s, r) => s + (Number(r.duration_sec) || 0), 0);
+      _recHoursUsedThisMonth = totalSec / 3600;
+      _recHoursUsedAt = Date.now();
+    }
+  } catch(e) { console.warn('[rec-hours] refresh:', e?.message); }
+}
+
+// Confere se ainda pode gravar mais X horas neste mês. Retorna {ok, used, max, remaining}
+function _recCanStart(estHours) {
+  const limits = (typeof getCurrentPlanLimits === 'function') ? getCurrentPlanLimits() : null;
+  const maxH = limits ? limits.rec_hours_per_month : 0;
+  if (maxH === -1 || maxH === undefined) return { ok: true, used: _recHoursUsedThisMonth, max: -1, remaining: Infinity };
+  if (maxH === 0) return { ok: false, used: 0, max: 0, remaining: 0 };  // plano não tem gravação
+  const remaining = Math.max(0, maxH - _recHoursUsedThisMonth);
+  return {
+    ok: remaining >= (estHours || 0.01),  // pelo menos uns segundos disponíveis
+    used: _recHoursUsedThisMonth,
+    max: maxH,
+    remaining,
+  };
+}
 
 function canCreate(resource) {
   const limits = getCurrentPlanLimits();
@@ -35196,58 +35237,163 @@ function _synAddCommissionSplit() {
   _synRenderCommissionSplits();
 }
 
-// Modal de cadastro/edição de vendedor — usado tanto pelo deal modal quanto
-// pela tela "Vendedores" no dashboard.
+// Lista os membros do workspace ainda NÃO cadastrados como seller interno.
+// Retorna [{user_id, name, email, avatar}]
+function _synAvailableWorkspaceMembers() {
+  try {
+    const linkedIds = new Set(_synSellers.filter(s => s.linked_user_id).map(s => s.linked_user_id));
+    const myId = (typeof supaUser !== 'undefined' && supaUser?.id) || null;
+    const userMap = (typeof _chatState !== 'undefined' && _chatState?.userMap) || {};
+    const out = [];
+    Object.entries(userMap).forEach(([uid, u]) => {
+      if (!uid || linkedIds.has(uid)) return;
+      if (!u || u.name === 'Usuário' || !u.name) return;
+      const isMe = uid === myId;
+      out.push({
+        user_id: uid,
+        name: isMe ? `${u.name} (você)` : u.name,
+        email: u.email || null,
+        avatar: u.avatar || null,
+        isMe,
+      });
+    });
+    // Garante que o próprio user esteja na lista (caso userMap não tenha avatar nele ainda)
+    if (myId && !linkedIds.has(myId) && !out.find(x => x.user_id === myId) && typeof supaUser !== 'undefined') {
+      out.unshift({
+        user_id: myId,
+        name: (supaUser.user_metadata?.full_name || supaUser.email?.split('@')[0] || 'Eu') + ' (você)',
+        email: supaUser.email,
+        avatar: supaUser.user_metadata?.avatar_url,
+        isMe: true,
+      });
+    }
+    out.sort((a,b) => (a.isMe ? -1 : b.isMe ? 1 : (a.name||'').localeCompare(b.name||'')));
+    return out;
+  } catch(_) { return []; }
+}
+
+// Modal de cadastro/edição de vendedor — 2 modos:
+//   • novo: tabs "👤 Membro do workspace" vs "🤝 Externo"
+//   • edit: só edita os campos do seller existente
+// Z-index 9900 pra ficar NA FRENTE do modal de deal (9800).
 function _synOpenSellerModal(sellerId, onSaved) {
   const existing = sellerId ? _synSellerById(sellerId) : null;
   const isEdit = !!existing;
+  const members = isEdit ? [] : _synAvailableWorkspaceMembers();
   let ov = document.getElementById('syn-seller-modal');
   if (!ov) {
     ov = document.createElement('div');
     ov.id = 'syn-seller-modal';
     ov.className = 'rg-modal';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:9700;';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9900;';
     document.body.appendChild(ov);
   }
+  // Estado do tab — default: members se tem opções, senão external
+  if (!ov.dataset.tab) ov.dataset.tab = (!isEdit && members.length > 0) ? 'member' : 'external';
+  const tab = isEdit ? 'edit' : ov.dataset.tab;
+
+  const externalForm = `
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Nome*<input id="ssm-name" type="text" value="${_esc(existing?.name||'')}" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--color-background-primary);color:var(--color-text-primary);"/></label>
+      <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">E-mail<input id="ssm-email" type="email" value="${_esc(existing?.email||'')}" placeholder="opcional" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--color-background-primary);color:var(--color-text-primary);"/></label>
+      <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Telefone<input id="ssm-phone" type="tel" value="${_esc(existing?.phone||'')}" placeholder="opcional" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--color-background-primary);color:var(--color-text-primary);"/></label>
+      <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">% comissão padrão<input id="ssm-pct" type="number" min="0" max="100" step="0.5" value="${existing?.default_commission_pct ?? ''}" placeholder="opcional · ex: 10" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--color-background-primary);color:var(--color-text-primary);"/></label>
+      <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Notas<textarea id="ssm-notes" rows="2" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13px;font-family:inherit;resize:vertical;background:var(--color-background-primary);color:var(--color-text-primary);">${_esc(existing?.notes||'')}</textarea></label>
+    </div>`;
+
+  const memberList = members.length > 0
+    ? members.map(m => {
+        const initials = (m.name||'?').split(/\s+/).slice(0,2).map(s=>s[0]||'').join('').toUpperCase();
+        const avatar = m.avatar
+          ? `<img src="${_esc(m.avatar)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>`
+          : `<span style="width:34px;height:34px;border-radius:50%;background:#3C3489;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;">${_esc(initials)}</span>`;
+        return `<button type="button" onclick="_synAddMemberAsSeller('${_esc(m.user_id)}','${_esc(m.name.replace(/\(você\)/,'').trim())}','${_esc(m.email||'')}')" style="display:flex;align-items:center;gap:11px;padding:10px 12px;background:transparent;border:1px solid var(--color-border-tertiary);border-radius:9px;cursor:pointer;text-align:left;font-family:inherit;width:100%;transition:background .12s;" onmouseover="this.style.background='var(--color-background-secondary)'" onmouseout="this.style.background='transparent'">
+          ${avatar}
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${_esc(m.name)}</div>
+            ${m.email ? `<div style="font-size:11.5px;color:var(--color-text-tertiary);">${_esc(m.email)}</div>` : ''}
+          </div>
+          <span style="font-size:11px;color:#3B6D11;font-weight:600;">+ Adicionar</span>
+        </button>`;
+      }).join('')
+    : `<div style="padding:24px 14px;text-align:center;color:var(--color-text-tertiary);font-size:12.5px;font-style:italic;">
+        Nenhum membro do workspace disponível.<br/>
+        Todos já estão cadastrados como vendedor, ou ninguém foi convidado ainda.<br/><br/>
+        Cadastra um <strong>vendedor externo</strong> na aba ao lado.
+      </div>`;
+
+  const tabsHTML = isEdit ? '' : `
+    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:0.5px solid var(--color-border-tertiary);">
+      <button type="button" onclick="document.getElementById('syn-seller-modal').dataset.tab='member';_synOpenSellerModal(null,${onSaved?'window._synSellerModalCb':'null'});" style="flex:1;padding:9px 14px;background:${tab==='member'?'transparent':'transparent'};border:none;border-bottom:2px solid ${tab==='member'?'var(--color-text-primary)':'transparent'};color:${tab==='member'?'var(--color-text-primary)':'var(--color-text-tertiary)'};font-size:13px;font-weight:${tab==='member'?'600':'400'};cursor:pointer;font-family:inherit;">👤 Membro do workspace ${members.length ? `<span style="background:var(--color-background-secondary);padding:1px 7px;border-radius:999px;font-size:11px;margin-left:4px;">${members.length}</span>` : ''}</button>
+      <button type="button" onclick="document.getElementById('syn-seller-modal').dataset.tab='external';_synOpenSellerModal(null,${onSaved?'window._synSellerModalCb':'null'});" style="flex:1;padding:9px 14px;background:transparent;border:none;border-bottom:2px solid ${tab==='external'?'var(--color-text-primary)':'transparent'};color:${tab==='external'?'var(--color-text-primary)':'var(--color-text-tertiary)'};font-size:13px;font-weight:${tab==='external'?'600':'400'};cursor:pointer;font-family:inherit;">🤝 Vendedor externo</button>
+    </div>`;
+
+  // Salva callback global pra re-opening preservar
+  if (onSaved) window._synSellerModalCb = onSaved;
+
   ov.innerHTML = `
-    <div style="background:var(--color-background-primary);border-radius:12px;padding:22px 26px;max-width:460px;width:92%;max-height:88vh;overflow:auto;box-shadow:0 16px 48px rgba(0,0,0,.30);font-family:var(--font-sans);">
+    <div style="background:var(--color-background-primary);border-radius:12px;padding:22px 26px;max-width:480px;width:92%;max-height:88vh;overflow:auto;box-shadow:0 16px 48px rgba(0,0,0,.30);font-family:var(--font-sans);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <h3 style="margin:0;font-size:18px;color:var(--color-text-primary);">${isEdit ? '✎ Editar' : '+ Novo'} vendedor</h3>
-        <button onclick="document.getElementById('syn-seller-modal').style.display='none';" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+        <h3 style="margin:0;font-size:18px;color:var(--color-text-primary);">${isEdit ? '✎ Editar vendedor' : '+ Novo vendedor'}</h3>
+        <button onclick="document.getElementById('syn-seller-modal').style.display='none';delete document.getElementById('syn-seller-modal').dataset.tab;" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
       </div>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Nome*<input id="ssm-name" type="text" value="${_esc(existing?.name||'')}" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;"/></label>
-        <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">E-mail<input id="ssm-email" type="email" value="${_esc(existing?.email||'')}" placeholder="opcional" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;"/></label>
-        <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Telefone<input id="ssm-phone" type="tel" value="${_esc(existing?.phone||'')}" placeholder="opcional" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;"/></label>
-        <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">% comissão padrão<input id="ssm-pct" type="number" min="0" max="100" step="0.5" value="${existing?.default_commission_pct ?? ''}" placeholder="opcional · ex: 10" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13.5px;font-family:inherit;"/></label>
-        <label style="font-size:11.5px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;font-weight:600;">Notas<textarea id="ssm-notes" rows="2" style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;font-size:13px;font-family:inherit;resize:vertical;">${_esc(existing?.notes||'')}</textarea></label>
-        ${isEdit ? `<div style="font-size:11px;color:var(--color-text-tertiary);padding:6px 8px;background:var(--color-background-secondary);border-radius:6px;">Tipo: <strong>${existing.type === 'internal' ? '👤 interno (membro do workspace)' : '🤝 externo (representante)'}</strong></div>` : `<div style="font-size:11px;color:var(--color-text-tertiary);padding:6px 8px;background:var(--color-background-secondary);border-radius:6px;">Tipo: <strong>🤝 externo</strong> · pra vincular um membro do workspace, use o picker do deal.</div>`}
-      </div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
+      ${tabsHTML}
+      ${tab === 'member' ? `<div style="display:flex;flex-direction:column;gap:7px;">${memberList}</div>` : externalForm}
+      ${tab === 'edit' && existing?.type === 'internal' ? `<div style="margin-top:10px;font-size:11px;color:var(--color-text-tertiary);padding:6px 8px;background:var(--color-background-secondary);border-radius:6px;">Tipo: <strong>👤 interno</strong> · vinculado a um membro do workspace.</div>` : ''}
+      ${tab === 'edit' && existing?.type === 'external' ? `<div style="margin-top:10px;font-size:11px;color:var(--color-text-tertiary);padding:6px 8px;background:var(--color-background-secondary);border-radius:6px;">Tipo: <strong>🤝 externo</strong> · vendedor que não tem conta Synkan.</div>` : ''}
+      ${tab !== 'member' ? `<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
         ${isEdit ? `<button onclick="(async()=>{if(confirm('Desativar este vendedor? (não exclui histórico)')){await _synSaveSeller({id:'${existing.id}',active:false});document.getElementById('syn-seller-modal').style.display='none';if(typeof renderRegistry==='function')renderRegistry();}})()" style="margin-right:auto;background:transparent;border:1px solid #BC002D;color:#BC002D;padding:7px 14px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">Desativar</button>` : ''}
-        <button onclick="document.getElementById('syn-seller-modal').style.display='none';" style="background:transparent;border:1px solid var(--color-border-secondary);color:var(--color-text-secondary);padding:7px 14px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">Cancelar</button>
+        <button onclick="document.getElementById('syn-seller-modal').style.display='none';delete document.getElementById('syn-seller-modal').dataset.tab;" style="background:transparent;border:1px solid var(--color-border-secondary);color:var(--color-text-secondary);padding:7px 14px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">Cancelar</button>
         <button id="ssm-save" style="background:#111;color:#fff;border:none;padding:7px 16px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">${isEdit ? 'Salvar' : 'Cadastrar'}</button>
-      </div>
+      </div>` : ''}
     </div>
   `;
   ov.style.display = 'flex';
-  document.getElementById('ssm-save').onclick = async () => {
-    const name = document.getElementById('ssm-name').value.trim();
-    if (!name) { alert('Nome é obrigatório.'); return; }
-    const payload = {
-      id: existing?.id,
-      name,
-      email: document.getElementById('ssm-email').value,
-      phone: document.getElementById('ssm-phone').value,
-      type: existing?.type || 'external',
-      linked_user_id: existing?.linked_user_id || null,
-      default_commission_pct: parseFloat(document.getElementById('ssm-pct').value) || null,
-      notes: document.getElementById('ssm-notes').value,
+
+  const saveBtn = document.getElementById('ssm-save');
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      const name = document.getElementById('ssm-name').value.trim();
+      if (!name) { alert('Nome é obrigatório.'); return; }
+      const payload = {
+        id: existing?.id,
+        name,
+        email: document.getElementById('ssm-email').value,
+        phone: document.getElementById('ssm-phone').value,
+        type: existing?.type || 'external',
+        linked_user_id: existing?.linked_user_id || null,
+        default_commission_pct: parseFloat(document.getElementById('ssm-pct').value) || null,
+        notes: document.getElementById('ssm-notes').value,
+      };
+      const saved = await _synSaveSeller(payload);
+      ov.style.display = 'none';
+      delete ov.dataset.tab;
+      if (saved && typeof onSaved === 'function') onSaved(saved);
+      else if (saved && typeof window._synSellerModalCb === 'function') window._synSellerModalCb(saved);
     };
-    const saved = await _synSaveSeller(payload);
-    ov.style.display = 'none';
-    if (saved && typeof onSaved === 'function') onSaved(saved);
-  };
+  }
+}
+
+// Vincula um membro do workspace como vendedor interno (chama a RPC)
+async function _synAddMemberAsSeller(memberUserId, memberName, memberEmail) {
+  const c = await _synGetClient(); if (!c) return;
+  try {
+    const { data: newId, error } = await c.rpc('seller_link_workspace_member', {
+      p_member_user_id: memberUserId,
+      p_name:           memberName,
+      p_email:          memberEmail || null,
+    });
+    if (error) { alert('Erro ao vincular: ' + error.message); return; }
+    // Recarrega lista
+    await _synLoadSellers();
+    // Pega o seller recém-criado
+    const seller = _synSellers.find(s => s.linked_user_id === memberUserId);
+    const ov = document.getElementById('syn-seller-modal');
+    if (ov) { ov.style.display = 'none'; delete ov.dataset.tab; }
+    if (typeof window._synSellerModalCb === 'function' && seller) window._synSellerModalCb(seller);
+  } catch(e) {
+    alert('Erro ao vincular vendedor: ' + (e?.message || e));
+  }
 }
 
 // ── #10 Templates de deal ───────────────────────────────────────────
@@ -52774,6 +52920,38 @@ async function _lkStartRecording() {
       { icon: '🎬' });
     return;
   }
+
+  // ── Cap de horas/mês (proteção de margem) ──
+  try {
+    await _recRefreshHoursUsed(true);
+    const gate = _recCanStart(0.05);  // pelo menos 3min disponíveis pra valer
+    if (!gate.ok) {
+      const remaining = gate.remaining;
+      const used = gate.used;
+      const max = gate.max;
+      // Calcula próximo dia 1° do mês
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+      const renewLabel = nextMonth.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+      appAlert(
+        'Limite mensal de gravação atingido',
+        `Você já gravou <strong>${used.toFixed(1)}h de ${max}h</strong> este mês.<br/><br/>` +
+        `O cap renova em <strong>${renewLabel}</strong>. ${remaining > 0 ? `Ainda restam <strong>${(remaining*60).toFixed(0)} minutos</strong>, mas não cabe uma sessão útil.` : ''}<br/><br/>` +
+        `Precisa de mais horas? <a href="mailto:contato@synkan.com.br?subject=Mais%20horas%20de%20grava%C3%A7%C3%A3o" style="color:#3C3489;">Fala com vendas</a> — temos pacotes adicionais.`,
+        { icon: '⏱', html: true }
+      );
+      // Reseta o botão (não fica em "starting" pra sempre)
+      try { ext.lk.recording = null; _lkRender(); } catch(_){}
+      return;
+    }
+    // Warning se passar de 80% (não bloqueia)
+    if (gate.max > 0 && gate.used / gate.max >= 0.8 && gate.used / gate.max < 1) {
+      const pct = Math.round(gate.used / gate.max * 100);
+      if (typeof _showKanWarning === 'function') {
+        _showKanWarning('Próximo do limite', `Você já usou ${pct}% do seu cap mensal de gravação (${gate.used.toFixed(1)}h/${gate.max}h).`, 'warning');
+      }
+    }
+  } catch(_) {}
 
   // ✨ OTIMIZAÇÃO PERCEBIDA: bota o botão em estado "starting" IMEDIATAMENTE,
   // antes de qualquer await. Toast curto + spinner no botão = sensação de instant.
