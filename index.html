@@ -37038,8 +37038,8 @@ async function _peopleSubmitCreate() {
         linkResult = linkData;
       } catch(linkErr) { console.warn('[people] auto-link:', linkErr?.message); }
     }
-    // Integrações em background (Bunko folder + chat channel)
-    _peopleProvisionIntegrations(trailId, personName).catch(e => console.warn('[people] integrations:', e?.message || e));
+    // Integrações em background (Bunko folder + chat channel + adicionar membros)
+    _peopleProvisionIntegrations(trailId, personName, personId).catch(e => console.warn('[people] integrations:', e?.message || e));
     document.getElementById('ppl-create-modal')?.remove();
     // Monta mensagem de sucesso com base no que rolou
     const linkChip = linkResult?.found
@@ -37059,7 +37059,7 @@ async function _peopleSubmitCreate() {
 // Roda em background depois que o aprendiz é criado. Cada integração é
 // independente — se uma falhar, as outras continuam. IDs são gravados em
 // people_trails (board_id, bunko_folder_id, channel_id) pra referência.
-async function _peopleProvisionIntegrations(trailId, personName) {
+async function _peopleProvisionIntegrations(trailId, personName, personId) {
   if (!trailId) return;
   if (typeof supaUser === 'undefined' || !supaUser) return;
   const slug = (personName || 'aprendiz').toLowerCase()
@@ -37116,12 +37116,37 @@ async function _peopleProvisionIntegrations(trailId, personName) {
     }
   } catch(e) { console.warn('[people] channel ex:', e?.message); }
 
-  // 3) Persiste os IDs criados na trilha (via raw fetch — SDK-free)
+  // 3) Adiciona membros ao canal (sensei + padrinho + aprendiz se tiver user_id)
+  // O workspace_owner já é adicionado automaticamente pelo create_chat_channel.
+  if (updates.channel_id && personId) {
+    try {
+      const pRes = await _peopleApi.get(`people?id=eq.${personId}&select=sensei_id,buddy_id,user_id&limit=1`);
+      const person = Array.isArray(pRes.data) ? pRes.data[0] : null;
+      if (person) {
+        const memberIds = [person.sensei_id, person.buddy_id, person.user_id]
+          .filter(uid => uid && uid !== supaUser.id);  // exclui o próprio owner (já tá)
+        // Dedup
+        const unique = [...new Set(memberIds)];
+        for (const userId of unique) {
+          try {
+            const { error: mErr } = await _peopleApi.post('chat_channel_members', {
+              channel_id: updates.channel_id,
+              user_id: userId,
+            });
+            if (mErr) console.warn('[people] add member', userId, 'falhou:', mErr.message);
+            else console.log('[people] membro adicionado ao canal:', userId);
+          } catch(e) { console.warn('[people] add member ex:', e?.message); }
+        }
+      }
+    } catch(e) { console.warn('[people] members lookup:', e?.message); }
+  }
+
+  // 4) Persiste os IDs criados na trilha (via raw fetch — SDK-free)
   if (Object.keys(updates).length) {
     try { await _peopleApi.patch(`people_trails?id=eq.${trailId}`, updates); }
     catch(e) { console.warn('[people] update trail integrations:', e?.message); }
   }
-  // 4) Força refresh da sidebar de canais pra mostrar o novo canal imediatamente
+  // 5) Força refresh da sidebar de canais pra mostrar o novo canal imediatamente
   if (updates.channel_id) {
     try {
       if (typeof _chatLoadChannels === 'function') await _chatLoadChannels();
@@ -37145,7 +37170,7 @@ async function _peopleReprovisionar(personId) {
     if (typeof appAlert === 'function') appAlert('Sem trilha', 'Essa pessoa não tem trilha pra associar integrações.', { icon: '⚠️' });
     return null;
   }
-  const updates = await _peopleProvisionIntegrations(trail.id, person.name);
+  const updates = await _peopleProvisionIntegrations(trail.id, person.name, personId);
   if (typeof appAlert === 'function') {
     const ok = updates && Object.keys(updates).length > 0;
     appAlert(ok ? 'Integrações OK ✓' : 'Nada criado', ok
