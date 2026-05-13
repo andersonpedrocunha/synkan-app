@@ -51522,7 +51522,7 @@ async function _lkStart() {
   let preMicStream = null;
   const userMediaPromise = navigator.mediaDevices.getUserMedia({
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    video: { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 24 } },
+    video: { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 30 } },
   }).then(s => { preMicStream = s; return s; })
     .catch(err => { console.warn('[lk] getUserMedia pré-fetch falhou:', err?.message); return null; });
 
@@ -51562,7 +51562,12 @@ async function _lkStart() {
   const room = new LK.Room({
     adaptiveStream: true,
     dynacast: true,
-    publishDefaults: { videoSimulcastLayers: [LK.VideoPresets.h180, LK.VideoPresets.h540] },
+    publishDefaults: {
+      videoSimulcastLayers: [LK.VideoPresets.h180, LK.VideoPresets.h540],
+      // Bitrate explícito pra layer principal (h540 @ 30fps). Sem isso o SDK
+      // usa um auto-budget conservador que faz a câmera parecer "travada".
+      videoEncoding: { maxBitrate: 1_500_000, maxFramerate: 30 },
+    },
   });
 
   ext.lk = {
@@ -51697,7 +51702,7 @@ async function _lkStart() {
         // Fallback: pede via SDK
         await room.localParticipant.setMicrophoneEnabled(true);
         const camOpts = LK.VideoPresets?.h540 ? { resolution: LK.VideoPresets.h540.resolution }
-                                              : { resolution: { width: 960, height: 540, frameRate: 24 } };
+                                              : { resolution: { width: 960, height: 540, frameRate: 30 } };
         await room.localParticipant.setCameraEnabled(true, camOpts);
         console.log('[lk] mic + camera ativados via SDK');
       }
@@ -51968,7 +51973,7 @@ async function _lkToggleCamera() {
       const LK = window.LivekitClient;
       const camOpts = LK.VideoPresets?.h540 ? {
         resolution: LK.VideoPresets.h540.resolution,
-      } : { resolution: { width: 960, height: 540, frameRate: 24 } };
+      } : { resolution: { width: 960, height: 540, frameRate: 30 } };
       await ext.lk.room.localParticipant.setCameraEnabled(true, camOpts);
       _lkRender();
       try { _lkApplyStoredEffect(); } catch(_){}
@@ -52234,10 +52239,15 @@ async function _lkStartSynkanShareTrack() {
   }
   _lkSynkanShareState = { canvas, ctx, stream, pub, loop: null, busy: false };
 
-  // Loop de captura: a cada 500ms tira "snapshot" do DOM e desenha no canvas
-  // captureStream re-emite frames automaticamente no fps configurado
+  // Loop de captura: a cada 1000ms tira "snapshot" do DOM e desenha no canvas.
+  // Antes era 500ms — mas html2canvas renderiza o DOM inteiro a cada chamada,
+  // o que é caro e trava o main thread. Como o main thread também processa
+  // os frames do <video> da câmera, isso causava jank visível na própria
+  // imagem do usuário durante apresentação. Board é conteúdo estático, 1fps
+  // já dá uma recording suave. Também pula quando a aba tá em background.
   const captureOnce = async () => {
     if (_lkSynkanShareState.busy) return;
+    if (document.hidden) return;
     const wrap = document.getElementById('lk-share-content');
     if (!wrap || !ext.lk?.sharedItem) return;
     _lkSynkanShareState.busy = true;
@@ -52269,7 +52279,7 @@ async function _lkStartSynkanShareTrack() {
   };
   // Primeira captura imediata, depois loop
   captureOnce();
-  _lkSynkanShareState.loop = setInterval(captureOnce, 500);
+  _lkSynkanShareState.loop = setInterval(captureOnce, 1000);
 }
 
 async function _lkStopSynkanShareTrack() {
