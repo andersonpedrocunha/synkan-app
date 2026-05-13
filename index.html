@@ -3550,6 +3550,112 @@ body.density-compact .col{padding:7px;}
 .syn-tl-empty{padding:24px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12.5px;}
 
 .reg-wrap{padding:.5rem 0 2rem;display:flex;flex-direction:column;gap:18px;}
+
+/* ── People (gestão de pessoas / onboarding) ─────────────────────── */
+.ppl-wrap{padding:.5rem 0 2rem;display:flex;flex-direction:column;gap:18px;}
+.ppl-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
+.ppl-title{font-size:24px;font-weight:700;color:var(--color-text-primary);font-family:var(--font-sans);display:inline-flex;align-items:center;gap:10px;}
+.ppl-title-badge{font-size:11px;font-weight:600;background:linear-gradient(135deg,#6B4825 0%,#A88150 100%);color:#F5E8C8;padding:2px 9px;border-radius:999px;vertical-align:middle;font-family:var(--font-sans);}
+.ppl-sub{font-size:13px;color:var(--color-text-secondary);font-family:'Noto Serif JP',serif;font-style:italic;margin-top:4px;}
+.ppl-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:6px 0 4px;}
+.ppl-stat{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:12px 14px;}
+.ppl-stat-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:4px;}
+.ppl-stat-value{font-size:22px;font-weight:700;color:var(--color-text-primary);font-variant-numeric:tabular-nums;}
+.ppl-stat.is-warn .ppl-stat-value{color:#BC002D;}
+.ppl-actions{display:flex;gap:8px;flex-shrink:0;}
+.ppl-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;border-radius:8px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);cursor:pointer;font-family:inherit;}
+.ppl-btn:hover{border-color:var(--color-text-primary);}
+.ppl-btn-primary{background:#BC002D;border-color:#BC002D;color:#fff;}
+.ppl-btn-primary:hover{background:#9F0026;}
+
+.ppl-tabs{display:flex;align-items:center;gap:4px;flex-wrap:wrap;border-bottom:0.5px solid var(--color-border-tertiary);}
+.ppl-tab{background:transparent;border:none;padding:9px 14px;font-size:13px;font-family:inherit;color:var(--color-text-secondary);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.ppl-tab.active{color:#BC002D;border-bottom-color:#BC002D;font-weight:600;}
+.ppl-tab:hover:not(.active){color:var(--color-text-primary);}
+
+.ppl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.ppl-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:10px;}
+.ppl-card:hover{border-color:var(--color-text-secondary);box-shadow:0 6px 20px rgba(0,0,0,.06);transform:translateY(-1px);}
+.ppl-card-h{display:flex;align-items:center;gap:11px;}
+.ppl-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3A2410,#6B4825);display:flex;align-items:center;justify-content:center;color:#F5E8C8;font-weight:600;font-size:17px;flex-shrink:0;border:2.5px solid transparent;font-family:var(--font-sans);}
+.ppl-avatar.belt-branca{border-color:#FAFAFA;box-shadow:0 0 0 1px rgba(0,0,0,.08);}
+.ppl-avatar.belt-amarela{border-color:#F0C419;}
+.ppl-avatar.belt-verde{border-color:#3B6D11;}
+.ppl-avatar.belt-roxa{border-color:#6B5DC8;}
+.ppl-avatar.belt-preta{border-color:#1A1611;}
+.ppl-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover;}
+.ppl-card-name{font-size:14.5px;font-weight:600;color:var(--color-text-primary);line-height:1.25;}
+.ppl-card-role{font-size:11.5px;color:var(--color-text-tertiary);margin-top:1px;}
+.ppl-belt-badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;font-family:var(--font-sans);text-transform:uppercase;letter-spacing:.04em;}
+.ppl-belt-badge.belt-branca{background:#F5F5F5;color:#3A332C;border:0.5px solid #D9D9D9;}
+.ppl-belt-badge.belt-amarela{background:#FFF4D1;color:#7A5500;}
+.ppl-belt-badge.belt-verde{background:#E2F0D0;color:#2A4F0A;}
+.ppl-belt-badge.belt-roxa{background:#E8E3F5;color:#3D2D7A;}
+.ppl-belt-badge.belt-preta{background:#1A1611;color:#F5E8C8;}
+
+.ppl-prog{display:flex;flex-direction:column;gap:5px;}
+.ppl-prog-bar{height:6px;background:#E8E1D4;border-radius:999px;overflow:hidden;position:relative;}
+.ppl-prog-fill{height:100%;background:linear-gradient(90deg,#C19A3A 0%,#6B4825 100%);border-radius:999px;transition:width .3s ease;}
+.ppl-prog-text{display:flex;justify-content:space-between;font-size:10.5px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;}
+.ppl-prog-text strong{color:var(--color-text-primary);}
+
+.ppl-next-step{padding:8px 10px;background:var(--color-background-secondary);border-radius:8px;font-size:11.5px;color:var(--color-text-secondary);font-style:italic;font-family:var(--font-sans);}
+.ppl-next-step strong{color:var(--color-text-primary);font-weight:600;font-style:normal;}
+.ppl-overdue-flag{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:#BC002D;font-weight:600;padding:2px 7px;background:#FBEAEB;border-radius:6px;}
+
+.ppl-empty{padding:60px 20px;text-align:center;color:var(--color-text-tertiary);font-family:'Noto Serif JP',serif;font-style:italic;}
+.ppl-empty-icon{font-size:48px;opacity:.4;color:#BC002D;margin-bottom:10px;font-family:'Hiragino Mincho ProN',serif;}
+.ppl-empty-title{font-size:16px;color:var(--color-text-primary);font-style:normal;font-family:var(--font-sans);margin-bottom:6px;font-weight:600;}
+.ppl-empty-sub{font-size:13px;line-height:1.55;max-width:420px;margin:0 auto 18px;}
+
+/* Drawer da pessoa (right side) */
+.ppl-drawer-ov{position:fixed;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(3px);z-index:9990;display:none;}
+.ppl-drawer-ov.is-open{display:block;}
+.ppl-drawer{position:fixed;top:0;right:0;width:min(560px,95vw);height:100vh;background:var(--color-background-primary);border-left:0.5px solid var(--color-border-tertiary);box-shadow:-12px 0 36px rgba(0,0,0,.16);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .22s cubic-bezier(.2,.7,.2,1);z-index:9991;}
+.ppl-drawer-ov.is-open .ppl-drawer{transform:translateX(0);}
+.ppl-drawer-h{padding:18px 22px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;}
+.ppl-drawer-h-l{display:flex;align-items:center;gap:12px;min-width:0;}
+.ppl-drawer-name{font-size:18px;font-weight:600;color:var(--color-text-primary);}
+.ppl-drawer-meta{font-size:12px;color:var(--color-text-tertiary);margin-top:2px;}
+.ppl-drawer-close{background:transparent;border:none;color:var(--color-text-secondary);font-size:20px;cursor:pointer;padding:4px 8px;}
+.ppl-drawer-body{flex:1;overflow-y:auto;padding:18px 22px;}
+.ppl-step-group{margin-bottom:22px;}
+.ppl-step-group-h{font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:8px;}
+.ppl-step{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;background:var(--color-background-secondary);border-radius:9px;margin-bottom:6px;border:0.5px solid transparent;transition:all .12s;}
+.ppl-step:hover{border-color:var(--color-border-tertiary);}
+.ppl-step.is-feito{opacity:.62;}
+.ppl-step.is-feito .ppl-step-title{text-decoration:line-through;}
+.ppl-step.is-overdue{border-color:#FCC4C9;background:#FDF2F3;}
+.ppl-step-check{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--color-border-secondary);background:#fff;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:transparent;font-size:13px;font-weight:700;transition:all .12s;}
+.ppl-step-check.is-checked{background:#3B6D11;border-color:#3B6D11;color:#fff;}
+.ppl-step-check:hover{border-color:#3B6D11;}
+.ppl-step-body{flex:1;min-width:0;}
+.ppl-step-title{font-size:13px;color:var(--color-text-primary);font-weight:500;}
+.ppl-step-desc{font-size:11.5px;color:var(--color-text-secondary);margin-top:2px;line-height:1.45;}
+.ppl-step-meta{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;}
+.ppl-step-cat{font-size:10px;padding:1.5px 6px;border-radius:5px;background:rgba(193,154,58,.15);color:#7A5500;text-transform:uppercase;letter-spacing:.04em;font-weight:600;}
+.ppl-step-cat.cat-documentos{background:#E7EEF7;color:#1A4778;}
+.ppl-step-cat.cat-acesso{background:#F0EAF5;color:#5D3A8E;}
+.ppl-step-cat.cat-treinamento{background:#E2F0D0;color:#2A4F0A;}
+.ppl-step-cat.cat-social{background:#FCE6EA;color:#9F0026;}
+.ppl-step-cat.cat-plano{background:#FFF4D1;color:#7A5500;}
+.ppl-step-cat.cat-cultura{background:#E8E3F5;color:#3D2D7A;}
+.ppl-step-deadline{font-size:10.5px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;}
+.ppl-step-deadline.is-overdue{color:#BC002D;font-weight:600;}
+
+/* Modal de criação de aprendiz */
+.ppl-modal-form{display:flex;flex-direction:column;gap:12px;}
+.ppl-modal-row{display:flex;flex-direction:column;gap:5px;}
+.ppl-modal-row.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.ppl-modal-label{font-size:11.5px;font-weight:600;color:var(--color-text-secondary);letter-spacing:.02em;}
+.ppl-modal-input,.ppl-modal-select{padding:8px 11px;font-size:13px;font-family:inherit;border:0.5px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-primary);color:var(--color-text-primary);outline:none;}
+.ppl-modal-input:focus,.ppl-modal-select:focus{border-color:#BC002D;}
+.ppl-tmpl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.ppl-tmpl-card{padding:12px;border:1px solid var(--color-border-tertiary);border-radius:9px;cursor:pointer;font-family:inherit;background:var(--color-background-primary);text-align:left;transition:all .12s;}
+.ppl-tmpl-card.active{border-color:#BC002D;background:#FDF7F3;}
+.ppl-tmpl-card:hover{border-color:var(--color-text-secondary);}
+.ppl-tmpl-name{font-size:12.5px;font-weight:600;color:var(--color-text-primary);}
+.ppl-tmpl-meta{font-size:10.5px;color:var(--color-text-tertiary);margin-top:3px;}
 .reg-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
 .reg-title{font-size:24px;font-weight:600;color:var(--color-text-primary);line-height:1.2;}
 .reg-sub{font-size:13px;color:var(--color-text-tertiary);}
@@ -7437,6 +7543,8 @@ body.tx-active .belt-ring::after{
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M6.4 1.8h3.2"/><path d="M6.8 1.8v4.4L3.4 12.6a1.4 1.4 0 0 0 1.2 2H11.4a1.4 1.4 0 0 0 1.2-2L9.2 6.2V1.8"/><path d="M5.4 9.4h5.2"/><circle cx="6.5" cy="11.4" r="0.55" fill="currentColor"/><circle cx="9.2" cy="12.2" r="0.45" fill="currentColor"/></svg></span><span>Lab</span></button>
     <button class="sb-item" id="sb-okrs" onclick="switchTab('okrs')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></span><span>OKRs</span></button>
+    <button class="sb-item" id="sb-people" onclick="switchTab('people')">
+      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="5.5" cy="5.2" r="2.4"/><path d="M1.5 13.5c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="11" cy="4.5" r="1.8" opacity=".7"/><path d="M9 11c.5-1.4 1.8-2.4 3.3-2.4 1 0 1.9.4 2.5 1.1" opacity=".7"/></svg></span><span>People</span></button>
     <button class="sb-item" id="sb-registry" onclick="switchTab('registry')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5.5 4V2.8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V4"/><rect x="2" y="4" width="12" height="9.2" rx="1.4"/><path d="M2 8h12"/><path d="M7 7.5v1"/><path d="M9 7.5v1"/></svg></span><span>Synconnect</span></button>
     <button class="sb-item" id="sb-bunko" onclick="switchTab('bunko')">
@@ -7586,6 +7694,10 @@ body.tx-active .belt-ring::after{
 
   <div id="view-okrs" style="display:none;">
     <div id="okrs-root"></div>
+  </div>
+
+  <div id="view-people" style="display:none;">
+    <div id="people-root"></div>
   </div>
 
   <div id="view-zai" style="display:none;">
@@ -19332,6 +19444,8 @@ function switchTab(tab) {
   document.getElementById('view-canvas').style.display    = tab==='canvas'    ? '' : 'none';
   document.getElementById('view-registry').style.display  = tab==='registry'  ? '' : 'none';
   document.getElementById('view-okrs').style.display      = tab==='okrs'      ? '' : 'none';
+  const peopleEl = document.getElementById('view-people');
+  if (peopleEl) peopleEl.style.display = tab==='people' ? '' : 'none';
   document.getElementById('view-zai').style.display       = tab==='zai'       ? '' : 'none';
   document.getElementById('view-chat').style.display      = tab==='chat'      ? '' : 'none';
   const bunkoEl = document.getElementById('view-bunko');
@@ -19352,7 +19466,7 @@ function switchTab(tab) {
   // Sidebar — seção de visões só aparece quando está dentro de um board
   const viewsSec = document.getElementById('sb-views-section');
   if (viewsSec) viewsSec.style.display = inBoard ? '' : 'none';
-  ['home','myboards','gallery','canvas','registry','okrs','chat','acervo','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker','zai','bunko'].forEach(t=>{
+  ['home','myboards','gallery','canvas','registry','okrs','people','chat','acervo','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker','zai','bunko'].forEach(t=>{
     const el = document.getElementById('sb-'+t);
     // 'myboards' (sub-item) corresponde à tab 'boards'
     const matchTab = (t === 'myboards') ? 'boards' : t;
@@ -19371,6 +19485,8 @@ function switchTab(tab) {
   if (tab==='canvas') renderCanvasView();
   if (tab==='registry') renderRegistry();
   if (tab==='okrs') renderOKRs();
+  if (tab==='people' && typeof renderPeople === 'function') renderPeople();
+  if (tab==='home' && typeof _peopleRenderHomeBanner === 'function') _peopleRenderHomeBanner();
   if (tab==='zai') renderZaiHub();
   if (tab==='chat') renderChat();
   if (tab==='bunko' && typeof renderBunko === 'function') renderBunko();
@@ -35575,6 +35691,823 @@ function _synStageById(id)   { return _synStages.find(s => s.id === id); }
 function _synContactById(id) { return _contacts.find(c => c.id === id); }
 
 function setRegistryTab(t) { _registryTab = t; _registrySearch = ''; _registryFilter = ''; renderRegistry(); }
+
+// ════════════════════════════════════════════════════════════════════
+// PEOPLE — Gestão de gente / Onboarding (Fatia 1: Trilha + Aprendizes)
+// ────────────────────────────────────────────────────────────────────
+// Módulo que orquestra onboarding usando primitivas do Synkan:
+//   - Trilha (cards de etapas com deadline relativo ao D-day)
+//   - Faixas (branca→amarela→verde→roxa = graduado) por progresso
+//   - Sensei (gestor) + buddy (padrinho) por pessoa
+//   - Templates por função (Dev/Vendas/Marketing/Ops)
+// Backend: tabelas people, people_trails, people_trail_steps,
+// people_trail_templates + RPCs (people_create_aprendiz, _step_complete,
+// _dashboard). RLS por workspace_owner.
+// ════════════════════════════════════════════════════════════════════
+
+let _peopleState = {
+  dashboard: null,         // { total_aprendizes, pessoas_ativas, ... }
+  templates: [],
+  tab: 'aprendizes',       // 'aprendizes' | 'graduados' | 'templates' | 'pulse'
+  currentPersonId: null,
+  currentTrail: null,      // { trail, steps }
+  myAprendiz: null,        // se o user atual é aprendiz, guarda o row de people
+  loading: false,
+};
+
+const _PPL_BELT_LABELS = {
+  branca:  'Faixa Branca',
+  amarela: 'Faixa Amarela',
+  verde:   'Faixa Verde',
+  roxa:    'Faixa Roxa',
+  preta:   'Faixa Preta',
+};
+const _PPL_BELT_STAGE = {
+  branca:  'novato · primeiros passos',
+  amarela: 'aprendendo · ritmo crescente',
+  verde:   'autônomo · contribuindo',
+  roxa:    'graduado · 90 dias completos',
+  preta:   'veterano · sensei em potencial',
+};
+const _PPL_ROLE_LABELS = {
+  dev:       'Desenvolvedor(a)',
+  vendas:    'Vendas',
+  marketing: 'Marketing',
+  ops:       'Operações',
+  custom:    'Custom',
+};
+
+async function renderPeople() {
+  const root = document.getElementById('people-root');
+  if (!root) return;
+  _peopleState.loading = true;
+  root.innerHTML = `<div class="ppl-wrap"><div class="ppl-empty"><div class="ppl-empty-icon">道</div><div class="ppl-empty-title">Carregando trilhas…</div></div></div>`;
+  try {
+    await _peopleLoadAll();
+  } catch(e) {
+    console.warn('[people] load falhou:', e?.message || e);
+  } finally {
+    _peopleState.loading = false;
+  }
+  _peopleRenderMain();
+}
+
+async function _peopleLoadAll() {
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  // Dashboard agregado (1 RPC)
+  try {
+    const { data, error } = await c.rpc('people_dashboard');
+    if (!error && data) _peopleState.dashboard = data;
+  } catch(_) {}
+  // Templates (públicos + do user)
+  try {
+    const { data, error } = await c.from('people_trail_templates')
+      .select('id, workspace_owner, role, name, description, steps, is_public')
+      .order('role');
+    if (!error && Array.isArray(data)) _peopleState.templates = data;
+  } catch(_) {}
+  // Detecta se o user atual é um aprendiz (tem row em people com user_id = auth.uid())
+  try {
+    if (typeof supaUser !== 'undefined' && supaUser) {
+      const { data: me } = await c.from('people')
+        .select('*').eq('user_id', supaUser.id).is('deleted_at', null)
+        .order('start_date', { ascending: false }).limit(1).maybeSingle();
+      _peopleState.myAprendiz = me || null;
+    }
+  } catch(_) {}
+}
+
+// ── Banner no home: aprendiz vê sua trilha resumida ──────────────────
+async function _peopleRenderHomeBanner() {
+  // Carrega state se ainda não tem
+  if (!_peopleState.myAprendiz) {
+    try { await _peopleLoadAll(); } catch(_) {}
+  }
+  const me = _peopleState.myAprendiz;
+  if (!me || me.status === 'graduado') return; // só mostra pra aprendiz ativo
+  // Acha home element
+  const home = document.getElementById('home');
+  if (!home) return;
+  // Remove banner antigo se houver
+  const old = document.getElementById('ppl-home-banner');
+  if (old) old.remove();
+  // Busca progresso da trilha
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  let progress = 0, nextStep = null, totalSteps = 0, doneSteps = 0;
+  try {
+    const { data: trail } = await c.from('people_trails')
+      .select('id').eq('person_id', me.id).eq('status', 'ativa').limit(1).maybeSingle();
+    if (trail?.id) {
+      const { data: steps } = await c.from('people_trail_steps')
+        .select('id, title, status, deadline_date, order_idx, day_offset')
+        .eq('trail_id', trail.id).order('order_idx');
+      if (Array.isArray(steps)) {
+        totalSteps = steps.length;
+        doneSteps = steps.filter(s => s.status === 'feito').length;
+        progress = totalSteps ? Math.round(100*doneSteps/totalSteps) : 0;
+        nextStep = steps.find(s => s.status === 'pendente' || s.status === 'fazendo');
+      }
+    }
+  } catch(_) {}
+  const belt = me.belt || 'branca';
+  const beltLabel = _PPL_BELT_LABELS[belt] || 'Faixa Branca';
+  const banner = document.createElement('div');
+  banner.id = 'ppl-home-banner';
+  banner.style.cssText = 'margin:0 0 20px;padding:18px 22px;background:linear-gradient(135deg,#3A2410 0%,#6B4825 60%,#A88150 100%);color:#F5E8C8;border-radius:14px;box-shadow:0 8px 24px rgba(58,36,16,.25);position:relative;overflow:hidden;cursor:pointer;';
+  banner.onclick = () => { try { switchTab('people'); } catch(_){} };
+  banner.innerHTML = `
+    <div style="position:absolute;top:-20px;right:-20px;font-family:'Hiragino Mincho ProN',serif;font-size:120px;opacity:.08;line-height:1;pointer-events:none;">道</div>
+    <div style="display:flex;align-items:center;gap:16px;position:relative;z-index:1;">
+      <div style="width:54px;height:54px;border-radius:50%;background:rgba(245,232,200,.18);border:2.5px solid #F5E8C8;display:flex;align-items:center;justify-content:center;font-family:'Noto Serif JP',serif;font-size:20px;font-weight:600;flex-shrink:0;">🥋</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.12em;opacity:.7;font-weight:600;font-family:var(--font-sans);">SUA TRILHA DE INICIAÇÃO · ${_esc(beltLabel.toUpperCase())}</div>
+        <div style="font-size:18px;font-weight:600;font-family:'Noto Serif JP',serif;margin:4px 0 6px;line-height:1.3;">${doneSteps} de ${totalSteps} etapas concluídas <span style="font-style:italic;opacity:.85;font-weight:400;">· ${progress}% do caminho</span></div>
+        ${nextStep ? `<div style="font-size:12.5px;opacity:.85;font-style:italic;font-family:'Noto Serif JP',serif;">↳ próximo: <strong style="font-style:normal;font-weight:600;color:#FFF;">${_esc(nextStep.title)}</strong></div>` : '<div style="font-size:12.5px;opacity:.85;font-style:italic;">Tudo em dia 🎉</div>'}
+      </div>
+      <div style="flex-shrink:0;font-size:12px;font-family:var(--font-sans);font-weight:600;background:rgba(245,232,200,.15);border:1px solid rgba(245,232,200,.3);padding:7px 14px;border-radius:8px;">Ver trilha →</div>
+    </div>
+    <div style="margin-top:14px;height:5px;background:rgba(0,0,0,.25);border-radius:999px;overflow:hidden;position:relative;z-index:1;">
+      <div style="height:100%;width:${progress}%;background:linear-gradient(90deg,#FFE69A,#F5E8C8);border-radius:999px;transition:width .4s ease;"></div>
+    </div>
+  `;
+  // Insere no topo do conteúdo do home
+  home.insertBefore(banner, home.firstChild);
+  // Após render do banner, verifica se há pulse de check-in pendente
+  _peoplePulseCheckDue().catch(e => console.warn('[people] pulse check:', e?.message));
+}
+
+// ── Pulse: check semanal de bem-estar (Fase 3) ──────────────────────
+// Filosofia: a cada 7 dias o sistema pergunta "como está sendo?" pro
+// aprendiz. Resposta 1-5 + comentário opcional. Mestre Kan analisa
+// (sentimento + summary) e o sensei vê histórico no drawer da pessoa.
+async function _peoplePulseCheckDue() {
+  if (!_peopleState.myAprendiz) return;
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  try {
+    const { data, error } = await c.rpc('people_pulse_check_due');
+    if (error || !data?.due) return;
+    // Pulse pendente — abre modal não-bloqueante
+    _peoplePulseOpenModal(data.pulse_id);
+  } catch(e) { console.warn('[people] pulse check_due:', e?.message); }
+}
+
+function _peoplePulseOpenModal(pulseId) {
+  // Idempotência: se já tá aberto, não duplica
+  if (document.getElementById('ppl-pulse-modal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'ppl-pulse-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10004';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:480px;width:95%;background:linear-gradient(180deg,#FFFCF5 0%,#F5E8C8 100%);">
+      <div style="padding:24px 26px;text-align:center;">
+        <div style="font-family:'Hiragino Mincho ProN',serif;font-size:48px;color:#6B4825;line-height:1;margin-bottom:8px;">心</div>
+        <h3 style="margin:0;font-size:20px;font-family:'Noto Serif JP',serif;color:#1A1611;">Check-in da semana</h3>
+        <p style="margin:8px 0 22px;font-size:13px;color:#5C4F3F;font-style:italic;font-family:'Noto Serif JP',serif;line-height:1.55;">Mestre Kan pergunta: como está sendo sua trilha esta semana?</p>
+        <div style="display:flex;justify-content:center;gap:10px;margin-bottom:18px;">
+          ${[1,2,3,4,5].map(n => `
+            <button class="ppl-pulse-score" data-score="${n}" onclick="_peoplePulseSelectScore(${n})" style="width:54px;height:54px;border-radius:14px;border:2px solid #B8A878;background:#FFFCF5;cursor:pointer;font-family:'Noto Serif JP',serif;font-size:24px;font-weight:600;color:#3A2410;transition:all .12s;">${'☆'.repeat(0)}${n}</button>
+          `).join('')}
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#6B4825;font-style:italic;font-family:'Noto Serif JP',serif;margin:-12px 6px 16px;">
+          <span>← preocupado</span><span>tudo certo →</span>
+        </div>
+        <textarea id="ppl-pulse-comment" placeholder="Algo travando? Algo legal? (opcional)" style="width:100%;min-height:70px;padding:10px 12px;font-size:13px;font-family:'Noto Serif JP',serif;font-style:italic;border:1px solid #B8A878;border-radius:8px;background:#FFFCF5;resize:vertical;outline:none;color:#3A2410;"></textarea>
+        <div style="display:flex;justify-content:space-between;gap:8px;margin-top:18px;">
+          <button onclick="document.getElementById('ppl-pulse-modal').remove()" style="background:transparent;border:none;color:#5C4F3F;font-size:12.5px;cursor:pointer;font-style:italic;font-family:'Noto Serif JP',serif;">Pular esta semana</button>
+          <button id="ppl-pulse-submit" onclick="_peoplePulseSubmit('${_esc(pulseId)}')" disabled style="background:#BC002D;color:#F5E8C8;border:none;padding:10px 22px;border-radius:8px;font-family:'Noto Serif JP',serif;font-size:13px;font-weight:600;cursor:pointer;opacity:.4;">Enviar</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+let _peoplePulseSelectedScore = null;
+function _peoplePulseSelectScore(n) {
+  _peoplePulseSelectedScore = n;
+  document.querySelectorAll('.ppl-pulse-score').forEach(b => {
+    const s = Number(b.dataset.score);
+    if (s === n) { b.style.background = '#BC002D'; b.style.color = '#F5E8C8'; b.style.borderColor = '#BC002D'; }
+    else        { b.style.background = '#FFFCF5'; b.style.color = '#3A2410'; b.style.borderColor = '#B8A878'; }
+  });
+  const sub = document.getElementById('ppl-pulse-submit');
+  if (sub) { sub.disabled = false; sub.style.opacity = '1'; }
+}
+
+async function _peoplePulseSubmit(pulseId) {
+  const score = _peoplePulseSelectedScore;
+  if (!score) return;
+  const comment = (document.getElementById('ppl-pulse-comment')?.value || '').trim() || null;
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  try {
+    const { data, error } = await c.rpc('people_pulse_respond', { p_pulse_id: pulseId, p_score: score, p_comment: comment });
+    if (error) throw error;
+    document.getElementById('ppl-pulse-modal')?.remove();
+    _peoplePulseSelectedScore = null;
+    if (typeof appAlert === 'function') {
+      appAlert('Obrigado 🙏', `${_esc(data?.kan_summary || 'Resposta registrada.')}<br/><br/><em style="font-size:11.5px;color:#5C4F3F;">O Mestre Kan registrou no histórico. Próximo check-in em 7 dias.</em>`, { icon: '心', html: true });
+    }
+  } catch(e) {
+    console.warn('[people] pulse submit:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao enviar', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+function _peopleRenderMain() {
+  const root = document.getElementById('people-root');
+  if (!root) return;
+  const d = _peopleState.dashboard || { total_aprendizes:0, total_graduados:0, em_pausa:0, steps_atrasados:0, pessoas_ativas: [] };
+  const tab = _peopleState.tab || 'aprendizes';
+  const pessoas = Array.isArray(d.pessoas_ativas) ? d.pessoas_ativas : [];
+  const aprendizes = pessoas.filter(p => p.status === 'ativo');
+  const graduados  = pessoas.filter(p => p.status === 'graduado');
+
+  const me = _peopleState.myAprendiz;
+  const myCardHTML = me ? `
+    <button class="ppl-btn" onclick="_peopleOpenPersonDrawer('${_esc(me.id)}')" style="background:linear-gradient(135deg,#3A2410 0%,#6B4825 100%);color:#F5E8C8;border-color:#6B4825;font-weight:600;">
+      🥋 Minha trilha (${_esc(_PPL_BELT_LABELS[me.belt]||'Faixa Branca')})
+    </button>
+  ` : '';
+  root.innerHTML = `
+    <div class="ppl-wrap">
+      <div class="ppl-head">
+        <div>
+          <div class="ppl-title">People <span class="ppl-title-badge">道場</span></div>
+          <div class="ppl-sub">do faixa branca à faixa preta — todos juntos no dojo.</div>
+        </div>
+        <div class="ppl-actions">
+          ${myCardHTML}
+          <button class="ppl-btn-primary ppl-btn" onclick="_peopleOpenCreateModal()">＋ Novo aprendiz</button>
+        </div>
+      </div>
+
+      <div class="ppl-stats">
+        <div class="ppl-stat"><div class="ppl-stat-label">Aprendizes</div><div class="ppl-stat-value">${Number(d.total_aprendizes)||0}</div></div>
+        <div class="ppl-stat"><div class="ppl-stat-label">Graduados</div><div class="ppl-stat-value">${Number(d.total_graduados)||0}</div></div>
+        <div class="ppl-stat"><div class="ppl-stat-label">Em pausa</div><div class="ppl-stat-value">${Number(d.em_pausa)||0}</div></div>
+        <div class="ppl-stat${Number(d.steps_atrasados)>0?' is-warn':''}"><div class="ppl-stat-label">Etapas atrasadas</div><div class="ppl-stat-value">${Number(d.steps_atrasados)||0}</div></div>
+      </div>
+
+      <div class="ppl-tabs">
+        <button class="ppl-tab ${tab==='aprendizes'?'active':''}" onclick="_peopleSetTab('aprendizes')">🥋 Aprendizes <span style="opacity:.55;">${aprendizes.length}</span></button>
+        <button class="ppl-tab ${tab==='graduados'?'active':''}"  onclick="_peopleSetTab('graduados')">🎓 Graduados <span style="opacity:.55;">${graduados.length}</span></button>
+        <button class="ppl-tab ${tab==='templates'?'active':''}"  onclick="_peopleSetTab('templates')">📋 Templates <span style="opacity:.55;">${_peopleState.templates.length}</span></button>
+        <button class="ppl-tab ${tab==='pulse'?'active':''}"      onclick="_peopleSetTab('pulse')">💚 Pulse <span style="opacity:.55;font-style:italic;">em breve</span></button>
+      </div>
+
+      <div id="ppl-tab-content"></div>
+    </div>
+  `;
+  _peopleRenderTabContent();
+}
+
+function _peopleSetTab(t) { _peopleState.tab = t; _peopleRenderMain(); }
+
+function _peopleRenderTabContent() {
+  const el = document.getElementById('ppl-tab-content');
+  if (!el) return;
+  const d = _peopleState.dashboard || {};
+  const pessoas = Array.isArray(d.pessoas_ativas) ? d.pessoas_ativas : [];
+  const tab = _peopleState.tab;
+  if (tab === 'aprendizes') {
+    const list = pessoas.filter(p => p.status === 'ativo');
+    el.innerHTML = list.length
+      ? `<div class="ppl-grid">${list.map(_peopleCardHTML).join('')}</div>`
+      : _peopleEmptyHTML('Sem aprendizes ainda', 'Clique em "+ Novo aprendiz" pra criar a primeira trilha. O sistema monta board, pasta no Bunko e canal de chat automaticamente.');
+  } else if (tab === 'graduados') {
+    const list = pessoas.filter(p => p.status === 'graduado');
+    el.innerHTML = list.length
+      ? `<div class="ppl-grid">${list.map(_peopleCardHTML).join('')}</div>`
+      : _peopleEmptyHTML('Nenhum graduado ainda', 'Quando aprendizes completam 100% da trilha (faixa roxa), eles aparecem aqui.');
+  } else if (tab === 'templates') {
+    el.innerHTML = `<div class="ppl-grid">${_peopleState.templates.map(_peopleTemplateCardHTML).join('') || '<div class="ppl-empty"><div class="ppl-empty-title">Sem templates carregados</div><div class="ppl-empty-sub">Rode a migration MIGRATIONS_PEOPLE.sql pra carregar os 4 templates iniciais (Dev/Vendas/Marketing/Ops).</div></div>'}</div>`;
+  } else if (tab === 'pulse') {
+    _peopleRenderPulseHistory(el);
+  }
+}
+
+async function _peopleRenderPulseHistory(el) {
+  el.innerHTML = '<div class="ppl-empty"><div class="ppl-empty-title">Carregando…</div></div>';
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  try {
+    // Pega pulses + nome da pessoa (join via select expandido)
+    const { data, error } = await c.from('people_pulse')
+      .select('id, asked_at, responded_at, score, comment, sentiment, kan_summary, person_id, people(name, belt, photo_url, role_title, role_template)')
+      .order('asked_at', { ascending: false }).limit(50);
+    if (error) throw error;
+    const rows = data || [];
+    if (!rows.length) {
+      el.innerHTML = _peopleEmptyHTML('Sem pulses ainda', 'Quando aprendizes têm contas Synkan e abrem o app, o Mestre Kan pergunta a cada 7 dias como está sendo. O histórico aparece aqui.');
+      return;
+    }
+    el.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;">${rows.map(r => {
+      const p = r.people || {};
+      const initials = (p.name || '?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+      const belt = p.belt || 'branca';
+      const date = new Date(r.asked_at).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+      const scoreColor = r.score >= 4 ? '#3B6D11' : r.score === 3 ? '#7A5500' : '#BC002D';
+      const scoreEmoji = r.score >= 4 ? '😊' : r.score === 3 ? '😐' : '😟';
+      return `
+        <div class="ppl-card" style="cursor:default;flex-direction:row;align-items:center;gap:12px;padding:12px 16px;">
+          <div class="ppl-avatar belt-${belt}" style="width:40px;height:40px;font-size:14px;">${p.photo_url?`<img src="${_esc(p.photo_url)}" alt=""/>`:_esc(initials)}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;">${_esc(p.name||'?')} <span style="opacity:.6;font-weight:400;font-size:11.5px;">· ${date}</span></div>
+            ${r.responded_at ? `
+              <div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:2px;font-style:italic;font-family:'Noto Serif JP',serif;">${_esc(r.kan_summary || '')}</div>
+              ${r.comment ? `<div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:4px;padding:6px 10px;background:var(--color-background-secondary);border-radius:6px;border-left:2px solid ${scoreColor};">"${_esc(r.comment)}"</div>` : ''}
+            ` : '<div style="font-size:11.5px;color:var(--color-text-tertiary);font-style:italic;">Aguardando resposta…</div>'}
+          </div>
+          ${r.responded_at ? `<div style="text-align:center;flex-shrink:0;"><div style="font-size:22px;line-height:1;">${scoreEmoji}</div><div style="font-size:18px;font-weight:700;color:${scoreColor};font-variant-numeric:tabular-nums;line-height:1.2;">${r.score}/5</div></div>` : '<div style="font-size:10.5px;color:var(--color-text-tertiary);">pendente</div>'}
+        </div>`;
+    }).join('')}</div>`;
+  } catch(e) {
+    el.innerHTML = _peopleEmptyHTML('Erro ao carregar', e?.message || String(e));
+  }
+}
+
+function _peopleCardHTML(p) {
+  const initials = (p.name || '?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+  const belt = p.belt || 'branca';
+  const role = _PPL_ROLE_LABELS[p.role_template] || p.role_template || '';
+  const progress = Number(p.progress) || 0;
+  const overdue = Number(p.overdue_steps) || 0;
+  const nextStep = p.next_step;
+  const nextStepHTML = nextStep
+    ? `<div class="ppl-next-step">↳ próximo: <strong>${_esc(nextStep.title)}</strong>${nextStep.deadline_date ? ` <span style="opacity:.6;">· ${_peopleFmtDate(nextStep.deadline_date)}</span>` : ''}</div>`
+    : `<div class="ppl-next-step" style="opacity:.6;">Sem próximos passos pendentes 🎉</div>`;
+  return `
+    <div class="ppl-card" onclick="_peopleOpenPersonDrawer('${_esc(p.id)}')">
+      <div class="ppl-card-h">
+        <div class="ppl-avatar belt-${belt}">${p.photo_url ? `<img src="${_esc(p.photo_url)}" alt=""/>` : _esc(initials)}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="ppl-card-name">${_esc(p.name)}</div>
+          <div class="ppl-card-role">${_esc(p.role_title || role || 'colaborador(a)')}</div>
+        </div>
+        <span class="ppl-belt-badge belt-${belt}">${(_PPL_BELT_LABELS[belt]||'').replace('Faixa ','')}</span>
+      </div>
+      <div class="ppl-prog">
+        <div class="ppl-prog-bar"><div class="ppl-prog-fill" style="width:${progress}%;"></div></div>
+        <div class="ppl-prog-text"><span><strong>${progress}%</strong> da trilha</span>${overdue>0?`<span class="ppl-overdue-flag">⚠ ${overdue} atrasada${overdue>1?'s':''}</span>`:''}</div>
+      </div>
+      ${nextStepHTML}
+    </div>
+  `;
+}
+
+function _peopleTemplateCardHTML(t) {
+  const stepsCount = Array.isArray(t.steps) ? t.steps.length : (typeof t.steps === 'object' && t.steps !== null ? 0 : 0);
+  const isPublic = t.workspace_owner === null;
+  const actionsHTML = isPublic
+    ? `<button class="ppl-btn" style="font-size:11.5px;padding:5px 10px;" onclick="event.stopPropagation();_peopleCloneTemplate('${_esc(t.id)}')">⎘ Clonar pra meu workspace</button>`
+    : `<button class="ppl-btn" style="font-size:11.5px;padding:5px 10px;" onclick="event.stopPropagation();_peopleEditTemplate('${_esc(t.id)}')">✎ Editar</button>`;
+  return `
+    <div class="ppl-card" style="cursor:default;" onclick="_peoplePreviewTemplate('${_esc(t.id)}')">
+      <div class="ppl-card-h">
+        <div class="ppl-avatar belt-amarela" style="background:#FFF4D1;color:#7A5500;">${(_PPL_ROLE_LABELS[t.role]||'?')[0]}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="ppl-card-name">${_esc(t.name)}</div>
+          <div class="ppl-card-role">${_esc(_PPL_ROLE_LABELS[t.role] || t.role)} ${isPublic ? '· <em>público</em>' : '· do workspace'}</div>
+        </div>
+        <span class="ppl-belt-badge" style="background:rgba(0,0,0,.06);color:var(--color-text-secondary);">${stepsCount} etapas</span>
+      </div>
+      <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5;">${_esc(t.description||'')}</div>
+      <div style="display:flex;justify-content:flex-end;margin-top:4px;">${actionsHTML}</div>
+    </div>
+  `;
+}
+
+// ── Marketplace: clonar template público pro workspace do user ──────
+async function _peopleCloneTemplate(templateId) {
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c || typeof supaUser === 'undefined' || !supaUser) return;
+  const orig = _peopleState.templates.find(t => t.id === templateId);
+  if (!orig) return;
+  try {
+    const { error } = await c.from('people_trail_templates').insert({
+      workspace_owner: supaUser.id,
+      role: orig.role,
+      name: `${orig.name} (cópia)`,
+      description: orig.description,
+      steps: orig.steps,
+      is_public: false,
+    });
+    if (error) throw error;
+    await _peopleLoadAll();
+    _peopleRenderTabContent();
+    if (typeof appAlert === 'function') {
+      appAlert('Template clonado 🥋', `<strong>${_esc(orig.name)}</strong> agora é seu — você pode editá-lo no seu workspace sem afetar o original.`, { icon: '⎘', html: true });
+    }
+  } catch(e) {
+    console.warn('[people] clone template:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao clonar', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+// ── Preview de template (mostra steps em modal) ─────────────────────
+function _peoplePreviewTemplate(templateId) {
+  const t = _peopleState.templates.find(x => x.id === templateId);
+  if (!t) return;
+  const steps = Array.isArray(t.steps) ? t.steps : [];
+  const isPublic = t.workspace_owner === null;
+  const groups = [
+    { label: 'Semana 1 (D+1 a D+7)',  min: 0,   max: 7   },
+    { label: 'Primeiro mês (D+8 a D+30)', min: 8,   max: 30  },
+    { label: 'Segundo mês (D+31 a D+60)', min: 31,  max: 60  },
+    { label: 'Reta final (D+61 a D+90)',  min: 61,  max: 999 },
+  ];
+  const groupedHTML = groups.map(g => {
+    const inGroup = steps.filter(s => (Number(s.day_offset)||0) >= g.min && (Number(s.day_offset)||0) <= g.max);
+    if (!inGroup.length) return '';
+    return `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:6px;">${g.label}</div>
+        ${inGroup.map(s => `
+          <div style="padding:9px 11px;background:var(--color-background-secondary);border-radius:7px;margin-bottom:4px;">
+            <div style="font-size:12.5px;font-weight:500;color:var(--color-text-primary);">${_esc(s.title)}</div>
+            ${s.description ? `<div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px;line-height:1.45;">${_esc(s.description)}</div>` : ''}
+            <div style="display:flex;gap:6px;margin-top:5px;">
+              ${s.category ? `<span class="ppl-step-cat cat-${_esc(s.category)}">${_esc(s.category)}</span>` : ''}
+              ${s.assignee_role ? `<span style="font-size:10px;color:var(--color-text-tertiary);">· ${_esc(s.assignee_role)}</span>` : ''}
+              <span style="font-size:10px;color:var(--color-text-tertiary);margin-left:auto;">D+${s.day_offset||0}</span>
+            </div>
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+  let modal = document.getElementById('ppl-tmpl-preview');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-tmpl-preview';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10004';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:640px;width:95%;max-height:88vh;display:flex;flex-direction:column;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div>
+          <h3 style="margin:0;font-size:18px;">${_esc(t.name)}</h3>
+          <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:2px;">${_esc(_PPL_ROLE_LABELS[t.role]||t.role)} · ${steps.length} etapas · ${isPublic?'público (sistema)':'seu workspace'}</div>
+        </div>
+        <button onclick="document.getElementById('ppl-tmpl-preview').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb" style="overflow-y:auto;flex:1;">
+        ${t.description ? `<div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.55;">${_esc(t.description)}</div>` : ''}
+        ${groupedHTML || '<div style="padding:20px;text-align:center;color:var(--color-text-tertiary);font-style:italic;">Sem etapas.</div>'}
+      </div>
+      <div style="padding:14px 22px;border-top:0.5px solid var(--color-border-tertiary);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;">
+        ${isPublic
+          ? `<button class="ppl-btn-primary ppl-btn" onclick="_peopleCloneTemplate('${_esc(t.id)}');document.getElementById('ppl-tmpl-preview').remove();">⎘ Clonar pra meu workspace</button>`
+          : `<button class="ppl-btn" onclick="document.getElementById('ppl-tmpl-preview').remove();_peopleEditTemplate('${_esc(t.id)}')">✎ Editar</button>`}
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+// ── Edição de template (versão mínima — JSON do steps direto) ───────
+function _peopleEditTemplate(templateId) {
+  const t = _peopleState.templates.find(x => x.id === templateId);
+  if (!t) return;
+  if (typeof appAlert === 'function') {
+    appAlert('Edição de template', `Edição de etapas via formulário visual chega na próxima iteração — por enquanto vale editar direto no SQL ou no Supabase Studio na tabela <code>people_trail_templates</code>, alterando o JSON do campo <code>steps</code>.<br/><br/>Template selecionado: <strong>${_esc(t.name)}</strong> (ID <code>${_esc(t.id)}</code>).`, { icon: '✎', html: true });
+  }
+}
+
+function _peopleEmptyHTML(title, sub) {
+  return `<div class="ppl-empty"><div class="ppl-empty-icon">道</div><div class="ppl-empty-title">${_esc(title)}</div><div class="ppl-empty-sub">${sub}</div></div>`;
+}
+
+function _peopleFmtDate(d) {
+  if (!d) return '';
+  try {
+    const dt = new Date(d);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diff = Math.round((dt - today) / (1000*60*60*24));
+    if (diff < -1) return `${Math.abs(diff)}d atrás`;
+    if (diff === -1) return 'ontem';
+    if (diff === 0) return 'hoje';
+    if (diff === 1) return 'amanhã';
+    if (diff < 8) return `em ${diff}d`;
+    return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  } catch(_) { return ''; }
+}
+
+// ── Modal de criação de aprendiz ────────────────────────────────────
+function _peopleOpenCreateModal() {
+  let modal = document.getElementById('ppl-create-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-create-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10005';
+  const today = new Date().toISOString().slice(0,10);
+  const tmpls = _peopleState.templates.filter(t => t.workspace_owner === null);
+  modal.innerHTML = `
+    <div class="modal" style="max-width:560px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:18px;">＋ Novo aprendiz</h3>
+        <button onclick="document.getElementById('ppl-create-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <form id="ppl-create-form" class="ppl-modal-form" onsubmit="event.preventDefault();_peopleSubmitCreate();">
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Nome completo *</label>
+            <input class="ppl-modal-input" name="name" required placeholder="Ex: Anderson Cunha" autocomplete="off"/>
+          </div>
+          <div class="ppl-modal-row cols">
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Email (opcional)</label>
+              <input class="ppl-modal-input" name="email" type="email" placeholder="email@empresa.com"/>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Data de início *</label>
+              <input class="ppl-modal-input" name="start_date" type="date" required value="${today}"/>
+            </div>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Cargo / Função</label>
+            <input class="ppl-modal-input" name="role_title" placeholder="Ex: Desenvolvedora Backend Sênior"/>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Template de trilha *</label>
+            <div class="ppl-tmpl-grid">
+              ${tmpls.map((t,i) => `
+                <button type="button" class="ppl-tmpl-card${i===0?' active':''}" data-template-id="${_esc(t.id)}" data-role="${_esc(t.role)}" onclick="_peopleSelectTemplate(this)">
+                  <div class="ppl-tmpl-name">${_esc(t.name)}</div>
+                  <div class="ppl-tmpl-meta">${Array.isArray(t.steps)?t.steps.length:0} etapas · ${_esc(_PPL_ROLE_LABELS[t.role]||t.role)}</div>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          <div style="margin-top:6px;padding:10px 12px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11.5px;color:var(--color-text-secondary);line-height:1.55;">
+            <strong>O que vai acontecer:</strong> o aprendiz é criado como <em>faixa branca</em> e a trilha de 90 dias começa hoje. As etapas do template viram cards com deadlines relativos à data de início. Conforme o aprendiz progride, ele sobe de faixa (35% → amarela, 75% → verde, 100% → roxa = graduado).
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+            <button type="button" class="ppl-btn" onclick="document.getElementById('ppl-create-modal').remove()">Cancelar</button>
+            <button type="submit" class="ppl-btn ppl-btn-primary">Criar trilha</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => { try { modal.querySelector('input[name="name"]').focus(); } catch(_){} }, 50);
+}
+
+function _peopleSelectTemplate(btn) {
+  document.querySelectorAll('.ppl-tmpl-card').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function _peopleSubmitCreate() {
+  const form = document.getElementById('ppl-create-form');
+  if (!form) return;
+  const fd = new FormData(form);
+  const activeTmpl = document.querySelector('.ppl-tmpl-card.active');
+  if (!activeTmpl) { if (typeof appAlert === 'function') appAlert('Escolha um template', 'Selecione um template de trilha pra continuar.', { icon: '🥋' }); return; }
+  const payload = {
+    p_name:           (fd.get('name') || '').toString().trim(),
+    p_email:          (fd.get('email') || '').toString().trim() || null,
+    p_role_title:     (fd.get('role_title') || '').toString().trim() || null,
+    p_role_template:  activeTmpl.dataset.role,
+    p_start_date:     fd.get('start_date'),
+    p_template_id:    activeTmpl.dataset.templateId,
+  };
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  try {
+    const { data, error } = await c.rpc('people_create_aprendiz', payload);
+    if (error) throw error;
+    const trailId = data?.trail_id;
+    const personName = payload.p_name;
+    // Integrações em background (não bloqueia UX se falharem):
+    // - Bunko folder "People / [Nome]" + subpastas
+    // - Canal de chat #aprendiz-[slug]
+    // Cada integração roda independente; failures não revertem o aprendiz criado.
+    _peopleProvisionIntegrations(trailId, personName).catch(e => console.warn('[people] integrations:', e?.message || e));
+    document.getElementById('ppl-create-modal')?.remove();
+    if (typeof appAlert === 'function') {
+      appAlert('Trilha criada 🥋', `Aprendiz <strong>${_esc(personName)}</strong> está agora em faixa branca, com ${Number(data?.steps_count)||0} etapas a cumprir até ${_peopleFmtDate(data?.target_graduation_date)}.<br/><br/><em style="font-size:11.5px;color:var(--color-text-tertiary);">Pasta no Bunko e canal de chat sendo criados em background…</em>`, { icon: '✓', html: true });
+    }
+    await renderPeople();
+  } catch(e) {
+    console.error('[people] create falhou:', e);
+    if (typeof appAlert === 'function') appAlert('Erro ao criar aprendiz', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+// ── Provisionamento de integrações (pasta Bunko + canal de chat) ──
+// Roda em background depois que o aprendiz é criado. Cada integração é
+// independente — se uma falhar, as outras continuam. IDs são gravados em
+// people_trails (board_id, bunko_folder_id, channel_id) pra referência.
+async function _peopleProvisionIntegrations(trailId, personName) {
+  if (!trailId) return;
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c || typeof supaUser === 'undefined' || !supaUser) return;
+  const slug = (personName || 'aprendiz').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // remove acentos
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const updates = {};
+
+  // 1) Pasta Bunko "People · [Nome]" com sub-pastas pré-criadas
+  try {
+    const { data: folder, error: fErr } = await c.rpc('create_bunko_folder', {
+      p_name: `People · ${personName}`, p_parent_id: null, p_icon: '🥋', p_color: '#6B4825'
+    });
+    if (!fErr && folder?.id) {
+      updates.bunko_folder_id = folder.id;
+      // Sub-pastas comuns
+      const subs = [
+        { name: 'Documentos pessoais', icon: '📄' },
+        { name: 'Contratos',           icon: '📑' },
+        { name: 'Materiais de boas-vindas', icon: '🎴' },
+        { name: 'Gravações dos check-ins', icon: '🎬' },
+      ];
+      for (const s of subs) {
+        try {
+          await c.rpc('create_bunko_folder', { p_name: s.name, p_parent_id: folder.id, p_icon: s.icon, p_color: '#A88150' });
+        } catch(_) {}
+      }
+    } else if (fErr) {
+      console.warn('[people] bunko folder falhou:', fErr.message);
+    }
+  } catch(e) { console.warn('[people] bunko folder ex:', e?.message); }
+
+  // 2) Canal de chat #aprendiz-[slug] (privado, type='custom')
+  try {
+    const channelName = `aprendiz-${slug}`.slice(0, 60);
+    // Idempotência: se já existe um canal igual, não duplica
+    const { data: existing } = await c.from('chat_channels')
+      .select('id').eq('workspace_owner', supaUser.id).eq('name', channelName).maybeSingle();
+    if (existing) {
+      updates.channel_id = existing.id;
+    } else {
+      const { data: ch, error: chErr } = await c.from('chat_channels').insert({
+        workspace_owner: supaUser.id,
+        type: 'custom',
+        name: channelName,
+        description: `Onboarding de ${personName} — sensei, padrinho e aprendiz conversam aqui.`,
+        created_by: supaUser.id,
+      }).select('id').maybeSingle();
+      if (!chErr && ch?.id) updates.channel_id = ch.id;
+      else if (chErr) console.warn('[people] channel falhou:', chErr.message);
+    }
+  } catch(e) { console.warn('[people] channel ex:', e?.message); }
+
+  // 3) Persiste os IDs criados na trilha
+  if (Object.keys(updates).length) {
+    try { await c.from('people_trails').update(updates).eq('id', trailId); }
+    catch(e) { console.warn('[people] update trail integrations:', e?.message); }
+  }
+}
+
+// ── Drawer com trilha completa da pessoa ────────────────────────────
+async function _peopleOpenPersonDrawer(personId) {
+  _peopleState.currentPersonId = personId;
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  // Mostra drawer com loading enquanto busca
+  _peopleRenderDrawer({ person: null, trail: null, steps: [] }, true);
+  try {
+    const { data: person } = await c.from('people').select('*').eq('id', personId).limit(1).maybeSingle();
+    const { data: trail } = await c.from('people_trails').select('*').eq('person_id', personId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    let steps = [];
+    if (trail) {
+      const { data: s } = await c.from('people_trail_steps').select('*').eq('trail_id', trail.id).order('order_idx');
+      steps = s || [];
+    }
+    _peopleState.currentTrail = { person, trail, steps };
+    _peopleRenderDrawer({ person, trail, steps }, false);
+  } catch(e) {
+    console.warn('[people] drawer load falhou:', e);
+  }
+}
+
+function _peopleCloseDrawer() {
+  const ov = document.getElementById('ppl-drawer-ov');
+  if (ov) ov.classList.remove('is-open');
+  setTimeout(() => { if (ov) ov.remove(); }, 220);
+  _peopleState.currentPersonId = null;
+  _peopleState.currentTrail = null;
+}
+
+function _peopleRenderDrawer(state, loading) {
+  let ov = document.getElementById('ppl-drawer-ov');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'ppl-drawer-ov';
+    ov.className = 'ppl-drawer-ov';
+    ov.onclick = (e) => { if (e.target === ov) _peopleCloseDrawer(); };
+    document.body.appendChild(ov);
+  }
+  const { person, trail, steps } = state;
+  if (loading || !person) {
+    ov.innerHTML = `<div class="ppl-drawer"><div class="ppl-drawer-h"><div class="ppl-drawer-h-l"><div class="ppl-drawer-name">Carregando…</div></div><button class="ppl-drawer-close" onclick="_peopleCloseDrawer()">×</button></div></div>`;
+    setTimeout(() => ov.classList.add('is-open'), 10);
+    return;
+  }
+  const belt = person.belt || 'branca';
+  const initials = (person.name || '?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+  // Agrupa steps por janela (D 1-7, D 8-30, D 31-60, D 61-90)
+  const groups = [
+    { label: 'Semana 1 (D+1 a D+7)',  min: 0,   max: 7   },
+    { label: 'Primeiro mês (D+8 a D+30)', min: 8,   max: 30  },
+    { label: 'Segundo mês (D+31 a D+60)', min: 31,  max: 60  },
+    { label: 'Reta final (D+61 a D+90)',  min: 61,  max: 999 },
+  ];
+  const groupedHTML = groups.map(g => {
+    const inGroup = steps.filter(s => (Number(s.day_offset)||0) >= g.min && (Number(s.day_offset)||0) <= g.max);
+    if (!inGroup.length) return '';
+    return `
+      <div class="ppl-step-group">
+        <div class="ppl-step-group-h">${g.label} <span style="font-weight:400;opacity:.6;">· ${inGroup.length} etapa(s)</span></div>
+        ${inGroup.map(s => _peopleStepHTML(s)).join('')}
+      </div>`;
+  }).join('');
+  const done = steps.filter(s => s.status === 'feito').length;
+  const total = steps.length;
+  const pct = total ? Math.round(100*done/total) : 0;
+  ov.innerHTML = `
+    <div class="ppl-drawer">
+      <div class="ppl-drawer-h">
+        <div class="ppl-drawer-h-l">
+          <div class="ppl-avatar belt-${belt}" style="width:48px;height:48px;font-size:18px;">${person.photo_url ? `<img src="${_esc(person.photo_url)}" alt=""/>` : _esc(initials)}</div>
+          <div>
+            <div class="ppl-drawer-name">${_esc(person.name)}</div>
+            <div class="ppl-drawer-meta">${_esc(person.role_title || _PPL_ROLE_LABELS[person.role_template] || '')} · <strong>${_PPL_BELT_LABELS[belt]}</strong> <span style="opacity:.6;">(${_PPL_BELT_STAGE[belt]})</span></div>
+          </div>
+        </div>
+        <button class="ppl-drawer-close" onclick="_peopleCloseDrawer()" title="Fechar">×</button>
+      </div>
+      <div class="ppl-drawer-body">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:18px;padding:12px;background:var(--color-background-secondary);border-radius:9px;">
+          <div style="flex:1;">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-tertiary);font-weight:600;">Progresso da trilha</div>
+            <div style="font-size:20px;font-weight:700;color:var(--color-text-primary);margin-top:2px;font-variant-numeric:tabular-nums;">${done}/${total} <span style="font-size:13px;font-weight:500;color:var(--color-text-tertiary);">· ${pct}%</span></div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:var(--color-text-tertiary);">
+            ${trail?.start_date ? `Início: ${new Date(trail.start_date).toLocaleDateString('pt-BR')}<br/>` : ''}
+            ${trail?.target_graduation_date ? `Graduação: ${new Date(trail.target_graduation_date).toLocaleDateString('pt-BR')}` : ''}
+          </div>
+        </div>
+        ${total ? groupedHTML : '<div style="padding:30px;text-align:center;color:var(--color-text-tertiary);font-style:italic;">Trilha sem etapas — algo deu errado na criação.</div>'}
+      </div>
+    </div>
+  `;
+  setTimeout(() => ov.classList.add('is-open'), 10);
+}
+
+function _peopleStepHTML(s) {
+  const isFeito = s.status === 'feito';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dl = s.deadline_date ? new Date(s.deadline_date) : null;
+  const isOverdue = !isFeito && dl && dl < today;
+  const cat = (s.category || '').toLowerCase();
+  return `
+    <div class="ppl-step ${isFeito?'is-feito':''} ${isOverdue?'is-overdue':''}">
+      <button class="ppl-step-check ${isFeito?'is-checked':''}" onclick="_peopleToggleStep('${_esc(s.id)}', ${!isFeito})" title="${isFeito?'Marcar como pendente':'Marcar como feito'}">${isFeito?'✓':''}</button>
+      <div class="ppl-step-body">
+        <div class="ppl-step-title">${_esc(s.title)}</div>
+        ${s.description ? `<div class="ppl-step-desc">${_esc(s.description)}</div>` : ''}
+        <div class="ppl-step-meta">
+          ${cat ? `<span class="ppl-step-cat cat-${cat}">${cat}</span>` : ''}
+          <span class="ppl-step-deadline ${isOverdue?'is-overdue':''}">${dl ? `${isOverdue?'⚠ atrasado · ':''}${_peopleFmtDate(s.deadline_date)}` : 'sem prazo'}</span>
+          ${s.assignee_role ? `<span style="font-size:10.5px;color:var(--color-text-tertiary);">· ${_esc(s.assignee_role)}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+async function _peopleToggleStep(stepId, makeChecked) {
+  const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+  if (!c) return;
+  try {
+    if (makeChecked) {
+      const { data, error } = await c.rpc('people_step_complete', { p_step_id: stepId });
+      if (error) throw error;
+      // Se graduou, mostra mensagem
+      if (data?.graduated) {
+        if (typeof appAlert === 'function') {
+          appAlert('🎓 Graduação!', 'Trilha 100% completa! O aprendiz subiu pra <strong>Faixa Roxa</strong> — graduado oficial.', { icon: '🥋', html: true });
+        }
+      } else if (data?.new_belt) {
+        // (opcional) toast de subida de faixa
+      }
+    } else {
+      // Desmarcar — update direto na tabela (RLS permite owner)
+      const { error } = await c.from('people_trail_steps').update({ status: 'pendente', completed_at: null, completed_by: null }).eq('id', stepId);
+      if (error) throw error;
+    }
+    // Recarrega drawer
+    if (_peopleState.currentPersonId) await _peopleOpenPersonDrawer(_peopleState.currentPersonId);
+    // Atualiza grid em background
+    _peopleLoadAll().then(() => { if (_peopleState.tab === 'aprendizes' || _peopleState.tab === 'graduados') _peopleRenderMain(); });
+  } catch(e) {
+    console.warn('[people] toggle step falhou:', e);
+    if (typeof appAlert === 'function') appAlert('Erro', e?.message || String(e), { icon: '⚠️' });
+  }
+}
 
 function renderRegistry() {
   const root = document.getElementById('registry-root'); if (!root) return;
