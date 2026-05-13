@@ -35800,29 +35800,60 @@ async function _peopleLoadAll() {
   const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
   if (!c) { console.warn('[people] sem cliente Supabase'); return; }
   const t0 = Date.now();
-  console.log('[people] _peopleLoadAll start (raw fetch)');
+  console.log('[people] _peopleLoadAll start (raw fetch v2)');
 
-  // Pega o JWT direto via SDK (não falha porque é uma operação síncrona local
-  // depois da auth). Se não tiver session, sai cedo.
-  let session = null;
-  try { session = (await c.auth.getSession()).data?.session; } catch(_){}
-  if (!session) { console.warn('[people] sem session — aborta'); return; }
+  // ━━━ Pega JWT com fallback múltiplo ━━━
+  // Strategy 1: SDK auth.getSession() com timeout de 3s
+  // Strategy 2: lê direto do localStorage (sb-<ref>-auth-token)
+  // Se as 2 falharem, segue sem token — só templates públicos vão carregar
+  let token = null;
+  let uid = null;
+  try {
+    const sess = await Promise.race([
+      c.auth.getSession(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('sdk timeout')), 3000))
+    ]);
+    if (sess?.data?.session?.access_token) {
+      token = sess.data.session.access_token;
+      uid = sess.data.session.user?.id;
+      console.log('[people] auth via SDK ✓');
+    }
+  } catch(e) { console.warn('[people] SDK auth travou:', e?.message); }
 
-  // Helper: fetch direto na REST API com timeout firme. Bypassa o builder
-  // do supabase-js, que tava ficando preso sem resolver mesmo com Pro plan.
-  const apiFetch = async (path, label) => {
+  if (!token) {
+    // Fallback: localStorage. Supabase v2 grava session em sb-<projectRef>-auth-token
+    try {
+      const projectRef = c.supabaseUrl?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+      if (projectRef) {
+        const raw = localStorage.getItem(`sb-${projectRef}-auth-token`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          token = parsed?.access_token || (Array.isArray(parsed) ? parsed[0] : null);
+          uid = parsed?.user?.id || parsed?.user_id || null;
+          if (token) console.log('[people] auth via localStorage ✓');
+        }
+      }
+    } catch(e) { console.warn('[people] localStorage fallback falhou:', e?.message); }
+  }
+
+  // Helper: GET na REST API com timeout firme. Se token disponível, manda; senão usa só anon key.
+  const apiFetch = async (path, label, requireAuth=false) => {
+    if (requireAuth && !token) {
+      console.warn(`[people] ${label} pulado (sem token)`);
+      return null;
+    }
     const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 10000);
+    const tid = setTimeout(() => ctrl.abort(), 8000);
     const t = Date.now();
     try {
+      const headers = {
+        'apikey': c.supabaseKey,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const r = await fetch(`${c.supabaseUrl}/rest/v1/${path}`, {
-        signal: ctrl.signal,
-        headers: {
-          'apikey': c.supabaseKey,
-          'Authorization': `Bearer ${session.access_token}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
+        signal: ctrl.signal, headers,
       });
       const body = await r.json();
       console.log(`[people] ${label} ← ${Date.now()-t}ms · ${r.status}`, Array.isArray(body) ? `${body.length} rows` : body);
@@ -35835,8 +35866,9 @@ async function _peopleLoadAll() {
 
   // RPC via POST direto
   const callRpc = async (fn, label) => {
+    if (!token) { console.warn(`[people] ${label} pulado (sem token)`); return null; }
     const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 10000);
+    const tid = setTimeout(() => ctrl.abort(), 8000);
     const t = Date.now();
     try {
       const r = await fetch(`${c.supabaseUrl}/rest/v1/rpc/${fn}`, {
@@ -35844,7 +35876,7 @@ async function _peopleLoadAll() {
         signal: ctrl.signal,
         headers: {
           'apikey': c.supabaseKey,
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
@@ -35859,19 +35891,26 @@ async function _peopleLoadAll() {
     } finally { clearTimeout(tid); }
   };
 
-  const uid = session.user.id;
-  const [dashboard, templates, myArr] = await Promise.all([
-    callRpc('people_dashboard', 'dashboard'),
-    apiFetch('people_trail_templates?select=id,workspace_owner,role,name,description,steps,is_public&order=role', 'templates'),
-    apiFetch(`people?select=*&user_id=eq.${uid}&deleted_at=is.null&order=start_date.desc&limit=1`, 'myAprendiz'),
-  ]);
+  // Templates: rodam SEMPRE (mesmo sem auth — públicos têm workspace_owner IS NULL,
+  // RLS aceita anon). Dashboard e myAprendiz só rodam com auth.
+  const promises = [
+    apiFetch('people_trail_templates?select=id,workspace_owner,role,name,description,steps,is_public&order=role', 'templates', false),
+  ];
+  if (token) {
+    promises.push(callRpc('people_dashboard', 'dashboard'));
+    if (uid) promises.push(apiFetch(`people?select=*&user_id=eq.${uid}&deleted_at=is.null&order=start_date.desc&limit=1`, 'myAprendiz', true));
+  }
+  const results = await Promise.all(promises);
+  const templates = results[0];
+  const dashboard = token ? results[1] : null;
+  const myArr     = token && uid ? results[2] : null;
 
-  if (dashboard) _peopleState.dashboard = dashboard;
   if (Array.isArray(templates)) _peopleState.templates = templates;
+  if (dashboard) _peopleState.dashboard = dashboard;
   if (Array.isArray(myArr) && myArr.length > 0) _peopleState.myAprendiz = myArr[0];
   else _peopleState.myAprendiz = null;
 
-  console.log(`[people] _peopleLoadAll done · ${Date.now()-t0}ms total`);
+  console.log(`[people] _peopleLoadAll done · ${Date.now()-t0}ms total · templates:${(_peopleState.templates||[]).length} dashboard:${dashboard?'✓':'✗'}`);
 }
 
 // ── Banner no home: aprendiz vê sua trilha resumida ──────────────────
