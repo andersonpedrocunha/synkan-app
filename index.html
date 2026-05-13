@@ -3828,6 +3828,16 @@ body.density-compact .col{padding:7px;}
 .dojo-seasonal-yearly-info{flex:1;min-width:0;}
 .dojo-seasonal-yearly-name{font-family:'Noto Serif JP',serif;font-size:15px;font-weight:600;color:var(--color-text-primary);margin-bottom:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .dojo-seasonal-yearly-desc{font-size:12.5px;color:var(--color-text-secondary);line-height:1.5;}
+/* Bloco da efeméride dentro da conquista anual */
+.dojo-yearly-commemo{display:flex;gap:10px;align-items:flex-start;margin-top:8px;padding:8px 10px;background:rgba(255,255,255,.55);border-left:2px solid var(--year-tone,#C19A3A);border-radius:6px;font-size:11.5px;color:var(--color-text-secondary);line-height:1.5;}
+.dojo-yearly-commemo-kanji{font-family:'Noto Serif JP','Yuji Syuku',serif;font-size:28px;font-weight:700;color:var(--year-tone,#C19A3A);line-height:1;flex-shrink:0;text-shadow:0 1px 2px rgba(0,0,0,.05);}
+.dojo-yearly-commemo-info{flex:1;}
+.dojo-yearly-commemo-info strong{color:var(--color-text-primary);}
+.dojo-yearly-commemo-culture{display:block;margin-top:3px;font-style:italic;color:var(--color-text-tertiary);font-size:11px;font-family:'Noto Serif JP',serif;}
+/* Banner especial quando é o dia da efeméride */
+.dojo-seasonal-yearly.is-today{background:linear-gradient(135deg,rgba(188,0,45,.15),rgba(245,197,24,.18));border-color:#BC002D;border-width:2px;animation:dojo-today-pulse 2.2s ease-in-out infinite;}
+@keyframes dojo-today-pulse{0%,100%{box-shadow:0 0 0 0 rgba(188,0,45,.25);}50%{box-shadow:0 0 0 8px rgba(188,0,45,0);}}
+:root.dark .dojo-yearly-commemo{background:rgba(245,232,200,.05);}
 .dojo-seasonal-section-h{font-family:'Noto Serif JP',serif;font-size:11.5px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 8px;font-style:italic;}
 :root.dark .dojo-seasonal-yearly{background:linear-gradient(135deg,rgba(255,139,156,.06),rgba(193,154,58,.06));}
 
@@ -24320,6 +24330,23 @@ const SYN_GLOSSARY = [
   { term:'Roxa',    romaji:'murasaki-obi', meaning:'sensei',           context:'Sexta faixa. 11.000 XP. É o caminho, não busca o caminho.', category:'conceito' },
   { term:'Marrom',  romaji:'cha-obi',     meaning:'mestre',            context:'Sétima faixa. 22.000 XP. Sustenta os que vêm depois.', category:'conceito' },
   { term:'Preta',   romaji:'kuro-obi',    meaning:'grão-mestre',       context:'Faixa preta. 45.000 XP (1° dan), 90.000 (2° dan). Sinal de que agora está pronto pra começar de verdade.', category:'conceito' },
+
+  // ─── Efemérides japonesas (vinculadas às conquistas anuais do Dojo) ───
+  { term:'Hinamatsuri', native:'雛祭り',  romaji:'hinamatsuri',  meaning:'festival das bonecas',  context:'3 de março · Festival das meninas. Famílias exibem bonecas hina representando a corte imperial Heian em uma plataforma de 7 níveis, pedindo proteção e felicidade pra suas filhas.', category:'conceito' },
+  { term:'Kodomo no Hi', native:'こどもの日', romaji:"kodomo no hi", meaning:'dia das crianças', context:'5 de maio · Feriado nacional. Famílias içam carpas de pano (koinobori) — o peixe que sobe rio acima simboliza força, coragem e perseverança das crianças.', category:'conceito' },
+  { term:'Golden Week', native:'ゴールデンウィーク', romaji:'golden week', meaning:'semana dourada', context:'29 abr a 5 mai · Sequência de 4 feriados nacionais (Showa, Constituição, Verde e Crianças). Período em que muita gente sai de férias e viaja pelo Japão.', category:'conceito' },
+  { term:'Tanabata', native:'七夕',       romaji:'tanabata',     meaning:'festival das estrelas', context:'7 de julho · Conta a lenda de Orihime (Vega) e Hikoboshi (Altair), amantes separados pela Via Láctea, que se reencontram só nessa noite. Escreve-se desejos em tiras de papel coloridas (tanzaku) e amarra-se em bambus.', category:'conceito' },
+  { term:'Umi no Hi',  native:'海の日',  romaji:'umi no hi',    meaning:'dia do mar',           context:'3ª segunda de julho · Feriado nacional pra agradecer ao oceano e celebrar a prosperidade marítima do Japão.', category:'conceito' },
+  { term:'Yama no Hi', native:'山の日',  romaji:'yama no hi',   meaning:'dia da montanha',      context:'11 de agosto · Feriado mais novo do Japão (criado em 2016) pra honrar as montanhas, que cobrem 73% do território. Inspirou o nome do efeito de câmera "Hokkaidō" do Synkan.', category:'conceito' },
+  { term:'Obon',       native:'お盆',     romaji:'obon',         meaning:'festival dos ancestrais', context:'13-16 de agosto · Período em que espíritos dos ancestrais retornam ao mundo dos vivos. Famílias acendem lanternas (chōchin) pra guiá-los, dançam Bon Odori e visitam túmulos.', category:'conceito' },
+  { term:'Hanabi',     native:'花火大会', romaji:'hanabi taikai', meaning:'festival de fogos',   context:'Julho-agosto · "Hanabi" significa literalmente "flor de fogo". Festivais de fogos de artifício gigantes ao longo do verão. Tradição diz que os estrondos afastam maus espíritos.', category:'conceito' },
+  { term:'Keirō no Hi', native:'敬老の日', romaji:'keirō no hi',  meaning:'dia dos idosos',      context:'3ª segunda de setembro · Feriado pra honrar pessoas mais velhas, agradecer pelas contribuições e celebrar longevidade. Senpais eternos.', category:'conceito' },
+  { term:'Shichi-Go-San', native:'七五三', romaji:'shichi-go-san', meaning:'sete-cinco-três',    context:'15 de novembro · Festival pra proteger crianças de 3, 5 e 7 anos. Levam-se aos santuários xintoístas vestindo kimono. Doces "chitose ame" (mil anos) prometem vida longa.', category:'conceito' },
+  { term:'Kinrō Kansha', native:'勤労感謝の日', romaji:'kinrō kansha no hi', meaning:'ação de graças do trabalho', context:'23 de novembro · Feriado nacional originalmente celebrava a colheita. Hoje honra trabalho produtivo e gratidão pelas conquistas coletivas.', category:'conceito' },
+  { term:'Oshōgatsu',  native:'お正月',   romaji:'oshōgatsu',    meaning:'ano novo japonês',     context:'1-3 de janeiro · O feriado mais importante. Comem-se osechi-ryōri, decora-se com kadomatsu (arranjo de pinheiro), e visita-se templos pra fazer hatsumōde — a primeira reza do ano.', category:'conceito' },
+  { term:'Seijin no Hi', native:'成人の日', romaji:'seijin no hi', meaning:'dia da maioridade',   context:'2ª segunda de janeiro · Celebra quem completou 20 anos no ano anterior — idade legal da maioridade no Japão. Cerimônias em prefeituras com kimono e haori formal.', category:'conceito' },
+  { term:'Setsubun',   native:'節分',    romaji:'setsubun',     meaning:'mudança de estação',    context:'3 de fevereiro · Marca o fim do inverno no calendário tradicional. Joga-se grãos de soja gritando "Oni wa soto! Fuku wa uchi!" ("Demônios pra fora, sorte pra dentro!") pra purificar a casa.', category:'conceito' },
+  { term:'Yuki Matsuri', native:'雪まつり', romaji:'yuki matsuri', meaning:'festival da neve',    context:'Início de fevereiro · Festival de Sapporo (Hokkaidō) com esculturas gigantes de neve e gelo. Atrai 2+ milhões de visitantes. Inspira o nome de várias conquistas de inverno do Dojo.', category:'conceito' },
 ];
 
 // Lookup rápido pelo termo (case-insensitive)
@@ -39170,39 +39197,188 @@ const SEASON_INFO = {
   fuyu:  { name:'Inverno',   kanji:'冬', months:[12,1,2],   color:'#94A3B8' },
 };
 
-// ━━ CONQUISTAS ANUAIS ESPECIAIS ━━
-// 1 conquista exclusiva por (estação + ano). Aparece JUNTO com as 5 fixas
-// daquela estação. Conquistar fica no histórico permanentemente — tipo
-// "achievement de evento limitado". A pessoa só vê a do ano atual.
-// Quando rolar o ano novo, vira a próxima.
+// ━━ CONQUISTAS ANUAIS · vinculadas a EFEMÉRIDES JAPONESAS ━━
+// Cada conquista anual celebra uma data comemorativa real do Japão.
+// Aparece JUNTO com as 5 fixas daquela estação. Conquistar fica no histórico
+// permanentemente — tipo "achievement de evento limitado" anual.
+//
+// Campos extras:
+//   commemorates       — nome em romaji da efeméride
+//   commemoratesNative — kanji original
+//   date               — { month, day } ou função pra datas móveis
+//   culture            — frase curta com o significado cultural
 const SEASONAL_YEARLY = {
+  // ─── 春 PRIMAVERA ─────────────────────────────────────────────────
   haru: {
-    2026: { id:'haru_2026', icon:'🌸', name:'Hanami 2026 · Primeira Lua',  desc:'Crie 3 páginas no Bunko durante a primavera',                target:3,   type:'bunkoPagesSeason' },
-    2027: { id:'haru_2027', icon:'🪷', name:'Hanami 2027 · Raiz Profunda', desc:'Conclua 50 cards num único mês da primavera',                target:50,  type:'cardsDoneMonth' },
-    2028: { id:'haru_2028', icon:'🌷', name:'Hanami 2028 · Despertar',     desc:'Tenha 10 OKRs com ao menos 1 KR avançado no trimestre',      target:10,  type:'okrsAdvancedSeason' },
-    2029: { id:'haru_2029', icon:'🌹', name:'Hanami 2029 · Eclipse Rosa',  desc:'Tenha 7 dias seguidos com ao menos 1 ação no app',           target:7,   type:'activeDaysSeason' },
-    2030: { id:'haru_2030', icon:'🦋', name:'Hanami 2030 · Borboleta',     desc:'Crie 10 novos boards na primavera',                          target:10,  type:'boardsCreatedSeason' },
+    2026: {
+      id:'haru_2026', icon:'🎎', name:'Hinamatsuri 2026 · Olhar Atento',
+      desc:'Crie 3 páginas no Bunko durante a primavera',
+      target:3, type:'bunkoPagesSeason',
+      commemorates:'Hinamatsuri', commemoratesNative:'雛祭り',
+      date:{ month:3, day:3 },
+      culture:'Festival das bonecas · 3 de março · celebra meninas e proteção familiar',
+    },
+    2027: {
+      id:'haru_2027', icon:'🌸', name:'Hanami 2027 · Primeira Lua',
+      desc:'Conclua 50 cards num único mês da primavera',
+      target:50, type:'cardsDoneMonth',
+      commemorates:'Hanami', commemoratesNative:'花見',
+      date:{ month:3, day:25 },
+      culture:'Contemplar as cerejeiras · fim de março · piquenique sob pétalas',
+    },
+    2028: {
+      id:'haru_2028', icon:'🎏', name:'Kodomo no Hi 2028 · Coragem do Carpa',
+      desc:'Crie 5 novos OKRs e avance ao menos 1 KR de cada',
+      target:5, type:'okrsAdvancedSeason',
+      commemorates:'Kodomo no Hi', commemoratesNative:'こどもの日',
+      date:{ month:5, day:5 },
+      culture:'Dia das crianças · 5 de maio · carpas içadas representam coragem',
+    },
+    2029: {
+      id:'haru_2029', icon:'🗓️', name:'Golden Week 2029 · Pausa Sagrada',
+      desc:'5 dias úteis seguidos sem perder uma única ação planejada',
+      target:5, type:'activeDaysSeason',
+      commemorates:'Golden Week', commemoratesNative:'ゴールデンウィーク',
+      date:{ month:4, day:29 },
+      culture:'Semana dourada · 29 abr–5 mai · 4 feriados consecutivos no Japão',
+    },
+    2030: {
+      id:'haru_2030', icon:'🌷', name:'Hanami 2030 · Borboleta',
+      desc:'Crie 10 novos boards na primavera',
+      target:10, type:'boardsCreatedSeason',
+      commemorates:'Hanami', commemoratesNative:'花見',
+      date:{ month:3, day:25 },
+      culture:'Contemplar as cerejeiras · fim de março · piquenique sob pétalas',
+    },
   },
+  // ─── 夏 VERÃO ─────────────────────────────────────────────────────
   natsu: {
-    2026: { id:'natsu_2026', icon:'🎐', name:'Natsu 2026 · Fūrin',         desc:'Envie 300 mensagens no Tatami durante o verão',              target:300, type:'messagesSeason' },
-    2027: { id:'natsu_2027', icon:'🍉', name:'Natsu 2027 · Calor Seco',    desc:'Realize 20 reuniões no Tatame ao vivo',                      target:20,  type:'tatameMeetsSeason' },
-    2028: { id:'natsu_2028', icon:'🌊', name:'Natsu 2028 · Mar de Hokkaidō', desc:'Feche 50 deals no Synconnect durante o verão',             target:50,  type:'dealsWonSeason' },
-    2029: { id:'natsu_2029', icon:'🦀', name:'Natsu 2029 · Maré Alta',     desc:'Transcreva 30 reuniões com o Mestre Kan',                    target:30,  type:'transcriptsSeason' },
-    2030: { id:'natsu_2030', icon:'🎆', name:'Natsu 2030 · Sora',          desc:'Conclua 100 cards no verão',                                 target:100, type:'cardsDoneSeason' },
+    2026: {
+      id:'natsu_2026', icon:'🎋', name:'Tanabata 2026 · Desejo nas Estrelas',
+      desc:'Envie 300 mensagens no Tatami durante o verão',
+      target:300, type:'messagesSeason',
+      commemorates:'Tanabata', commemoratesNative:'七夕',
+      date:{ month:7, day:7 },
+      culture:'Festival das estrelas · 7/jul · desejos amarrados em tiras de bambu',
+    },
+    2027: {
+      id:'natsu_2027', icon:'🌊', name:'Umi no Hi 2027 · Maré Alta',
+      desc:'Transcreva 30 reuniões com o Mestre Kan',
+      target:30, type:'transcriptsSeason',
+      commemorates:'Umi no Hi', commemoratesNative:'海の日',
+      date:{ month:7, day:20 }, // 3ª segunda de julho (aproximação)
+      culture:'Dia do Mar · 3ª seg de jul · gratidão ao oceano',
+    },
+    2028: {
+      id:'natsu_2028', icon:'🏔', name:'Yama no Hi 2028 · Hokkaidō',
+      desc:'Realize 20 reuniões no Tatame ao vivo',
+      target:20, type:'tatameMeetsSeason',
+      commemorates:'Yama no Hi', commemoratesNative:'山の日',
+      date:{ month:8, day:11 },
+      culture:'Dia da Montanha · 11/ago · conexão com as montanhas do Japão',
+    },
+    2029: {
+      id:'natsu_2029', icon:'🏮', name:'Obon 2029 · Lanternas',
+      desc:'Feche 50 deals no Synconnect durante o verão',
+      target:50, type:'dealsWonSeason',
+      commemorates:'Obon', commemoratesNative:'お盆',
+      date:{ month:8, day:13 },
+      culture:'Festival dos ancestrais · 13-16/ago · lanternas guiam espíritos de volta',
+    },
+    2030: {
+      id:'natsu_2030', icon:'🎆', name:'Hanabi 2030 · Fogos de Artifício',
+      desc:'Conclua 100 cards no verão',
+      target:100, type:'cardsDoneSeason',
+      commemorates:'Hanabi Taikai', commemoratesNative:'花火大会',
+      date:{ month:7, day:31 },
+      culture:'Festivais de fogos · julho-agosto · som que afasta maus espíritos',
+    },
   },
+  // ─── 秋 OUTONO ─────────────────────────────────────────────────────
   aki: {
-    2026: { id:'aki_2026',   icon:'🍂', name:'Aki 2026 · Folha Primeira',  desc:'Conclua 100 cards durante o outono',                         target:100, type:'cardsDoneSeason' },
-    2027: { id:'aki_2027',   icon:'🍁', name:'Aki 2027 · Bordo Vermelho',  desc:'Bata 15 Key Results no trimestre',                           target:15,  type:'krsHitSeason' },
-    2028: { id:'aki_2028',   icon:'🌰', name:'Aki 2028 · Castanha Rara',   desc:'Bata meta mensal por 3 meses seguidos',                      target:3,   type:'monthlyGoalsStreak' },
-    2029: { id:'aki_2029',   icon:'🦊', name:'Aki 2029 · Raposa de Neve',  desc:'Zero deadlines perdidos por 90 dias seguidos',               target:90,  type:'noMissedDeadlinesDays' },
-    2030: { id:'aki_2030',   icon:'🎑', name:'Aki 2030 · Tsukimi Especial', desc:'Faça 50 anotações no Bunko no outono',                      target:50,  type:'bunkoPagesSeason' },
+    2026: {
+      id:'aki_2026', icon:'🎑', name:'Tsukimi 2026 · Folha Primeira',
+      desc:'Conclua 100 cards durante o outono',
+      target:100, type:'cardsDoneSeason',
+      commemorates:'Tsukimi', commemoratesNative:'月見',
+      date:{ month:9, day:21 }, // varia (15ª lua), aproximação
+      culture:'Contemplação da lua · setembro · dango e talos de pampas',
+    },
+    2027: {
+      id:'aki_2027', icon:'👴', name:'Keirō no Hi 2027 · Senpai Eterno',
+      desc:'Bata 15 Key Results no trimestre',
+      target:15, type:'krsHitSeason',
+      commemorates:'Keirō no Hi', commemoratesNative:'敬老の日',
+      date:{ month:9, day:21 }, // 3ª segunda de setembro (aproximação)
+      culture:'Dia dos idosos · 3ª seg de set · respeito aos veteranos',
+    },
+    2028: {
+      id:'aki_2028', icon:'🍁', name:'Shichi-Go-San 2028 · Bordo Vermelho',
+      desc:'Bata meta mensal por 3 meses seguidos',
+      target:3, type:'monthlyGoalsStreak',
+      commemorates:'Shichi-Go-San', commemoratesNative:'七五三',
+      date:{ month:11, day:15 },
+      culture:'Festival 7-5-3 · 15/nov · proteção das crianças de 3, 5 e 7 anos',
+    },
+    2029: {
+      id:'aki_2029', icon:'🌾', name:'Kinrō Kansha 2029 · Colheita',
+      desc:'Zero deadlines perdidos por 90 dias seguidos',
+      target:90, type:'noMissedDeadlinesDays',
+      commemorates:'Kinrō Kansha', commemoratesNative:'勤労感謝の日',
+      date:{ month:11, day:23 },
+      culture:'Ação de Graças do Trabalho · 23/nov · honrar o esforço produtivo',
+    },
+    2030: {
+      id:'aki_2030', icon:'🌰', name:'Tsukimi 2030 · Castanha',
+      desc:'Faça 50 anotações no Bunko no outono',
+      target:50, type:'bunkoPagesSeason',
+      commemorates:'Tsukimi', commemoratesNative:'月見',
+      date:{ month:9, day:21 },
+      culture:'Contemplação da lua · setembro · dango e talos de pampas',
+    },
   },
+  // ─── 冬 INVERNO ───────────────────────────────────────────────────
   fuyu: {
-    2026: { id:'fuyu_2026',  icon:'❄', name:'Fuyu 2026 · Primeira Neve',  desc:'Defina 5 OKRs do ano (planejamento de inverno)',              target:5,   type:'okrsCreatedSeason' },
-    2027: { id:'fuyu_2027',  icon:'⛄', name:'Fuyu 2027 · Yuki Onna',     desc:'Streak de 30 dias úteis sem quebrar',                         target:30,  type:'streakInSeason' },
-    2028: { id:'fuyu_2028',  icon:'🎍', name:'Fuyu 2028 · Pinheiro do Ano Novo', desc:'Organize 200+ cards (arquive ou conclua)',             target:200, type:'cardsArchivedSeason' },
-    2029: { id:'fuyu_2029',  icon:'🦢', name:'Fuyu 2029 · Cisne Migratório', desc:'200 páginas no Bunko Box',                                target:200, type:'bunkoPagesSeason' },
-    2030: { id:'fuyu_2030',  icon:'🌌', name:'Fuyu 2030 · Vento Boreal',   desc:'Tenha 60 dias ativos consecutivos',                          target:60,  type:'activeDaysSeason' },
+    2026: {
+      id:'fuyu_2026', icon:'🎍', name:'Oshōgatsu 2026 · Primeira Neve',
+      desc:'Defina 5 OKRs do ano (planejamento de inverno)',
+      target:5, type:'okrsCreatedSeason',
+      commemorates:'Oshōgatsu', commemoratesNative:'お正月',
+      date:{ month:1, day:1 },
+      culture:'Ano Novo japonês · 1-3/jan · kadomatsu, oseibo e propósitos do ano',
+    },
+    2027: {
+      id:'fuyu_2027', icon:'🫘', name:'Setsubun 2027 · Yuki Onna',
+      desc:'Streak de 30 dias úteis sem quebrar',
+      target:30, type:'streakInSeason',
+      commemorates:'Setsubun', commemoratesNative:'節分',
+      date:{ month:2, day:3 },
+      culture:'Virada de estação · 3/fev · joga-se grãos de soja pra afastar oni',
+    },
+    2028: {
+      id:'fuyu_2028', icon:'🎓', name:'Seijin no Hi 2028 · Maioridade',
+      desc:'Organize 200+ cards (arquive ou conclua)',
+      target:200, type:'cardsArchivedSeason',
+      commemorates:'Seijin no Hi', commemoratesNative:'成人の日',
+      date:{ month:1, day:13 }, // 2ª segunda de janeiro (aproximação)
+      culture:'Dia da Maioridade · 2ª seg de jan · celebra quem completa 20 anos',
+    },
+    2029: {
+      id:'fuyu_2029', icon:'⛄', name:'Yuki Matsuri 2029 · Cisne Migratório',
+      desc:'200 páginas no Bunko Box',
+      target:200, type:'bunkoPagesSeason',
+      commemorates:'Yuki Matsuri', commemoratesNative:'雪まつり',
+      date:{ month:2, day:5 },
+      culture:'Festival da neve de Sapporo · início/fev · esculturas gigantes de gelo',
+    },
+    2030: {
+      id:'fuyu_2030', icon:'🌌', name:'Oshōgatsu 2030 · Vento Boreal',
+      desc:'Tenha 60 dias ativos consecutivos',
+      target:60, type:'activeDaysSeason',
+      commemorates:'Oshōgatsu', commemoratesNative:'お正月',
+      date:{ month:1, day:1 },
+      culture:'Ano Novo japonês · 1-3/jan · kadomatsu, oseibo e propósitos do ano',
+    },
   },
 };
 
@@ -39210,6 +39386,37 @@ function _gamifGetYearlyAchievement(season, year) {
   const seasonMap = SEASONAL_YEARLY[season];
   if (!seasonMap) return null;
   return seasonMap[year] || null;
+}
+
+// ━━ Detecta se hoje (ou nos próximos N dias) tem uma efeméride associada
+//    à conquista anual do ano corrente. Usado pra mostrar banner contextual.
+function _gamifGetCommemorationToday() {
+  const today = new Date();
+  const yearNow = today.getFullYear();
+  const monthNow = today.getMonth() + 1;
+  const dayNow = today.getDate();
+  for (const seasonKey of Object.keys(SEASONAL_YEARLY)) {
+    const ach = SEASONAL_YEARLY[seasonKey]?.[yearNow];
+    if (!ach?.date) continue;
+    if (ach.date.month === monthNow && ach.date.day === dayNow) {
+      return { ...ach, season: seasonKey, isToday: true };
+    }
+  }
+  return null;
+}
+
+// Calcula dias até a próxima efeméride do ano (positivo) — pra exibir countdown
+function _gamifGetDaysUntilCommemoration(ach) {
+  if (!ach?.date) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yearNow = today.getFullYear();
+  let target = new Date(yearNow, ach.date.month - 1, ach.date.day);
+  if (target < today) {
+    // Já passou este ano — calcula até a próxima ocorrência (ano que vem da mesma efeméride)
+    target = new Date(yearNow + 1, ach.date.month - 1, ach.date.day);
+  }
+  const diff = Math.ceil((target - today) / 86400000);
+  return diff;
 }
 
 function _gamifCurrentSeason() {
@@ -41293,22 +41500,35 @@ function renderDojo() {
               <p class="dojo-seasonal-sub">5 badges rotam a cada estação + 1 exclusiva do ano (${yearNow}). ${completedCount}/${list.length} desbloqueada${completedCount===1?'':'s'} este trimestre · próxima estação (${nextSeasonInfo.kanji} ${nextSeasonInfo.name}) em ${daysToNext} dia${daysToNext===1?'':'s'}.</p>
             </div>
           </div>
-          ${yearlyAch ? `
-            <div class="dojo-seasonal-yearly ${yearlyDone?'is-done':''}" style="--year-tone:${info.color};">
-              <div class="dojo-seasonal-yearly-tag">★ EXCLUSIVA ${yearNow} · só esse ano</div>
+          ${yearlyAch ? (() => {
+            const daysUntil = (typeof _gamifGetDaysUntilCommemoration === 'function') ? _gamifGetDaysUntilCommemoration(yearlyAch) : null;
+            const isToday = daysUntil === 0;
+            const commemoLine = yearlyAch.commemorates ? `
+              <div class="dojo-yearly-commemo">
+                <span class="dojo-yearly-commemo-kanji">${_esc(yearlyAch.commemoratesNative||'')}</span>
+                <span class="dojo-yearly-commemo-info">
+                  Celebra <strong>${_esc(yearlyAch.commemorates)}</strong> ${yearlyAch.commemoratesNative ? `<em>(${_esc(yearlyAch.commemoratesNative)})</em>` : ''}
+                  ${daysUntil !== null ? `· ${isToday ? '<strong style="color:#BC002D;">é HOJE 🎉</strong>' : (daysUntil > 0 && daysUntil <= 365 ? `em <strong>${daysUntil} dia${daysUntil===1?'':'s'}</strong>` : '')}` : ''}
+                  ${yearlyAch.culture ? `<br/><span class="dojo-yearly-commemo-culture">${_esc(yearlyAch.culture)}</span>` : ''}
+                </span>
+              </div>` : '';
+            return `
+            <div class="dojo-seasonal-yearly ${yearlyDone?'is-done':''} ${isToday?'is-today':''}" style="--year-tone:${info.color};">
+              <div class="dojo-seasonal-yearly-tag">${isToday ? '🎉 EFEMÉRIDE HOJE' : '★ EXCLUSIVA'} ${yearNow} · só esse ano</div>
               <div class="dojo-seasonal-yearly-body">
                 <span class="dojo-seasonal-yearly-icon">${yearlyAch.icon}</span>
                 <div class="dojo-seasonal-yearly-info">
                   <div class="dojo-seasonal-yearly-name">${_esc(yearlyAch.name)}${yearlyDone?' <span class="dojo-seasonal-pill">✓ feito</span>':''}</div>
                   <div class="dojo-seasonal-yearly-desc">${_esc(yearlyAch.desc)}</div>
+                  ${commemoLine}
                   <div class="dojo-seasonal-bar" style="margin-top:7px;">
                     <div class="dojo-seasonal-bar-fill" style="width:${yearlyPct}%;background:${yearlyDone?'#27500A':info.color};"></div>
                   </div>
                   <div class="dojo-seasonal-progress">${Math.min(yearlyProg, yearlyAch.target)} / ${yearlyAch.target}</div>
                 </div>
               </div>
-            </div>
-          ` : ''}
+            </div>`;
+          })() : ''}
           <div class="dojo-seasonal-section-h">5 conquistas fixas — voltam todo ano</div>
           <div class="dojo-seasonal-grid">
             ${list.map(ach => {
@@ -41492,22 +41712,35 @@ function renderDojo() {
               <p class="dojo-seasonal-sub">5 badges rotam a cada estação + 1 exclusiva do ano (${yearNow}). ${completedCount}/${list.length} desbloqueada${completedCount===1?'':'s'} este trimestre · próxima estação (${nextSeasonInfo.kanji} ${nextSeasonInfo.name}) em ${daysToNext} dia${daysToNext===1?'':'s'}.</p>
             </div>
           </div>
-          ${yearlyAch ? `
-            <div class="dojo-seasonal-yearly ${yearlyDone?'is-done':''}" style="--year-tone:${info.color};">
-              <div class="dojo-seasonal-yearly-tag">★ EXCLUSIVA ${yearNow} · só esse ano</div>
+          ${yearlyAch ? (() => {
+            const daysUntil = (typeof _gamifGetDaysUntilCommemoration === 'function') ? _gamifGetDaysUntilCommemoration(yearlyAch) : null;
+            const isToday = daysUntil === 0;
+            const commemoLine = yearlyAch.commemorates ? `
+              <div class="dojo-yearly-commemo">
+                <span class="dojo-yearly-commemo-kanji">${_esc(yearlyAch.commemoratesNative||'')}</span>
+                <span class="dojo-yearly-commemo-info">
+                  Celebra <strong>${_esc(yearlyAch.commemorates)}</strong> ${yearlyAch.commemoratesNative ? `<em>(${_esc(yearlyAch.commemoratesNative)})</em>` : ''}
+                  ${daysUntil !== null ? `· ${isToday ? '<strong style="color:#BC002D;">é HOJE 🎉</strong>' : (daysUntil > 0 && daysUntil <= 365 ? `em <strong>${daysUntil} dia${daysUntil===1?'':'s'}</strong>` : '')}` : ''}
+                  ${yearlyAch.culture ? `<br/><span class="dojo-yearly-commemo-culture">${_esc(yearlyAch.culture)}</span>` : ''}
+                </span>
+              </div>` : '';
+            return `
+            <div class="dojo-seasonal-yearly ${yearlyDone?'is-done':''} ${isToday?'is-today':''}" style="--year-tone:${info.color};">
+              <div class="dojo-seasonal-yearly-tag">${isToday ? '🎉 EFEMÉRIDE HOJE' : '★ EXCLUSIVA'} ${yearNow} · só esse ano</div>
               <div class="dojo-seasonal-yearly-body">
                 <span class="dojo-seasonal-yearly-icon">${yearlyAch.icon}</span>
                 <div class="dojo-seasonal-yearly-info">
                   <div class="dojo-seasonal-yearly-name">${_esc(yearlyAch.name)}${yearlyDone?' <span class="dojo-seasonal-pill">✓ feito</span>':''}</div>
                   <div class="dojo-seasonal-yearly-desc">${_esc(yearlyAch.desc)}</div>
+                  ${commemoLine}
                   <div class="dojo-seasonal-bar" style="margin-top:7px;">
                     <div class="dojo-seasonal-bar-fill" style="width:${yearlyPct}%;background:${yearlyDone?'#27500A':info.color};"></div>
                   </div>
                   <div class="dojo-seasonal-progress">${Math.min(yearlyProg, yearlyAch.target)} / ${yearlyAch.target}</div>
                 </div>
               </div>
-            </div>
-          ` : ''}
+            </div>`;
+          })() : ''}
           <div class="dojo-seasonal-section-h">5 conquistas fixas — voltam todo ano</div>
           <div class="dojo-seasonal-grid">
             ${list.map(ach => {
