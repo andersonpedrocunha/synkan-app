@@ -20843,19 +20843,33 @@ function render() {
           let assignedLine = '';
           if ((F.assignedUser !== false) && c.assignedUserId) {
             let resolvedName = null;
+            let resolvedAvatar = null;
             // 1) Cache de membros (qualquer board carregado)
             if (Array.isArray(_boardMembersCache?.members)) {
               const m = _boardMembersCache.members.find(x => x.user_id === c.assignedUserId);
-              if (m) resolvedName = m.full_name || m.email || null;
+              if (m) {
+                resolvedName = m.full_name || m.email || null;
+                resolvedAvatar = m.avatar_url || m.avatar || null;
+              }
             }
-            // 2) Próprio user logado
-            if (!resolvedName && supaUser?.id === c.assignedUserId) {
-              resolvedName = supaUser.user_metadata?.full_name || supaUser.email || 'Você';
+            // 2) Cache do chat (profiles) — costuma ter avatar
+            if (!resolvedAvatar && _chatState?.userMap?.[c.assignedUserId]) {
+              const cu = _chatState.userMap[c.assignedUserId];
+              if (!resolvedName) resolvedName = cu.name || cu.full_name || cu.email || null;
+              resolvedAvatar = resolvedAvatar || cu.avatar || cu.avatar_url || null;
             }
-            // 3) Fallback: usa primeiros 8 chars do uuid + dispara load em bg
+            // 3) Próprio user logado — pega foto do auth metadata + cascata
+            if (supaUser?.id === c.assignedUserId) {
+              if (!resolvedName) resolvedName = supaUser.user_metadata?.full_name || supaUser.email || 'Você';
+              if (!resolvedAvatar) {
+                resolvedAvatar = supaUser.user_metadata?.avatar_url
+                              || (typeof getProfileAvatar === 'function' ? getProfileAvatar() : null)
+                              || null;
+              }
+            }
+            // 4) Fallback: usa primeiros 8 chars do uuid + dispara load em bg
             if (!resolvedName) {
               resolvedName = c.assignedUserId.slice(0, 8) + '…';
-              // Best-effort: agenda load do cache pra próximo render (uma vez)
               if (typeof _loadBoardMembersForCard === 'function' && currentBoardId
                   && _boardMembersCache?.boardId !== currentBoardId) {
                 _loadBoardMembersForCard(currentBoardId).then(list => {
@@ -20867,7 +20881,11 @@ function render() {
             const _assignedUid = _esc(c.assignedUserId);
             const _assignedTitle = `Click pra ver o perfil de ${_esc(resolvedName)}`;
             const _profileClick = `event.stopPropagation();if(typeof _chatOpenTatamiProfile==='function')_chatOpenTatamiProfile('${_assignedUid}');`;
-            assignedLine = `<div class="card-resp" style="display:flex;align-items:center;gap:6px;cursor:pointer;" data-user-id="${_assignedUid}" onclick="${_profileClick}" title="${_assignedTitle}"><span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:${avatarColor(resolvedName)};color:#fff;font-size:9px;font-weight:700;flex-shrink:0;">${_esc(avatarInitials(resolvedName))}</span><span style="font-size:11.5px;color:var(--color-text-secondary);">${_esc(resolvedName)}</span></div>`;
+            // Renderiza foto (se existir) ou iniciais
+            const avatarHTML = resolvedAvatar
+              ? `<img src="${_esc(resolvedAvatar)}" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.outerHTML='<span style=\\'display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:${avatarColor(resolvedName)};color:#fff;font-size:9px;font-weight:700;flex-shrink:0;\\'>${_esc(avatarInitials(resolvedName))}</span>'"/>`
+              : `<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:${avatarColor(resolvedName)};color:#fff;font-size:9px;font-weight:700;flex-shrink:0;">${_esc(avatarInitials(resolvedName))}</span>`;
+            assignedLine = `<div class="card-resp" style="display:flex;align-items:center;gap:6px;cursor:pointer;" data-user-id="${_assignedUid}" onclick="${_profileClick}" title="${_assignedTitle}">${avatarHTML}<span style="font-size:11.5px;color:var(--color-text-secondary);">${_esc(resolvedName)}</span></div>`;
           }
           // Cadastro vinculado (lead/cliente/fornecedor) — pill no card, com score se for lead
           let contactLine = '';
