@@ -3947,12 +3947,40 @@ body.density-compact .col{padding:7px;}
 .syncal-btn-primary:hover{transform:translateY(-1px);}
 
 /* Botões de ferramenta no header (Achar/Booking/Polls/Carga/ICS) — todos com a mesma cara */
-.syncal-tool-btn{background:transparent !important;color:var(--color-text-secondary) !important;border:0.5px solid var(--color-border-tertiary) !important;display:inline-flex;align-items:center;gap:7px;padding:7px 12px !important;font-weight:500;}
+.syncal-tool-btn{
+  background:transparent !important;
+  color:var(--color-text-secondary) !important;
+  border:0.5px solid var(--color-border-tertiary) !important;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:0 12px !important;
+  height:34px;                /* altura fixa pra todos ficarem alinhados */
+  font-weight:500;
+  font-size:12.5px;
+  line-height:1;
+  white-space:nowrap;          /* nunca quebra texto */
+  border-radius:7px;
+  transition:all .12s ease;
+}
 .syncal-tool-btn svg{flex-shrink:0;opacity:.85;}
+.syncal-tool-btn span{display:inline-flex;align-items:center;line-height:1;}
 .syncal-tool-btn:hover{color:var(--color-text-primary) !important;border-color:var(--color-text-secondary) !important;background:var(--color-background-secondary) !important;transform:none;}
 .syncal-tool-btn:hover svg{opacity:1;}
 .syncal-tool-btn.syncal-tool-primary{color:#6B4825 !important;border-color:#C19A3A !important;background:rgba(193,154,58,.06) !important;}
 .syncal-tool-btn.syncal-tool-primary:hover{color:#3A2410 !important;background:rgba(193,154,58,.14) !important;border-color:#8B6634 !important;}
+
+/* "+ Novo evento" (botão primário ao lado) também alinhado à mesma altura */
+.syncal-actions .syncal-btn-primary:not(.syncal-tool-btn){
+  height:34px;
+  padding:0 14px;
+  font-size:13px;
+  display:inline-flex;
+  align-items:center;
+  white-space:nowrap;
+}
+.syncal-actions{flex-wrap:wrap;row-gap:8px;}
 .syncal-nav{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;gap:10px;flex-wrap:wrap;}
 .syncal-nav-l{display:flex;align-items:center;gap:8px;}
 .syncal-nav-btn{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);font-family:inherit;font-size:12.5px;padding:6px 12px;border-radius:6px;cursor:pointer;color:var(--color-text-primary);transition:all .12s;}
@@ -70652,7 +70680,10 @@ function _syncalOpenFindSlotsModal() {
   modal.innerHTML = `
     <div class="modal" style="max-width:560px;width:95%;">
       <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
-        <h3 style="margin:0;font-size:17px;">🥋 Mestre Kan acha um horário</h3>
+        <h3 style="margin:0;font-size:17px;display:inline-flex;align-items:center;gap:8px;">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5 L 9.2 7.5 L 12 8 L 9.8 9 L 8.6 11.8 L 7.5 9 L 4.5 8 Z" fill="currentColor" opacity=".6"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/></svg>
+          Mestre Kan acha um horário
+        </h3>
         <button onclick="document.getElementById('syncal-find-slots').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
       </div>
       <div class="mb">
@@ -70708,7 +70739,10 @@ function _syncalOpenFindSlotsModal() {
           </div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
             <button type="button" class="ppl-btn" onclick="document.getElementById('syncal-find-slots').remove()">Cancelar</button>
-            <button type="submit" class="ppl-btn ppl-btn-primary" style="background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;border-color:#3A2410;">🥋 Achar horários</button>
+            <button type="submit" class="ppl-btn ppl-btn-primary" style="background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;border-color:#3A2410;display:inline-flex;align-items:center;gap:6px;">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5 L 9.2 7.5 L 12 8 L 9.8 9 L 8.6 11.8 L 7.5 9 L 4.5 8 Z" fill="currentColor" opacity=".6"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/></svg>
+              Achar horários
+            </button>
           </div>
         </form>
         <div id="syncal-find-results" style="margin-top:14px;"></div>
