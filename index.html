@@ -67928,10 +67928,26 @@ function _syncalCollectEvents(fromDate, toDate) {
     });
   }
 
-  // 2) Board cards com deadline (variável global `cards` no escopo Synkan)
+  // 2) Board cards com deadline — só os ATRIBUÍDOS ao user logado.
+  //    (Calendário do team poluído por todos os cards do workspace ficava ruim;
+  //    o Syncal foca em "MEUS compromissos", não em "tudo que tem prazo".)
   if (f.boards && typeof cards !== 'undefined' && Array.isArray(cards)) {
+    // Resolve o nome do user pra comparar com c.responsavel (mesmo padrão do Home)
+    const team = (typeof window !== 'undefined' && Array.isArray(window.team)) ? window.team : (typeof window.team !== 'undefined' ? window.team : []);
+    const myName = (typeof supaUser !== 'undefined' && supaUser?.user_metadata?.full_name)
+      ? supaUser.user_metadata.full_name
+      : (Array.isArray(team) && team.includes('Anderson Cunha') ? 'Anderson Cunha' : (team[0] || null));
+    const myEmail = (typeof supaUser !== 'undefined' && supaUser?.email) ? supaUser.email : null;
+
     cards.forEach(c => {
       if (!c.deadline) return;
+      // Filtro: só cards onde EU sou o responsável (match por nome OU email)
+      const resp = (c.responsavel || '').toString().trim();
+      if (!resp) return;
+      const isMine = (myName && resp === myName)
+                  || (myEmail && resp.toLowerCase() === myEmail.toLowerCase());
+      if (!isMine) return;
+
       const isDone = c.col === (typeof TERMINAL_COL !== 'undefined' ? TERMINAL_COL : 'done');
       out.push({
         id: 'b_' + c.id, source: 'boards',
