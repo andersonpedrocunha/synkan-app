@@ -3933,6 +3933,119 @@ body.density-compact .col{padding:7px;}
 :root.dark .cap-banner{background:#4A3D14;color:#FFE497;border-color:#6B5A28;}
 :root.dark .cap-banner code{background:rgba(0,0,0,.25);}
 
+/* ════════ Gestão de Pessoas (aba People Journey "Gestão") ════════ */
+.ppl-mgmt-skel{display:flex;flex-direction:column;gap:8px;padding:18px 0;}
+.ppl-mgmt-skel-row{height:110px;background:linear-gradient(90deg,var(--color-background-secondary) 0%,var(--color-background-primary) 50%,var(--color-background-secondary) 100%);background-size:200% 100%;animation:ppl-skel 1.4s ease-in-out infinite;border-radius:12px;}
+@keyframes ppl-skel{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+
+.ppl-mgmt-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px;}
+.ppl-mgmt-stats{display:flex;gap:10px;flex-wrap:wrap;}
+.ppl-mgmt-stat{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:9px;padding:8px 14px;min-width:108px;}
+.ppl-mgmt-stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-tertiary);font-weight:600;}
+.ppl-mgmt-stat .val{font-size:20px;font-weight:700;color:var(--color-text-primary);font-variant-numeric:tabular-nums;margin-top:2px;}
+.ppl-mgmt-stat.is-warn .val{color:#C19A3A;}
+.ppl-mgmt-stat.is-danger .val{color:#BC002D;}
+.ppl-mgmt-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.ppl-mgmt-search{padding:7px 11px;border:0.5px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:12.5px;min-width:220px;outline:none;}
+.ppl-mgmt-search:focus{border-color:#6B4825;}
+.ppl-mgmt-filter{padding:7px 28px 7px 11px;border:0.5px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:12.5px;cursor:pointer;outline:none;}
+.ppl-mgmt-filter:focus{border-color:#6B4825;}
+
+.ppl-mgmt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;}
+.ppl-mgmt-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:10px;position:relative;}
+.ppl-mgmt-card:hover{border-color:var(--color-text-secondary);box-shadow:0 6px 20px rgba(0,0,0,.07);transform:translateY(-1px);}
+.ppl-mgmt-card.is-saturated{border-color:#BC002D;background:linear-gradient(180deg,#FDF2F3 0%,var(--color-background-primary) 60%);}
+.ppl-mgmt-card-h{display:flex;align-items:center;gap:11px;}
+.ppl-mgmt-avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#3A2410,#6B4825);display:flex;align-items:center;justify-content:center;color:#F5E8C8;font-weight:600;font-size:16px;flex-shrink:0;border:2.5px solid transparent;font-family:var(--font-sans);overflow:hidden;}
+.ppl-mgmt-avatar.belt-branca{border-color:#3A332C;}
+.ppl-mgmt-avatar.belt-amarela{border-color:#C19A3A;}
+.ppl-mgmt-avatar.belt-verde{border-color:#C5C0B4;}
+.ppl-mgmt-avatar.belt-roxa{border-color:#FBE7A4;box-shadow:0 0 0 1px rgba(251,231,164,.40), 0 0 12px rgba(251,231,164,.30);}
+.ppl-mgmt-avatar.belt-preta{border-color:#FFD17A;box-shadow:0 0 0 1px rgba(255,209,122,.45), 0 0 14px rgba(255,209,122,.45);}
+.ppl-mgmt-id{flex:1;min-width:0;}
+.ppl-mgmt-name{font-size:14.5px;font-weight:600;color:var(--color-text-primary);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ppl-mgmt-role{font-size:11.5px;color:var(--color-text-tertiary);margin-top:2px;}
+.ppl-mgmt-sat{color:#BC002D;font-size:18px;line-height:1;flex-shrink:0;}
+.ppl-mgmt-card-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--color-text-tertiary);}
+.ppl-mgmt-belt-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;letter-spacing:.02em;}
+.ppl-mgmt-belt-pill.belt-branca{background:#EDE5D0;color:#3A332C;}
+.ppl-mgmt-belt-pill.belt-amarela{background:#FFF4D1;color:#7A5500;}
+.ppl-mgmt-belt-pill.belt-verde{background:#F0EEDE;color:#5C4F3F;}
+.ppl-mgmt-belt-pill.belt-roxa{background:linear-gradient(135deg,#FBE7A4,#FFD17A);color:#3A2410;}
+.ppl-mgmt-belt-pill.belt-preta{background:linear-gradient(135deg,#FFD17A,#C19A3A);color:#1A1611;}
+.ppl-mgmt-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:6px;}
+.ppl-mgmt-cell{padding:8px 4px;text-align:center;background:var(--color-background-secondary);border-radius:7px;border:0.5px solid transparent;transition:border-color .12s;}
+.ppl-mgmt-cell.is-warn{border-color:#E6C84F;background:rgba(255,244,209,.5);}
+.ppl-mgmt-cell.is-ok{border-color:rgba(59,109,17,.25);background:rgba(232,242,212,.5);}
+.ppl-mgmt-cell .ic{font-size:14px;line-height:1;margin-bottom:3px;}
+.ppl-mgmt-cell .txt{font-size:12.5px;font-weight:700;color:var(--color-text-primary);font-variant-numeric:tabular-nums;}
+.ppl-mgmt-cell .sub{font-size:9.5px;text-transform:uppercase;color:var(--color-text-tertiary);letter-spacing:.06em;margin-top:1px;}
+.ppl-mgmt-pulse{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--color-background-secondary);border-radius:7px;}
+.ppl-mgmt-pulse-bar{flex:1;height:5px;background:#E8E1D4;border-radius:999px;overflow:hidden;}
+.ppl-mgmt-pulse-bar > div{height:100%;border-radius:999px;transition:width .3s ease;}
+.ppl-mgmt-next{font-size:11.5px;color:var(--color-text-secondary);padding:6px 10px;background:rgba(193,154,58,.10);border-radius:7px;border-left:3px solid #C19A3A;}
+
+/* Drawer da Gestão (right side) */
+#ppl-mgmt-drawer{display:flex;align-items:stretch;justify-content:flex-end;background:rgba(0,0,0,.40);backdrop-filter:blur(3px);}
+.ppl-mgmt-drawer{position:relative;width:min(720px,96vw);height:100vh;background:var(--color-background-primary);border-left:0.5px solid var(--color-border-tertiary);box-shadow:-16px 0 42px rgba(0,0,0,.20);display:flex;flex-direction:column;animation:ppl-mgmt-slide-in .25s cubic-bezier(.2,.7,.2,1);}
+@keyframes ppl-mgmt-slide-in{from{transform:translateX(100%);}to{transform:translateX(0);}}
+.ppl-mgmt-drawer-loading{padding:80px 20px;text-align:center;color:var(--color-text-tertiary);font-style:italic;}
+.ppl-mgmt-drawer-h{display:flex;align-items:flex-start;gap:14px;padding:20px 24px;border-bottom:0.5px solid var(--color-border-tertiary);flex-shrink:0;position:relative;}
+.ppl-mgmt-drawer-close{position:absolute;top:14px;right:14px;background:transparent;border:none;font-size:24px;cursor:pointer;color:var(--color-text-secondary);line-height:1;padding:4px 8px;}
+.ppl-mgmt-drawer-close:hover{color:var(--color-text-primary);}
+.ppl-mgmt-drawer-name{font-size:20px;font-weight:600;color:var(--color-text-primary);}
+.ppl-mgmt-drawer-meta{font-size:12.5px;color:var(--color-text-tertiary);margin-top:3px;}
+.ppl-mgmt-drawer-tabs{display:flex;gap:2px;padding:0 24px;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary);flex-shrink:0;overflow-x:auto;}
+.ppl-mgmt-dtab{background:transparent;border:none;color:var(--color-text-tertiary);padding:11px 14px;font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .12s;}
+.ppl-mgmt-dtab:hover{color:var(--color-text-primary);}
+.ppl-mgmt-dtab.active{color:var(--color-text-primary);border-bottom-color:#6B4825;font-weight:600;}
+.ppl-mgmt-drawer-body{flex:1;overflow-y:auto;padding:18px 24px;}
+
+.ppl-mgmt-resumo{display:flex;flex-direction:column;gap:14px;}
+.ppl-mgmt-block{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;overflow:hidden;}
+.ppl-mgmt-block-h{padding:9px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-tertiary);background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);}
+.ppl-mgmt-block-c{padding:12px 14px;}
+
+.ppl-mgmt-timeline{display:flex;flex-direction:column;gap:10px;}
+.ppl-mgmt-timeline-item{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:9px;padding:10px 14px;border-left:3px solid var(--color-border-secondary);}
+.ppl-mgmt-timeline-item.type-praise{border-left-color:#3B6D11;}
+.ppl-mgmt-timeline-item.type-concern{border-left-color:#BC002D;background:#FDF2F3;}
+.ppl-mgmt-timeline-item.type-action{border-left-color:#7A5500;background:rgba(255,244,209,.4);}
+.ppl-mgmt-timeline-item.type-observation{border-left-color:#6B4825;}
+.ppl-mgmt-timeline-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.ppl-mgmt-timeline-type{font-size:11px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;}
+.ppl-mgmt-timeline-c{font-size:13px;color:var(--color-text-primary);line-height:1.55;}
+
+.ppl-mgmt-1on1-row{display:flex;gap:12px;align-items:center;padding:10px 12px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:9px;margin-bottom:6px;cursor:pointer;transition:border-color .12s;}
+.ppl-mgmt-1on1-row:hover{border-color:var(--color-text-secondary);}
+.ppl-mgmt-1on1-date{flex-shrink:0;text-align:center;min-width:64px;padding-right:10px;border-right:0.5px solid var(--color-border-tertiary);}
+.ppl-mgmt-1on1-status{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;}
+.ppl-mgmt-1on1-status.status-scheduled{background:#FFF4D1;color:#7A5500;}
+.ppl-mgmt-1on1-status.status-completed{background:#E2F0D0;color:#2A4F0A;}
+.ppl-mgmt-1on1-status.status-canceled{background:var(--color-background-primary);color:var(--color-text-tertiary);text-decoration:line-through;}
+.ppl-mgmt-1on1-status.status-rescheduled{background:#E7EEF7;color:#1A4778;}
+
+.ppl-mgmt-pdi-card{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;margin-bottom:10px;}
+.ppl-mgmt-pdi-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;}
+.ppl-mgmt-pdi-status{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;}
+.ppl-mgmt-pdi-status.status-active{background:#E2F0D0;color:#2A4F0A;}
+.ppl-mgmt-pdi-status.status-completed{background:#E7EEF7;color:#1A4778;}
+.ppl-mgmt-pdi-status.status-paused{background:#FFF4D1;color:#7A5500;}
+.ppl-mgmt-pdi-status.status-canceled{background:var(--color-background-primary);color:var(--color-text-tertiary);}
+.ppl-mgmt-pdi-prog{height:6px;background:var(--color-background-primary);border-radius:999px;overflow:hidden;}
+.ppl-mgmt-pdi-prog > div{height:100%;background:linear-gradient(90deg,#C19A3A,#6B4825);border-radius:999px;transition:width .3s ease;}
+
+.ppl-mgmt-fb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;}
+.ppl-mgmt-fb-card{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:12px 14px;}
+
+.ppl-btn-sm{padding:5px 10px;font-size:11.5px;border-radius:6px;}
+
+:root.dark .ppl-mgmt-card.is-saturated{background:linear-gradient(180deg,rgba(188,0,45,.10) 0%,var(--color-background-primary) 60%);}
+:root.dark .ppl-mgmt-timeline-item.type-concern{background:rgba(188,0,45,.10);}
+:root.dark .ppl-mgmt-timeline-item.type-action{background:rgba(193,154,58,.10);}
+:root.dark .ppl-mgmt-cell.is-warn{background:rgba(193,154,58,.15);}
+:root.dark .ppl-mgmt-cell.is-ok{background:rgba(59,109,17,.15);}
+
 /* ══════════ Syncal · módulo calendário ══════════ */
 .syncal-wrap{padding:8px 0 24px;display:flex;flex-direction:column;gap:14px;max-width:1180px;}
 .syncal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:6px;}
@@ -36580,7 +36693,7 @@ function setRegistryTab(t) { _registryTab = t; _registrySearch = ''; _registryFi
 let _peopleState = {
   dashboard: null,         // { total_aprendizes, pessoas_ativas, ... }
   templates: [],
-  tab: 'aprendizes',       // 'aprendizes' | 'graduados' | 'templates' | 'pulse'
+  tab: 'aprendizes',       // 'aprendizes' | 'graduados' | 'historico' | 'templates' | 'pulse' | 'gestao'
   currentPersonId: null,
   currentTrail: null,      // { trail, steps }
   myAprendiz: null,        // se o user atual é aprendiz, guarda o row de people
@@ -36589,7 +36702,37 @@ let _peopleState = {
   mode: 'admin',
   myTrail: null,           // trilha + steps + pulses da pessoa quando em modo colaborador
   loading: false,
+  // ── Gestão de pessoas (aba nova) ────────────────────────────────────
+  mgmtDashboard: null,     // { pessoas: [...], teams: [...] } via people_mgmt_dashboard()
+  mgmtFilter: 'all',       // 'all' | 'no_1on1_30d' | 'no_note_15d' | 'pdi_active' | team_id
+  mgmtSearch: '',
+  mgmtCurrentPerson: null, // detalhe aberto: { person, notes, one_on_ones, pdis, feedback }
 };
+
+// ── Ajustes do módulo Gestão de Pessoas (toggles + cadências) ─────────
+// Tudo opcional: o gestor liga o que faz sentido pro time dele.
+const _PEOPLE_MGMT_SETTINGS_KEY = 'synkan_people_mgmt_settings_v1';
+const _PEOPLE_MGMT_DEFAULT_SETTINGS = {
+  enableNotes:        true,   // 📝 Notas do gestor (timeline)
+  enableOneOnOnes:    true,   // 🍵 1:1s registrados + agendamento Syncal
+  enablePDI:          true,   // 🎯 PDI (plano desenvolvimento)
+  enableFeedback:     true,   // ✨ Feedback 360 + indicadores de saturação
+  enableSaturation:   true,   // alerta de saturação (pulse + ausência de 1:1)
+  pdiCadenceMonths:   3,      // 1 | 3 | 6 | 12 — ciclo de revisão do PDI
+  oneOnOneCadenceDays: 14,    // 7 | 14 | 30 — frequência esperada de 1:1
+  feedbackCycleMonths: 6,     // 3 | 6 | 12 — quando lembrar de pedir feedback 360
+  showInactiveAfterDays: 21,  // pessoa sem 1:1 nem nota há X dias → aparece destacada
+  syncalIntegration:  true,   // ao agendar 1:1, criar evento no Syncal
+};
+function _peopleGetMgmtSettings() {
+  try {
+    const raw = localStorage.getItem(_PEOPLE_MGMT_SETTINGS_KEY);
+    return { ..._PEOPLE_MGMT_DEFAULT_SETTINGS, ...(raw ? JSON.parse(raw) : {}) };
+  } catch(_) { return { ..._PEOPLE_MGMT_DEFAULT_SETTINGS }; }
+}
+function _peopleSaveMgmtSettings(s) {
+  try { localStorage.setItem(_PEOPLE_MGMT_SETTINGS_KEY, JSON.stringify(s)); } catch(_){}
+}
 
 // Decide o modo inicial:
 // - Se sou só aprendiz (sem gente sob minha gestão) → colaborador
@@ -37122,6 +37265,7 @@ function _peopleRenderMain() {
 
       <div class="ppl-tabs">
         <button class="ppl-tab ${tab==='aprendizes'?'active':''}" onclick="_peopleSetTab('aprendizes')">🌙 Em trilha <span style="opacity:.55;">${aprendizes.length}</span></button>
+        <button class="ppl-tab ${tab==='gestao'?'active':''}"     onclick="_peopleSetTab('gestao')">🤝 Gestão <span style="opacity:.55;" id="ppl-gestao-count">—</span></button>
         <button class="ppl-tab ${tab==='graduados'?'active':''}"  onclick="_peopleSetTab('graduados')">🎓 Graduados <span style="opacity:.55;">${graduados.length}</span></button>
         <button class="ppl-tab ${tab==='historico'?'active':''}"  onclick="_peopleSetTab('historico')">📜 Histórico <span style="opacity:.55;">${Number(d.total_desligados)||0}</span></button>
         <button class="ppl-tab ${tab==='templates'?'active':''}"  onclick="_peopleSetTab('templates')">📋 Templates <span style="opacity:.55;">${_peopleState.templates.length}</span></button>
@@ -37420,6 +37564,1203 @@ function _peopleRenderTabContent() {
     el.innerHTML = `<div class="ppl-grid">${newCard}${templates.map(_peopleTemplateCardHTML).join('')}</div>`;
   } else if (tab === 'pulse') {
     _peopleRenderPulseHistory(el);
+  } else if (tab === 'gestao') {
+    _peopleRenderGestao(el);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// GESTÃO DE PESSOAS · aba "Gestão"
+// ────────────────────────────────────────────────────────────────────
+// Painel de gestão contínua: cards de TODAS as pessoas do workspace
+// (em trilha + graduadas + Tatami + Synkan), com ferramentas pra
+// 📝 notas, 🍵 1:1s, 🎯 PDI, ✨ feedback 360 e indicadores de saturação.
+// Cada feature é toggle-ável no settings; cadência customizável.
+// Backend: RPCs people_mgmt_*  (ver MIGRATIONS_PEOPLE_MANAGEMENT.sql)
+// ════════════════════════════════════════════════════════════════════
+
+async function _peopleLoadMgmt() {
+  try {
+    const { data, error } = await _peopleApi.rpc('people_mgmt_dashboard');
+    if (error) {
+      console.warn('[people-mgmt] dashboard:', error.message || error);
+      return null;
+    }
+    _peopleState.mgmtDashboard = data || { pessoas: [], teams: [] };
+    return _peopleState.mgmtDashboard;
+  } catch(e) {
+    console.warn('[people-mgmt] load:', e?.message);
+    return null;
+  }
+}
+
+function _peopleRenderGestao(el) {
+  if (!el) el = document.getElementById('ppl-tab-content');
+  if (!el) return;
+  const settings = _peopleGetMgmtSettings();
+  const dash = _peopleState.mgmtDashboard;
+
+  // Primeira renderização: dispara load e mostra skeleton
+  if (!dash) {
+    el.innerHTML = `
+      <div class="ppl-mgmt-skel">
+        <div class="ppl-mgmt-skel-row"></div>
+        <div class="ppl-mgmt-skel-row"></div>
+        <div class="ppl-mgmt-skel-row"></div>
+      </div>`;
+    _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(el); });
+    return;
+  }
+
+  const pessoas = Array.isArray(dash.pessoas) ? dash.pessoas : [];
+  const teams   = Array.isArray(dash.teams)   ? dash.teams   : [];
+
+  // Atualiza counter no header
+  const counter = document.getElementById('ppl-gestao-count');
+  if (counter) counter.textContent = String(pessoas.length);
+
+  // Caso vazio (nenhuma pessoa registrada — nem em trilha nem Tatami)
+  if (pessoas.length === 0) {
+    el.innerHTML = `
+      <div class="ppl-empty">
+        <div class="ppl-empty-icon" style="font-family:'Noto Serif JP',serif;">監</div>
+        <div class="ppl-empty-title">Nenhuma pessoa pra gerenciar ainda</div>
+        <div class="ppl-empty-sub" style="max-width:560px;">
+          Aqui aparecem <strong>todas as pessoas do seu workspace</strong> — quem está em trilha, graduados, membros do Tatami e qualquer pessoa com conta no Synkan vinculada.
+          <br><br>
+          Crie uma pessoa em <strong>"+ Nova pessoa"</strong> ou convide alguém pro workspace pra começar a gestão.
+        </div>
+        <div style="margin-top:18px;text-align:left;max-width:540px;font-size:12px;color:var(--color-text-secondary);line-height:1.65;font-family:var(--font-sans);background:var(--color-background-secondary);padding:14px 18px;border-radius:10px;border-left:3px solid #6B4825;">
+          <div style="font-weight:600;color:var(--color-text-primary);margin-bottom:8px;font-family:'Noto Serif JP',serif;font-style:italic;">🤝 O que a Gestão oferece</div>
+          <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;">
+            ${settings.enableNotes ? `<li>📝 <strong>Notas do gestor</strong> — timeline privada por pessoa, com observações, elogios, preocupações e ações.</li>` : ''}
+            ${settings.enableOneOnOnes ? `<li>🍵 <strong>1:1s registrados</strong> — agendar via Syncal, registrar tópicos, action items e humor da pessoa.</li>` : ''}
+            ${settings.enablePDI ? `<li>🎯 <strong>PDI</strong> — plano de desenvolvimento individual com metas, ciclo customizável e auto-avaliação.</li>` : ''}
+            ${settings.enableFeedback ? `<li>✨ <strong>Feedback 360</strong> — coleta de feedback de pares/clientes/líderes com indicadores agregados.</li>` : ''}
+          </ul>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Aplica filtros + search
+  const search = (_peopleState.mgmtSearch||'').trim().toLowerCase();
+  const filter = _peopleState.mgmtFilter || 'all';
+  const now = Date.now();
+  const filtered = pessoas.filter(p => {
+    if (search && !((p.name||'').toLowerCase().includes(search) || (p.role||'').toLowerCase().includes(search) || (p.team_name||'').toLowerCase().includes(search))) return false;
+    if (filter === 'all') return true;
+    if (filter === 'no_1on1_30d') {
+      if (!p.last_1on1_at) return true;
+      return (now - new Date(p.last_1on1_at).getTime()) > 30*86400000;
+    }
+    if (filter === 'no_note_15d') {
+      if (!p.last_note_at) return true;
+      return (now - new Date(p.last_note_at).getTime()) > 15*86400000;
+    }
+    if (filter === 'pdi_active')  return !!p.has_active_pdi;
+    if (filter === 'saturated')   return !!p.is_saturated;
+    if (filter.startsWith('team:')) return p.team_name === filter.slice(5);
+    return true;
+  });
+
+  // Stats topo
+  const totalActive    = pessoas.filter(p => p.status !== 'desligado').length;
+  const withActivePdi  = pessoas.filter(p => p.has_active_pdi).length;
+  const saturatedCount = pessoas.filter(p => p.is_saturated).length;
+  const noRecent1on1   = pessoas.filter(p => {
+    if (!p.last_1on1_at) return true;
+    return (now - new Date(p.last_1on1_at).getTime()) > settings.oneOnOneCadenceDays*86400000;
+  }).length;
+
+  el.innerHTML = `
+    <div class="ppl-mgmt-toolbar">
+      <div class="ppl-mgmt-stats">
+        <div class="ppl-mgmt-stat"><div class="lbl">Pessoas</div><div class="val">${totalActive}</div></div>
+        ${settings.enablePDI ? `<div class="ppl-mgmt-stat"><div class="lbl">PDI ativos</div><div class="val">${withActivePdi}</div></div>` : ''}
+        ${settings.enableOneOnOnes ? `<div class="ppl-mgmt-stat${noRecent1on1>0?' is-warn':''}"><div class="lbl">Sem 1:1 (${settings.oneOnOneCadenceDays}d)</div><div class="val">${noRecent1on1}</div></div>` : ''}
+        ${settings.enableSaturation ? `<div class="ppl-mgmt-stat${saturatedCount>0?' is-danger':''}"><div class="lbl">Saturação</div><div class="val">${saturatedCount}</div></div>` : ''}
+      </div>
+      <div class="ppl-mgmt-controls">
+        <input class="ppl-mgmt-search" type="search" placeholder="Buscar nome, papel, time…" value="${_esc(_peopleState.mgmtSearch||'')}" oninput="_peopleMgmtSetSearch(this.value)"/>
+        <select class="ppl-mgmt-filter" onchange="_peopleMgmtSetFilter(this.value)">
+          <option value="all" ${filter==='all'?'selected':''}>Todas as pessoas</option>
+          ${settings.enableOneOnOnes ? `<option value="no_1on1_30d" ${filter==='no_1on1_30d'?'selected':''}>Sem 1:1 há 30+ dias</option>` : ''}
+          ${settings.enableNotes ? `<option value="no_note_15d" ${filter==='no_note_15d'?'selected':''}>Sem nota há 15+ dias</option>` : ''}
+          ${settings.enablePDI ? `<option value="pdi_active" ${filter==='pdi_active'?'selected':''}>Com PDI ativo</option>` : ''}
+          ${settings.enableSaturation ? `<option value="saturated" ${filter==='saturated'?'selected':''}>Em saturação ⚠</option>` : ''}
+          ${teams.length ? `<optgroup label="Times">${teams.map(t => `<option value="team:${_esc(t.name)}" ${filter==='team:'+t.name?'selected':''}>${_esc(t.name)} (${t.count})</option>`).join('')}</optgroup>` : ''}
+        </select>
+        <button class="ppl-btn" onclick="_peopleOpenMgmtSettingsModal()" title="Ajustes da Gestão (toggles + cadências)" style="padding:8px 11px;display:inline-flex;align-items:center;justify-content:center;font-size:18px;line-height:1;"><span style="display:inline-block;transform:translateY(-1px);">⚙</span></button>
+      </div>
+    </div>
+
+    ${filtered.length === 0
+      ? `<div class="ppl-empty" style="padding:48px 24px;"><div class="ppl-empty-icon">⌕</div><div class="ppl-empty-title">Nenhum resultado</div><div class="ppl-empty-sub">Ajusta o filtro ou limpa a busca.</div></div>`
+      : `<div class="ppl-mgmt-grid">${filtered.map(p => _peopleMgmtCardHTML(p, settings)).join('')}</div>`}
+  `;
+}
+
+function _peopleMgmtSetSearch(v) {
+  _peopleState.mgmtSearch = v;
+  // Re-renderiza só o grid pra evitar perder foco do input
+  clearTimeout(_peopleState._mgmtSearchTimer);
+  _peopleState._mgmtSearchTimer = setTimeout(() => _peopleRenderGestao(), 180);
+}
+function _peopleMgmtSetFilter(v) {
+  _peopleState.mgmtFilter = v;
+  _peopleRenderGestao();
+}
+
+function _peopleMgmtCardHTML(p, settings) {
+  const initials = (p.name||'?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+  const belt = p.belt || 'branca';
+  const beltLabel = _PPL_BELT_LABELS[belt] || 'Lua Nova';
+  const roleEmoji = _PPL_ROLE_EMOJI[p.role] || '人';
+  const roleLabel = _PPL_ROLE_LABELS[p.role] || 'Papel';
+  const now = Date.now();
+
+  // Indicadores
+  const days1on1 = p.last_1on1_at ? Math.floor((now - new Date(p.last_1on1_at).getTime())/86400000) : null;
+  const daysNote = p.last_note_at ? Math.floor((now - new Date(p.last_note_at).getTime())/86400000) : null;
+  const isWarn1on1 = settings.enableOneOnOnes && (days1on1 === null || days1on1 > settings.oneOnOneCadenceDays);
+  const isWarnNote = settings.enableNotes && daysNote !== null && daysNote > 15;
+  const isSaturated = settings.enableSaturation && p.is_saturated;
+
+  // Próximo 1:1
+  const next1on1Date = p.next_1on1_at ? new Date(p.next_1on1_at) : null;
+  const next1on1Label = next1on1Date ? _peopleFmtDate(p.next_1on1_at) : null;
+
+  // Pulse score (média recente)
+  const pulseScore = typeof p.last_pulse_score === 'number' ? p.last_pulse_score : null;
+  const feedbackAvg = typeof p.feedback_score_avg === 'number' ? p.feedback_score_avg : null;
+
+  const photoOrInitials = p.photo_url
+    ? `<img src="${_esc(p.photo_url)}" alt="" style="width:100%;height:100%;object-fit:cover;"/>`
+    : _esc(initials);
+
+  return `
+    <div class="ppl-mgmt-card ${isSaturated?'is-saturated':''}" onclick="_peopleOpenMgmtPersonDrawer('${_esc(p.id)}')" role="button" tabindex="0">
+      <div class="ppl-mgmt-card-h">
+        <div class="ppl-mgmt-avatar belt-${belt}">${photoOrInitials}</div>
+        <div class="ppl-mgmt-id">
+          <div class="ppl-mgmt-name">${_esc(p.name||'Sem nome')}</div>
+          <div class="ppl-mgmt-role">${roleEmoji} ${_esc(roleLabel)}${p.team_name?` · ${_esc(p.team_name)}`:''}</div>
+        </div>
+        ${isSaturated ? `<span class="ppl-mgmt-sat" title="Sinais de saturação · clique pra detalhes">⚠</span>` : ''}
+      </div>
+
+      <div class="ppl-mgmt-card-meta">
+        <span class="ppl-mgmt-belt-pill belt-${belt}" title="${_esc(beltLabel)}">${beltLabel.split(' ')[0]} ${_esc(beltLabel.split(' ').slice(1).join(' '))}</span>
+        ${p.hired_at ? `<span title="Tempo de casa" style="opacity:.7;">⏳ ${_peopleFmtTenure(p.hired_at)}</span>` : ''}
+      </div>
+
+      <div class="ppl-mgmt-card-grid">
+        ${settings.enableNotes ? `
+          <div class="ppl-mgmt-cell ${isWarnNote?'is-warn':''}" title="Última nota">
+            <div class="ic">📝</div>
+            <div class="txt">${p.last_note_at ? `${daysNote}d` : '—'}</div>
+            <div class="sub">notas</div>
+          </div>` : ''}
+        ${settings.enableOneOnOnes ? `
+          <div class="ppl-mgmt-cell ${isWarn1on1?'is-warn':''}" title="Último 1:1">
+            <div class="ic">🍵</div>
+            <div class="txt">${p.last_1on1_at ? `${days1on1}d` : '—'}</div>
+            <div class="sub">1:1</div>
+          </div>` : ''}
+        ${settings.enablePDI ? `
+          <div class="ppl-mgmt-cell ${p.has_active_pdi?'is-ok':''}" title="${p.has_active_pdi?'PDI ativo':'Sem PDI'}">
+            <div class="ic">🎯</div>
+            <div class="txt">${p.has_active_pdi?(p.pdi_progress!=null?Math.round(p.pdi_progress)+'%':'ON'):'—'}</div>
+            <div class="sub">PDI</div>
+          </div>` : ''}
+        ${settings.enableFeedback ? `
+          <div class="ppl-mgmt-cell ${feedbackAvg!=null && feedbackAvg<3?'is-warn':''}" title="Média feedback 360">
+            <div class="ic">✨</div>
+            <div class="txt">${feedbackAvg!=null?feedbackAvg.toFixed(1):'—'}</div>
+            <div class="sub">360</div>
+          </div>` : ''}
+      </div>
+
+      ${settings.enableSaturation && pulseScore != null ? `
+        <div class="ppl-mgmt-pulse" title="Pulse mais recente">
+          <span style="font-size:11px;color:var(--color-text-tertiary);">心 humor</span>
+          <div class="ppl-mgmt-pulse-bar"><div style="width:${(pulseScore/5)*100}%;background:${pulseScore>=4?'#3B6D11':pulseScore>=3?'#C19A3A':'#BC002D'};"></div></div>
+          <span style="font-size:11px;font-weight:600;color:var(--color-text-secondary);">${pulseScore.toFixed(1)}</span>
+        </div>
+      ` : ''}
+
+      ${next1on1Label ? `
+        <div class="ppl-mgmt-next">📅 Próximo 1:1 · <strong>${_esc(next1on1Label)}</strong></div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function _peopleFmtTenure(hiredAt) {
+  if (!hiredAt) return '—';
+  const days = Math.floor((Date.now() - new Date(hiredAt).getTime())/86400000);
+  if (days < 30)  return `${days}d`;
+  if (days < 365) return `${Math.floor(days/30)}m`;
+  const y = Math.floor(days/365);
+  const m = Math.floor((days%365)/30);
+  return m > 0 ? `${y}a ${m}m` : `${y}a`;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// DRAWER · detalhe da pessoa em gestão
+// ────────────────────────────────────────────────────────────────────
+async function _peopleOpenMgmtPersonDrawer(personId) {
+  // Abre drawer com skeleton + dispara fetch
+  let drawer = document.getElementById('ppl-mgmt-drawer');
+  if (drawer) drawer.remove();
+  drawer = document.createElement('div');
+  drawer.id = 'ppl-mgmt-drawer';
+  drawer.className = 'ov open';
+  drawer.style.zIndex = '10010';
+  drawer.innerHTML = `
+    <div class="ppl-mgmt-drawer">
+      <div class="ppl-mgmt-drawer-loading">Carregando…</div>
+    </div>`;
+  document.body.appendChild(drawer);
+
+  try {
+    const { data, error } = await _peopleApi.rpc('people_mgmt_person_detail', { p_person_id: personId });
+    if (error) {
+      console.warn('[people-mgmt] person detail:', error.message || error);
+      drawer.querySelector('.ppl-mgmt-drawer').innerHTML = `<div style="padding:60px;text-align:center;color:var(--color-text-tertiary);">Erro ao carregar.</div>`;
+      return;
+    }
+    _peopleState.mgmtCurrentPerson = data;
+    _peopleRenderMgmtDrawer();
+  } catch(e) {
+    console.warn('[people-mgmt] drawer load ex:', e?.message);
+  }
+}
+
+function _peopleRenderMgmtDrawer() {
+  const drawer = document.getElementById('ppl-mgmt-drawer');
+  if (!drawer) return;
+  const data = _peopleState.mgmtCurrentPerson;
+  if (!data || !data.person) {
+    drawer.querySelector('.ppl-mgmt-drawer').innerHTML = `<div style="padding:60px;text-align:center;color:var(--color-text-tertiary);">Pessoa não encontrada.</div>`;
+    return;
+  }
+  const settings = _peopleGetMgmtSettings();
+  const p = data.person;
+  const notes        = Array.isArray(data.notes)        ? data.notes        : [];
+  const oneOnOnes    = Array.isArray(data.one_on_ones)  ? data.one_on_ones  : [];
+  const pdis         = Array.isArray(data.pdis)         ? data.pdis         : [];
+  const feedback     = Array.isArray(data.feedback)     ? data.feedback     : [];
+  const activePdi    = pdis.find(d => d.status === 'active') || null;
+
+  const initials = (p.name||'?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+  const belt = p.belt || 'branca';
+  const photoOrInitials = p.photo_url
+    ? `<img src="${_esc(p.photo_url)}" alt="" style="width:100%;height:100%;object-fit:cover;"/>`
+    : _esc(initials);
+
+  const activeTab = _peopleState.mgmtDrawerTab || 'resumo';
+
+  drawer.querySelector('.ppl-mgmt-drawer').innerHTML = `
+    <div class="ppl-mgmt-drawer-h">
+      <button class="ppl-mgmt-drawer-close" onclick="document.getElementById('ppl-mgmt-drawer').remove()" title="Fechar (Esc)">×</button>
+      <div class="ppl-mgmt-avatar belt-${belt}" style="width:64px;height:64px;font-size:20px;">${photoOrInitials}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="ppl-mgmt-drawer-name">${_esc(p.name||'')}</div>
+        <div class="ppl-mgmt-drawer-meta">
+          ${_PPL_ROLE_EMOJI[p.role]||'人'} ${_esc(_PPL_ROLE_LABELS[p.role]||'Papel')}
+          ${p.team_name?` · ${_esc(p.team_name)}`:''}
+          ${p.hired_at?` · ⏳ ${_peopleFmtTenure(p.hired_at)} de casa`:''}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          ${p.user_id ? `<button class="ppl-btn ppl-btn-sm" onclick="_peopleOpenPersonProfile('${_esc(p.id)}')">👤 Perfil completo</button>` : ''}
+          ${settings.enableOneOnOnes ? `<button class="ppl-btn ppl-btn-sm ppl-btn-primary" onclick="_peopleMgmtOpen1on1Modal('${_esc(p.id)}', null)">🍵 Agendar 1:1</button>` : ''}
+          ${settings.enableNotes ? `<button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpenNoteModal('${_esc(p.id)}')">📝 Nova nota</button>` : ''}
+          ${settings.enablePDI && !activePdi ? `<button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpenPdiModal('${_esc(p.id)}', null)">🎯 Iniciar PDI</button>` : ''}
+          ${settings.enableFeedback ? `<button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpenFeedbackModal('${_esc(p.id)}')">✨ Solicitar feedback</button>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="ppl-mgmt-drawer-tabs">
+      <button class="ppl-mgmt-dtab ${activeTab==='resumo'?'active':''}" onclick="_peopleMgmtDrawerSetTab('resumo')">Resumo</button>
+      ${settings.enableNotes ? `<button class="ppl-mgmt-dtab ${activeTab==='notas'?'active':''}" onclick="_peopleMgmtDrawerSetTab('notas')">📝 Notas <span style="opacity:.55;">${notes.length}</span></button>` : ''}
+      ${settings.enableOneOnOnes ? `<button class="ppl-mgmt-dtab ${activeTab==='1on1'?'active':''}" onclick="_peopleMgmtDrawerSetTab('1on1')">🍵 1:1s <span style="opacity:.55;">${oneOnOnes.length}</span></button>` : ''}
+      ${settings.enablePDI ? `<button class="ppl-mgmt-dtab ${activeTab==='pdi'?'active':''}" onclick="_peopleMgmtDrawerSetTab('pdi')">🎯 PDI <span style="opacity:.55;">${pdis.length}</span></button>` : ''}
+      ${settings.enableFeedback ? `<button class="ppl-mgmt-dtab ${activeTab==='feedback'?'active':''}" onclick="_peopleMgmtDrawerSetTab('feedback')">✨ Feedback <span style="opacity:.55;">${feedback.length}</span></button>` : ''}
+    </div>
+
+    <div class="ppl-mgmt-drawer-body" id="ppl-mgmt-drawer-body"></div>
+  `;
+  _peopleRenderMgmtDrawerBody();
+}
+
+function _peopleMgmtDrawerSetTab(t) {
+  _peopleState.mgmtDrawerTab = t;
+  _peopleRenderMgmtDrawer();
+}
+
+function _peopleRenderMgmtDrawerBody() {
+  const body = document.getElementById('ppl-mgmt-drawer-body');
+  if (!body) return;
+  const data = _peopleState.mgmtCurrentPerson || {};
+  const tab = _peopleState.mgmtDrawerTab || 'resumo';
+  const p = data.person || {};
+  const notes        = Array.isArray(data.notes)        ? data.notes        : [];
+  const oneOnOnes    = Array.isArray(data.one_on_ones)  ? data.one_on_ones  : [];
+  const pdis         = Array.isArray(data.pdis)         ? data.pdis         : [];
+  const feedback     = Array.isArray(data.feedback)     ? data.feedback     : [];
+  const settings = _peopleGetMgmtSettings();
+
+  if (tab === 'resumo') {
+    const activePdi = pdis.find(d => d.status === 'active');
+    const recentNotes = notes.slice(0, 3);
+    const upcoming1on1 = oneOnOnes.find(o => o.status === 'scheduled' && new Date(o.scheduled_at) > new Date());
+    const last1on1 = oneOnOnes.find(o => o.status === 'completed');
+    const fbAvg = feedback.length ? (feedback.reduce((s,f)=>s+(f.score||0),0)/feedback.filter(f=>f.score).length) : null;
+
+    body.innerHTML = `
+      <div class="ppl-mgmt-resumo">
+        ${upcoming1on1 ? `
+          <div class="ppl-mgmt-block">
+            <div class="ppl-mgmt-block-h">📅 Próximo 1:1</div>
+            <div class="ppl-mgmt-block-c">
+              <strong>${_peopleFmtDateTime(upcoming1on1.scheduled_at)}</strong>
+              ${upcoming1on1.topics_md ? `<div style="font-size:12px;color:var(--color-text-secondary);margin-top:6px;white-space:pre-line;">${_esc(upcoming1on1.topics_md.slice(0,200))}${upcoming1on1.topics_md.length>200?'…':''}</div>` : ''}
+              <div style="margin-top:8px;display:flex;gap:6px;">
+                <button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpen1on1Modal('${_esc(p.id)}','${_esc(upcoming1on1.id)}')">Abrir</button>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${last1on1 ? `
+          <div class="ppl-mgmt-block">
+            <div class="ppl-mgmt-block-h">🍵 Último 1:1 · ${_peopleFmtDate(last1on1.scheduled_at)}</div>
+            <div class="ppl-mgmt-block-c">
+              ${last1on1.notes_md ? `<div style="font-size:12.5px;color:var(--color-text-primary);line-height:1.55;white-space:pre-line;">${_esc(last1on1.notes_md.slice(0,300))}${last1on1.notes_md.length>300?'…':''}</div>` : '<em style="color:var(--color-text-tertiary);">Sem notas registradas.</em>'}
+              ${Array.isArray(last1on1.action_items) && last1on1.action_items.length ? `
+                <div style="margin-top:8px;">
+                  <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Action items</div>
+                  ${last1on1.action_items.slice(0,3).map(ai => `<div style="font-size:12px;color:var(--color-text-secondary);margin:2px 0;">${ai.done?'✓':'○'} ${_esc(ai.text||'')}</div>`).join('')}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        ` : ''}
+
+        ${activePdi ? `
+          <div class="ppl-mgmt-block">
+            <div class="ppl-mgmt-block-h">🎯 PDI ativo · ${_esc(activePdi.cycle_name||'')}</div>
+            <div class="ppl-mgmt-block-c">
+              <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:6px;">
+                ${activePdi.cycle_start?_peopleFmtDate(activePdi.cycle_start):'—'} → ${activePdi.cycle_end?_peopleFmtDate(activePdi.cycle_end):'—'}
+              </div>
+              ${Array.isArray(activePdi.goals) && activePdi.goals.length ? `
+                <div>${activePdi.goals.slice(0,3).map(g => `
+                  <div style="font-size:12.5px;margin:4px 0;display:flex;gap:8px;align-items:center;">
+                    <span style="opacity:.55;width:36px;text-align:right;">${g.progress||0}%</span>
+                    <span>${_esc(g.title||'')}</span>
+                  </div>
+                `).join('')}</div>
+              ` : '<em style="color:var(--color-text-tertiary);">Sem metas registradas ainda.</em>'}
+              <button class="ppl-btn ppl-btn-sm" style="margin-top:8px;" onclick="_peopleMgmtOpenPdiModal('${_esc(p.id)}','${_esc(activePdi.id)}')">Editar PDI</button>
+            </div>
+          </div>
+        ` : ''}
+
+        ${recentNotes.length ? `
+          <div class="ppl-mgmt-block">
+            <div class="ppl-mgmt-block-h">📝 Últimas notas</div>
+            <div class="ppl-mgmt-block-c">
+              ${recentNotes.map(n => `
+                <div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-secondary);">
+                  <div style="font-size:11px;color:var(--color-text-tertiary);">${_peopleFmtDate(n.created_at)} · ${_esc(n.type||'observation')}${n.is_private?' · 🔒':''}</div>
+                  <div style="font-size:12.5px;color:var(--color-text-primary);margin-top:3px;white-space:pre-line;">${_esc((n.content_md||'').slice(0,180))}${(n.content_md||'').length>180?'…':''}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${fbAvg != null ? `
+          <div class="ppl-mgmt-block">
+            <div class="ppl-mgmt-block-h">✨ Feedback 360 (média)</div>
+            <div class="ppl-mgmt-block-c">
+              <div style="font-size:28px;font-weight:700;color:var(--color-text-primary);font-family:'Noto Serif JP',serif;">${fbAvg.toFixed(1)}<span style="font-size:14px;color:var(--color-text-tertiary);font-weight:400;">/5</span></div>
+              <div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:2px;">${feedback.length} respostas registradas</div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  } else if (tab === 'notas') {
+    body.innerHTML = `
+      <div style="margin-bottom:12px;">
+        <button class="ppl-btn ppl-btn-primary" onclick="_peopleMgmtOpenNoteModal('${_esc(p.id)}')">＋ Nova nota</button>
+      </div>
+      ${notes.length === 0
+        ? `<div class="ppl-empty" style="padding:32px 16px;"><div class="ppl-empty-icon">📝</div><div class="ppl-empty-title">Sem notas ainda</div><div class="ppl-empty-sub">Registre observações, elogios, preocupações e ações pra construir um histórico contínuo.</div></div>`
+        : `<div class="ppl-mgmt-timeline">${notes.map(n => `
+          <div class="ppl-mgmt-timeline-item type-${_esc(n.type||'observation')}">
+            <div class="ppl-mgmt-timeline-h">
+              <span class="ppl-mgmt-timeline-type">${_peopleMgmtNoteIcon(n.type)} ${_peopleMgmtNoteLabel(n.type)}</span>
+              <span style="font-size:11px;color:var(--color-text-tertiary);">${_peopleFmtDateTime(n.created_at)}${n.is_private?' · 🔒 privada':''}</span>
+            </div>
+            <div class="ppl-mgmt-timeline-c">${_esc(n.content_md||'').replace(/\n/g,'<br>')}</div>
+            ${n.resolved_at ? `<div style="font-size:11px;color:#3B6D11;margin-top:6px;">✓ Resolvida em ${_peopleFmtDate(n.resolved_at)}</div>` : (n.type==='concern'||n.type==='action') ? `<button class="ppl-btn ppl-btn-sm" style="margin-top:6px;" onclick="_peopleMgmtResolveNote('${_esc(n.id)}')">Marcar como resolvida</button>` : ''}
+          </div>
+        `).join('')}</div>`
+      }
+    `;
+  } else if (tab === '1on1') {
+    const scheduled = oneOnOnes.filter(o => o.status === 'scheduled');
+    const completed = oneOnOnes.filter(o => o.status === 'completed');
+    body.innerHTML = `
+      <div style="margin-bottom:12px;">
+        <button class="ppl-btn ppl-btn-primary" onclick="_peopleMgmtOpen1on1Modal('${_esc(p.id)}', null)">＋ Agendar 1:1</button>
+      </div>
+      ${scheduled.length ? `
+        <div style="margin-bottom:18px;">
+          <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">📅 Agendadas</div>
+          ${scheduled.map(o => _peopleMgmt1on1RowHTML(o)).join('')}
+        </div>
+      ` : ''}
+      ${completed.length ? `
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">✓ Realizadas</div>
+          ${completed.map(o => _peopleMgmt1on1RowHTML(o)).join('')}
+        </div>
+      ` : ''}
+      ${oneOnOnes.length === 0 ? `<div class="ppl-empty" style="padding:32px 16px;"><div class="ppl-empty-icon">🍵</div><div class="ppl-empty-title">Sem 1:1s ainda</div><div class="ppl-empty-sub">Agende o primeiro 1:1 ${settings.syncalIntegration?'(criamos o evento no Syncal automaticamente)':''}.</div></div>` : ''}
+    `;
+  } else if (tab === 'pdi') {
+    body.innerHTML = `
+      <div style="margin-bottom:12px;">
+        <button class="ppl-btn ppl-btn-primary" onclick="_peopleMgmtOpenPdiModal('${_esc(p.id)}', null)">＋ Novo ciclo PDI</button>
+      </div>
+      ${pdis.length === 0
+        ? `<div class="ppl-empty" style="padding:32px 16px;"><div class="ppl-empty-icon">🎯</div><div class="ppl-empty-title">Sem PDI ainda</div><div class="ppl-empty-sub">Crie um plano de desenvolvimento individual com cadência de <strong>${settings.pdiCadenceMonths} meses</strong> (customizável no ⚙).</div></div>`
+        : pdis.map(d => _peopleMgmtPdiRowHTML(d, p)).join('')
+      }
+    `;
+  } else if (tab === 'feedback') {
+    body.innerHTML = `
+      <div style="margin-bottom:12px;">
+        <button class="ppl-btn ppl-btn-primary" onclick="_peopleMgmtOpenFeedbackModal('${_esc(p.id)}')">＋ Solicitar / registrar feedback</button>
+      </div>
+      ${feedback.length === 0
+        ? `<div class="ppl-empty" style="padding:32px 16px;"><div class="ppl-empty-icon">✨</div><div class="ppl-empty-title">Sem feedback ainda</div><div class="ppl-empty-sub">Colete feedback de pares, líderes, clientes ou registre auto-avaliações. Ciclo: <strong>${settings.feedbackCycleMonths} meses</strong>.</div></div>`
+        : `<div class="ppl-mgmt-fb-grid">${feedback.map(f => _peopleMgmtFeedbackRowHTML(f)).join('')}</div>`
+      }
+    `;
+  }
+}
+
+function _peopleMgmtNoteIcon(t) {
+  return ({observation:'👁',concern:'⚠',praise:'⭐',action:'🎯'})[t] || '·';
+}
+function _peopleMgmtNoteLabel(t) {
+  return ({observation:'Observação',concern:'Preocupação',praise:'Elogio',action:'Ação'})[t] || 'Nota';
+}
+function _peopleFmtDateTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('pt-BR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+  } catch(_) { return '—'; }
+}
+
+function _peopleMgmt1on1RowHTML(o) {
+  const status = o.status || 'scheduled';
+  const aiCount = Array.isArray(o.action_items) ? o.action_items.length : 0;
+  const aiDone  = Array.isArray(o.action_items) ? o.action_items.filter(ai => ai.done).length : 0;
+  return `
+    <div class="ppl-mgmt-1on1-row" onclick="_peopleMgmt1on1OpenFromList('${_esc(o.id)}')">
+      <div class="ppl-mgmt-1on1-date">
+        <div style="font-size:12px;font-weight:700;color:var(--color-text-primary);">${_peopleFmtDate(o.scheduled_at)}</div>
+        <div style="font-size:10.5px;color:var(--color-text-tertiary);">${new Date(o.scheduled_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      <div style="flex:1;min-width:0;">
+        ${o.topics_md ? `<div style="font-size:12.5px;color:var(--color-text-primary);white-space:pre-line;">${_esc(o.topics_md.slice(0,160))}${o.topics_md.length>160?'…':''}</div>` : '<em style="color:var(--color-text-tertiary);font-size:12px;">Sem pauta definida.</em>'}
+        ${aiCount > 0 ? `<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:4px;">📋 ${aiDone}/${aiCount} action items</div>` : ''}
+      </div>
+      <div>
+        <span class="ppl-mgmt-1on1-status status-${status}">${status==='scheduled'?'Agendado':status==='completed'?'Realizado':status==='canceled'?'Cancelado':'—'}</span>
+      </div>
+    </div>
+  `;
+}
+
+function _peopleMgmt1on1OpenFromList(id) {
+  const data = _peopleState.mgmtCurrentPerson;
+  if (!data) return;
+  _peopleMgmtOpen1on1Modal(data.person.id, id);
+}
+
+function _peopleMgmtPdiRowHTML(d, person) {
+  const goals = Array.isArray(d.goals) ? d.goals : [];
+  const totalProg = goals.length ? Math.round(goals.reduce((s,g)=>s+(g.progress||0),0)/goals.length) : 0;
+  const statusLbl = {active:'Ativo',completed:'Concluído',canceled:'Cancelado',paused:'Pausado'}[d.status] || d.status;
+  return `
+    <div class="ppl-mgmt-pdi-card">
+      <div class="ppl-mgmt-pdi-h">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--color-text-primary);">${_esc(d.cycle_name||'Ciclo')}</div>
+          <div style="font-size:11.5px;color:var(--color-text-tertiary);">${d.cycle_start?_peopleFmtDate(d.cycle_start):'—'} → ${d.cycle_end?_peopleFmtDate(d.cycle_end):'—'}</div>
+        </div>
+        <span class="ppl-mgmt-pdi-status status-${d.status}">${statusLbl}</span>
+      </div>
+      <div class="ppl-mgmt-pdi-prog"><div style="width:${totalProg}%;"></div></div>
+      <div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:4px;">${totalProg}% médio · ${goals.length} meta${goals.length===1?'':'s'}</div>
+      ${goals.length ? `<div style="margin-top:8px;">${goals.slice(0,3).map(g => `<div style="font-size:12px;margin:3px 0;">○ ${_esc(g.title||'')} <span style="opacity:.55;">(${g.progress||0}%)</span></div>`).join('')}${goals.length>3?`<div style="font-size:11px;opacity:.6;">+${goals.length-3} metas…</div>`:''}</div>` : ''}
+      <div style="margin-top:8px;">
+        <button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpenPdiModal('${_esc(person.id)}','${_esc(d.id)}')">Editar</button>
+      </div>
+    </div>
+  `;
+}
+
+function _peopleMgmtFeedbackRowHTML(f) {
+  const score = f.score != null ? f.score : null;
+  const typeLbl = {peer:'Par',client:'Cliente',manager:'Gestor',self:'Auto-avaliação',external:'Externo'}[f.type] || f.type;
+  return `
+    <div class="ppl-mgmt-fb-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;">${_esc(typeLbl)}${f.is_anonymous?' · 🕶 anônimo':''}</span>
+        <span style="font-size:10.5px;color:var(--color-text-tertiary);">${_peopleFmtDate(f.created_at)}</span>
+      </div>
+      ${f.category ? `<div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;">📌 ${_esc(f.category)}</div>` : ''}
+      ${score != null ? `<div style="font-size:20px;font-weight:700;color:${score>=4?'#3B6D11':score>=3?'#7A5500':'#BC002D'};font-family:'Noto Serif JP',serif;margin:4px 0;">${score.toFixed(1)}<span style="font-size:11px;opacity:.5;">/5</span></div>` : ''}
+      ${f.content_md ? `<div style="font-size:12.5px;color:var(--color-text-primary);line-height:1.5;white-space:pre-line;">${_esc(f.content_md)}</div>` : ''}
+      ${f.cycle_name ? `<div style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:6px;">Ciclo: ${_esc(f.cycle_name)}</div>` : ''}
+    </div>
+  `;
+}
+
+// Stub: usado pra abrir o profile completo da pessoa
+function _peopleOpenPersonProfile(personId) {
+  // Reaproveita o drawer existente do People se houver
+  if (typeof _peopleOpenPersonDrawer === 'function') {
+    return _peopleOpenPersonDrawer(personId);
+  }
+  document.getElementById('ppl-mgmt-drawer')?.remove();
+}
+
+// ────────────────────────────────────────────────────────────────────
+// MODAIS · Note / 1:1 / PDI / Feedback
+// ────────────────────────────────────────────────────────────────────
+function _peopleMgmtOpenNoteModal(personId, noteId) {
+  let m = document.getElementById('ppl-mgmt-note-modal'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'ppl-mgmt-note-modal';
+  m.className = 'ov open'; m.style.zIndex = '10012';
+  m.innerHTML = `
+    <div class="modal" style="max-width:560px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">📝 Nova nota</h3>
+        <button onclick="document.getElementById('ppl-mgmt-note-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+          ${[['observation','👁 Observação'],['praise','⭐ Elogio'],['concern','⚠ Preocupação'],['action','🎯 Ação']].map(([v,l],i) => `
+            <label style="flex:1;min-width:120px;cursor:pointer;">
+              <input type="radio" name="note-type" value="${v}" ${i===0?'checked':''} style="display:none;" onchange="this.parentElement.parentElement.querySelectorAll('label').forEach(x=>x.style.borderColor='var(--color-border-secondary)');this.parentElement.style.borderColor='#6B4825';"/>
+              <div style="border:1px solid ${i===0?'#6B4825':'var(--color-border-secondary)'};padding:8px 10px;border-radius:8px;text-align:center;font-size:12px;transition:border-color .15s;">${l}</div>
+            </label>
+          `).join('')}
+        </div>
+        <textarea id="ppl-mgmt-note-text" placeholder="Escreva o que precisa registrar… (suporta markdown básico)" style="width:100%;min-height:140px;padding:10px 12px;border:1px solid var(--color-border-secondary);border-radius:8px;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:13px;line-height:1.55;resize:vertical;"></textarea>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--color-text-secondary);cursor:pointer;">
+          <input type="checkbox" id="ppl-mgmt-note-private" checked style="cursor:pointer;"/>
+          🔒 Nota privada (só o gestor vê)
+        </label>
+      </div>
+      <div style="padding:0 22px 18px;display:flex;justify-content:flex-end;gap:8px;">
+        <button class="ppl-btn" onclick="document.getElementById('ppl-mgmt-note-modal').remove()">Cancelar</button>
+        <button class="ppl-btn ppl-btn-primary" onclick="_peopleMgmtSaveNote('${_esc(personId)}')">Salvar nota</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+  setTimeout(() => document.getElementById('ppl-mgmt-note-text')?.focus(), 50);
+}
+
+async function _peopleMgmtSaveNote(personId) {
+  const text = document.getElementById('ppl-mgmt-note-text')?.value?.trim();
+  const isPrivate = !!document.getElementById('ppl-mgmt-note-private')?.checked;
+  const type = document.querySelector('input[name="note-type"]:checked')?.value || 'observation';
+  if (!text) { if (typeof appAlert==='function') appAlert('Texto vazio', 'Escreve algo antes de salvar.', { icon:'⚠' }); return; }
+  const { data, error } = await _peopleApi.rpc('people_note_add', {
+    p_person_id: personId, p_type: type, p_content_md: text, p_is_private: isPrivate
+  });
+  if (error) {
+    if (typeof appAlert==='function') appAlert('Erro ao salvar', error.message || 'Tente novamente.', { icon:'⚠' });
+    return;
+  }
+  document.getElementById('ppl-mgmt-note-modal')?.remove();
+  // Recarrega drawer
+  if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
+    await _peopleOpenMgmtPersonDrawer(personId);
+  }
+  // Recarrega dashboard pra refletir o last_note_at
+  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+  if (typeof appAlert==='function') appAlert('Nota salva 📝', isPrivate?'Visível apenas pra você.':'Registrada na timeline.', { icon:'✓' });
+}
+
+async function _peopleMgmtResolveNote(noteId) {
+  const { error } = await _peopleApi.patch(`people_management_notes?id=eq.${noteId}`, { resolved_at: new Date().toISOString() });
+  if (error) {
+    if (typeof appAlert==='function') appAlert('Erro', error.message||'Tente novamente.', { icon:'⚠' });
+    return;
+  }
+  const personId = _peopleState.mgmtCurrentPerson?.person?.id;
+  if (personId) await _peopleOpenMgmtPersonDrawer(personId);
+}
+
+// ── 1:1 Modal (criar / editar / completar) ──────────────────────────
+function _peopleMgmtOpen1on1Modal(personId, oneOnOneId) {
+  const data = _peopleState.mgmtCurrentPerson;
+  const existing = oneOnOneId && data ? (data.one_on_ones||[]).find(o => o.id === oneOnOneId) : null;
+  const settings = _peopleGetMgmtSettings();
+  let m = document.getElementById('ppl-mgmt-1on1-modal'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'ppl-mgmt-1on1-modal';
+  m.className = 'ov open'; m.style.zIndex = '10012';
+
+  // Default: próxima data útil ~ semana que vem 15h
+  let defaultDt = existing?.scheduled_at;
+  if (!defaultDt) {
+    const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(15,0,0,0);
+    defaultDt = d.toISOString().slice(0,16);
+  } else {
+    defaultDt = new Date(defaultDt).toISOString().slice(0,16);
+  }
+
+  const topics    = existing?.topics_md || '';
+  const notes     = existing?.notes_md  || '';
+  const ai        = Array.isArray(existing?.action_items) ? existing.action_items : [];
+  const mood      = existing?.mood_score || '';
+  const status    = existing?.status || 'scheduled';
+
+  m.innerHTML = `
+    <div class="modal" style="max-width:680px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">🍵 ${existing?'Editar':'Agendar'} 1:1</h3>
+        <button onclick="document.getElementById('ppl-mgmt-1on1-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb" style="overflow-y:auto;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Data e hora</label>
+            <input id="ppl-mgmt-1on1-dt" type="datetime-local" value="${defaultDt}" style="width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:13px;"/>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Status</label>
+            <select id="ppl-mgmt-1on1-status" style="width:100%;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:13px;">
+              <option value="scheduled" ${status==='scheduled'?'selected':''}>📅 Agendado</option>
+              <option value="completed" ${status==='completed'?'selected':''}>✓ Realizado</option>
+              <option value="canceled"  ${status==='canceled'?'selected':''}>✗ Cancelado</option>
+              <option value="rescheduled" ${status==='rescheduled'?'selected':''}>⟳ Reagendado</option>
+            </select>
+          </div>
+        </div>
+
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Pauta · tópicos a discutir</label>
+        <textarea id="ppl-mgmt-1on1-topics" placeholder="O que conversar… (ex: feedback de projeto X, próximos passos, dúvidas)" style="width:100%;min-height:80px;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:13px;line-height:1.5;resize:vertical;">${_esc(topics)}</textarea>
+
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px;">Notas da conversa</label>
+        <textarea id="ppl-mgmt-1on1-notes" placeholder="Resumo da conversa, pontos importantes…" style="width:100%;min-height:100px;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:13px;line-height:1.5;resize:vertical;">${_esc(notes)}</textarea>
+
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px;">Action items</label>
+        <div id="ppl-mgmt-1on1-ai-list" style="display:flex;flex-direction:column;gap:6px;">
+          ${ai.length ? ai.map((a,i) => `
+            <div class="ppl-mgmt-ai-row" data-idx="${i}" style="display:flex;gap:6px;align-items:center;">
+              <input type="checkbox" ${a.done?'checked':''} onchange="_peopleMgmtAiToggle(${i})"/>
+              <input type="text" value="${_esc(a.text||'')}" oninput="_peopleMgmtAiSetText(${i}, this.value)" style="flex:1;padding:6px 8px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:12.5px;"/>
+              <button onclick="_peopleMgmtAiRemove(${i})" style="background:transparent;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:18px;line-height:1;">×</button>
+            </div>
+          `).join('') : ''}
+        </div>
+        <button class="ppl-btn ppl-btn-sm" style="margin-top:6px;" onclick="_peopleMgmtAiAdd()">＋ Adicionar action item</button>
+
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px;">Humor da pessoa (1-5)</label>
+        <div style="display:flex;gap:6px;">
+          ${[1,2,3,4,5].map(n => `<label style="flex:1;cursor:pointer;"><input type="radio" name="mood" value="${n}" ${mood==n?'checked':''} style="display:none;" onchange="_peopleMgmtMoodSet(${n})"/><div style="border:1px solid ${mood==n?'#6B4825':'var(--color-border-secondary)'};border-radius:7px;padding:8px;text-align:center;font-size:18px;" data-mood="${n}">${['😞','😕','😐','🙂','😄'][n-1]}</div></label>`).join('')}
+        </div>
+
+        ${settings.syncalIntegration && status==='scheduled' ? `
+          <div style="margin-top:14px;padding:10px 12px;background:rgba(193,154,58,.08);border:0.5px solid #C19A3A;border-radius:8px;font-size:11.5px;color:#7A5500;line-height:1.5;">
+            📅 <strong>Syncal:</strong> evento "1:1 com ${_esc(_peopleState.mgmtCurrentPerson?.person?.name||'')}" será criado no calendário automaticamente.
+          </div>
+        ` : ''}
+      </div>
+      <div style="padding:14px 22px 18px;border-top:0.5px solid var(--color-border-secondary);display:flex;justify-content:space-between;align-items:center;">
+        ${existing ? `<button class="ppl-btn ppl-btn-sm" style="color:#BC002D;" onclick="_peopleMgmtDelete1on1('${_esc(existing.id)}','${_esc(personId)}')">Excluir</button>` : '<div></div>'}
+        <div style="display:flex;gap:8px;">
+          <button class="ppl-btn" onclick="document.getElementById('ppl-mgmt-1on1-modal').remove()">Cancelar</button>
+          <button class="ppl-btn ppl-btn-primary" onclick="_peopleMgmtSave1on1('${_esc(personId)}', ${existing?`'${_esc(existing.id)}'`:'null'})">Salvar</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+  // Stash AI no estado temporário
+  _peopleState._tmp1on1Ai = ai.map(a => ({ text: a.text||'', done: !!a.done }));
+  _peopleState._tmp1on1Mood = mood ? Number(mood) : null;
+}
+
+function _peopleMgmtAiAdd() {
+  if (!Array.isArray(_peopleState._tmp1on1Ai)) _peopleState._tmp1on1Ai = [];
+  _peopleState._tmp1on1Ai.push({ text:'', done:false });
+  _peopleMgmtAiRerender();
+}
+function _peopleMgmtAiRemove(i) {
+  _peopleState._tmp1on1Ai.splice(i, 1);
+  _peopleMgmtAiRerender();
+}
+function _peopleMgmtAiToggle(i) {
+  _peopleState._tmp1on1Ai[i].done = !_peopleState._tmp1on1Ai[i].done;
+}
+function _peopleMgmtAiSetText(i, v) {
+  _peopleState._tmp1on1Ai[i].text = v;
+}
+function _peopleMgmtMoodSet(n) {
+  _peopleState._tmp1on1Mood = n;
+}
+function _peopleMgmtAiRerender() {
+  const list = document.getElementById('ppl-mgmt-1on1-ai-list');
+  if (!list) return;
+  const ai = _peopleState._tmp1on1Ai || [];
+  list.innerHTML = ai.map((a,i) => `
+    <div class="ppl-mgmt-ai-row" data-idx="${i}" style="display:flex;gap:6px;align-items:center;">
+      <input type="checkbox" ${a.done?'checked':''} onchange="_peopleMgmtAiToggle(${i})"/>
+      <input type="text" value="${_esc(a.text||'')}" oninput="_peopleMgmtAiSetText(${i}, this.value)" style="flex:1;padding:6px 8px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:12.5px;"/>
+      <button onclick="_peopleMgmtAiRemove(${i})" style="background:transparent;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:18px;line-height:1;">×</button>
+    </div>
+  `).join('');
+}
+
+async function _peopleMgmtSave1on1(personId, oneOnOneId) {
+  const dt     = document.getElementById('ppl-mgmt-1on1-dt')?.value;
+  const status = document.getElementById('ppl-mgmt-1on1-status')?.value || 'scheduled';
+  const topics = document.getElementById('ppl-mgmt-1on1-topics')?.value || '';
+  const notes  = document.getElementById('ppl-mgmt-1on1-notes')?.value  || '';
+  const ai     = _peopleState._tmp1on1Ai || [];
+  const mood   = _peopleState._tmp1on1Mood || null;
+  if (!dt) { if (typeof appAlert==='function') appAlert('Data obrigatória', 'Escolhe quando vai rolar.', { icon:'⚠' }); return; }
+
+  const payload = {
+    id: oneOnOneId && oneOnOneId !== 'null' ? oneOnOneId : null,
+    person_id: personId,
+    scheduled_at: new Date(dt).toISOString(),
+    status,
+    topics_md: topics,
+    notes_md: notes,
+    action_items: ai.filter(a => (a.text||'').trim()),
+    mood_score: mood,
+  };
+
+  const { data, error } = await _peopleApi.rpc('people_1on1_upsert', { p_data: payload });
+  if (error) {
+    if (typeof appAlert==='function') appAlert('Erro ao salvar', error.message||'Tente novamente.', { icon:'⚠' });
+    return;
+  }
+
+  // Integração Syncal — se ligado e status=scheduled
+  const settings = _peopleGetMgmtSettings();
+  const oneOnOne = Array.isArray(data) ? data[0] : data;
+  if (settings.syncalIntegration && status === 'scheduled' && typeof _calSyncSyncalEvent === 'function' && oneOnOne) {
+    try {
+      const personName = _peopleState.mgmtCurrentPerson?.person?.name || 'pessoa';
+      await _calSyncSyncalEvent({
+        title: `1:1 com ${personName}`,
+        starts_at: payload.scheduled_at,
+        ends_at: new Date(new Date(payload.scheduled_at).getTime() + 30*60*1000).toISOString(),
+        source: 'people_1on1',
+        source_id: oneOnOne.id,
+        description: topics ? `Pauta: ${topics.slice(0,200)}` : null,
+      });
+    } catch(e) { console.warn('[people-mgmt] syncal sync fail:', e?.message); }
+  }
+
+  document.getElementById('ppl-mgmt-1on1-modal')?.remove();
+  if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
+    await _peopleOpenMgmtPersonDrawer(personId);
+  }
+  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+  if (typeof appAlert==='function') appAlert('1:1 salvo 🍵', status==='scheduled'?'Agendado com sucesso.':'Registro atualizado.', { icon:'✓' });
+}
+
+async function _peopleMgmtDelete1on1(id, personId) {
+  if (!confirm('Excluir este 1:1?')) return;
+  const { error } = await _peopleApi.del(`people_one_on_ones?id=eq.${id}`);
+  if (error) { if (typeof appAlert==='function') appAlert('Erro', error.message||'Tente novamente.', { icon:'⚠' }); return; }
+  document.getElementById('ppl-mgmt-1on1-modal')?.remove();
+  if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
+    await _peopleOpenMgmtPersonDrawer(personId);
+  }
+  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+}
+
+// ── PDI Modal ───────────────────────────────────────────────────────
+function _peopleMgmtOpenPdiModal(personId, pdiId) {
+  const data = _peopleState.mgmtCurrentPerson;
+  const existing = pdiId && data ? (data.pdis||[]).find(d => d.id === pdiId) : null;
+  const settings = _peopleGetMgmtSettings();
+  let m = document.getElementById('ppl-mgmt-pdi-modal'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'ppl-mgmt-pdi-modal';
+  m.className = 'ov open'; m.style.zIndex = '10012';
+
+  // Defaults
+  let cycleName = existing?.cycle_name;
+  if (!cycleName) {
+    const now = new Date();
+    const q = Math.floor(now.getMonth()/3) + 1;
+    cycleName = `${now.getFullYear()} · Q${q}`;
+  }
+  const today = new Date();
+  const start = existing?.cycle_start || today.toISOString().slice(0,10);
+  const endDate = new Date(today); endDate.setMonth(endDate.getMonth() + settings.pdiCadenceMonths);
+  const end = existing?.cycle_end || endDate.toISOString().slice(0,10);
+  const goals = Array.isArray(existing?.goals) ? existing.goals : [];
+  const status = existing?.status || 'active';
+
+  m.innerHTML = `
+    <div class="modal" style="max-width:720px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">🎯 ${existing?'Editar PDI':'Novo PDI'} <span style="font-size:12px;color:var(--color-text-tertiary);font-weight:400;">· cadência ${settings.pdiCadenceMonths}m</span></h3>
+        <button onclick="document.getElementById('ppl-mgmt-pdi-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb" style="overflow-y:auto;">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;margin-bottom:4px;">Ciclo</label>
+            <input id="ppl-mgmt-pdi-name" type="text" value="${_esc(cycleName)}" style="width:100%;padding:7px 9px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:13px;"/>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;margin-bottom:4px;">Início</label>
+            <input id="ppl-mgmt-pdi-start" type="date" value="${start}" style="width:100%;padding:7px 9px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:13px;"/>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;margin-bottom:4px;">Fim</label>
+            <input id="ppl-mgmt-pdi-end" type="date" value="${end}" style="width:100%;padding:7px 9px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:13px;"/>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;margin-bottom:4px;">Status</label>
+            <select id="ppl-mgmt-pdi-status" style="width:100%;padding:7px 9px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:13px;">
+              <option value="active" ${status==='active'?'selected':''}>Ativo</option>
+              <option value="paused" ${status==='paused'?'selected':''}>Pausado</option>
+              <option value="completed" ${status==='completed'?'selected':''}>Concluído</option>
+              <option value="canceled" ${status==='canceled'?'selected':''}>Cancelado</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin:14px 0 4px;display:flex;align-items:center;justify-content:space-between;">
+          <label style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;">Metas de desenvolvimento</label>
+          <button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtPdiGoalAdd()">＋ Adicionar meta</button>
+        </div>
+        <div id="ppl-mgmt-pdi-goals" style="display:flex;flex-direction:column;gap:8px;"></div>
+
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;margin:14px 0 4px;">Auto-avaliação da pessoa</label>
+        <textarea id="ppl-mgmt-pdi-self" placeholder="A própria pessoa preenche (opcional)…" style="width:100%;min-height:60px;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:12.5px;line-height:1.5;resize:vertical;">${_esc(existing?.self_review_md||'')}</textarea>
+
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;margin:12px 0 4px;">Avaliação do gestor</label>
+        <textarea id="ppl-mgmt-pdi-mgr" placeholder="Sua avaliação como gestor(a)…" style="width:100%;min-height:60px;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:12.5px;line-height:1.5;resize:vertical;">${_esc(existing?.manager_review_md||'')}</textarea>
+      </div>
+      <div style="padding:14px 22px 18px;border-top:0.5px solid var(--color-border-secondary);display:flex;justify-content:space-between;">
+        ${existing ? `<button class="ppl-btn ppl-btn-sm" style="color:#BC002D;" onclick="_peopleMgmtDeletePdi('${_esc(existing.id)}','${_esc(personId)}')">Excluir</button>` : '<div></div>'}
+        <div style="display:flex;gap:8px;">
+          <button class="ppl-btn" onclick="document.getElementById('ppl-mgmt-pdi-modal').remove()">Cancelar</button>
+          <button class="ppl-btn ppl-btn-primary" onclick="_peopleMgmtSavePdi('${_esc(personId)}', ${existing?`'${_esc(existing.id)}'`:'null'})">Salvar PDI</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+  _peopleState._tmpPdiGoals = goals.map(g => ({ title: g.title||'', description: g.description||'', progress: g.progress||0 }));
+  if (_peopleState._tmpPdiGoals.length === 0) _peopleState._tmpPdiGoals.push({ title:'', description:'', progress:0 });
+  _peopleMgmtPdiGoalsRender();
+}
+
+function _peopleMgmtPdiGoalAdd() {
+  if (!_peopleState._tmpPdiGoals) _peopleState._tmpPdiGoals = [];
+  _peopleState._tmpPdiGoals.push({ title:'', description:'', progress:0 });
+  _peopleMgmtPdiGoalsRender();
+}
+function _peopleMgmtPdiGoalRemove(i) {
+  _peopleState._tmpPdiGoals.splice(i,1);
+  _peopleMgmtPdiGoalsRender();
+}
+function _peopleMgmtPdiGoalSet(i, field, v) {
+  if (!_peopleState._tmpPdiGoals[i]) return;
+  _peopleState._tmpPdiGoals[i][field] = field==='progress' ? Math.max(0,Math.min(100,Number(v)||0)) : v;
+  if (field === 'progress') {
+    const fill = document.querySelector(`[data-pdi-goal="${i}"] .pdi-prog-fill`);
+    if (fill) fill.style.width = _peopleState._tmpPdiGoals[i].progress + '%';
+  }
+}
+function _peopleMgmtPdiGoalsRender() {
+  const el = document.getElementById('ppl-mgmt-pdi-goals');
+  if (!el) return;
+  const goals = _peopleState._tmpPdiGoals || [];
+  el.innerHTML = goals.map((g,i) => `
+    <div class="ppl-mgmt-pdi-goal" data-pdi-goal="${i}" style="border:0.5px solid var(--color-border-secondary);border-radius:8px;padding:10px 12px;background:var(--color-background-secondary);">
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <input type="text" placeholder="Título da meta" value="${_esc(g.title||'')}" oninput="_peopleMgmtPdiGoalSet(${i},'title',this.value)" style="flex:1;padding:6px 8px;border:1px solid var(--color-border-tertiary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font-size:13px;font-weight:600;"/>
+        <div style="display:flex;align-items:center;gap:6px;min-width:160px;">
+          <input type="range" min="0" max="100" value="${g.progress||0}" oninput="_peopleMgmtPdiGoalSet(${i},'progress',this.value)" style="flex:1;"/>
+          <span style="font-size:11.5px;font-weight:600;min-width:32px;text-align:right;" id="pdi-prog-lbl-${i}">${g.progress||0}%</span>
+        </div>
+        <button onclick="_peopleMgmtPdiGoalRemove(${i})" style="background:transparent;border:none;color:var(--color-text-tertiary);cursor:pointer;font-size:18px;">×</button>
+      </div>
+      <textarea placeholder="Como vamos saber que essa meta foi atingida? (opcional)" oninput="_peopleMgmtPdiGoalSet(${i},'description',this.value)" style="width:100%;margin-top:6px;min-height:40px;padding:6px 8px;border:1px solid var(--color-border-tertiary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:12px;resize:vertical;">${_esc(g.description||'')}</textarea>
+    </div>
+  `).join('');
+  // Sync labels of progress
+  goals.forEach((g,i) => {
+    const inp = document.querySelector(`[data-pdi-goal="${i}"] input[type="range"]`);
+    const lbl = document.getElementById(`pdi-prog-lbl-${i}`);
+    if (inp && lbl) {
+      inp.addEventListener('input', () => { lbl.textContent = inp.value + '%'; });
+    }
+  });
+}
+
+async function _peopleMgmtSavePdi(personId, pdiId) {
+  const cycle_name   = document.getElementById('ppl-mgmt-pdi-name')?.value?.trim();
+  const cycle_start  = document.getElementById('ppl-mgmt-pdi-start')?.value;
+  const cycle_end    = document.getElementById('ppl-mgmt-pdi-end')?.value;
+  const status       = document.getElementById('ppl-mgmt-pdi-status')?.value || 'active';
+  const self_review_md    = document.getElementById('ppl-mgmt-pdi-self')?.value || '';
+  const manager_review_md = document.getElementById('ppl-mgmt-pdi-mgr')?.value || '';
+  const goals = (_peopleState._tmpPdiGoals||[]).filter(g => (g.title||'').trim());
+  if (!cycle_name) { if (typeof appAlert==='function') appAlert('Ciclo obrigatório', 'Nomeia o ciclo (ex: 2026·Q2).', { icon:'⚠' }); return; }
+
+  const payload = {
+    id: pdiId && pdiId !== 'null' ? pdiId : null,
+    person_id: personId,
+    cycle_name, cycle_start, cycle_end, status,
+    goals, self_review_md, manager_review_md,
+  };
+  const { data, error } = await _peopleApi.rpc('people_pdi_upsert', { p_data: payload });
+  if (error) {
+    if (typeof appAlert==='function') appAlert('Erro ao salvar', error.message||'Tente novamente.', { icon:'⚠' });
+    return;
+  }
+  document.getElementById('ppl-mgmt-pdi-modal')?.remove();
+  if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
+    await _peopleOpenMgmtPersonDrawer(personId);
+  }
+  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+  if (typeof appAlert==='function') appAlert('PDI salvo 🎯', `${goals.length} meta${goals.length===1?'':'s'} registrada${goals.length===1?'':'s'}.`, { icon:'✓' });
+}
+
+async function _peopleMgmtDeletePdi(id, personId) {
+  if (!confirm('Excluir este PDI? As metas serão perdidas.')) return;
+  const { error } = await _peopleApi.del(`people_pdi?id=eq.${id}`);
+  if (error) { if (typeof appAlert==='function') appAlert('Erro', error.message||'Tente novamente.', { icon:'⚠' }); return; }
+  document.getElementById('ppl-mgmt-pdi-modal')?.remove();
+  if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
+    await _peopleOpenMgmtPersonDrawer(personId);
+  }
+  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+}
+
+// ── Feedback Modal ──────────────────────────────────────────────────
+function _peopleMgmtOpenFeedbackModal(personId) {
+  let m = document.getElementById('ppl-mgmt-fb-modal'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'ppl-mgmt-fb-modal';
+  m.className = 'ov open'; m.style.zIndex = '10012';
+  m.innerHTML = `
+    <div class="modal" style="max-width:600px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">✨ Registrar feedback 360</h3>
+        <button onclick="document.getElementById('ppl-mgmt-fb-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <p style="font-size:12px;color:var(--color-text-secondary);margin:0 0 14px;line-height:1.5;">Registre feedback recebido sobre essa pessoa — de pares, gestores, clientes ou auto-avaliação. Pode ser anônimo.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;margin-bottom:4px;">Origem</label>
+            <select id="ppl-mgmt-fb-type" style="width:100%;padding:7px 9px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:13px;">
+              <option value="peer">👥 Par / colega</option>
+              <option value="manager">⛩ Gestor(a)</option>
+              <option value="client">🤝 Cliente</option>
+              <option value="self">人 Auto-avaliação</option>
+              <option value="external">⌖ Externo (fornecedor, etc)</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;margin-bottom:4px;">Nota (1-5)</label>
+            <select id="ppl-mgmt-fb-score" style="width:100%;padding:7px 9px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:13px;">
+              <option value="">— sem nota —</option>
+              <option value="1">1 · precisa melhorar</option>
+              <option value="2">2 · abaixo do esperado</option>
+              <option value="3" selected>3 · atende</option>
+              <option value="4">4 · supera</option>
+              <option value="5">5 · excepcional</option>
+            </select>
+          </div>
+        </div>
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;margin-bottom:4px;">Categoria (opcional)</label>
+        <input id="ppl-mgmt-fb-cat" type="text" placeholder="ex: comunicação, entrega técnica, liderança…" style="width:100%;padding:7px 9px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);font-size:13px;margin-bottom:10px;"/>
+        <label style="display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;margin-bottom:4px;">Feedback</label>
+        <textarea id="ppl-mgmt-fb-text" placeholder="O que a pessoa disse / observou…" style="width:100%;min-height:120px;padding:8px 10px;border:1px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:13px;line-height:1.55;resize:vertical;"></textarea>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--color-text-secondary);cursor:pointer;">
+          <input type="checkbox" id="ppl-mgmt-fb-anon" style="cursor:pointer;"/>
+          🕶 Marcar como anônimo (oculta autor)
+        </label>
+      </div>
+      <div style="padding:0 22px 18px;display:flex;justify-content:flex-end;gap:8px;">
+        <button class="ppl-btn" onclick="document.getElementById('ppl-mgmt-fb-modal').remove()">Cancelar</button>
+        <button class="ppl-btn ppl-btn-primary" onclick="_peopleMgmtSaveFeedback('${_esc(personId)}')">Registrar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+async function _peopleMgmtSaveFeedback(personId) {
+  const type        = document.getElementById('ppl-mgmt-fb-type')?.value || 'peer';
+  const scoreRaw    = document.getElementById('ppl-mgmt-fb-score')?.value;
+  const score       = scoreRaw ? Number(scoreRaw) : null;
+  const category    = document.getElementById('ppl-mgmt-fb-cat')?.value?.trim() || null;
+  const content_md  = document.getElementById('ppl-mgmt-fb-text')?.value?.trim();
+  const is_anonymous = !!document.getElementById('ppl-mgmt-fb-anon')?.checked;
+  if (!content_md && score == null) { if (typeof appAlert==='function') appAlert('Vazio', 'Preencha ao menos a nota ou o texto.', { icon:'⚠' }); return; }
+  const { data, error } = await _peopleApi.rpc('people_feedback_add', {
+    p_data: { person_id: personId, type, score, category, content_md, is_anonymous }
+  });
+  if (error) {
+    if (typeof appAlert==='function') appAlert('Erro', error.message||'Tente novamente.', { icon:'⚠' });
+    return;
+  }
+  document.getElementById('ppl-mgmt-fb-modal')?.remove();
+  if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
+    await _peopleOpenMgmtPersonDrawer(personId);
+  }
+  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+  if (typeof appAlert==='function') appAlert('Feedback registrado ✨', is_anonymous?'Salvo de forma anônima.':'Registro adicionado.', { icon:'✓' });
+}
+
+// ────────────────────────────────────────────────────────────────────
+// SETTINGS MODAL · Gestão (toggles + cadências customizáveis)
+// ────────────────────────────────────────────────────────────────────
+function _peopleOpenMgmtSettingsModal() {
+  let m = document.getElementById('ppl-mgmt-settings-modal'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'ppl-mgmt-settings-modal';
+  m.className = 'ov open'; m.style.zIndex = '10014';
+  const s = _peopleGetMgmtSettings();
+  const toggle = (key, title, desc) => `
+    <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:var(--color-background-secondary);border-radius:9px;cursor:pointer;border:1px solid transparent;transition:border-color .12s;" onmouseenter="this.style.borderColor='var(--color-border-tertiary)'" onmouseleave="this.style.borderColor='transparent'">
+      <input type="checkbox" name="${key}" ${s[key]?'checked':''} style="margin-top:3px;cursor:pointer;flex-shrink:0;width:16px;height:16px;"/>
+      <div style="flex:1;">
+        <div style="font-size:13.5px;font-weight:600;color:var(--color-text-primary);">${title}</div>
+        <div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:2px;line-height:1.5;">${desc}</div>
+      </div>
+    </label>`;
+  m.innerHTML = `
+    <div class="modal" style="max-width:640px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">⚙ Ajustes da Gestão</h3>
+        <button onclick="document.getElementById('ppl-mgmt-settings-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb" style="overflow-y:auto;">
+        <p style="font-size:12.5px;color:var(--color-text-secondary);margin:0 0 14px;line-height:1.55;">Cada workspace gerencia pessoas de um jeito. Liga só o que faz sentido pro seu time. <em style="opacity:.75;">Salvo localmente.</em></p>
+
+        <div style="font-size:11px;font-weight:700;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin:8px 0 6px;">Ferramentas ativas</div>
+        <form id="ppl-mgmt-settings-form" style="display:flex;flex-direction:column;gap:8px;" onsubmit="event.preventDefault();_peopleMgmtSaveSettingsFromForm();">
+          ${toggle('enableNotes',     '📝 Notas do gestor (timeline)', 'Registre observações, elogios, preocupações e ações pra cada pessoa. Notas privadas só você vê.')}
+          ${toggle('enableOneOnOnes', '🍵 1:1s registrados',           'Agende e registre conversas 1:1 com pauta, notas, action items e humor da pessoa.')}
+          ${toggle('enablePDI',       '🎯 PDI (plano desenvolvimento)','Metas trimestrais/semestrais com auto-avaliação e avaliação do gestor.')}
+          ${toggle('enableFeedback',  '✨ Feedback 360',               'Coleta de feedback de pares, gestores, clientes, auto-avaliação. Pode ser anônimo.')}
+          ${toggle('enableSaturation','⚠ Indicadores de saturação',    'Alerta visual quando uma pessoa fica sem 1:1, sem nota ou com pulse baixo. Útil pra evitar burnout silencioso.')}
+          ${toggle('syncalIntegration','📅 Integração com Syncal',     'Ao agendar um 1:1, cria automaticamente o evento no calendário Syncal (sincronizado com Google Calendar se conectado).')}
+        </form>
+
+        <div style="font-size:11px;font-weight:700;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin:20px 0 8px;">Cadências (customizável)</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="padding:10px 14px;background:var(--color-background-secondary);border-radius:9px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--color-text-primary);">🍵 Frequência esperada de 1:1</div>
+                <div style="font-size:11px;color:var(--color-text-secondary);">Define quando aparecer alerta "sem 1:1 há X dias".</div>
+              </div>
+              <select id="ppl-mgmt-cad-1on1" style="padding:6px 10px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font-size:12.5px;">
+                <option value="7"  ${s.oneOnOneCadenceDays==7?'selected':''}>Semanal</option>
+                <option value="14" ${s.oneOnOneCadenceDays==14?'selected':''}>Quinzenal</option>
+                <option value="30" ${s.oneOnOneCadenceDays==30?'selected':''}>Mensal</option>
+                <option value="60" ${s.oneOnOneCadenceDays==60?'selected':''}>Bimestral</option>
+              </select>
+            </div>
+          </div>
+          <div style="padding:10px 14px;background:var(--color-background-secondary);border-radius:9px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--color-text-primary);">🎯 Cadência do PDI</div>
+                <div style="font-size:11px;color:var(--color-text-secondary);">Duração padrão de cada ciclo de plano de desenvolvimento.</div>
+              </div>
+              <select id="ppl-mgmt-cad-pdi" style="padding:6px 10px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font-size:12.5px;">
+                <option value="1"  ${s.pdiCadenceMonths==1?'selected':''}>Mensal</option>
+                <option value="3"  ${s.pdiCadenceMonths==3?'selected':''}>Trimestral</option>
+                <option value="6"  ${s.pdiCadenceMonths==6?'selected':''}>Semestral</option>
+                <option value="12" ${s.pdiCadenceMonths==12?'selected':''}>Anual</option>
+              </select>
+            </div>
+          </div>
+          <div style="padding:10px 14px;background:var(--color-background-secondary);border-radius:9px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--color-text-primary);">✨ Ciclo de feedback 360</div>
+                <div style="font-size:11px;color:var(--color-text-secondary);">Lembra você quando faz sentido pedir feedback completo da pessoa.</div>
+              </div>
+              <select id="ppl-mgmt-cad-fb" style="padding:6px 10px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font-size:12.5px;">
+                <option value="3"  ${s.feedbackCycleMonths==3?'selected':''}>Trimestral</option>
+                <option value="6"  ${s.feedbackCycleMonths==6?'selected':''}>Semestral</option>
+                <option value="12" ${s.feedbackCycleMonths==12?'selected':''}>Anual</option>
+              </select>
+            </div>
+          </div>
+          <div style="padding:10px 14px;background:var(--color-background-secondary);border-radius:9px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--color-text-primary);">⚠ Limite de inatividade</div>
+                <div style="font-size:11px;color:var(--color-text-secondary);">Quantos dias sem 1:1 nem nota pra marcar como atenção.</div>
+              </div>
+              <select id="ppl-mgmt-cad-inactive" style="padding:6px 10px;border:1px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);font-size:12.5px;">
+                <option value="14" ${s.showInactiveAfterDays==14?'selected':''}>14 dias</option>
+                <option value="21" ${s.showInactiveAfterDays==21?'selected':''}>21 dias</option>
+                <option value="30" ${s.showInactiveAfterDays==30?'selected':''}>30 dias</option>
+                <option value="60" ${s.showInactiveAfterDays==60?'selected':''}>60 dias</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px 22px 18px;border-top:0.5px solid var(--color-border-secondary);display:flex;justify-content:flex-end;gap:8px;">
+        <button class="ppl-btn" onclick="document.getElementById('ppl-mgmt-settings-modal').remove()">Cancelar</button>
+        <button class="ppl-btn ppl-btn-primary" onclick="_peopleMgmtSaveSettingsFromForm()">Salvar ajustes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+function _peopleMgmtSaveSettingsFromForm() {
+  const form = document.getElementById('ppl-mgmt-settings-form');
+  if (!form) return;
+  const cur = _peopleGetMgmtSettings();
+  const s = { ...cur };
+  ['enableNotes','enableOneOnOnes','enablePDI','enableFeedback','enableSaturation','syncalIntegration'].forEach(k => {
+    const inp = form.querySelector(`input[name="${k}"]`);
+    s[k] = !!inp?.checked;
+  });
+  s.oneOnOneCadenceDays  = Number(document.getElementById('ppl-mgmt-cad-1on1')?.value)     || cur.oneOnOneCadenceDays;
+  s.pdiCadenceMonths     = Number(document.getElementById('ppl-mgmt-cad-pdi')?.value)      || cur.pdiCadenceMonths;
+  s.feedbackCycleMonths  = Number(document.getElementById('ppl-mgmt-cad-fb')?.value)       || cur.feedbackCycleMonths;
+  s.showInactiveAfterDays= Number(document.getElementById('ppl-mgmt-cad-inactive')?.value) || cur.showInactiveAfterDays;
+  _peopleSaveMgmtSettings(s);
+  document.getElementById('ppl-mgmt-settings-modal')?.remove();
+  if (_peopleState.tab === 'gestao') _peopleRenderGestao();
+  if (typeof appAlert === 'function') {
+    const offCount = ['enableNotes','enableOneOnOnes','enablePDI','enableFeedback'].filter(k=>!s[k]).length;
+    appAlert('Gestão atualizada ⚙', offCount===0?'Todas as 4 ferramentas ativas.':`${4-offCount} ferramentas ativas · ${offCount} desligadas.`, { icon:'✓' });
   }
 }
 
