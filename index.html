@@ -69085,8 +69085,29 @@ function _syncalToggleFilter(key) {
 // Abre evento clicado — dispatcha pra módulo apropriado
 function _syncalOpenEvent(id, source) {
   if (source === 'boards') {
-    const cardId = id.replace(/^b_/, '');
-    if (typeof editCard === 'function') editCard(cardId);
+    // Recupera o evento pra ter board_id + card_id certos
+    // (id pode estar no formato 'b_<bid>::<cid>' ou 'b_<cid>' dependendo do agregador)
+    const events = _syncalCollectEvents();
+    const found = events.find(e => e.id === id);
+    const boardId = found?.link?.boardId;
+    const cardId  = found?.link?.id;
+    if (!cardId) {
+      console.warn('[syncal] card sem id no link:', id);
+      return;
+    }
+    // Navega: troca de board (se necessário) → vai pra kanban → abre o card
+    if (boardId && typeof switchBoard === 'function') {
+      try { switchBoard(boardId); } catch(e) { console.warn('[syncal] switchBoard:', e?.message); }
+    }
+    if (typeof switchTab === 'function') {
+      setTimeout(() => switchTab('kanban'), 60);
+    }
+    setTimeout(() => {
+      if (typeof editCard === 'function') {
+        try { editCard(cardId); }
+        catch(e) { console.warn('[syncal] editCard:', e?.message); }
+      }
+    }, 180);
   } else if (source === 'people') {
     // id formato p_<stepId>; precisamos do personId — vamos extrair do meta
     const events = _syncalCollectEvents();
