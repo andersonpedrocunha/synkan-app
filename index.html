@@ -4059,6 +4059,28 @@ body.density-compact .col{padding:7px;}
 
 .ppl-mgmt-celeb-row{display:flex;align-items:center;gap:14px;padding:10px 12px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:9px;margin-bottom:5px;}
 
+/* Bloco de vínculo Synkan no modal Info básica */
+.ppl-info-link-block{display:flex;gap:14px;padding:14px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;margin-bottom:16px;align-items:flex-start;}
+.ppl-info-avatar-wrap{width:64px;height:64px;flex-shrink:0;}
+.ppl-info-avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--color-background-primary);box-shadow:0 0 0 1px var(--color-border-tertiary), 0 4px 12px rgba(0,0,0,.08);}
+.ppl-info-avatar-fallback{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;font-size:22px;font-weight:600;font-family:var(--font-sans);}
+.ppl-info-link-badge{display:inline-block;font-size:11.5px;font-weight:600;color:var(--color-text-primary);}
+.ppl-info-link-badge.connected{color:#2A4F0A;}
+.ppl-info-link-badge.unlinked{color:#7A5500;}
+
+/* Hero do Resumo (drawer Gestão) */
+.ppl-mgmt-hero-block{background:linear-gradient(135deg,var(--color-background-secondary) 0%,var(--color-background-primary) 100%);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
+.ppl-mgmt-hero-row{display:flex;gap:22px;flex-wrap:wrap;}
+.ppl-mgmt-hero-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-tertiary);}
+.ppl-mgmt-hero-val{font-size:15px;font-weight:600;color:var(--color-text-primary);margin-top:2px;font-variant-numeric:tabular-nums;}
+.ppl-mgmt-hero-link{margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary);font-size:11.5px;font-weight:500;}
+
+/* Bloco de aviso (saturação) */
+.ppl-mgmt-block.ppl-mgmt-block-warn{border-color:#FCC4C9;background:#FDF2F3;}
+.ppl-mgmt-block.ppl-mgmt-block-warn .ppl-mgmt-block-h{background:#FCD9DC;color:#7A0026;}
+:root.dark .ppl-mgmt-block.ppl-mgmt-block-warn{background:rgba(188,0,45,.10);border-color:rgba(188,0,45,.35);}
+:root.dark .ppl-mgmt-block.ppl-mgmt-block-warn .ppl-mgmt-block-h{background:rgba(188,0,45,.20);color:#FCC4C9;}
+
 :root.dark .ppl-mgmt-card.is-saturated{background:linear-gradient(180deg,rgba(188,0,45,.10) 0%,var(--color-background-primary) 60%);}
 :root.dark .ppl-mgmt-timeline-item.type-concern{background:rgba(188,0,45,.10);}
 :root.dark .ppl-mgmt-timeline-item.type-action{background:rgba(193,154,58,.10);}
@@ -38017,8 +38039,125 @@ function _peopleRenderMgmtDrawerBody() {
     const last1on1 = oneOnOnes.find(o => o.status === 'completed');
     const fbAvg = feedback.length ? (feedback.reduce((s,f)=>s+(f.score||0),0)/feedback.filter(f=>f.score).length) : null;
 
+    // ── Indicadores chave (hero) ───────────────────────────────────
+    const today = new Date();
+    const bdayDistance = p.birthday ? _peopleBirthDistance(p.birthday) : null;
+    const tenureLabel  = p.hired_at ? _peopleFmtTenure(p.hired_at) : null;
+    const workAnnivDist= p.hired_at ? _peopleBirthDistance(p.hired_at) : null;
+    const beltLabel    = _PPL_BELT_LABELS[p.belt||'branca'] || 'Lua Nova';
+
+    // ── Action items pendentes (consolidados de todos os 1:1s) ─────
+    const pendingAis = [];
+    oneOnOnes.forEach(o => {
+      if (Array.isArray(o.action_items)) {
+        o.action_items.forEach(ai => {
+          if (ai && !ai.done && (ai.text||'').trim()) {
+            pendingAis.push({ text: ai.text, date: o.scheduled_at });
+          }
+        });
+      }
+    });
+
+    // ── Saturação (sinal de risco) ─────────────────────────────────
+    const lastConcern = notes.find(n => n.type === 'concern' && !n.resolved_at);
+    const days1on1 = last1on1 ? Math.floor((today - new Date(last1on1.scheduled_at))/86400000) : null;
+    const lastPulse = (p.last_pulse_score != null) ? p.last_pulse_score : null;
+    const saturationSignals = [];
+    if (lastConcern) saturationSignals.push(`Preocupação aberta: "${(lastConcern.content_md||'').slice(0,60)}${(lastConcern.content_md||'').length>60?'…':''}"`);
+    if (days1on1 !== null && days1on1 > 30) saturationSignals.push(`Sem 1:1 há ${days1on1} dias`);
+    if (days1on1 === null && oneOnOnes.length === 0) saturationSignals.push('Nunca teve 1:1 registrado');
+    if (lastPulse !== null && lastPulse < 3) saturationSignals.push(`Pulse baixo (${lastPulse.toFixed(1)}/5)`);
+
+    // ── Celebrações próximas ───────────────────────────────────────
+    const upcomingCeleb = [];
+    if (p.birthday) {
+      const days = _peopleDaysUntilNext(p.birthday);
+      if (days !== null && days <= 30) upcomingCeleb.push({ kind:'birthday', days, label:'Aniversário' });
+    }
+    if (p.hired_at) {
+      const days = _peopleDaysUntilNext(p.hired_at);
+      if (days !== null && days <= 30 && days > 0) {
+        const years = today.getFullYear() - new Date(p.hired_at).getFullYear();
+        upcomingCeleb.push({ kind:'work_anniversary', days, label:`${years} ano${years!==1?'s':''} de empresa`});
+      }
+    }
+
     body.innerHTML = `
       <div class="ppl-mgmt-resumo">
+
+        <!-- Hero: identidade + datas-chave + pulse -->
+        <div class="ppl-mgmt-hero-block">
+          <div class="ppl-mgmt-hero-row">
+            <div>
+              <div class="ppl-mgmt-hero-lbl">Faixa atual</div>
+              <div class="ppl-mgmt-hero-val">${_esc(beltLabel)}</div>
+            </div>
+            ${tenureLabel ? `
+              <div>
+                <div class="ppl-mgmt-hero-lbl">Tempo de casa</div>
+                <div class="ppl-mgmt-hero-val">${_esc(tenureLabel)}</div>
+              </div>
+            ` : ''}
+            ${bdayDistance ? `
+              <div>
+                <div class="ppl-mgmt-hero-lbl">🎂 Aniversário</div>
+                <div class="ppl-mgmt-hero-val">${_esc(bdayDistance)}</div>
+              </div>
+            ` : ''}
+            ${lastPulse != null ? `
+              <div>
+                <div class="ppl-mgmt-hero-lbl">💚 Pulse</div>
+                <div class="ppl-mgmt-hero-val" style="color:${lastPulse>=4?'#3B6D11':lastPulse>=3?'#7A5500':'#BC002D'};">${lastPulse.toFixed(1)}<span style="font-size:11px;opacity:.5;">/5</span></div>
+              </div>
+            ` : ''}
+          </div>
+          ${(p.user_id || p.email) ? `
+            <div class="ppl-mgmt-hero-link" id="ppl-mgmt-hero-link" data-uid="${_esc(p.user_id||'')}">
+              ${p.user_id
+                ? `<span style="color:#3B6D11;">🔗 Conectado ao Synkan</span> <span id="ppl-mgmt-hero-email" style="opacity:.65;"></span>`
+                : `<span style="color:#7A5500;">⊘ Sem conta Synkan</span>`}
+            </div>
+          ` : ''}
+        </div>
+
+        ${saturationSignals.length > 0 ? `
+          <div class="ppl-mgmt-block ppl-mgmt-block-warn">
+            <div class="ppl-mgmt-block-h" style="color:#BC002D;">⚠ Sinais de atenção</div>
+            <div class="ppl-mgmt-block-c">
+              <ul style="margin:0;padding-left:18px;font-size:12.5px;color:#7A0026;line-height:1.6;">
+                ${saturationSignals.map(s => `<li>${_esc(s)}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        ` : ''}
+
+        ${upcomingCeleb.length > 0 ? `
+          <div class="ppl-mgmt-block" style="border-left:3px solid #C19A3A;background:rgba(255,244,209,.4);">
+            <div class="ppl-mgmt-block-h">🎉 Celebração próxima</div>
+            <div class="ppl-mgmt-block-c">
+              ${upcomingCeleb.map(c => `<div style="font-size:12.5px;color:#3A2410;margin:2px 0;">${c.kind==='birthday'?'🎂':'⛩'} <strong>${_esc(c.label)}</strong> em ${c.days===0?'hoje 🎊':c.days===1?'amanhã':`${c.days} dias`}</div>`).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${pendingAis.length > 0 ? `
+          <div class="ppl-mgmt-block">
+            <div class="ppl-mgmt-block-h">📌 Action items pendentes <span style="opacity:.55;font-weight:400;">(${pendingAis.length})</span></div>
+            <div class="ppl-mgmt-block-c">
+              ${pendingAis.slice(0,5).map(ai => `
+                <div style="display:flex;gap:8px;padding:5px 0;font-size:12.5px;color:var(--color-text-primary);border-bottom:0.5px solid var(--color-border-tertiary);">
+                  <span style="opacity:.5;">○</span>
+                  <div style="flex:1;">
+                    ${_esc(ai.text)}
+                    <div style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:2px;">do 1:1 de ${_peopleFmtDate(ai.date)}</div>
+                  </div>
+                </div>
+              `).join('')}
+              ${pendingAis.length > 5 ? `<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:6px;">+${pendingAis.length-5} mais — abra cada 1:1 pra concluir.</div>` : ''}
+            </div>
+          </div>
+        ` : ''}
+
         ${upcoming1on1 ? `
           <div class="ppl-mgmt-block">
             <div class="ppl-mgmt-block-h">📅 Próximo 1:1</div>
@@ -38092,6 +38231,13 @@ function _peopleRenderMgmtDrawerBody() {
         ` : ''}
       </div>
     `;
+    // Lookup async do email do perfil Synkan (se houver user_id) e injeta no hero
+    if (p.user_id) {
+      _peopleMgmtFetchSynkanProfile(p.user_id).then(profile => {
+        const el = document.getElementById('ppl-mgmt-hero-email');
+        if (el && profile?.email) el.textContent = '· ' + profile.email;
+      });
+    }
   } else if (tab === 'notas') {
     body.innerHTML = `
       <div style="margin-bottom:12px;">
@@ -38977,6 +39123,38 @@ function _peopleMgmtOpenPersonInfoModal(personId) {
         <button onclick="document.getElementById('ppl-mgmt-info-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
       </div>
       <div class="mb" style="overflow-y:auto;">
+        <!-- Bloco de vínculo Synkan + avatar -->
+        <div class="ppl-info-link-block" id="ppl-info-link-block">
+          <div class="ppl-info-avatar-wrap">
+            ${p.photo_url
+              ? `<img id="ppl-info-avatar-img" src="${_esc(p.photo_url)}" alt="" class="ppl-info-avatar"/>`
+              : `<div class="ppl-info-avatar ppl-info-avatar-fallback" id="ppl-info-avatar-img">${_esc((p.name||'?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase())}</div>`
+            }
+          </div>
+          <div style="flex:1;min-width:0;">
+            ${existing && p.user_id
+              ? `<div class="ppl-info-link-badge connected">
+                  <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:7px;height:7px;border-radius:50%;background:#3B6D11;display:inline-block;"></span>Conectado ao Synkan</span>
+                </div>
+                <div id="ppl-info-link-meta" style="font-size:11.5px;color:var(--color-text-secondary);margin-top:4px;">Carregando perfil…</div>
+                <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                  <button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtImportFromSynkan('${_esc(existing.id)}')">↓ Importar dados</button>
+                  <button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtUnlinkSynkan('${_esc(existing.id)}')" style="color:#7A5500;">⊗ Desvincular</button>
+                </div>`
+              : existing
+              ? `<div class="ppl-info-link-badge unlinked">
+                  <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:7px;height:7px;border-radius:50%;background:#B8A878;display:inline-block;"></span>Sem conta Synkan vinculada</span>
+                </div>
+                <div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:4px;line-height:1.5;">Vincule pra puxar foto, nome e email automaticamente, e a pessoa ver a própria trilha.</div>
+                <button class="ppl-btn ppl-btn-sm" style="margin-top:8px;" onclick="_peopleMgmtOpenLinkSynkanInline('${_esc(existing.id)}')">🔗 Vincular conta Synkan</button>`
+              : `<div class="ppl-info-link-badge unlinked">
+                  <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:7px;height:7px;border-radius:50%;background:#B8A878;display:inline-block;"></span>Nova pessoa</span>
+                </div>
+                <div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:4px;line-height:1.5;">Depois de criar, você pode vincular a uma conta Synkan pra puxar foto, nome e email.</div>`
+            }
+          </div>
+        </div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div style="grid-column:1/-1;">
             <label class="ppl-info-lbl">Nome de exibição *</label>
@@ -39045,6 +39223,132 @@ function _peopleMgmtOpenPersonInfoModal(personId) {
     </div>`;
   document.body.appendChild(m);
   setTimeout(() => document.getElementById('ppl-info-name')?.focus(), 50);
+  // Se tiver user_id, busca dados do perfil pra mostrar email/nome real
+  if (existing && existing.user_id) {
+    _peopleMgmtFetchSynkanProfile(existing.user_id).then(profile => {
+      const meta = document.getElementById('ppl-info-link-meta');
+      if (meta && profile) {
+        meta.innerHTML = `<strong>${_esc(profile.full_name||profile.email||'')}</strong>${profile.full_name && profile.email?` · ${_esc(profile.email)}`:''}`;
+      } else if (meta) {
+        meta.textContent = 'Perfil Synkan não acessível.';
+      }
+    });
+  }
+}
+
+// Busca profile do Synkan pelo user_id (avatar, nome, email)
+async function _peopleMgmtFetchSynkanProfile(userId) {
+  if (!userId) return null;
+  try {
+    const { data, error } = await _peopleApi.get(
+      `profiles?id=eq.${userId}&select=id,email,full_name,avatar_url&limit=1`
+    );
+    if (error) {
+      console.warn('[people-mgmt] fetch synkan profile:', error.message || error);
+      return null;
+    }
+    return Array.isArray(data) && data.length ? data[0] : null;
+  } catch(e) {
+    console.warn('[people-mgmt] fetch synkan ex:', e?.message);
+    return null;
+  }
+}
+
+// Importa nome/foto/email do Synkan pro registro de people
+async function _peopleMgmtImportFromSynkan(personId) {
+  const personRes = await _peopleApi.get(`people?id=eq.${personId}&select=user_id,name,full_name,photo_url&limit=1`);
+  const person = Array.isArray(personRes.data) && personRes.data[0];
+  if (!person?.user_id) {
+    if (typeof appAlert==='function') appAlert('Sem vínculo', 'Essa pessoa não tem conta Synkan vinculada.', { icon:'⚠' });
+    return;
+  }
+  const profile = await _peopleMgmtFetchSynkanProfile(person.user_id);
+  if (!profile) {
+    if (typeof appAlert==='function') appAlert('Erro', 'Não consegui acessar o perfil Synkan.', { icon:'⚠' });
+    return;
+  }
+
+  // Atualiza apenas campos vazios + sempre atualiza avatar se houver
+  const patch = {};
+  if (!person.name && profile.full_name)      patch.name = profile.full_name.split(' ')[0]; // primeiro nome
+  if (!person.full_name && profile.full_name) patch.full_name = profile.full_name;
+  if (profile.avatar_url)                     patch.photo_url = profile.avatar_url;
+
+  // Atualiza inputs do form (sem perder o que o user já digitou)
+  const nameInp = document.getElementById('ppl-info-name');
+  const fullInp = document.getElementById('ppl-info-full');
+  if (nameInp && !nameInp.value.trim() && profile.full_name) nameInp.value = profile.full_name.split(' ')[0];
+  if (fullInp && !fullInp.value.trim() && profile.full_name) fullInp.value = profile.full_name;
+
+  // Atualiza avatar visualmente
+  if (profile.avatar_url) {
+    const wrap = document.querySelector('.ppl-info-avatar-wrap');
+    if (wrap) wrap.innerHTML = `<img src="${_esc(profile.avatar_url)}" alt="" class="ppl-info-avatar"/>`;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    if (typeof appAlert==='function') appAlert('Nada novo', 'Os dados do Synkan já estão refletidos.', { icon:'ℹ' });
+    return;
+  }
+
+  const { error } = await _peopleApi.patch(`people?id=eq.${personId}`, patch);
+  if (error) {
+    if (typeof appAlert==='function') appAlert('Erro ao importar', error.message||'Tente novamente.', { icon:'⚠' });
+    return;
+  }
+  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
+  if (typeof appAlert==='function') appAlert('Importado ↓', 'Dados do Synkan trazidos com sucesso.', { icon:'✓' });
+}
+
+// Desvincula a conta Synkan dessa pessoa
+async function _peopleMgmtUnlinkSynkan(personId) {
+  if (typeof appConfirm === 'function') {
+    const ok = await appConfirm('Desvincular conta Synkan?', 'A pessoa continua aqui na Gestão, mas perde acesso à própria trilha. Pode revincular depois.');
+    if (!ok) return;
+  } else if (!confirm('Desvincular conta Synkan?')) return;
+  const { error } = await _peopleApi.rpc('people_unlink_user', { p_person_id: personId });
+  if (error) {
+    if (typeof appAlert==='function') appAlert('Erro', error.message||'Tente novamente.', { icon:'⚠' });
+    return;
+  }
+  document.getElementById('ppl-mgmt-info-modal')?.remove();
+  // Reabre o drawer (se tiver) com dados atualizados
+  if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
+    await _peopleOpenMgmtPersonDrawer(personId);
+  }
+  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
+  if (typeof appAlert==='function') appAlert('Desvinculado', 'A pessoa não está mais associada a uma conta Synkan.', { icon:'✓' });
+}
+
+// Abre prompt pra vincular conta Synkan por email
+async function _peopleMgmtOpenLinkSynkanInline(personId) {
+  const email = prompt('Email da conta Synkan a vincular:');
+  if (!email) return;
+  const { data, error } = await _peopleApi.rpc('people_link_user_by_email', { p_person_id: personId, p_email: email.trim() });
+  if (error) {
+    if (typeof appAlert==='function') appAlert('Erro ao vincular', error.message||'Tente novamente.', { icon:'⚠' });
+    return;
+  }
+  if (data?.success === false) {
+    if (typeof appAlert==='function') appAlert('Não vinculado', data.reason || 'Email não encontrado no Synkan.', { icon:'⚠' });
+    return;
+  }
+  document.getElementById('ppl-mgmt-info-modal')?.remove();
+  _peopleMgmtOpenPersonInfoModal(personId); // reabre com dados atualizados
+  if (typeof appAlert==='function') appAlert('Vinculado 🔗', 'Conta Synkan associada. Clique "Importar dados" pra trazer foto e nome.', { icon:'✓' });
+}
+
+// Retorna número de dias até o próximo aniversário (recorrência anual).
+// Ex: hoje=10/Mai, isoDate=15/Mai → 5. Se hoje=20/Mai, isoDate=15/Mai → 360.
+function _peopleDaysUntilNext(isoDate) {
+  if (!isoDate) return null;
+  try {
+    const d = new Date(isoDate);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const next = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+    if (next < today) next.setFullYear(next.getFullYear()+1);
+    return Math.round((next - today)/86400000);
+  } catch(_) { return null; }
 }
 
 function _peopleBirthDistance(isoDate, fromHired) {
