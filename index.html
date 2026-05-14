@@ -67488,11 +67488,97 @@ function _syncalExpandRecurrence(event, rangeStart, rangeEnd) {
   return out;
 }
 
-// Toggle visual da opção de visibilidade no modal
+// Toggle visual da opção de visibilidade no modal de Ajustes
 function _syncalSetVisibility(vis) {
   document.querySelectorAll('.syncal-vis-opt').forEach(el => {
     el.classList.toggle('active', el.dataset.vis === vis);
   });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Modal de Ajustes do Syncal · visibilidade GLOBAL da agenda
+// ────────────────────────────────────────────────────────────────────
+// Era setting por evento. Agora é UM toggle global por user que afeta
+// TODA a agenda. "Workspace" = pessoas que dividem canais do Tatami
+// com você (chat_channel_members em comum), NÃO People Journey.
+// ════════════════════════════════════════════════════════════════════
+async function _syncalOpenAjustesModal() {
+  let modal = document.getElementById('syncal-ajustes-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-ajustes-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10007';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  // Carrega setting atual (RPC garante criar default 'private' se não existir)
+  let currentVis = 'private';
+  try {
+    const res = await _syncalApi.rpc('syncal_settings_get');
+    if (res.data?.default_visibility) currentVis = res.data.default_visibility;
+  } catch(_){}
+
+  modal.innerHTML = `
+    <div class="modal" style="max-width:560px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;display:inline-flex;align-items:center;gap:8px;">⚙ Ajustes do Syncal <span style="font-family:'Noto Serif JP',serif;font-size:11px;background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;padding:2px 8px;border-radius:5px;letter-spacing:.05em;">暦</span></h3>
+        <button onclick="document.getElementById('syncal-ajustes-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:8px;">👁 Visibilidade da minha agenda</div>
+        <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.6;margin:0 0 14px;">
+          Quem pode ver os SEUS eventos? Essa escolha vale pra <strong>todos os seus eventos</strong> de uma vez (não precisa decidir por evento). Você pode trocar a qualquer momento.
+        </p>
+
+        <div class="syncal-vis-grid" id="syncal-ajustes-vis-grid" style="margin-bottom:14px;">
+          ${[
+            {key:'private',  emoji:'🔒', label:'Privado',  hint:'só você + convidados explícitos'},
+            {key:'workspace',emoji:'👥', label:'Workspace', hint:'time do Tatami vê detalhes'},
+            {key:'busy',     emoji:'⏳', label:'Ocupado',   hint:'time vê só "ocupado", sem título'},
+          ].map(opt => `
+            <label class="syncal-vis-opt ${currentVis===opt.key?'active':''}" data-vis="${opt.key}" onclick="_syncalAjustesSetVis('${opt.key}')">
+              <div class="syncal-vis-emoji">${opt.emoji}</div>
+              <div class="syncal-vis-label">${opt.label}</div>
+              <div class="syncal-vis-hint">${opt.hint}</div>
+            </label>
+          `).join('')}
+        </div>
+
+        <div style="padding:11px 13px;background:linear-gradient(135deg,rgba(58,36,16,.06),rgba(193,154,58,.04));border:0.5px solid #6B4825;border-radius:9px;font-size:12px;color:#3A2410;line-height:1.6;">
+          <strong style="font-family:'Noto Serif JP',serif;">🎴 Time do Tatami</strong> — são as pessoas que dividem pelo menos um canal de chat com você. Quem é só do <em>People Journey</em> mas não está em canal nenhum não conta como "time".
+        </div>
+
+        <div style="margin-top:12px;padding:10px 12px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11.5px;color:#7A5500;line-height:1.55;">
+          <strong>Como cada modo funciona:</strong><br/>
+          • <strong>Privado</strong>: ninguém vê sua agenda — apenas quem você convida pra eventos específicos.<br/>
+          • <strong>Workspace</strong>: o time do Tatami vê os títulos e horários (não duro pra coordenar reuniões).<br/>
+          • <strong>Ocupado</strong>: o time vê só "🔒 Ocupado" no horário — privacidade dos detalhes mas evita conflito de agenda.
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+          <button class="ppl-btn" onclick="document.getElementById('syncal-ajustes-modal').remove()">Fechar</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+// Salva mudança de visibility instantaneamente (sem botão "salvar")
+async function _syncalAjustesSetVis(vis) {
+  // UI feedback imediato
+  document.querySelectorAll('#syncal-ajustes-vis-grid .syncal-vis-opt').forEach(el => {
+    el.classList.toggle('active', el.dataset.vis === vis);
+  });
+  // Persiste
+  const res = await _syncalApi.rpc('syncal_settings_set', { p_visibility: vis });
+  if (res.error) {
+    if (typeof appAlert === 'function') appAlert('Erro', res.error.message, { icon: '⚠️' });
+    return;
+  }
+  // Recarrega eventos pra refletir mascaramento (caso seja "busy" → eventos novos
+  // que outras pessoas tinham visto começam a mascarar, e vice-versa)
+  await _syncalLoadEvents();
+  if (currentTab === 'syncal') _syncalRenderContent();
 }
 
 // Toggle visibilidade dos detalhes de recorrência (interval/byday/until)
@@ -67943,6 +68029,7 @@ function renderSyncal() {
           </div>
           <button class="syncal-btn-primary" onclick="_syncalOpenWorkloadModal()" title="Carga de reuniões por pessoa" style="background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);">⏱ Carga</button>
           <button class="syncal-btn-primary" onclick="_syncalOpenIcsMenu()" title="Importar / Exportar .ics" style="background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);">⇅ ICS</button>
+          <button class="syncal-btn-primary" onclick="_syncalOpenAjustesModal()" title="Ajustes do Syncal (visibilidade da agenda)" style="background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);font-size:18px;line-height:1;padding:8px 12px;">⚙</button>
           <button class="syncal-btn-primary" onclick="_syncalOpenEventModal()" title="Novo evento (N)">＋ Novo evento</button>
         </div>
       </div>
@@ -69936,28 +70023,6 @@ async function _syncalOpenEventModal(prefDate, editingId) {
             </div>
           </div>
 
-          <!-- ───── Visibilidade — quem vê o evento (private/workspace/busy) ───── -->
-          <div class="ppl-modal-row">
-            <label class="ppl-modal-label">👁 Visibilidade</label>
-            <div class="syncal-vis-grid">
-              ${[
-                {key:'private',  emoji:'🔒', label:'Privado',  hint:'só você + convidados'},
-                {key:'workspace',emoji:'👥', label:'Workspace', hint:'pessoas que você gerencia veem tudo'},
-                {key:'busy',     emoji:'⏳', label:'Ocupado',   hint:'time vê só "ocupado", sem detalhes'},
-              ].map(opt => `
-                <label class="syncal-vis-opt ${(existing?.visibility||'private')===opt.key?'active':''}" data-vis="${opt.key}">
-                  <input type="radio" name="visibility" value="${opt.key}" ${(existing?.visibility||'private')===opt.key?'checked':''} onchange="_syncalSetVisibility('${opt.key}')" style="display:none;"/>
-                  <div class="syncal-vis-emoji">${opt.emoji}</div>
-                  <div class="syncal-vis-label">${opt.label}</div>
-                  <div class="syncal-vis-hint">${opt.hint}</div>
-                </label>
-              `).join('')}
-            </div>
-            <div style="margin-top:6px;font-size:10.5px;color:var(--color-text-tertiary);line-height:1.4;">
-              <em>Workspace/Ocupado</em> aparece pra pessoas que estão na sua trilha do <strong>People Journey</strong> (com conta vinculada).
-            </div>
-          </div>
-
           <!-- ───── Tag de cor (team/projeto) — pra agrupar visualmente ───── -->
           <div class="ppl-modal-row">
             <label class="ppl-modal-label" style="display:flex;align-items:center;justify-content:space-between;">
@@ -70208,9 +70273,8 @@ async function _syncalSubmitEvent(editingId) {
   // Captura tag de cor (team/projeto)
   const tagId = fd.get('color_tag_id');
   ev.colorTagId = tagId || null;
-
-  // Captura visibilidade (private | workspace | busy)
-  ev.visibility = fd.get('visibility') || 'private';
+  // Nota: visibility não é mais por evento — vem do setting GLOBAL do user.
+  // Veja `_syncalOpenAjustesModal` no header do Syncal.
 
   // Persiste no Supabase + atualiza state local
   const saveRes = await _syncalUpsertEvent(ev);
