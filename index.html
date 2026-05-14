@@ -67384,6 +67384,67 @@ function _syncalNewId() {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// Identity matching · pra saber quais cards do board são "meus"
+// ────────────────────────────────────────────────────────────────────
+// O `c.responsavel` é uma string livre selecionada de um dropdown do
+// time do board (pode ser "Anderson Cunha", "anderson teste", email…).
+// Não dá pra confiar só em `user_metadata.full_name` porque o user pode
+// ter se adicionado ao time com um apelido diferente. Junta TUDO que o
+// user pode ter como identidade e compara case-insensitive/trim.
+// ════════════════════════════════════════════════════════════════════
+function _syncalGetMyIdentities() {
+  const ids = new Set();
+  const add = (s) => { if (s && typeof s === 'string') ids.add(s.toString().trim().toLowerCase()); };
+
+  // 1) Auth user_metadata.full_name (o "oficial")
+  if (typeof supaUser !== 'undefined' && supaUser) {
+    add(supaUser.user_metadata?.full_name);
+    add(supaUser.user_metadata?.name);
+    add(supaUser.user_metadata?.display_name);
+    add(supaUser.email);
+    // Parte local do email (antes do @) — bate com "anderson teste" → "anderson"
+    if (supaUser.email) add(supaUser.email.split('@')[0]);
+    // ID também — caso algum card tenha sido criado salvando o UUID
+    add(supaUser.id);
+  }
+
+  // 2) Quem o app considera "me" no Home (combinando team com priorities)
+  try {
+    if (typeof team !== 'undefined' && Array.isArray(team)) {
+      // O Home usa "Anderson Cunha" como fallback mas o user real pode estar
+      // adicionado com outro nome. Aqui pegamos TODOS os candidatos.
+      const teamArr = team;
+      if (teamArr.length === 1) add(teamArr[0]);  // 1-pessoa workspace → é ela
+      if (teamArr.includes('Anderson Cunha')) add('Anderson Cunha');
+    }
+  } catch(_){}
+
+  // 3) Variantes de nome (sobrenome, etc) — pega primeiro token também
+  const baseName = (typeof supaUser !== 'undefined' && supaUser?.user_metadata?.full_name) || null;
+  if (baseName) {
+    const tokens = baseName.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length > 1) {
+      add(tokens[0]);                // só primeiro nome
+      add(tokens[tokens.length-1]);  // só último
+    }
+  }
+
+  return ids;
+}
+
+// Compara responsável do card com qualquer identidade conhecida (case+trim)
+function _syncalIsMine(responsavel, identities) {
+  if (!responsavel) return false;
+  const r = String(responsavel).trim().toLowerCase();
+  if (!r) return false;
+  if (identities.has(r)) return true;
+  // Match fuzzy: primeiro token (ex: "anderson teste" contém "anderson")
+  const firstToken = r.split(/\s+/)[0];
+  if (firstToken && identities.has(firstToken)) return true;
+  return false;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Expansão de recorrência (subset RRULE)
 // ────────────────────────────────────────────────────────────────────
 // Gera instâncias de um evento recorrente dentro de uma janela [from, to].
@@ -67565,7 +67626,7 @@ async function _syncalOpenAjustesModal() {
         </div>
 
         <div style="padding:11px 13px;background:linear-gradient(135deg,rgba(58,36,16,.06),rgba(193,154,58,.04));border:0.5px solid #6B4825;border-radius:9px;font-size:12px;color:#3A2410;line-height:1.6;">
-          <strong style="font-family:'Noto Serif JP',serif;">🎴 Time do Tatami</strong> — são as pessoas que dividem pelo menos um canal de chat com você. Quem é só do <em>People Journey</em> mas não está em canal nenhum não conta como "time".
+          <strong style="font-family:'Noto Serif JP',serif;">🎴 Time do Tatami</strong> — qualquer pessoa que divida pelo menos um canal de chat com você. Pra adicionar alguém ao seu time, convide pro canal no módulo <strong>Chat</strong>.
         </div>
 
         <div style="margin-top:12px;padding:10px 12px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11.5px;color:#7A5500;line-height:1.55;">
@@ -67932,21 +67993,10 @@ function _syncalCollectEvents(fromDate, toDate) {
   //    (Calendário do team poluído por todos os cards do workspace ficava ruim;
   //    o Syncal foca em "MEUS compromissos", não em "tudo que tem prazo".)
   if (f.boards && typeof cards !== 'undefined' && Array.isArray(cards)) {
-    // Resolve o nome do user pra comparar com c.responsavel (mesmo padrão do Home)
-    const team = (typeof window !== 'undefined' && Array.isArray(window.team)) ? window.team : (typeof window.team !== 'undefined' ? window.team : []);
-    const myName = (typeof supaUser !== 'undefined' && supaUser?.user_metadata?.full_name)
-      ? supaUser.user_metadata.full_name
-      : (Array.isArray(team) && team.includes('Anderson Cunha') ? 'Anderson Cunha' : (team[0] || null));
-    const myEmail = (typeof supaUser !== 'undefined' && supaUser?.email) ? supaUser.email : null;
-
+    const myIdentities = _syncalGetMyIdentities();
     cards.forEach(c => {
       if (!c.deadline) return;
-      // Filtro: só cards onde EU sou o responsável (match por nome OU email)
-      const resp = (c.responsavel || '').toString().trim();
-      if (!resp) return;
-      const isMine = (myName && resp === myName)
-                  || (myEmail && resp.toLowerCase() === myEmail.toLowerCase());
-      if (!isMine) return;
+      if (!_syncalIsMine(c.responsavel, myIdentities)) return;
 
       const isDone = c.col === (typeof TERMINAL_COL !== 'undefined' ? TERMINAL_COL : 'done');
       out.push({
