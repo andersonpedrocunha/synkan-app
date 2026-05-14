@@ -70097,8 +70097,8 @@ document.addEventListener('keydown', (e) => {
 // Auto-carrega dados se módulo Syncal nunca foi aberto.
 // ════════════════════════════════════════════════════════════════════
 
-// Injeta o container do widget no Home (idempotente). Posiciona logo após
-// o banner People se existir; senão no topo do home.
+// Injeta o container do widget no Home (idempotente). Posiciona no FIM
+// da página (depois de todos os outros blocos do home).
 async function _syncalInjectHomeWidget() {
   const home = document.getElementById('home');
   if (!home) return;
@@ -70106,14 +70106,9 @@ async function _syncalInjectHomeWidget() {
   document.getElementById('syncal-home-widget')?.remove();
   const wrap = document.createElement('div');
   wrap.id = 'syncal-home-widget';
-  wrap.style.cssText = 'margin:0 0 20px;';
-  // Posiciona: depois do banner People se houver, senão no topo
-  const pplBanner = document.getElementById('ppl-home-banner');
-  if (pplBanner && pplBanner.nextSibling) {
-    home.insertBefore(wrap, pplBanner.nextSibling);
-  } else {
-    home.insertBefore(wrap, home.firstChild);
-  }
+  wrap.style.cssText = 'margin:24px 0 8px;';
+  // Appenda no fim do home (depois de tudo)
+  home.appendChild(wrap);
   await renderSyncalHomeWidget('syncal-home-widget');
 }
 
