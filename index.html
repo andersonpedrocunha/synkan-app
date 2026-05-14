@@ -75083,7 +75083,7 @@ function _syncalUpdateKrSelect(okrId) {
 // ════════════════════════════════════════════════════════════════════
 // #8 Anexos do Bunko
 // ════════════════════════════════════════════════════════════════════
-function _syncalAddBunkoAttachment() {
+async function _syncalAddBunkoAttachment() {
   // Abre picker do Bunko (se existir) OU usa prompt simples
   if (typeof _bunkoOpenPicker === 'function') {
     _bunkoOpenPicker((file) => {
