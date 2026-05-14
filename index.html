@@ -35733,6 +35733,26 @@ let _peopleState = {
   loading: false,
 };
 
+// ── Ajustes do módulo (toggles de automação, persistidos no localStorage) ──
+// Nem todo workspace quer tudo automático. Esses ajustes deixam cada coisa
+// opcional. Bunko/Chat são por trilha (ao criar pessoa). Pulse é semanal.
+const _PEOPLE_SETTINGS_KEY = 'synkan_people_settings_v1';
+const _PEOPLE_DEFAULT_SETTINGS = {
+  autoBunkoFolder:    true,  // gera pasta People · [Nome] no Bunko
+  autoChatChannel:    true,  // cria canal #onboarding-[nome]
+  autoChannelMembers: true,  // adiciona sensei/padrinho/pessoa ao canal
+  autoWeeklyPulse:    true,  // dispara pulse a cada 7d pro aprendiz
+};
+function _peopleGetSettings() {
+  try {
+    const raw = localStorage.getItem(_PEOPLE_SETTINGS_KEY);
+    return { ..._PEOPLE_DEFAULT_SETTINGS, ...(raw ? JSON.parse(raw) : {}) };
+  } catch(_) { return { ..._PEOPLE_DEFAULT_SETTINGS }; }
+}
+function _peopleSaveSettings(s) {
+  try { localStorage.setItem(_PEOPLE_SETTINGS_KEY, JSON.stringify(s)); } catch(_){}
+}
+
 // Metáfora: fases da lua (新月→満月). Substitui "faixas" pra não conflitar
 // com a gamificação de plano/rank que já usa belts (Faixa Branca/Azul/Roxa/
 // Preta) e o sistema de XP de "Sensei Iniciante" etc. Os keys do DB
@@ -36061,6 +36081,9 @@ async function _peopleRenderHomeBanner() {
 // (sentimento + summary) e o sensei vê histórico no drawer da pessoa.
 async function _peoplePulseCheckDue() {
   if (!_peopleState.myAprendiz) return;
+  // Respeita setting do workspace — se pulse semanal tá desligado, não pergunta
+  const settings = _peopleGetSettings();
+  if (!settings.autoWeeklyPulse) return;
   try {
     const { data, error } = await _peopleApi.rpc('people_pulse_check_due');
     if (error || !data?.due) return;
@@ -36157,6 +36180,7 @@ function _peopleRenderMain() {
         </div>
         <div class="ppl-actions">
           ${myCardHTML}
+          <button class="ppl-btn" onclick="_peopleOpenSettingsModal()" title="Ajustes do módulo (toggles de automação)">⚙</button>
           <button class="ppl-btn-primary ppl-btn" onclick="_peopleOpenCreateModal()">＋ Nova pessoa</button>
         </div>
       </div>
@@ -36173,7 +36197,7 @@ function _peopleRenderMain() {
         <button class="ppl-tab ${tab==='graduados'?'active':''}"  onclick="_peopleSetTab('graduados')">🎓 Graduados <span style="opacity:.55;">${graduados.length}</span></button>
         <button class="ppl-tab ${tab==='historico'?'active':''}"  onclick="_peopleSetTab('historico')">📜 Histórico <span style="opacity:.55;">${Number(d.total_desligados)||0}</span></button>
         <button class="ppl-tab ${tab==='templates'?'active':''}"  onclick="_peopleSetTab('templates')">📋 Templates <span style="opacity:.55;">${_peopleState.templates.length}</span></button>
-        <button class="ppl-tab ${tab==='pulse'?'active':''}"      onclick="_peopleSetTab('pulse')">💚 Check-ins <span style="opacity:.55;">${(d.pulse_count!==undefined)?d.pulse_count:''}</span></button>
+        <button class="ppl-tab ${tab==='pulse'?'active':''}"      onclick="_peopleSetTab('pulse')">💚 Check-ins <span style="opacity:.55;">${Number(d.pulse_count)||0}</span>${Number(d.pulses_pending)>0?`<span style="background:#BC002D;color:#fff;font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:5px;vertical-align:1px;">${d.pulses_pending} aguardando</span>`:''}</button>
       </div>
 
       <div id="ppl-tab-content"></div>
@@ -36993,6 +37017,36 @@ function _peopleOpenIntegrationsHelp() {
   modal.className = 'ov open';
   modal.style.zIndex = '10005';
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  // Lê settings do localStorage pra refletir estado real de cada automação
+  const s = _peopleGetSettings();
+
+  // Helper: monta um <li> com cor/badge dependendo se a integração está ativa
+  // - `togglable=false` → integração manual (sempre disponível, sem toggle); mostra "manual"
+  // - `togglable=true`  → integração automática; ✓ ativo (verde) ou ○ desligado (cinza)
+  const renderItem = (emoji, title, body, status) => {
+    const isOff   = status === 'off';
+    const bg      = isOff ? 'var(--color-surface-tertiary, #F1F1EE)' : '#E2F0D0';
+    const txtCol  = isOff ? 'var(--color-text-tertiary)' : '#2A4F0A';
+    const badge   = status === 'manual'
+      ? `<strong style="color:var(--color-text-secondary);">⊙ manual</strong>`
+      : isOff
+        ? `<strong style="color:var(--color-text-tertiary);">○ desligado</strong>`
+        : `<strong style="color:#3B6D11;">✓ ativo</strong>`;
+    const opacity = isOff ? '.65' : '1';
+    return `
+      <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:${bg};border-radius:8px;opacity:${opacity};">
+        <span style="font-size:18px;flex-shrink:0;">${emoji}</span>
+        <div style="flex:1;font-size:12.5px;color:${txtCol};line-height:1.55;"><strong>${title}</strong> — ${body} ${badge}</div>
+      </li>`;
+  };
+
+  // Conta ativas/totais pra footer dinâmico
+  const autoStates = [s.autoBunkoFolder, s.autoChatChannel, s.autoWeeklyPulse];
+  const autoOn     = autoStates.filter(Boolean).length;
+  const autoTotal  = autoStates.length;
+  const allOn      = autoOn === autoTotal;
+
   modal.innerHTML = `
     <div class="modal" style="max-width:600px;width:95%;">
       <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
@@ -37000,35 +37054,17 @@ function _peopleOpenIntegrationsHelp() {
         <button onclick="document.getElementById('ppl-help-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
       </div>
       <div class="mb">
-        <p style="font-size:13px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 14px;">Como o People Journey conversa com o resto do Synkan durante o onboarding de uma pessoa:</p>
+        <p style="font-size:13px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 14px;">Como o People Journey conversa com o resto do Synkan durante o onboarding de uma pessoa. Quer ajustar o que roda automático? Clica em <strong>⚙ Ajustes</strong> no header do módulo.</p>
         <ul style="margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:10px;">
-          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
-            <span style="font-size:18px;flex-shrink:0;">🎴</span>
-            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Tatami</strong> — etapas tipo "Reunião de boas-vindas" / "Check-in 30 dias" mostram botão 🎴 no drawer que abre direto o canal da pessoa pro sensei subir no tatame. Transcrição via Mestre Kan vira pergaminho no Bunko. <strong style="color:#3B6D11;">✓ ativo</strong></div>
-          </li>
-          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
-            <span style="font-size:18px;flex-shrink:0;">📋</span>
-            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Boards</strong> — etapas de treinamento/plano mostram botão 📋 no drawer pra promover pra card de board específico (ex: "Primeiro PR"). Ficam vinculadas — o card aparece no fluxo normal do time. <strong style="color:#3B6D11;">✓ ativo</strong></div>
-          </li>
-          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
-            <span style="font-size:18px;flex-shrink:0;">📦</span>
-            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Bunko Box</strong> — ao criar a pessoa, sistema gera pasta automática <code>People · [Nome]</code> com 4 sub-pastas: Documentos pessoais · Contratos · Materiais de boas-vindas · Gravações dos check-ins. <strong style="color:#3B6D11;">✓ ativo</strong></div>
-          </li>
-          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
-            <span style="font-size:18px;flex-shrink:0;">💬</span>
-            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Chat</strong> — canal workspace privado <code>#onboarding-[nome]</code> criado automaticamente com a pessoa + sensei + padrinho. <strong style="color:#3B6D11;">✓ ativo</strong></div>
-          </li>
-          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
-            <span style="font-size:18px;flex-shrink:0;">💚</span>
-            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>Check-ins</strong> — a cada 7 dias, Mestre Kan pergunta "como tá indo?" no chat. Resposta vira histórico que o sensei acompanha. <strong style="color:#3B6D11;">✓ ativo</strong></div>
-          </li>
-          <li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#E2F0D0;border-radius:8px;">
-            <span style="font-size:18px;flex-shrink:0;">🎯</span>
-            <div style="flex:1;font-size:12.5px;color:#2A4F0A;line-height:1.55;"><strong>OKRs</strong> — etapas com "OKR" no título mostram botão 🎯 no drawer que abre direto o módulo OKRs pra a pessoa montar seus primeiros objetivos. <strong style="color:#3B6D11;">✓ ativo</strong></div>
-          </li>
+          ${renderItem('🎴', 'Tatami', 'etapas tipo "Reunião de boas-vindas" / "Check-in 30 dias" mostram botão 🎴 no drawer que abre direto o canal da pessoa pro sensei subir no tatame. Transcrição via Mestre Kan vira pergaminho no Bunko.', 'manual')}
+          ${renderItem('📋', 'Boards', 'etapas de treinamento/plano mostram botão 📋 no drawer pra promover pra card de board específico (ex: "Primeiro PR"). Ficam vinculadas — o card aparece no fluxo normal do time.', 'manual')}
+          ${renderItem('📦', 'Bunko Box', 'ao criar a pessoa, sistema gera pasta automática <code>People · [Nome]</code> com 4 sub-pastas: Documentos pessoais · Contratos · Materiais de boas-vindas · Gravações dos check-ins.', s.autoBunkoFolder ? 'on' : 'off')}
+          ${renderItem('💬', 'Chat', `canal workspace privado <code>#onboarding-[nome]</code> criado automaticamente${s.autoChannelMembers ? ' com a pessoa + sensei + padrinho já dentro' : ' (você adiciona membros manualmente)'}.`, s.autoChatChannel ? 'on' : 'off')}
+          ${renderItem('💚', 'Check-ins', 'a cada 7 dias, Mestre Kan pergunta "como tá indo?" no chat. Resposta vira histórico que o sensei acompanha.', s.autoWeeklyPulse ? 'on' : 'off')}
+          ${renderItem('🎯', 'OKRs', 'etapas com "OKR" no título mostram botão 🎯 no drawer que abre direto o módulo OKRs pra a pessoa montar seus primeiros objetivos.', 'manual')}
         </ul>
-        <div style="margin-top:14px;padding:9px 11px;background:rgba(59,109,17,.10);border-left:3px solid #3B6D11;border-radius:0 6px 6px 0;font-size:11px;color:#2A4F0A;line-height:1.55;">
-          <strong>Todas as 6 integrações ativas.</strong> Algumas rolam automáticas (Bunko/Chat/Check-ins) e outras são trigger no drawer da pessoa (botões 🎴 / 📋 / 🎯 nas etapas relevantes).
+        <div style="margin-top:14px;padding:9px 11px;background:${allOn ? 'rgba(59,109,17,.10)' : 'rgba(180,140,30,.10)'};border-left:3px solid ${allOn ? '#3B6D11' : '#B48C1E'};border-radius:0 6px 6px 0;font-size:11px;color:${allOn ? '#2A4F0A' : '#6B5410'};line-height:1.55;">
+          <strong>${allOn ? `Todas as ${autoTotal} automações ativas.` : `${autoOn} de ${autoTotal} automações ativas.`}</strong> Tatami / Boards / OKRs ficam sempre disponíveis como botões manuais no drawer das etapas relevantes (🎴 / 📋 / 🎯).
         </div>
       </div>
     </div>`;
@@ -37188,16 +37224,76 @@ async function _peopleSubmitCreate() {
 // Roda em background depois que o aprendiz é criado. Cada integração é
 // independente — se uma falhar, as outras continuam. IDs são gravados em
 // people_trails (board_id, bunko_folder_id, channel_id) pra referência.
+// ── Modal de Ajustes do People Journey ──────────────────────────────
+function _peopleOpenSettingsModal() {
+  let modal = document.getElementById('ppl-settings-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-settings-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10006';
+  const s = _peopleGetSettings();
+  const opt = (key, title, desc) => `
+    <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:var(--color-background-secondary);border-radius:9px;cursor:pointer;border:1px solid transparent;transition:border-color .12s;" onmouseenter="this.style.borderColor='var(--color-border-tertiary)'" onmouseleave="this.style.borderColor='transparent'">
+      <input type="checkbox" name="${key}" ${s[key]?'checked':''} style="margin-top:3px;cursor:pointer;flex-shrink:0;width:16px;height:16px;"/>
+      <div style="flex:1;">
+        <div style="font-size:13.5px;font-weight:600;color:var(--color-text-primary);">${title}</div>
+        <div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:2px;line-height:1.5;">${desc}</div>
+      </div>
+    </label>`;
+  modal.innerHTML = `
+    <div class="modal" style="max-width:560px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:18px;">⚙ Ajustes do People Journey</h3>
+        <button onclick="document.getElementById('ppl-settings-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <p style="font-size:12.5px;color:var(--color-text-secondary);margin:0 0 16px;line-height:1.55;">Nem todo time quer tudo automático. Desliga aqui o que não fizer sentido pro seu workspace. <em style="opacity:.75;">Salvas localmente no navegador.</em></p>
+        <form id="ppl-settings-form" style="display:flex;flex-direction:column;gap:8px;" onsubmit="event.preventDefault();_peopleSaveSettingsFromForm();">
+          ${opt('autoBunkoFolder', '📦 Criar pasta no Bunko Box', 'Ao criar pessoa, gera <code>People · [Nome]</code> com 4 sub-pastas (docs pessoais, contratos, materiais de boas-vindas, gravações). Útil pra workspaces que usam Bunko como gestor documental.')}
+          ${opt('autoChatChannel', '💬 Criar canal de chat', 'Ao criar pessoa, abre canal workspace privado <code>#onboarding-[nome]</code>. Desliga se você usa Slack/Discord externos ou prefere DM avulsa.')}
+          ${opt('autoChannelMembers', '👥 Adicionar sensei/padrinho/pessoa ao canal', 'Se canal automático tá ligado, adiciona os 3 envolvidos. Desliga se você prefere gerenciar membros manualmente caso a caso.')}
+          ${opt('autoWeeklyPulse', '💚 Check-in semanal automático', 'A cada 7 dias o Mestre Kan pergunta "como tá indo?" pro aprendiz no chat. Desliga se você prefere fazer 1:1 manuais ou se a equipe é pequena demais pra justificar.')}
+        </form>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+          <button class="ppl-btn" onclick="document.getElementById('ppl-settings-modal').remove()">Cancelar</button>
+          <button class="ppl-btn ppl-btn-primary" onclick="_peopleSaveSettingsFromForm()">Salvar ajustes</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function _peopleSaveSettingsFromForm() {
+  const form = document.getElementById('ppl-settings-form');
+  if (!form) return;
+  const s = {};
+  ['autoBunkoFolder','autoChatChannel','autoChannelMembers','autoWeeklyPulse'].forEach(k => {
+    const input = form.querySelector(`input[name="${k}"]`);
+    s[k] = !!input?.checked;
+  });
+  _peopleSaveSettings(s);
+  document.getElementById('ppl-settings-modal')?.remove();
+  if (typeof appAlert === 'function') {
+    const off = Object.entries(s).filter(([k,v]) => !v).map(([k]) => k).length;
+    appAlert('Ajustes salvos ⚙', off === 0
+      ? 'Todas as 4 automações ativas. People Journey roda na configuração padrão.'
+      : `${4-off} automações ativas · ${off} desligadas. Aplicado a partir das próximas pessoas criadas.`,
+      { icon: '✓' });
+  }
+}
+
 async function _peopleProvisionIntegrations(trailId, personName, personId) {
   if (!trailId) return;
   if (typeof supaUser === 'undefined' || !supaUser) return;
+  const settings = _peopleGetSettings();
   const slug = (personName || 'aprendiz').toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '') // remove acentos
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const updates = {};
 
-  // 1) Pasta Bunko "People · [Nome]" com sub-pastas pré-criadas (via _peopleApi raw fetch)
-  try {
+  // 1) Pasta Bunko "People · [Nome]" — só se setting tá ligado
+  if (settings.autoBunkoFolder) try {
     const { data: folder, error: fErr } = await _peopleApi.rpc('create_bunko_folder', {
       p_name: `People · ${personName}`, p_parent_id: null, p_icon: '🥋', p_color: '#6B4825'
     });
@@ -37218,11 +37314,8 @@ async function _peopleProvisionIntegrations(trailId, personName, personId) {
     }
   } catch(e) { console.warn('[people] bunko folder ex:', e?.message); }
 
-  // 2) Canal de chat workspace privado pro onboarding
-  // Usa RPC `create_chat_channel` (SECURITY DEFINER) — mesmo padrão que o
-  // resto do app usa. Type 'workspace' + is_private=true. Insert direto
-  // em chat_channels falha silenciosamente por CHECK constraint no type.
-  try {
+  // 2) Canal de chat workspace privado pro onboarding — só se setting tá ligado
+  if (settings.autoChatChannel) try {
     const channelName = `onboarding-${slug}`.slice(0, 60);
     const exRes = await _peopleApi.get(`chat_channels?workspace_owner=eq.${supaUser.id}&name=eq.${encodeURIComponent(channelName)}&select=id&limit=1`);
     const existing = Array.isArray(exRes.data) ? exRes.data[0] : null;
@@ -37245,9 +37338,8 @@ async function _peopleProvisionIntegrations(trailId, personName, personId) {
     }
   } catch(e) { console.warn('[people] channel ex:', e?.message); }
 
-  // 3) Adiciona membros ao canal (sensei + padrinho + aprendiz se tiver user_id)
-  // O workspace_owner já é adicionado automaticamente pelo create_chat_channel.
-  if (updates.channel_id && personId) {
+  // 3) Adiciona membros ao canal — só se setting tá ligado E canal existe
+  if (settings.autoChannelMembers && updates.channel_id && personId) {
     try {
       const pRes = await _peopleApi.get(`people?id=eq.${personId}&select=sensei_id,buddy_id,user_id&limit=1`);
       const person = Array.isArray(pRes.data) ? pRes.data[0] : null;
