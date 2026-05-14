@@ -8679,10 +8679,13 @@ function setSupabaseConfig(cfg) {
 // bunko_storage_gb:    -1=ilimitado, N=GB de storage no Bunko Box
 // rec_hours_per_month: -1=ilimitado, N=horas máx de gravação Tatame por mês (só Preta tem >0)
 const PLAN_LIMITS = {
-  trial:        { ai: 30,   boards: -1, canvas: -1, okrs: -1, unified: -1, zai: -1,
+  // Trial alinhado com Faixa Azul pra zero conflito em qualquer downgrade.
+  // (Quem assina Azul não fica com excesso; quem sobe pra Roxa/Preta ganha espaço.)
+  // Mantém Tatame full + gravação pra mostrar valor do produto durante o trial.
+  trial:        { ai: 30,   boards: 5,  canvas: 5,  okrs: 3,  unified: -1, zai: 3,
                   seats: 1, editors: 0, viewers: 1,
                   chat_history_days: -1, integrations: true, shared_boards: false, synconnect: true,
-                  tatame: 'full', synconnect_contacts: -1, bunko_storage_gb: 5, rec_hours_per_month: 5,
+                  tatame: 'full', synconnect_contacts: 50, bunko_storage_gb: 5, rec_hours_per_month: 5,
                   name: 'Trial 7 dias',                price: 0     },
   faixa_branca: { ai: 10,   boards: 1,  canvas: 1,  okrs: 1,  unified: 1,  zai: 1,
                   seats: 1, editors: 0, viewers: 0,
@@ -19108,8 +19111,8 @@ function _settingsPlanoSection() {
             zai:'1', integ:'—', shared:'—',
             admin:'só você', editor:'—',         viewer:'—' },
           { code:'trial',       label:'Trial',        sub:'7 dias',     price:'Grátis',
-            ai:'30',     boards:'∞',     canvas:'∞',  okrs:'∞',  unified:'∞', tatami:'liberado',
-            zai:'∞', integ:'✓', shared:'✓',
+            ai:'30',     boards:'5',     canvas:'5',  okrs:'3',  unified:'∞', tatami:'∞ + 5h grav',
+            zai:'3', integ:'✓', shared:'✓',
             admin:'só você', editor:'—',         viewer:'1 board' },
           { code:'faixa_azul',  label:'Faixa Azul',   sub:'Pessoal',    price:'R$ 15,90/mês',
             ai:'100',    boards:'5',     canvas:'5',  okrs:'3',  unified:'∞', tatami:'90d',
