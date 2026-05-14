@@ -3947,6 +3947,17 @@ body.density-compact .col{padding:7px;}
 
 .syncal-empty{padding:60px 24px;text-align:center;}
 
+/* Visibilidade (3 cards) */
+.syncal-vis-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.syncal-vis-opt{padding:10px 6px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);border-radius:8px;cursor:pointer;text-align:center;transition:all .12s;display:flex;flex-direction:column;align-items:center;gap:1px;}
+.syncal-vis-opt:hover{border-color:var(--color-text-secondary);background:var(--color-background-secondary);}
+.syncal-vis-opt.active{background:linear-gradient(135deg,#3A2410,#6B4825);border-color:#3A2410;color:#F5E8C8;box-shadow:0 2px 6px rgba(58,36,16,.20);}
+.syncal-vis-opt.active .syncal-vis-hint{color:rgba(245,232,200,.7);}
+.syncal-vis-emoji{font-size:18px;line-height:1;margin-bottom:2px;}
+.syncal-vis-label{font-size:12px;font-weight:600;color:inherit;}
+.syncal-vis-hint{font-size:9.5px;color:var(--color-text-tertiary);line-height:1.3;margin-top:1px;}
+@media (max-width:480px){.syncal-vis-grid{grid-template-columns:1fr;}}
+
 .syncal-type-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
 .syncal-type-opt{padding:10px 6px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);border-radius:8px;cursor:pointer;text-align:center;transition:all .12s;display:flex;flex-direction:column;align-items:center;gap:2px;}
 .syncal-type-opt:hover{border-color:var(--color-text-secondary);background:var(--color-background-secondary);}
@@ -67233,6 +67244,10 @@ function _syncalNormalizeRow(r) {
     icon: r.icon || '📌',
     color: r.color || '#3B6D11',
     colorTagId: r.color_tag_id || null,
+    visibility: r.visibility || 'private',
+    publicToken: r.public_token || null,
+    publicEnabled: !!r.public_enabled,
+    isMasked: !!r.is_masked,
     // Recorrência
     recurrence: r.recurrence_freq ? {
       freq: r.recurrence_freq,
@@ -67302,6 +67317,7 @@ function _syncalEventToServerShape(ev) {
     icon: ev.icon || '📌',
     color: ev.color || '#3B6D11',
     color_tag_id: ev.colorTagId || null,
+    visibility: ev.visibility || 'private',
     linked_channel_id: ev.linkedChannelId || null,
     link_type: ev.link?.type || null,
     link_id: ev.link?.id || null,
@@ -67470,6 +67486,13 @@ function _syncalExpandRecurrence(event, rangeStart, rangeEnd) {
   }
 
   return out;
+}
+
+// Toggle visual da opção de visibilidade no modal
+function _syncalSetVisibility(vis) {
+  document.querySelectorAll('.syncal-vis-opt').forEach(el => {
+    el.classList.toggle('active', el.dataset.vis === vis);
+  });
 }
 
 // Toggle visibilidade dos detalhes de recorrência (interval/byday/until)
@@ -68367,13 +68390,19 @@ function _syncalOpenIcsMenu() {
           <button class="ppl-btn ppl-btn-primary" style="background:#378ADD;border-color:#378ADD;color:#fff;" onclick="_syncalExportIcs()">⬇ Baixar syncal.ics</button>
         </div>
 
-        <div style="padding:14px;background:linear-gradient(135deg,rgba(59,109,17,.08) 0%,rgba(59,109,17,.03) 100%);border:0.5px solid #3B6D11;border-radius:9px;">
+        <div style="padding:14px;background:linear-gradient(135deg,rgba(59,109,17,.08) 0%,rgba(59,109,17,.03) 100%);border:0.5px solid #3B6D11;border-radius:9px;margin-bottom:10px;">
           <div style="font-size:13.5px;font-weight:600;color:#2A4F0A;margin-bottom:4px;">⬆ Importar .ics no Syncal</div>
           <div style="font-size:11.5px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.5;">Faz upload de arquivo .ics do Google/Outlook/Apple. Eventos vão pra sua agenda do Syncal preservando título, datas, horários e recorrência.</div>
           <label class="ppl-btn ppl-btn-primary" style="background:#3B6D11;border-color:#3B6D11;color:#fff;cursor:pointer;">
             ⬆ Selecionar arquivo .ics
             <input type="file" accept=".ics,text/calendar" style="display:none;" onchange="_syncalImportIcs(this.files[0])"/>
           </label>
+        </div>
+
+        <div style="padding:14px;background:linear-gradient(135deg,rgba(107,72,37,.10) 0%,rgba(107,72,37,.03) 100%);border:0.5px solid #6B4825;border-radius:9px;">
+          <div style="font-size:13.5px;font-weight:600;color:#3A2410;margin-bottom:4px;">📲 Subscribe — sync automático</div>
+          <div style="font-size:11.5px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.5;">Gera URL única que faz Google Calendar / Outlook / Apple buscarem sua agenda Syncal automaticamente. Pra ver no celular.</div>
+          <button class="ppl-btn ppl-btn-primary" style="background:linear-gradient(135deg,#3A2410,#6B4825);border-color:#3A2410;color:#F5E8C8;" onclick="document.getElementById('syncal-ics-menu').remove();_syncalOpenIcsSubscribeModal();">📲 Gerar URL Subscribe</button>
         </div>
       </div>
     </div>`;
@@ -68887,12 +68916,13 @@ function _syncalOpenEventDetail(eventId) {
         ` : ''}
         ${_syncalParticipantsSectionHTML(e)}
         ${_syncalRsvpButtonsHTML(e)}
+        ${_syncalPublicLinkSectionHTML(e)}
         <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px;">
           ${tatamiActionHTML}
           ${copyLinkHTML}
           ${announceStatusHTML}
           ${linkActionHTML}
-          <button class="ppl-btn" onclick="document.getElementById('syncal-event-detail').remove();_syncalOpenEventModal(null, '${_esc(e.id)}');">✎ Editar</button>
+          ${e.isOwner !== false ? `<button class="ppl-btn" onclick="document.getElementById('syncal-event-detail').remove();_syncalOpenEventModal(null, '${_esc(e.id)}');">✎ Editar</button>` : ''}
           ${e.isOwner !== false ? `<button class="ppl-btn" style="color:#A02828;border-color:rgba(160,40,40,.3);" onclick="_syncalDeleteEvent('${_esc(e.id)}')">🗑 Excluir</button>` : ''}
         </div>
       </div>
@@ -68930,6 +68960,356 @@ function _syncalParticipantsSectionHTML(e) {
         }).join('')}
       </div>
     </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Opção B · Link público de evento (estilo Calendly)
+// ════════════════════════════════════════════════════════════════════
+
+// Seção no popover de detalhe: toggle público + URL + RSVPs externos
+function _syncalPublicLinkSectionHTML(e) {
+  // Só mostra pra owner do evento
+  if (e.isOwner === false) return '';
+  // E só pra eventos pontuais (não faz sentido pra férias/ausência)
+  if (e.type !== 'event' && e.type !== 'focus') return '';
+  const enabled = !!e.publicEnabled && !!e.publicToken;
+  const publicUrl = enabled ? _syncalBuildPublicUrl(e.publicToken) : '';
+  return `
+    <div style="padding:11px 13px;background:linear-gradient(135deg,rgba(214,83,126,.06) 0%,rgba(214,83,126,.02) 100%);border:0.5px solid #D4537E;border-radius:8px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:${enabled?'8px':'0'};">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#A03158;font-weight:600;">🌸 Link público (Calendly-style)</div>
+          <div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:2px;line-height:1.4;">${enabled ? 'Qualquer um com o link pode ver detalhes e confirmar presença.' : 'Pessoas externas (sem conta Synkan) podem confirmar presença.'}</div>
+        </div>
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11.5px;">
+          <input type="checkbox" ${enabled?'checked':''} onchange="_syncalTogglePublic('${_esc(e.id)}', this.checked)"/>
+          <span>${enabled ? 'ativo' : 'ativar'}</span>
+        </label>
+      </div>
+      ${enabled ? `
+        <div style="display:flex;gap:6px;">
+          <input type="text" readonly value="${_esc(publicUrl)}" onclick="this.select()" style="flex:1;font-family:monospace;font-size:11px;padding:6px 9px;border:0.5px solid var(--color-border-tertiary);border-radius:6px;background:#fff;color:var(--color-text-primary);"/>
+          <button class="ppl-btn" onclick="_syncalCopyPublicLink('${_esc(e.publicToken)}')" style="white-space:nowrap;font-size:11px;padding:6px 12px;">🔗 Copiar</button>
+        </div>
+        ${(_syncalState.externalRsvps && _syncalState.externalRsvps[e.id]) ? `
+          <div style="margin-top:8px;font-size:11px;color:var(--color-text-secondary);line-height:1.5;">
+            ${(_syncalState.externalRsvps[e.id]||[]).map(r => {
+              const emoji = { accepted:'✓', declined:'✗', maybe:'?' }[r.status] || '⏳';
+              const color = { accepted:'#3B6D11', declined:'#BC002D', maybe:'#7A5500' }[r.status] || 'var(--color-text-tertiary)';
+              return `<div><span style="color:${color};font-weight:600;">${emoji}</span> ${_esc(r.name)}${r.email?` <span style="opacity:.6;">· ${_esc(r.email)}</span>`:''}</div>`;
+            }).join('')}
+          </div>
+        ` : ''}
+      ` : ''}
+    </div>`;
+}
+
+// Toggle público (cria/revoga token via RPC)
+async function _syncalTogglePublic(eventId, enabled) {
+  const res = await _syncalApi.rpc('syncal_set_public', { p_event_id: eventId, p_enabled: enabled });
+  if (res.error) {
+    if (typeof appAlert === 'function') appAlert('Erro', res.error.message, { icon: '⚠️' });
+    return;
+  }
+  // Atualiza state local
+  const idx = _syncalState.events.findIndex(e => e.id === eventId);
+  if (idx >= 0) {
+    if (res.data?.public_token) _syncalState.events[idx].publicToken = res.data.public_token;
+    _syncalState.events[idx].publicEnabled = !!enabled;
+  }
+  _syncalSaveEvents();
+  // Re-render popover
+  document.getElementById('syncal-event-detail')?.remove();
+  _syncalOpenEventDetail(eventId);
+}
+
+// Constrói URL pública pro evento
+function _syncalBuildPublicUrl(token) {
+  const u = new URL(window.location.href);
+  u.search = '';
+  u.hash = '';
+  u.searchParams.set('sync_public', token);
+  return u.toString();
+}
+
+// Copia link público com feedback amigável
+async function _syncalCopyPublicLink(token) {
+  const url = _syncalBuildPublicUrl(token);
+  let copied = false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+      copied = true;
+    }
+  } catch(_){}
+  if (!copied) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = url; ta.style.position='fixed'; ta.style.left='-9999px';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      copied = true;
+    } catch(_){}
+  }
+  if (typeof appAlert === 'function') {
+    appAlert('Link copiado 🌸', `Quem clicar nesse link vê o evento e pode confirmar presença sem precisar de conta Synkan:<br/><br/><code style="display:block;padding:8px 10px;background:var(--color-background-secondary);border-radius:6px;font-size:11px;word-break:break-all;">${_esc(url)}</code>`, { icon: '🔗', html: true });
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Página standalone pública do evento (sem auth, sem app shell)
+// Detectada pelo bootstrap quando URL tem ?sync_public=<token>
+// ════════════════════════════════════════════════════════════════════
+async function _syncalRenderPublicPage(token) {
+  // Esconde tudo do app (sidebar, main, etc) e mostra só essa página
+  document.body.innerHTML = `
+    <div id="syncal-public-root" style="min-height:100vh;background:linear-gradient(180deg,#FFFCF5 0%,#F5E8C8 100%);font-family:var(--font-sans,system-ui,sans-serif);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 18px;">
+      <div class="syncal-public-card" style="max-width:520px;width:100%;background:#FFF;border-radius:16px;padding:0;overflow:hidden;box-shadow:0 12px 40px rgba(58,36,16,.20);">
+        <div id="syncal-public-loading" style="padding:60px 30px;text-align:center;color:#6B4825;">
+          <div style="font-size:24px;margin-bottom:8px;">⏳</div>
+          Carregando evento…
+        </div>
+      </div>
+      <div style="margin-top:20px;font-family:'Noto Serif JP',serif;font-size:11px;letter-spacing:.16em;color:#6B4825;text-transform:uppercase;">via SYNKAN · 暦 · Syncal</div>
+    </div>
+  `;
+  // Busca evento pelo token (sem auth — RPC SECURITY DEFINER)
+  let data = null;
+  try {
+    const cfg = (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) ? {
+      url: window.SUPABASE_URL, anon: window.SUPABASE_ANON_KEY,
+    } : (function(){
+      // tenta puxar do _peopleApi se já tiver
+      try { return _peopleApi._resolveConfig(); } catch(_){ return null; }
+    })();
+    if (!cfg) {
+      _syncalRenderPublicError('Configuração Supabase indisponível.');
+      return;
+    }
+    const res = await fetch(`${cfg.url}/rest/v1/rpc/syncal_public_get`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': cfg.anon,
+        'Authorization': `Bearer ${cfg.anon}`,
+      },
+      body: JSON.stringify({ p_token: token }),
+    });
+    if (!res.ok) {
+      _syncalRenderPublicError('Não conseguimos carregar esse evento (HTTP ' + res.status + ').');
+      return;
+    }
+    data = await res.json();
+  } catch(e) {
+    _syncalRenderPublicError('Erro de rede: ' + (e?.message || e));
+    return;
+  }
+
+  if (!data || !data.found) {
+    _syncalRenderPublicError('Evento não encontrado ou link revogado.');
+    return;
+  }
+
+  const ev = data.event;
+  const rsvps = data.rsvps || {};
+  const startDate = new Date(ev.start_date + 'T00:00:00');
+  const dateLabel = startDate.toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const time = ev.start_time ? String(ev.start_time).slice(0,5) : null;
+  const endTime = ev.end_time ? String(ev.end_time).slice(0,5) : null;
+
+  // Recorrência → texto amigável
+  let recLabel = '';
+  if (ev.recurrence_freq) {
+    const interval = ev.recurrence_interval || 1;
+    const freqMap = { daily:'todo dia', weekly:'toda semana', monthly:'todo mês', yearly:'todo ano' };
+    recLabel = `🔁 ${interval > 1 ? `a cada ${interval} ${freqMap[ev.recurrence_freq]?.replace('todo','').trim()||''}s` : freqMap[ev.recurrence_freq]||''}`;
+    if (ev.recurrence_until) {
+      recLabel += ` até ${new Date(ev.recurrence_until + 'T00:00:00').toLocaleDateString('pt-BR')}`;
+    }
+  }
+
+  const card = document.querySelector('#syncal-public-root .syncal-public-card');
+  card.innerHTML = `
+    <div style="padding:24px 30px;background:linear-gradient(135deg,${ev.color||'#6B4825'},#3A2410);color:#F5E8C8;">
+      <div style="font-family:'Noto Serif JP',serif;font-size:11px;letter-spacing:.14em;opacity:.7;text-transform:uppercase;margin-bottom:6px;">${_esc(ev.host_name||'Synkan user')} convida</div>
+      <div style="font-family:'Noto Serif JP',serif;font-size:24px;font-weight:600;line-height:1.25;">${ev.icon||'📅'} ${_esc(ev.title)}</div>
+      <div style="font-size:13px;opacity:.9;margin-top:10px;line-height:1.5;text-transform:capitalize;">
+        ${_esc(dateLabel)}${time?` · <strong>${_esc(time)}${endTime?` - ${endTime}`:''}</strong>`:''}
+      </div>
+      ${recLabel ? `<div style="font-size:11.5px;opacity:.75;margin-top:4px;">${recLabel}</div>` : ''}
+    </div>
+    <div style="padding:24px 30px;">
+      ${ev.description ? `<div style="padding:14px 16px;background:#FFFCF5;border-left:3px solid ${ev.color||'#C19A3A'};border-radius:0 8px 8px 0;font-size:13.5px;line-height:1.6;color:#3A2410;margin-bottom:18px;white-space:pre-wrap;">${_esc(ev.description)}</div>` : ''}
+
+      <div style="display:flex;justify-content:space-around;text-align:center;padding:12px;background:#FFFCF5;border-radius:10px;margin-bottom:18px;">
+        <div><div style="font-size:18px;font-weight:700;color:#3B6D11;">${rsvps.accepted||0}</div><div style="font-size:10.5px;color:#6B4825;text-transform:uppercase;letter-spacing:.06em;">vão</div></div>
+        <div><div style="font-size:18px;font-weight:700;color:#7A5500;">${rsvps.maybe||0}</div><div style="font-size:10.5px;color:#6B4825;text-transform:uppercase;letter-spacing:.06em;">talvez</div></div>
+        <div><div style="font-size:18px;font-weight:700;color:#BC002D;">${rsvps.declined||0}</div><div style="font-size:10.5px;color:#6B4825;text-transform:uppercase;letter-spacing:.06em;">não vão</div></div>
+      </div>
+
+      <div id="syncal-public-rsvp-form">
+        <div style="font-family:'Noto Serif JP',serif;font-size:13px;font-weight:600;color:#3A2410;margin-bottom:10px;text-align:center;">Você vai?</div>
+        <form onsubmit="event.preventDefault();_syncalPublicSubmitRsvp('${_esc(token)}');" style="display:flex;flex-direction:column;gap:8px;">
+          <input id="sp-name" type="text" placeholder="Seu nome *" required style="padding:11px 14px;border:0.5px solid #C19A3A;border-radius:8px;font-size:13px;background:#FFFCF5;"/>
+          <input id="sp-email" type="email" placeholder="Email (opcional)" style="padding:11px 14px;border:0.5px solid #C19A3A;border-radius:8px;font-size:13px;background:#FFFCF5;"/>
+          <div style="display:flex;gap:6px;margin-top:4px;">
+            <button type="button" onclick="_syncalPublicSubmitRsvp('${_esc(token)}','accepted')" style="flex:1;padding:11px 8px;background:#3B6D11;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">✓ Vou</button>
+            <button type="button" onclick="_syncalPublicSubmitRsvp('${_esc(token)}','maybe')" style="flex:1;padding:11px 8px;background:#C19A3A;color:#1A1611;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">? Talvez</button>
+            <button type="button" onclick="_syncalPublicSubmitRsvp('${_esc(token)}','declined')" style="flex:1;padding:11px 8px;background:#BC002D;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">✗ Não vou</button>
+          </div>
+        </form>
+      </div>
+
+      <div style="margin-top:18px;padding:10px;background:#FFFCF5;border-radius:8px;text-align:center;font-size:11px;color:#6B4825;line-height:1.5;font-family:'Noto Serif JP',serif;">
+        「礼に始まり、礼に終わる」<br/>
+        <span style="opacity:.7;">— começa e termina com respeito —</span>
+      </div>
+    </div>
+  `;
+}
+
+function _syncalRenderPublicError(msg) {
+  const card = document.querySelector('#syncal-public-root .syncal-public-card');
+  if (!card) return;
+  card.innerHTML = `
+    <div style="padding:50px 30px;text-align:center;color:#6B4825;">
+      <div style="font-size:42px;margin-bottom:10px;">🌑</div>
+      <div style="font-family:'Noto Serif JP',serif;font-size:17px;font-weight:600;margin-bottom:6px;">Link inválido</div>
+      <div style="font-size:13px;color:#A88150;line-height:1.55;">${_esc(msg)}</div>
+    </div>
+  `;
+}
+
+async function _syncalPublicSubmitRsvp(token, statusOverride) {
+  const name  = (document.getElementById('sp-name')?.value||'').trim();
+  const email = (document.getElementById('sp-email')?.value||'').trim() || null;
+  const status = statusOverride || 'accepted';
+  if (!name) {
+    document.getElementById('sp-name')?.focus();
+    return;
+  }
+  try {
+    const cfg = (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) ? {
+      url: window.SUPABASE_URL, anon: window.SUPABASE_ANON_KEY,
+    } : _peopleApi._resolveConfig();
+    if (!cfg) throw new Error('config missing');
+    const res = await fetch(`${cfg.url}/rest/v1/rpc/syncal_public_rsvp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': cfg.anon, 'Authorization': `Bearer ${cfg.anon}` },
+      body: JSON.stringify({ p_token: token, p_name: name, p_email: email, p_status: status }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    // Feedback bonito
+    const wrap = document.getElementById('syncal-public-rsvp-form');
+    if (wrap) {
+      const emoji = { accepted:'🎴', maybe:'🤔', declined:'🙇' }[status];
+      const msg = { accepted:'Confirmado!', maybe:'Anotamos seu talvez.', declined:'Sem problema.' }[status];
+      wrap.innerHTML = `
+        <div style="text-align:center;padding:24px 18px;background:linear-gradient(135deg,#E2F0D0,#FFF4D1);border-radius:10px;">
+          <div style="font-size:42px;margin-bottom:8px;">${emoji}</div>
+          <div style="font-family:'Noto Serif JP',serif;font-size:17px;font-weight:600;color:#3A2410;">${msg}</div>
+          <div style="font-size:12.5px;color:#6B4825;margin-top:6px;line-height:1.5;">Seu RSVP foi enviado pra ${_esc(name)}. ${email?`Confirmação em <strong>${_esc(email)}</strong>.`:''}</div>
+        </div>`;
+    }
+  } catch(e) {
+    alert('Erro ao enviar RSVP: ' + (e?.message||e));
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Opção C · Subscribe ICS URL (consumível por Google/Outlook/Apple)
+// ════════════════════════════════════════════════════════════════════
+async function _syncalOpenIcsSubscribeModal() {
+  let modal = document.getElementById('syncal-ics-sub');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-ics-sub';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10007';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `
+    <div class="modal" style="max-width:540px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">📲 Subscribe — ver Syncal no Google Calendar</h3>
+        <button onclick="document.getElementById('syncal-ics-sub').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb" id="syncal-ics-sub-body">
+        <div style="padding:40px;text-align:center;color:var(--color-text-tertiary);">⏳ Gerando seu link…</div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  // Busca/cria token
+  const res = await _syncalApi.rpc('syncal_ics_token_get');
+  if (res.error || !res.data?.token) {
+    document.getElementById('syncal-ics-sub-body').innerHTML = `<div style="padding:20px;color:#BC002D;font-size:12.5px;">Erro: ${_esc(res.error?.message || 'sem resposta')}</div>`;
+    return;
+  }
+  const token = res.data.token;
+  const cfg = _syncalApi._cfg();
+  // URL da Edge Function (deploy precisa estar feito — instruções incluídas)
+  const subscribeUrl = `${cfg.url.replace('/rest/v1','').replace(/\/$/, '')}/functions/v1/syncal-ics?token=${encodeURIComponent(token)}`;
+  // webcal:// é o protocolo que faz Apple Calendar / Outlook auto-subscribe
+  const webcalUrl = subscribeUrl.replace(/^https?:/, 'webcal:');
+
+  document.getElementById('syncal-ics-sub-body').innerHTML = `
+    <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 14px;">
+      Cola essa URL no <strong>Google Calendar</strong>, <strong>Outlook</strong> ou <strong>Apple Calendar</strong> pra ver sua agenda Syncal de fora. Atualiza automaticamente (Google checa a cada 8-12h).
+    </p>
+
+    <div style="padding:12px;background:linear-gradient(135deg,rgba(58,36,16,.06),rgba(193,154,58,.04));border:0.5px solid #6B4825;border-radius:9px;margin-bottom:14px;">
+      <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#6B4825;font-weight:600;margin-bottom:6px;">Sua URL Syncal</div>
+      <div style="display:flex;gap:6px;">
+        <input type="text" readonly value="${_esc(subscribeUrl)}" onclick="this.select()" style="flex:1;font-family:monospace;font-size:10.5px;padding:7px 9px;border:0.5px solid var(--color-border-tertiary);border-radius:6px;background:#fff;"/>
+        <button class="ppl-btn" onclick="_syncalCopyText('${_esc(subscribeUrl)}', 'URL copiada')" style="white-space:nowrap;font-size:11px;padding:6px 12px;">🔗 Copiar</button>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:#6B4825;line-height:1.5;">
+        💡 Pra Apple Calendar / Outlook, clica direto neste link <code>webcal://</code>:<br/>
+        <a href="${_esc(webcalUrl)}" style="color:#6B4825;font-family:monospace;font-size:10.5px;word-break:break-all;">${_esc(webcalUrl)}</a>
+      </div>
+    </div>
+
+    <details style="margin-bottom:10px;">
+      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--color-text-primary);padding:6px 0;">📋 Como adicionar no Google Calendar</summary>
+      <ol style="font-size:11.5px;color:var(--color-text-secondary);line-height:1.7;padding-left:20px;margin:6px 0;">
+        <li>Abre o <a href="https://calendar.google.com" target="_blank" style="color:#378ADD;">Google Calendar</a></li>
+        <li>Na barra lateral, ao lado de "<strong>Outras agendas</strong>", clica em <strong>+</strong> → <strong>Subscrever por URL</strong></li>
+        <li>Cola a URL acima e confirma</li>
+        <li>Pronto — eventos aparecem com o ícone Syncal</li>
+      </ol>
+    </details>
+
+    <details style="margin-bottom:10px;">
+      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--color-text-primary);padding:6px 0;">📋 Como adicionar no Outlook / Apple Calendar</summary>
+      <div style="font-size:11.5px;color:var(--color-text-secondary);line-height:1.6;padding-left:8px;margin:6px 0;">
+        Clica direto no link <code>webcal://</code> acima — o sistema operacional abre o app de calendário e oferece adicionar. Funciona em macOS, iOS e Windows.
+      </div>
+    </details>
+
+    <div style="padding:10px 12px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11px;color:#7A5500;line-height:1.5;">
+      <strong>Privacidade:</strong> qualquer um com essa URL vê seus próximos eventos (mesmo se vc só compartilhar acidentalmente). <button onclick="_syncalRevokeIcsToken()" style="background:transparent;border:none;color:#A02828;cursor:pointer;text-decoration:underline;font-family:inherit;font-size:11px;padding:0;">Revogar e gerar novo →</button>
+    </div>
+
+    <div style="margin-top:12px;padding:10px 12px;background:rgba(188,0,45,.05);border-left:3px solid #BC002D;border-radius:0 6px 6px 0;font-size:11px;color:#7A0026;line-height:1.5;">
+      <strong>⚠ Setup necessário:</strong> essa URL precisa de uma Edge Function ativa no Supabase chamada <code>syncal-ics</code>. Arquivo de deploy em <code>/supabase/functions/syncal-ics/index.ts</code> — roda <code>supabase functions deploy syncal-ics</code> no terminal pra ativar.
+    </div>
+  `;
+}
+
+async function _syncalRevokeIcsToken() {
+  if (!confirm('Revogar URL atual? Quem já assinou perde acesso — depois gera nova.')) return;
+  await _syncalApi.rpc('syncal_ics_token_revoke');
+  document.getElementById('syncal-ics-sub')?.remove();
+  setTimeout(() => _syncalOpenIcsSubscribeModal(), 50);
+}
+
+// Helper copy genérico com feedback (reusa o que já tem)
+async function _syncalCopyText(text, msg) {
+  let ok = false;
+  try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); ok = true; } } catch(_){}
+  if (!ok) {
+    try { const ta = document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.left='-9999px'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); ok = true; } catch(_){}
+  }
+  if (ok && typeof appAlert === 'function') appAlert(msg||'Copiado', '', { icon: '✓' });
 }
 
 // Botões RSVP — só se o user logado é participante (e não owner)
@@ -69069,6 +69449,32 @@ function _syncalHandleDeepLink() {
 
 // Dispara o handler — uma vez por carregamento de página
 _syncalHandleDeepLink();
+
+// ────────────────────────────────────────────────────────────────────
+// Bootstrap pra página pública de evento (?sync_public=<token>)
+// Detectado MUITO cedo, antes mesmo do app inicializar — pra renderizar
+// só a página standalone sem carregar a app shell inteira.
+// ────────────────────────────────────────────────────────────────────
+(function() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const publicToken = params.get('sync_public');
+    if (!publicToken) return;
+    // Aguarda DOM pronto e _syncalRenderPublicPage definido (já está definida aqui)
+    const start = () => {
+      if (typeof _syncalRenderPublicPage === 'function') {
+        _syncalRenderPublicPage(publicToken);
+      } else {
+        setTimeout(start, 100);
+      }
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', start);
+    } else {
+      start();
+    }
+  } catch(_){}
+})();
 
 // ════════════════════════════════════════════════════════════════════
 // Atalhos de teclado · só ativos quando Syncal estiver visível
@@ -69530,6 +69936,28 @@ async function _syncalOpenEventModal(prefDate, editingId) {
             </div>
           </div>
 
+          <!-- ───── Visibilidade — quem vê o evento (private/workspace/busy) ───── -->
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">👁 Visibilidade</label>
+            <div class="syncal-vis-grid">
+              ${[
+                {key:'private',  emoji:'🔒', label:'Privado',  hint:'só você + convidados'},
+                {key:'workspace',emoji:'👥', label:'Workspace', hint:'pessoas que você gerencia veem tudo'},
+                {key:'busy',     emoji:'⏳', label:'Ocupado',   hint:'time vê só "ocupado", sem detalhes'},
+              ].map(opt => `
+                <label class="syncal-vis-opt ${(existing?.visibility||'private')===opt.key?'active':''}" data-vis="${opt.key}">
+                  <input type="radio" name="visibility" value="${opt.key}" ${(existing?.visibility||'private')===opt.key?'checked':''} onchange="_syncalSetVisibility('${opt.key}')" style="display:none;"/>
+                  <div class="syncal-vis-emoji">${opt.emoji}</div>
+                  <div class="syncal-vis-label">${opt.label}</div>
+                  <div class="syncal-vis-hint">${opt.hint}</div>
+                </label>
+              `).join('')}
+            </div>
+            <div style="margin-top:6px;font-size:10.5px;color:var(--color-text-tertiary);line-height:1.4;">
+              <em>Workspace/Ocupado</em> aparece pra pessoas que estão na sua trilha do <strong>People Journey</strong> (com conta vinculada).
+            </div>
+          </div>
+
           <!-- ───── Tag de cor (team/projeto) — pra agrupar visualmente ───── -->
           <div class="ppl-modal-row">
             <label class="ppl-modal-label" style="display:flex;align-items:center;justify-content:space-between;">
@@ -69780,6 +70208,9 @@ async function _syncalSubmitEvent(editingId) {
   // Captura tag de cor (team/projeto)
   const tagId = fd.get('color_tag_id');
   ev.colorTagId = tagId || null;
+
+  // Captura visibilidade (private | workspace | busy)
+  ev.visibility = fd.get('visibility') || 'private';
 
   // Persiste no Supabase + atualiza state local
   const saveRes = await _syncalUpsertEvent(ev);
