@@ -3975,6 +3975,29 @@ body.density-compact .col{padding:7px;}
 .syncal-tmpl-emoji{font-size:14px;}
 .syncal-tmpl-name{font-weight:500;}
 
+/* Lembretes (chips multi-select) */
+.syncal-reminder-grid{display:flex;gap:5px;flex-wrap:wrap;}
+.syncal-reminder-chip{padding:6px 11px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);border-radius:999px;cursor:pointer;font-size:11.5px;color:var(--color-text-secondary);transition:all .12s;user-select:none;}
+.syncal-reminder-chip input{display:none;}
+.syncal-reminder-chip:hover{border-color:#C19A3A;}
+.syncal-reminder-chip.active{background:#C19A3A;color:#1A1611;border-color:#8B6634;font-weight:600;}
+
+/* Banner de lembrete (in-app) */
+.syncal-reminder-banner{position:fixed;bottom:24px;right:24px;background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;padding:14px 18px;border-radius:14px;box-shadow:0 12px 36px rgba(0,0,0,.30);display:flex;align-items:center;gap:14px;max-width:380px;z-index:99999;animation:syncalReminderPop .25s ease;}
+@keyframes syncalReminderPop{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.syncal-reminder-banner.fading{opacity:0;transition:opacity .6s;}
+.syncal-reminder-emoji{font-size:32px;flex-shrink:0;animation:syncalReminderShake 1s ease-in-out infinite;}
+@keyframes syncalReminderShake{0%,100%{transform:rotate(0);}25%{transform:rotate(-15deg);}75%{transform:rotate(15deg);}}
+.syncal-reminder-body{flex:1;min-width:0;}
+.syncal-reminder-time{font-family:'Noto Serif JP',serif;font-size:10px;letter-spacing:.12em;color:#FFD17A;text-transform:uppercase;margin-bottom:3px;}
+.syncal-reminder-title{font-size:14.5px;font-weight:600;line-height:1.3;}
+.syncal-reminder-meta{font-size:11px;opacity:.75;margin-top:3px;}
+.syncal-reminder-actions{display:flex;gap:5px;flex-shrink:0;}
+.syncal-reminder-btn{background:transparent;border:0.5px solid rgba(245,232,200,.3);color:#F5E8C8;padding:7px 11px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12px;}
+.syncal-reminder-btn:hover{background:rgba(245,232,200,.10);}
+.syncal-reminder-btn.primary{background:#FFD17A;color:#1A1611;border-color:#FFD17A;font-weight:600;}
+.syncal-reminder-btn.primary:hover{background:#FFE69A;}
+
 /* Byday checkboxes (dias da semana) */
 .syncal-byday-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
 .syncal-byday-chip{padding:7px 0;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);border-radius:6px;cursor:pointer;text-align:center;font-size:11px;font-weight:500;color:var(--color-text-secondary);transition:all .12s;text-transform:capitalize;user-select:none;}
@@ -64652,6 +64675,8 @@ async function _txJoinVoice() {
     _txAttachSpeakingAnalyser(myId, stream);
     _txRenderOverlay();
     try { _chatAudit(ext.channelId, 'tatame.joined_voice', {}); } catch(_){}
+    // Auto-busy: cria evento "ocupado" no Syncal enquanto durar a sessão
+    try { _syncalTatamiAutoBusyStart(ext.channelId); } catch(_){}
   } catch (e) {
     console.error('[tx] mic error', e);
     if (typeof appAlert === 'function') appAlert('Sem permissão pra microfone', 'Libere o microfone nas permissões do navegador e tente de novo.', { icon:'🎙' });
@@ -64671,6 +64696,8 @@ function _txLeaveVoice() {
   ext.voiceJoined = false;
   ext.micMuted = false;
   ext.analysers = {};
+  // Auto-busy: encerra o evento "ocupado" no Syncal
+  try { _syncalTatamiAutoBusyEnd(); } catch(_){}
   ext.speakingMap = {};
   if (ext.speakingLoop) { clearInterval(ext.speakingLoop); ext.speakingLoop = null; }
   if (ext.rtChannel) {
@@ -67552,6 +67579,15 @@ function _syncalNormalizeRow(r) {
     _announcedToChannelId: r.announced_to_channel_id || null,
     _announcedAt: r.announced_at || null,
     _tatamiLink: r.tatami_link || null,
+    // Features v3
+    reminderMinutes: Array.isArray(r.reminder_minutes) ? r.reminder_minutes : (r.reminder_minutes || []),
+    notesMd: r.notes_md || null,
+    transcriptMd: r.transcript_md || null,
+    actionItems: Array.isArray(r.action_items) ? r.action_items : [],
+    linkedKrId: r.linked_kr_id || null,
+    bunkoAttachments: Array.isArray(r.bunko_attachments) ? r.bunko_attachments : [],
+    bunkoScrollId: r.bunko_scroll_id || null,
+    autoBusy: !!r.auto_busy,
     isOwner: !!r.is_owner,
     createdBy: r.created_by,
     workspaceOwner: r.workspace_owner,
@@ -67611,6 +67647,15 @@ function _syncalEventToServerShape(ev) {
     linked_channel_id: ev.linkedChannelId || null,
     link_type: ev.link?.type || null,
     link_id: ev.link?.id || null,
+    // Features v3
+    reminder_minutes: Array.isArray(ev.reminderMinutes) ? ev.reminderMinutes : [],
+    notes_md: ev.notesMd || null,
+    transcript_md: ev.transcriptMd || null,
+    action_items: Array.isArray(ev.actionItems) ? ev.actionItems : [],
+    linked_kr_id: ev.linkedKrId || null,
+    bunko_attachments: Array.isArray(ev.bunkoAttachments) ? ev.bunkoAttachments : [],
+    bunko_scroll_id: ev.bunkoScrollId || null,
+    auto_busy: !!ev.autoBusy,
   };
 }
 
@@ -68499,6 +68544,9 @@ function renderSyncal() {
             <button class="syncal-view-btn ${_syncalState.view==='dia'?'active':''}" onclick="_syncalSetView('dia')" title="Dia (D)">Dia</button>
             <button class="syncal-view-btn ${_syncalState.view==='agenda'?'active':''}" onclick="_syncalSetView('agenda')" title="Agenda (A)">Agenda</button>
           </div>
+          <button class="syncal-btn-primary" onclick="_syncalOpenFindSlotsModal()" title="Mestre Kan acha horário livre entre pessoas (AI)" style="background:transparent;color:#6B4825;border:0.5px solid #C19A3A;">🥋 Achar horário</button>
+          <button class="syncal-btn-primary" onclick="_syncalOpenBookingPagesModal()" title="Páginas públicas de agendamento (Calendly-style)" style="background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);">🌸 Booking</button>
+          <button class="syncal-btn-primary" onclick="_syncalOpenPollsModal()" title="Polls de horário (Doodle-style)" style="background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);">🗳 Polls</button>
           <button class="syncal-btn-primary" onclick="_syncalOpenWorkloadModal()" title="Carga de reuniões por pessoa" style="background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);">⏱ Carga</button>
           <button class="syncal-btn-primary" onclick="_syncalOpenIcsMenu()" title="Importar / Exportar .ics" style="background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);">⇅ ICS</button>
           <button class="syncal-btn-primary" onclick="_syncalOpenAjustesModal()" title="Ajustes do Syncal (visibilidade da agenda)" style="background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);font-size:18px;line-height:1;padding:8px 12px;">⚙</button>
@@ -69495,6 +69543,7 @@ function _syncalOpenEventDetail(eventId) {
             </div>
           </div>
         ` : ''}
+        ${_syncalNotesSectionHTML(e)}
         ${_syncalParticipantsSectionHTML(e)}
         ${_syncalRsvpButtonsHTML(e)}
         ${_syncalPublicLinkSectionHTML(e)}
@@ -69509,6 +69558,178 @@ function _syncalOpenEventDetail(eventId) {
       </div>
     </div>`;
   document.body.appendChild(modal);
+}
+
+// #3 + #9 · Seção de notas + ata + action items + pergaminho Bunko
+function _syncalNotesSectionHTML(e) {
+  if (e.type !== 'event' && e.type !== 'focus') return '';
+  const hasNotes = !!(e.notesMd && e.notesMd.trim());
+  const hasTranscript = !!(e.transcriptMd && e.transcriptMd.trim());
+  const hasActionItems = Array.isArray(e.actionItems) && e.actionItems.length > 0;
+  const hasAnything = hasNotes || hasTranscript || hasActionItems;
+  const hasBunkoScroll = !!e.bunkoScrollId;
+
+  // Mostra anexos do Bunko se houver
+  const attachments = Array.isArray(e.bunkoAttachments) ? e.bunkoAttachments : [];
+  const attachmentsHTML = attachments.length ? `
+    <div style="margin-top:8px;padding-top:8px;border-top:0.5px dashed var(--color-border-tertiary);">
+      <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:5px;">📎 Anexos</div>
+      ${attachments.map(a => `
+        <div style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;margin:2px 4px 2px 0;background:rgba(0,0,0,.04);border-radius:5px;font-size:11px;">
+          <span>${a.icon||'📄'}</span><span>${_esc(a.name||'arquivo')}</span>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
+  if (!hasAnything && attachments.length === 0 && !hasBunkoScroll) {
+    // Estado vazio: só mostra prompt pra adicionar
+    if (e.isOwner === false) return '';
+    return `
+      <div style="padding:11px 13px;background:linear-gradient(135deg,rgba(193,154,58,.06),rgba(255,209,122,.03));border:0.5px dashed #C19A3A;border-radius:8px;margin-bottom:12px;text-align:center;">
+        <div style="font-size:12px;color:#7A5500;line-height:1.5;margin-bottom:6px;">
+          📝 Sem notas ainda. Adicione agenda/decisões aqui durante a reunião.
+        </div>
+        <button class="ppl-btn" style="font-size:11.5px;" onclick="document.getElementById('syncal-event-detail').remove();_syncalOpenEventModal(null, '${_esc(e.id)}');">✎ Adicionar notas</button>
+      </div>`;
+  }
+
+  // Render markdown simples (só listas + bold + headers)
+  const renderMd = (md) => {
+    if (!md) return '';
+    let html = _esc(md);
+    html = html.replace(/^### (.+)$/gm, '<h4 style="margin:8px 0 4px;font-size:12.5px;color:#3A2410;">$1</h4>');
+    html = html.replace(/^## (.+)$/gm, '<h3 style="margin:10px 0 5px;font-size:13.5px;color:#3A2410;">$1</h3>');
+    html = html.replace(/^# (.+)$/gm, '<h2 style="margin:12px 0 6px;font-size:14.5px;color:#3A2410;">$1</h2>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/^- (.+)$/gm, '<div style="padding-left:14px;position:relative;line-height:1.55;"><span style="position:absolute;left:0;">•</span>$1</div>');
+    html = html.replace(/\n/g, '<br/>');
+    return html;
+  };
+
+  return `
+    <div style="padding:12px 14px;background:linear-gradient(135deg,rgba(245,232,200,.50) 0%,rgba(255,252,245,.30) 100%);border:0.5px solid #C19A3A;border-radius:9px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-family:'Noto Serif JP',serif;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:#7A5500;font-weight:700;">📝 Notas & ata</div>
+        ${e.isOwner !== false ? `
+          <div style="display:flex;gap:5px;">
+            <button class="ppl-btn" style="font-size:11px;padding:4px 9px;" onclick="document.getElementById('syncal-event-detail').remove();_syncalOpenEventModal(null, '${_esc(e.id)}');" title="Editar notas">✎</button>
+            ${hasNotes && !hasTranscript ? `<button class="ppl-btn" style="font-size:11px;padding:4px 9px;background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;border-color:#3A2410;" onclick="_syncalGenerateAta('${_esc(e.id)}')" title="Gerar ata via Mestre Kan">🥋 Gerar ata</button>` : ''}
+            ${hasBunkoScroll ? `<button class="ppl-btn" style="font-size:11px;padding:4px 9px;" onclick="_syncalOpenBunkoScroll('${_esc(e.bunkoScrollId)}')" title="Abrir pergaminho">📜 Pergaminho</button>` : ''}
+          </div>
+        ` : ''}
+      </div>
+      ${hasNotes ? `
+        <div style="font-size:12.5px;color:#3A2410;line-height:1.6;padding:6px 0;">${renderMd(e.notesMd)}</div>
+      ` : ''}
+      ${hasTranscript ? `
+        <details style="margin-top:8px;padding:8px 10px;background:rgba(255,255,255,.5);border-radius:7px;">
+          <summary style="cursor:pointer;font-size:11.5px;font-weight:600;color:#3A2410;">📜 Ata gerada por Mestre Kan</summary>
+          <div style="font-size:12px;color:#3A2410;line-height:1.6;padding:8px 0;">${renderMd(e.transcriptMd)}</div>
+        </details>
+      ` : ''}
+      ${hasActionItems ? `
+        <div style="margin-top:8px;padding-top:8px;border-top:0.5px dashed var(--color-border-tertiary);">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#7A5500;font-weight:600;margin-bottom:5px;">✓ Action items</div>
+          ${e.actionItems.map((ai, i) => `
+            <div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;font-size:12px;color:#3A2410;">
+              <span style="margin-top:2px;">▢</span>
+              <span style="flex:1;">${_esc(typeof ai === 'string' ? ai : (ai.text || ai.title || ''))}</span>
+              ${typeof ai === 'object' && ai.assignee ? `<span style="font-size:10.5px;color:var(--color-text-tertiary);">→ ${_esc(ai.assignee)}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${attachmentsHTML}
+    </div>`;
+}
+
+// Gera ata via IA (Mestre Kan) a partir das notas. Cria pergaminho no Bunko.
+async function _syncalGenerateAta(eventId) {
+  const ev = _syncalState.events.find(x => x.id === eventId);
+  if (!ev || !ev.notesMd) return;
+
+  if (typeof appAlert === 'function') {
+    appAlert('🥋 Gerando ata…', 'Mestre Kan está estruturando suas notas em ata formal. Isso pode levar 10-20s.', { icon: '⏳' });
+  }
+
+  try {
+    // Chama o helper de IA do Mestre Kan
+    let ataMd = null;
+    let actionItems = [];
+
+    if (typeof callKanAI === 'function') {
+      const prompt = `Você é Mestre Kan, transformando notas brutas de reunião em ata formal japonesa-minimalista.
+
+NOTAS DA REUNIÃO "${ev.title}" (${ev.date}${ev.time?' '+ev.time:''}):
+${ev.notesMd}
+
+Devolva APENAS este JSON (sem prefixo, sem code block):
+{
+  "ata_md": "## Resumo\\n...\\n\\n## Decisões\\n- ...\\n\\n## Pontos discutidos\\n- ...\\n",
+  "action_items": [
+    { "text": "Marina prepara proposta até 20/05", "assignee": "Marina" },
+    ...
+  ]
+}
+
+Regras: ata_md em markdown, máx 400 palavras, em pt-BR. action_items max 6.`;
+
+      const result = await callKanAI(prompt);
+      try {
+        const cleaned = (result||'').replace(/```json/g,'').replace(/```/g,'').trim();
+        const parsed = JSON.parse(cleaned);
+        ataMd = parsed.ata_md;
+        actionItems = parsed.action_items || [];
+      } catch(e) {
+        // Fallback: usa o texto bruto
+        ataMd = result || ev.notesMd;
+      }
+    } else {
+      // Fallback sem IA: gera estrutura básica
+      ataMd = `## Ata · ${ev.title}\n\n${ev.notesMd}\n\n_Ata gerada automaticamente. Edite via "Editar notas"._`;
+    }
+
+    // Atualiza evento com transcript + action items
+    ev.transcriptMd = ataMd;
+    ev.actionItems = actionItems;
+
+    // Cria pergaminho no Bunko se função existir
+    if (typeof _bunkoCreateScroll === 'function') {
+      try {
+        const scrollId = await _bunkoCreateScroll({
+          title: `Ata · ${ev.title}`,
+          content: ataMd,
+          source: 'syncal',
+          sourceId: ev.id,
+          icon: '📜',
+        });
+        if (scrollId) ev.bunkoScrollId = scrollId;
+      } catch(e) {
+        console.warn('[syncal] criar pergaminho falhou:', e?.message);
+      }
+    }
+
+    // Persiste
+    await _syncalUpsertEvent(ev);
+    document.getElementById('syncal-event-detail')?.remove();
+    setTimeout(() => _syncalOpenEventDetail(eventId), 100);
+    if (typeof appAlert === 'function') {
+      appAlert('🥋 Ata pronta', `${actionItems.length} action items extraídos${ev.bunkoScrollId?' · pergaminho criado no Bunko':''}.`, { icon: '✓' });
+    }
+  } catch(e) {
+    if (typeof appAlert === 'function') appAlert('Erro ao gerar ata', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+// Abre o pergaminho no Bunko
+function _syncalOpenBunkoScroll(scrollId) {
+  document.getElementById('syncal-event-detail')?.remove();
+  if (typeof switchTab === 'function') switchTab('bunko');
+  setTimeout(() => {
+    try { window.dispatchEvent(new CustomEvent('bunko:open-scroll', { detail: { id: scrollId } })); } catch(_){}
+  }, 200);
 }
 
 // Render seção de participantes + status (visível se evento tem participantes)
@@ -70033,20 +70254,806 @@ function _syncalHandleDeepLink() {
 // Dispara o handler — uma vez por carregamento de página
 _syncalHandleDeepLink();
 
+// ════════════════════════════════════════════════════════════════════
+// FEATURE #1 · Notificações antes da call (10/5/0 min)
 // ────────────────────────────────────────────────────────────────────
-// Bootstrap pra página pública de evento (?sync_public=<token>)
-// Detectado MUITO cedo, antes mesmo do app inicializar — pra renderizar
-// só a página standalone sem carregar a app shell inteira.
+// A cada 30s checa eventos próximos e dispara:
+//   1. Web Notification API (se permitido) — toast nativo do SO
+//   2. Banner in-app (sempre)
+//   3. Postagem no canal vinculado N min antes (1x apenas, idempotente)
+// Notificações disparadas ficam num Set "já avisado" no memória pra não
+// duplicar enquanto a app tá aberta. Recarregar reseta — aceitável.
+// ════════════════════════════════════════════════════════════════════
+const _syncalNotifiedSet = new Set();  // "eventId:minutes" → already fired
+let _syncalNotifyInterval = null;
+
+function _syncalStartReminderEngine() {
+  if (_syncalNotifyInterval) return;
+  // Pede permissão de notificação no primeiro evento criado com lembrete
+  // (não pede no boot pra não ser intrusivo)
+  _syncalNotifyTick();
+  _syncalNotifyInterval = setInterval(_syncalNotifyTick, 30000); // 30s
+}
+
+function _syncalNotifyTick() {
+  const events = _syncalState.events || [];
+  const now = Date.now();
+  events.forEach(e => {
+    if (!e.reminderMinutes || !e.reminderMinutes.length) return;
+    if (!e.time || !e.date) return;
+    if (e.type !== 'event') return;  // só lembrete pra reunião/call
+
+    const startMs = new Date(`${e.date}T${e.time}:00`).getTime();
+    if (isNaN(startMs)) return;
+    if (startMs < now - 60000) return;  // já passou (com 1 min de graça)
+
+    const minutesUntil = (startMs - now) / 60000;
+    e.reminderMinutes.forEach(m => {
+      const key = `${e.id}:${m}`;
+      if (_syncalNotifiedSet.has(key)) return;
+      // Dispara se minutos restantes <= m mas > m-1 (janela de 1 min)
+      if (minutesUntil <= m && minutesUntil > m - 1) {
+        _syncalNotifiedSet.add(key);
+        _syncalFireReminder(e, m);
+      }
+    });
+  });
+}
+
+function _syncalFireReminder(event, minutes) {
+  const timeUntil = minutes === 0 ? 'agora' : `em ${minutes} min`;
+  const title = `🔔 ${event.title}`;
+  const body = `${timeUntil}${event.time ? ' · ' + event.time : ''}${event.linkedChannelId ? '\nClique pra entrar no Tatami' : ''}`;
+
+  // 1) Web Notification API (nativo)
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      const notif = new Notification(title, {
+        body,
+        icon: '/synkan-icon.png',
+        badge: '/synkan-icon.png',
+        tag: `syncal-${event.id}-${minutes}`,
+        requireInteraction: minutes === 0,
+      });
+      notif.onclick = () => {
+        window.focus();
+        if (event.linkedChannelId && typeof _syncalEnterTatami === 'function') {
+          _syncalEnterTatami(event.linkedChannelId);
+        } else if (typeof _syncalOpenEventDetail === 'function') {
+          if (typeof switchTab === 'function') switchTab('syncal');
+          setTimeout(() => _syncalOpenEventDetail(event.id), 100);
+        }
+        notif.close();
+      };
+    }
+  } catch(_){}
+
+  // 2) Banner in-app (sempre)
+  _syncalShowReminderBanner(event, minutes);
+
+  // 3) Postagem no canal vinculado (apenas pra dono e apenas no marco "0")
+  // Pra não poluir com avisos em 10min/5min/0min, posta só no zero.
+  if (minutes === 0 && event.isOwner !== false && event.linkedChannelId
+      && typeof _syncalPostToChannel === 'function') {
+    const me = (typeof supaUser !== 'undefined' && supaUser?.user_metadata?.full_name) || 'Mestre Kan';
+    const tatamiLink = event._tatamiLink || (typeof _syncalBuildTatamiLink === 'function' ? _syncalBuildTatamiLink(event.linkedChannelId, event.id) : '');
+    const body = `🔔 *${event.title}* — começa agora!\n\n`
+      + (event.description ? `📝 ${event.description}\n\n` : '')
+      + (tatamiLink ? `🎴 ${tatamiLink}\n\n` : '')
+      + `— Mestre Kan 🥋`;
+    _syncalPostToChannel(event.linkedChannelId, body).catch(()=>{});
+  }
+}
+
+function _syncalShowReminderBanner(event, minutes) {
+  let banner = document.getElementById('syncal-reminder-banner');
+  if (banner) banner.remove();
+  banner = document.createElement('div');
+  banner.id = 'syncal-reminder-banner';
+  banner.className = 'syncal-reminder-banner';
+  const timeLabel = minutes === 0 ? 'AGORA' : `EM ${minutes} MIN`;
+  banner.innerHTML = `
+    <div class="syncal-reminder-emoji">🔔</div>
+    <div class="syncal-reminder-body">
+      <div class="syncal-reminder-time">${timeLabel}</div>
+      <div class="syncal-reminder-title">${_esc(event.title)}</div>
+      ${event.time ? `<div class="syncal-reminder-meta">${_esc(event.time)}${event.linkedChannelId ? ' · canal vinculado' : ''}</div>` : ''}
+    </div>
+    <div class="syncal-reminder-actions">
+      ${event.linkedChannelId
+        ? `<button class="syncal-reminder-btn primary" onclick="_syncalEnterTatami('${_esc(event.linkedChannelId)}');document.getElementById('syncal-reminder-banner')?.remove();">🎴 Entrar</button>`
+        : ''}
+      <button class="syncal-reminder-btn" onclick="document.getElementById('syncal-reminder-banner')?.remove();">×</button>
+    </div>
+  `;
+  document.body.appendChild(banner);
+  // Auto-fade depois de 30s (exceto o de "agora", que fica até fechar)
+  if (minutes > 0) {
+    setTimeout(() => {
+      const b = document.getElementById('syncal-reminder-banner');
+      if (b) b.classList.add('fading');
+      setTimeout(() => b?.remove(), 600);
+    }, 30000);
+  }
+}
+
+// Pede permissão de notificação (chamado quando user cria evento com lembrete)
+function _syncalRequestNotifPermission() {
+  if (typeof Notification === 'undefined') return Promise.resolve(false);
+  if (Notification.permission === 'granted') return Promise.resolve(true);
+  if (Notification.permission === 'denied') return Promise.resolve(false);
+  return Notification.requestPermission().then(p => p === 'granted');
+}
+
+// Boot
+(function _syncalNotifyBoot() {
+  const tryStart = () => {
+    if (!_syncalState || !_syncalState.events) {
+      setTimeout(tryStart, 1500);
+      return;
+    }
+    _syncalStartReminderEngine();
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(tryStart, 1000));
+  } else {
+    setTimeout(tryStart, 1000);
+  }
+})();
+
+// ════════════════════════════════════════════════════════════════════
+// FEATURE #6 · AI Time Suggestion (Mestre Kan acha horário livre)
+// ────────────────────────────────────────────────────────────────────
+// Chama RPC syncal_find_slots que cruza disponibilidade dos participantes
+// e retorna até 10 slots livres na janela escolhida.
+// ════════════════════════════════════════════════════════════════════
+function _syncalOpenFindSlotsModal() {
+  let modal = document.getElementById('syncal-find-slots');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-find-slots';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10007';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  const invitables = _syncalState.invitables || [];
+  const today = new Date().toISOString().slice(0,10);
+  const future = new Date(Date.now() + 14*86400000).toISOString().slice(0,10);
+  modal.innerHTML = `
+    <div class="modal" style="max-width:560px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">🥋 Mestre Kan acha um horário</h3>
+        <button onclick="document.getElementById('syncal-find-slots').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 14px;">
+          Quero achar uma janela livre entre você e mais quem? Mestre Kan cruza calendários e sugere até 10 horários.
+        </p>
+        <form id="syncal-find-form" onsubmit="event.preventDefault();_syncalSubmitFindSlots();" class="ppl-modal-form">
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">👥 Com quem? (do Tatami)</label>
+            ${invitables.length === 0
+              ? `<div style="padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;font-size:11.5px;color:var(--color-text-tertiary);font-style:italic;">Você ainda não divide canais com ninguém. Mestre Kan vai achar slots livres só pra você.</div>`
+              : `<div class="syncal-participants-grid">
+                  ${invitables.map(p => `
+                    <label class="syncal-participant-chip">
+                      <input type="checkbox" name="user_ids" value="${_esc(p.user_id)}"/>
+                      <span class="syncal-participant-avatar">${p.photo_url?`<img src="${_esc(p.photo_url)}" alt=""/>`:(p.name||'?').slice(0,2).toUpperCase()}</span>
+                      <span class="syncal-participant-name">${_esc(p.name||p.email||'?')}</span>
+                    </label>
+                  `).join('')}
+                </div>`
+            }
+          </div>
+          <div class="ppl-modal-row cols">
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Duração</label>
+              <select class="ppl-modal-select" name="duration_min">
+                <option value="15">15 min</option>
+                <option value="30" selected>30 min</option>
+                <option value="45">45 min</option>
+                <option value="60">1 hora</option>
+                <option value="90">1h30</option>
+                <option value="120">2 horas</option>
+              </select>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">De</label>
+              <input class="ppl-modal-input" name="from_date" type="date" value="${today}"/>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Até</label>
+              <input class="ppl-modal-input" name="to_date" type="date" value="${future}"/>
+            </div>
+          </div>
+          <div class="ppl-modal-row cols">
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Hora trabalho de</label>
+              <input class="ppl-modal-input" name="work_start" type="time" value="09:00"/>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">até</label>
+              <input class="ppl-modal-input" name="work_end" type="time" value="18:00"/>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+            <button type="button" class="ppl-btn" onclick="document.getElementById('syncal-find-slots').remove()">Cancelar</button>
+            <button type="submit" class="ppl-btn ppl-btn-primary" style="background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;border-color:#3A2410;">🥋 Achar horários</button>
+          </div>
+        </form>
+        <div id="syncal-find-results" style="margin-top:14px;"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function _syncalSubmitFindSlots() {
+  const form = document.getElementById('syncal-find-form');
+  if (!form) return;
+  const fd = new FormData(form);
+  const userIds = fd.getAll('user_ids') || [];
+  const params = {
+    p_user_ids: userIds,
+    p_duration_min: parseInt(fd.get('duration_min')||'30', 10),
+    p_from_date: fd.get('from_date'),
+    p_to_date: fd.get('to_date'),
+    p_work_start: fd.get('work_start')||'09:00',
+    p_work_end: fd.get('work_end')||'18:00',
+    p_max_results: 10,
+  };
+  const resultsDiv = document.getElementById('syncal-find-results');
+  if (resultsDiv) resultsDiv.innerHTML = `<div style="padding:20px;text-align:center;color:#7A5500;">⏳ Mestre Kan procurando...</div>`;
+  try {
+    const res = await _syncalApi.rpc('syncal_find_slots', params);
+    if (res.error) throw new Error(res.error.message);
+    const slots = res.data?.slots || [];
+    if (!resultsDiv) return;
+    if (slots.length === 0) {
+      resultsDiv.innerHTML = `<div style="padding:18px;background:#FBEAEB;border-radius:8px;font-size:12.5px;color:#7A0026;text-align:center;">Nenhum slot livre no período. Tente ampliar a janela.</div>`;
+      return;
+    }
+    resultsDiv.innerHTML = `
+      <div style="font-size:11.5px;color:#7A5500;font-family:'Noto Serif JP',serif;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">${slots.length} horários livres</div>
+      <div style="display:flex;flex-direction:column;gap:5px;max-height:300px;overflow-y:auto;">
+        ${slots.map(s => {
+          const d = new Date(s.date + 'T00:00:00');
+          const label = d.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short' });
+          return `
+            <button type="button" onclick="_syncalCreateFromSlot('${_esc(s.date)}','${_esc(s.start_time)}','${_esc(s.end_time)}','${userIds.join(',')}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;cursor:pointer;font-family:inherit;text-align:left;width:100%;">
+              <span style="font-size:13px;font-weight:500;color:var(--color-text-primary);text-transform:capitalize;">${_esc(label)}</span>
+              <span style="font-family:var(--font-sans);font-size:13px;color:#6B4825;font-weight:600;font-variant-numeric:tabular-nums;">${_esc(s.start_time.slice(0,5))} - ${_esc(s.end_time.slice(0,5))}</span>
+              <span style="font-size:11px;color:#3B6D11;">✓ todos livres</span>
+            </button>`;
+        }).join('')}
+      </div>
+    `;
+  } catch(e) {
+    if (resultsDiv) resultsDiv.innerHTML = `<div style="padding:18px;background:#FBEAEB;border-radius:8px;font-size:12.5px;color:#7A0026;">Erro: ${_esc(e?.message||e)}</div>`;
+  }
+}
+
+function _syncalCreateFromSlot(date, startTime, endTime, userIdsCsv) {
+  document.getElementById('syncal-find-slots')?.remove();
+  _syncalOpenEventModal(date);
+  setTimeout(() => {
+    const form = document.getElementById('syncal-event-form');
+    if (!form) return;
+    form.querySelector('input[name="time"]')?.setAttribute('value', startTime.slice(0,5));
+    const timeInput = form.querySelector('input[name="time"]');
+    if (timeInput) timeInput.value = startTime.slice(0,5);
+    // Pre-check os user_ids
+    const ids = userIdsCsv ? userIdsCsv.split(',').filter(Boolean) : [];
+    ids.forEach(uid => {
+      const cb = form.querySelector(`input[name="participant_ids"][value="${uid}"]`);
+      if (cb && !cb.checked) {
+        cb.checked = true;
+        cb.closest('.syncal-participant-chip')?.classList.add('active');
+      }
+    });
+    form.querySelector('input[name="title"]')?.focus();
+  }, 150);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// FEATURE #2 · Booking pages (Calendly-style)
+// ────────────────────────────────────────────────────────────────────
+// Modal pra criar/listar páginas de booking. Cada uma tem slug único,
+// duração, horários de trabalho. Link `?syncal_book=<slug>` é público.
+// ════════════════════════════════════════════════════════════════════
+async function _syncalOpenBookingPagesModal() {
+  let modal = document.getElementById('syncal-booking-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-booking-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10007';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  // Carrega páginas existentes
+  let pages = [];
+  try {
+    const res = await _syncalApi.get('syncal_booking_pages?select=*&order=updated_at.desc');
+    if (!res.error && Array.isArray(res.data)) pages = res.data;
+  } catch(_){}
+
+  modal.innerHTML = `
+    <div class="modal" style="max-width:600px;width:95%;max-height:88vh;display:flex;flex-direction:column;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <h3 style="margin:0;font-size:17px;">🌸 Páginas de booking</h3>
+        <button onclick="document.getElementById('syncal-booking-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb" style="overflow-y:auto;flex:1;">
+        <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 12px;">
+          Crie páginas públicas onde clientes/leads agendam direto na sua agenda — sem precisar de conta no Synkan. Estilo Calendly, com sua identidade.
+        </p>
+        ${pages.length === 0 ? `
+          <div style="padding:24px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12.5px;background:var(--color-background-secondary);border-radius:9px;">
+            Nenhuma página de booking ainda. Crie a primeira abaixo ↓
+          </div>
+        ` : `
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+            ${pages.map(p => {
+              const url = window.location.origin + window.location.pathname + '?syncal_book=' + encodeURIComponent(p.slug);
+              return `
+                <div style="padding:11px 14px;background:linear-gradient(135deg,rgba(214,83,126,.08),rgba(214,83,126,.02));border:0.5px solid #D4537E;border-radius:9px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:13.5px;font-weight:600;color:#3A2410;">${p.event_icon||'📅'} ${_esc(p.title)}</div>
+                      <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">${p.duration_min} min · /${_esc(p.slug)} · ${p.active ? '✓ ativa' : '✗ inativa'}</div>
+                    </div>
+                    <button class="ppl-btn" style="font-size:11px;padding:4px 10px;" onclick="_syncalCopyText('${_esc(url)}', 'Link copiado')">🔗 Copiar link</button>
+                    <button class="ppl-btn" style="font-size:11px;padding:4px 10px;color:#A02828;border-color:rgba(160,40,40,.3);" onclick="_syncalDeleteBookingPage('${_esc(p.id)}')">🗑</button>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        `}
+        <button class="ppl-btn ppl-btn-primary" style="width:100%;justify-content:center;background:linear-gradient(135deg,#D4537E,#A03158);color:#fff;border-color:#A03158;" onclick="_syncalOpenCreateBookingPage()">+ Nova página de booking</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function _syncalOpenCreateBookingPage() {
+  let modal = document.getElementById('syncal-booking-create');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-booking-create';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10008';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `
+    <div class="modal" style="max-width:520px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">＋ Nova página de booking</h3>
+        <button onclick="document.getElementById('syncal-booking-create').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <form id="syncal-booking-form" onsubmit="event.preventDefault();_syncalSubmitBookingPage();" class="ppl-modal-form">
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Título *</label>
+            <input class="ppl-modal-input" name="title" required placeholder="Ex: Conversa de 30 min" autocomplete="off"/>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Slug (URL) *</label>
+            <input class="ppl-modal-input" name="slug" required placeholder="conversa-30min" pattern="[a-z0-9-]+" autocomplete="off"/>
+            <div style="margin-top:5px;font-size:10.5px;color:var(--color-text-tertiary);">URL final: <code>?syncal_book=conversa-30min</code></div>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Descrição</label>
+            <textarea class="ppl-modal-input" name="description" rows="2" style="resize:vertical;" placeholder="Conte rapidamente o que esperar da call..."></textarea>
+          </div>
+          <div class="ppl-modal-row cols">
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Duração</label>
+              <select class="ppl-modal-select" name="duration_min">
+                <option value="15">15 min</option>
+                <option value="30" selected>30 min</option>
+                <option value="45">45 min</option>
+                <option value="60">1 hora</option>
+              </select>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Buffer entre slots</label>
+              <select class="ppl-modal-select" name="buffer_min">
+                <option value="0">Sem buffer</option>
+                <option value="5">5 min</option>
+                <option value="10" selected>10 min</option>
+                <option value="15">15 min</option>
+              </select>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Janela (dias)</label>
+              <input class="ppl-modal-input" name="days_ahead" type="number" min="1" max="60" value="14"/>
+            </div>
+          </div>
+          <div class="ppl-modal-row cols">
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Horário de</label>
+              <input class="ppl-modal-input" name="work_start" type="time" value="09:00"/>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">até</label>
+              <input class="ppl-modal-input" name="work_end" type="time" value="18:00"/>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+            <button type="button" class="ppl-btn" onclick="document.getElementById('syncal-booking-create').remove()">Cancelar</button>
+            <button type="submit" class="ppl-btn ppl-btn-primary" style="background:linear-gradient(135deg,#D4537E,#A03158);color:#fff;border-color:#A03158;">🌸 Criar página</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => modal.querySelector('input[name="title"]')?.focus(), 50);
+}
+
+async function _syncalSubmitBookingPage() {
+  const form = document.getElementById('syncal-booking-form');
+  if (!form) return;
+  const fd = new FormData(form);
+  const cfg = _syncalApi._cfg();
+  const weeklyHours = {};
+  const start = fd.get('work_start') || '09:00';
+  const end = fd.get('work_end') || '18:00';
+  ['MO','TU','WE','TH','FR'].forEach(d => { weeklyHours[d] = [start, end]; });
+
+  const payload = {
+    owner_id: cfg.uid,
+    slug: (fd.get('slug')||'').toLowerCase().replace(/[^a-z0-9-]/g,'-'),
+    title: (fd.get('title')||'').toString().trim(),
+    description: (fd.get('description')||'').toString().trim() || null,
+    duration_min: parseInt(fd.get('duration_min')||'30',10),
+    buffer_min: parseInt(fd.get('buffer_min')||'10',10),
+    days_ahead: parseInt(fd.get('days_ahead')||'14',10),
+    weekly_hours: weeklyHours,
+    event_icon: '📅',
+    event_color: '#D4537E',
+  };
+
+  const res = await _syncalApi.post('syncal_booking_pages', payload);
+  if (res.error) {
+    if (typeof appAlert === 'function') appAlert('Erro', res.error.message, { icon: '⚠️' });
+    return;
+  }
+  document.getElementById('syncal-booking-create')?.remove();
+  document.getElementById('syncal-booking-modal')?.remove();
+  setTimeout(() => _syncalOpenBookingPagesModal(), 100);
+}
+
+async function _syncalDeleteBookingPage(pageId) {
+  if (!confirm('Excluir essa página de booking? Quem já recebeu o link não consegue mais agendar.')) return;
+  await _syncalApi.del(`syncal_booking_pages?id=eq.${encodeURIComponent(pageId)}`);
+  document.getElementById('syncal-booking-modal')?.remove();
+  setTimeout(() => _syncalOpenBookingPagesModal(), 100);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// FEATURE #7 · Polls de horário (Doodle-style)
+// ────────────────────────────────────────────────────────────────────
+// Você propõe 3-5 horários, manda link público, externos votam.
+// Quando fechar, escolhe a opção mais votada e vira evento real.
+// ════════════════════════════════════════════════════════════════════
+async function _syncalOpenPollsModal() {
+  let modal = document.getElementById('syncal-polls-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-polls-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10007';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  let polls = [];
+  try {
+    const res = await _syncalApi.get('syncal_polls?select=*&order=created_at.desc');
+    if (!res.error && Array.isArray(res.data)) polls = res.data;
+  } catch(_){}
+
+  modal.innerHTML = `
+    <div class="modal" style="max-width:600px;width:95%;max-height:88vh;display:flex;flex-direction:column;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <h3 style="margin:0;font-size:17px;">🗳 Polls de horário</h3>
+        <button onclick="document.getElementById('syncal-polls-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb" style="overflow-y:auto;flex:1;">
+        <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 12px;">
+          Proponha 3-5 horários, mande o link, deixe as pessoas votarem. Estilo Doodle. Quando fechar, vira evento.
+        </p>
+        ${polls.length === 0 ? `
+          <div style="padding:24px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12.5px;background:var(--color-background-secondary);border-radius:9px;">
+            Nenhum poll ainda. Criar o primeiro ↓
+          </div>
+        ` : `
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+            ${polls.map(p => {
+              const url = window.location.origin + window.location.pathname + '?syncal_poll=' + encodeURIComponent(p.token);
+              const voteCount = Array.isArray(p.votes) ? p.votes.length : 0;
+              return `
+                <div style="padding:11px 14px;background:${p.closed?'rgba(0,0,0,.03)':'rgba(193,154,58,.08)'};border:0.5px solid ${p.closed?'var(--color-border-tertiary)':'#C19A3A'};border-radius:9px;${p.closed?'opacity:.7':''}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:13.5px;font-weight:600;color:var(--color-text-primary);">${p.closed?'🔒 ':'🗳 '}${_esc(p.title)}</div>
+                      <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">${(p.options||[]).length} opções · ${voteCount} votos${p.closed?' · fechado':''}</div>
+                    </div>
+                    ${!p.closed ? `<button class="ppl-btn" style="font-size:11px;padding:4px 10px;" onclick="_syncalCopyText('${_esc(url)}', 'Link copiado')">🔗</button>` : ''}
+                    ${!p.closed && voteCount > 0 ? `<button class="ppl-btn ppl-btn-primary" style="font-size:11px;padding:4px 10px;" onclick="_syncalClosePoll('${_esc(p.id)}')">✓ Fechar</button>` : ''}
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        `}
+        <button class="ppl-btn ppl-btn-primary" style="width:100%;justify-content:center;background:linear-gradient(135deg,#C19A3A,#8B6634);color:#1A1611;border-color:#8B6634;" onclick="_syncalOpenCreatePoll()">+ Novo poll de horário</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function _syncalOpenCreatePoll() {
+  let modal = document.getElementById('syncal-poll-create');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-poll-create';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10008';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  const today = new Date().toISOString().slice(0,10);
+  const initialOptions = [
+    { id: 'opt_1', date: today, start_time: '10:00' },
+    { id: 'opt_2', date: today, start_time: '14:00' },
+    { id: 'opt_3', date: today, start_time: '16:00' },
+  ];
+
+  modal.innerHTML = `
+    <div class="modal" style="max-width:540px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">＋ Novo poll de horário</h3>
+        <button onclick="document.getElementById('syncal-poll-create').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <form id="syncal-poll-form" onsubmit="event.preventDefault();_syncalSubmitPoll();" class="ppl-modal-form">
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Título *</label>
+            <input class="ppl-modal-input" name="title" required placeholder="Ex: Reunião sobre proposta" autocomplete="off"/>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Contexto</label>
+            <textarea class="ppl-modal-input" name="description" rows="2" style="resize:vertical;" placeholder="O que vai ser discutido, quem deve ir..."></textarea>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Duração</label>
+            <select class="ppl-modal-select" name="duration_min">
+              <option value="15">15 min</option>
+              <option value="30" selected>30 min</option>
+              <option value="45">45 min</option>
+              <option value="60">1 hora</option>
+            </select>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Opções de horário</label>
+            <div id="syncal-poll-options" style="display:flex;flex-direction:column;gap:6px;">
+              ${initialOptions.map((o,i) => `
+                <div class="syncal-poll-option" data-idx="${i}" style="display:flex;gap:6px;align-items:center;">
+                  <input class="ppl-modal-input" type="date" value="${o.date}" name="opt_date_${i}" style="flex:1;"/>
+                  <input class="ppl-modal-input" type="time" value="${o.start_time}" name="opt_time_${i}" style="flex:0 0 100px;"/>
+                  <button type="button" onclick="this.closest('.syncal-poll-option').remove()" style="background:transparent;border:none;color:#A02828;cursor:pointer;font-size:14px;padding:6px 8px;">×</button>
+                </div>
+              `).join('')}
+            </div>
+            <button type="button" onclick="_syncalAddPollOption()" style="margin-top:6px;background:transparent;border:0.5px dashed var(--color-border-tertiary);border-radius:7px;padding:6px 12px;cursor:pointer;font-size:11.5px;color:var(--color-text-secondary);width:100%;">+ Adicionar opção</button>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+            <button type="button" class="ppl-btn" onclick="document.getElementById('syncal-poll-create').remove()">Cancelar</button>
+            <button type="submit" class="ppl-btn ppl-btn-primary" style="background:linear-gradient(135deg,#C19A3A,#8B6634);color:#1A1611;border-color:#8B6634;">🗳 Criar poll</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function _syncalAddPollOption() {
+  const list = document.getElementById('syncal-poll-options');
+  if (!list) return;
+  const idx = list.children.length;
+  const today = new Date().toISOString().slice(0,10);
+  const div = document.createElement('div');
+  div.className = 'syncal-poll-option';
+  div.dataset.idx = idx;
+  div.style.cssText = 'display:flex;gap:6px;align-items:center;';
+  div.innerHTML = `
+    <input class="ppl-modal-input" type="date" value="${today}" name="opt_date_${idx}" style="flex:1;"/>
+    <input class="ppl-modal-input" type="time" value="10:00" name="opt_time_${idx}" style="flex:0 0 100px;"/>
+    <button type="button" onclick="this.closest('.syncal-poll-option').remove()" style="background:transparent;border:none;color:#A02828;cursor:pointer;font-size:14px;padding:6px 8px;">×</button>
+  `;
+  list.appendChild(div);
+}
+
+async function _syncalSubmitPoll() {
+  const form = document.getElementById('syncal-poll-form');
+  if (!form) return;
+  const fd = new FormData(form);
+  const options = [];
+  document.querySelectorAll('.syncal-poll-option').forEach((row, i) => {
+    const date = row.querySelector('input[type="date"]').value;
+    const time = row.querySelector('input[type="time"]').value;
+    if (date && time) options.push({ id: 'opt_'+i+'_'+Date.now(), date, start_time: time });
+  });
+  if (options.length < 2) {
+    if (typeof appAlert === 'function') appAlert('Mínimo 2 opções', 'Adicione pelo menos 2 horários pras pessoas votarem.', { icon: '⚠️' });
+    return;
+  }
+  const res = await _syncalApi.rpc('syncal_poll_create', {
+    p_title: fd.get('title'),
+    p_description: fd.get('description') || null,
+    p_duration_min: parseInt(fd.get('duration_min')||'30',10),
+    p_options: options,
+  });
+  if (res.error) {
+    if (typeof appAlert === 'function') appAlert('Erro', res.error.message, { icon: '⚠️' });
+    return;
+  }
+  const token = res.data?.token;
+  document.getElementById('syncal-poll-create')?.remove();
+  document.getElementById('syncal-polls-modal')?.remove();
+  if (token && typeof appAlert === 'function') {
+    const url = window.location.origin + window.location.pathname + '?syncal_poll=' + encodeURIComponent(token);
+    appAlert('Poll criado 🗳', `Compartilhe esse link com as pessoas pra votarem:<br/><br/><code style="display:block;padding:8px 10px;background:var(--color-background-secondary);border-radius:6px;font-size:11px;word-break:break-all;">${_esc(url)}</code>`, { icon: '✓', html: true });
+  }
+  setTimeout(() => _syncalOpenPollsModal(), 200);
+}
+
+async function _syncalClosePoll(pollId) {
+  // Busca poll, conta votos, escolhe vencedor automaticamente
+  try {
+    const res = await _syncalApi.get(`syncal_polls?id=eq.${encodeURIComponent(pollId)}&limit=1`);
+    if (res.error || !Array.isArray(res.data) || !res.data[0]) return;
+    const poll = res.data[0];
+    const tally = {};
+    (poll.votes||[]).forEach(v => {
+      if (v.status === 'yes') tally[v.option_id] = (tally[v.option_id]||0) + 1;
+    });
+    const sorted = Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+    if (!sorted.length) {
+      if (typeof appAlert === 'function') appAlert('Sem votos', 'Ninguém votou ainda.', { icon: 'ⓘ' });
+      return;
+    }
+    const winnerId = sorted[0][0];
+    const confirmed = typeof appConfirm === 'function'
+      ? await appConfirm('Fechar poll', `Vai criar evento na opção mais votada (${sorted[0][1]} votos). Continuar?`, { okLabel: 'Fechar e criar', icon: '🗳' })
+      : confirm('Fechar poll e criar evento?');
+    if (!confirmed) return;
+    const close = await _syncalApi.rpc('syncal_poll_close', { p_poll_id: pollId, p_chosen_option_id: winnerId });
+    if (close.error) {
+      if (typeof appAlert === 'function') appAlert('Erro', close.error.message, { icon: '⚠️' });
+      return;
+    }
+    document.getElementById('syncal-polls-modal')?.remove();
+    await _syncalLoadEvents();
+    if (typeof appAlert === 'function') appAlert('Poll fechado ✓', 'Evento criado na agenda. Avise quem votou.', { icon: '✓' });
+  } catch(e) {
+    if (typeof appAlert === 'function') appAlert('Erro', e?.message||String(e), { icon: '⚠️' });
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// FEATURE #4 · Auto-busy via Tatami
+// ────────────────────────────────────────────────────────────────────
+// Quando user entra na voz de um canal Tatami, cria evento "🎴 Em sessão"
+// com flag auto_busy=true. Quando sai, marca end_time = agora e remove
+// se durou menos de 1 min (provavelmente acidente). Evento é "focus" type
+// pra não poluir contadores normais.
+// ════════════════════════════════════════════════════════════════════
+let _syncalAutoBusyEvent = null;  // { id, startedAt, channelId }
+
+async function _syncalTatamiAutoBusyStart(channelId) {
+  if (_syncalAutoBusyEvent) return; // já tá num
+  const now = new Date();
+  const startTime = now.toTimeString().slice(0,5);
+  const dateStr = now.toISOString().slice(0,10);
+
+  // Resolve nome do canal pro título
+  let channelName = 'Tatami';
+  try {
+    const channels = (typeof _syncalGetChatChannels === 'function') ? _syncalGetChatChannels() : [];
+    const ch = channels.find(c => c.id === channelId);
+    if (ch) channelName = ch.name || channelName;
+  } catch(_){}
+
+  const ev = {
+    id: _syncalNewId(),
+    type: 'focus',
+    title: `🎴 Em sessão · #${channelName}`,
+    date: dateStr,
+    time: startTime,
+    icon: '🎴',
+    color: '#6B4825',
+    linkedChannelId: channelId,
+    autoBusy: true,
+    description: 'Auto-criado pelo Syncal quando você entrou na sessão Tatami.',
+  };
+
+  try {
+    const res = await _syncalUpsertEvent(ev);
+    if (res.ok) {
+      _syncalAutoBusyEvent = {
+        id: res.id || ev.id,
+        startedAt: now.getTime(),
+        channelId,
+      };
+      console.info('[syncal] auto-busy iniciado:', _syncalAutoBusyEvent.id);
+      // Re-render se Syncal está visível
+      if (typeof currentTab !== 'undefined' && currentTab === 'syncal' && typeof _syncalRenderContent === 'function') {
+        _syncalRenderContent();
+      }
+    }
+  } catch(e) {
+    console.warn('[syncal] auto-busy start falhou:', e?.message);
+  }
+}
+
+async function _syncalTatamiAutoBusyEnd() {
+  const tracker = _syncalAutoBusyEvent;
+  _syncalAutoBusyEvent = null;
+  if (!tracker) return;
+
+  const elapsedMs = Date.now() - tracker.startedAt;
+  // Sessões muito curtas (<1 min): apaga o evento — provavelmente acidente
+  if (elapsedMs < 60000) {
+    try {
+      await _syncalDeleteEventFromDb(tracker.id);
+      console.info('[syncal] auto-busy curto (<1min), removido:', tracker.id);
+    } catch(_){}
+    if (typeof currentTab !== 'undefined' && currentTab === 'syncal' && typeof _syncalRenderContent === 'function') {
+      _syncalRenderContent();
+    }
+    return;
+  }
+
+  // Atualiza end_time pra "agora"
+  const ev = _syncalState.events.find(x => x.id === tracker.id);
+  if (!ev) return;
+  const now = new Date();
+  ev.endTime = now.toTimeString().slice(0,5);
+  try {
+    await _syncalUpsertEvent(ev);
+    console.info('[syncal] auto-busy finalizado:', tracker.id, 'duração:', Math.round(elapsedMs/60000)+'min');
+  } catch(e) {
+    console.warn('[syncal] auto-busy end falhou:', e?.message);
+  }
+  if (typeof currentTab !== 'undefined' && currentTab === 'syncal' && typeof _syncalRenderContent === 'function') {
+    _syncalRenderContent();
+  }
+}
+
+// Cleanup se user fecha aba ainda em sessão
+window.addEventListener('beforeunload', () => {
+  if (_syncalAutoBusyEvent) {
+    // Best-effort: navigator.sendBeacon não funciona com Supabase RPC
+    // mas o evento fica criado e o user pode fechar manualmente depois.
+    // Próxima sessão Tatami atualiza o que tava aberto.
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────
+// Bootstrap pra páginas públicas:
+//   ?sync_public=<token>  — evento individual (link Calendly-1evento)
+//   ?syncal_book=<slug>   — booking page (Calendly multi-slot)
+//   ?syncal_poll=<token>  — poll de horário (Doodle)
 // ────────────────────────────────────────────────────────────────────
 (function() {
   try {
     const params = new URLSearchParams(window.location.search);
     const publicToken = params.get('sync_public');
-    if (!publicToken) return;
-    // Aguarda DOM pronto e _syncalRenderPublicPage definido (já está definida aqui)
+    const bookSlug    = params.get('syncal_book');
+    const pollToken   = params.get('syncal_poll');
+    if (!publicToken && !bookSlug && !pollToken) return;
     const start = () => {
-      if (typeof _syncalRenderPublicPage === 'function') {
+      if (publicToken && typeof _syncalRenderPublicPage === 'function') {
         _syncalRenderPublicPage(publicToken);
+      } else if (bookSlug && typeof _syncalRenderBookingPage === 'function') {
+        _syncalRenderBookingPage(bookSlug);
+      } else if (pollToken && typeof _syncalRenderPollPage === 'function') {
+        _syncalRenderPollPage(pollToken);
       } else {
         setTimeout(start, 100);
       }
@@ -70058,6 +71065,260 @@ _syncalHandleDeepLink();
     }
   } catch(_){}
 })();
+
+// ════════════════════════════════════════════════════════════════════
+// Booking page pública (?syncal_book=<slug>)
+// ════════════════════════════════════════════════════════════════════
+async function _syncalRenderBookingPage(slug) {
+  document.body.innerHTML = `
+    <div id="syncal-public-root" style="min-height:100vh;background:linear-gradient(180deg,#FFFCF5 0%,#F5E8C8 100%);font-family:var(--font-sans,system-ui,sans-serif);display:flex;flex-direction:column;align-items:center;padding:32px 18px;">
+      <div class="syncal-public-card" style="max-width:520px;width:100%;background:#FFF;border-radius:16px;overflow:hidden;box-shadow:0 12px 40px rgba(58,36,16,.20);">
+        <div id="syncal-book-content" style="padding:60px 30px;text-align:center;color:#6B4825;">⏳ Carregando…</div>
+      </div>
+      <div style="margin-top:20px;font-family:'Noto Serif JP',serif;font-size:11px;letter-spacing:.16em;color:#6B4825;text-transform:uppercase;">via SYNKAN · 暦 · Syncal</div>
+    </div>`;
+  try {
+    const cfg = _peopleApi._resolveConfig();
+    const anonKey = cfg?.anonKey || cfg?.anon;
+    if (!cfg || !anonKey) throw new Error('config missing');
+    const res = await fetch(`${cfg.url}/rest/v1/rpc/syncal_booking_get`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey':anonKey, 'Authorization':`Bearer ${anonKey}` },
+      body: JSON.stringify({ p_slug: slug }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data?.found) {
+      document.getElementById('syncal-book-content').innerHTML = `<div style="font-size:42px;margin-bottom:10px;">🌑</div><div style="font-family:'Noto Serif JP',serif;font-size:17px;font-weight:600;margin-bottom:6px;">Página não encontrada</div><div style="font-size:13px;">O link pode estar inválido ou desativado.</div>`;
+      return;
+    }
+    _syncalBookingState = { page: data, selectedDate: null, selectedSlot: null };
+    _syncalRenderBookingDayPicker();
+  } catch(e) {
+    document.getElementById('syncal-book-content').innerHTML = `<div style="color:#7A0026;">Erro: ${_esc(e?.message||e)}</div>`;
+  }
+}
+
+let _syncalBookingState = null;
+
+function _syncalRenderBookingDayPicker() {
+  const p = _syncalBookingState.page;
+  const today = new Date();
+  const days = [];
+  for (let i = 0; i < p.days_ahead; i++) {
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    days.push(d);
+  }
+  const fmt = (d) => d.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short' });
+  document.getElementById('syncal-book-content').innerHTML = `
+    <div style="padding:24px 30px;background:linear-gradient(135deg,${p.event_color||'#D4537E'},#6B4825);color:#F5E8C8;">
+      <div style="font-family:'Noto Serif JP',serif;font-size:11px;letter-spacing:.14em;opacity:.7;text-transform:uppercase;margin-bottom:6px;">${_esc(p.host_name||'')} oferece</div>
+      <div style="font-family:'Noto Serif JP',serif;font-size:22px;font-weight:600;line-height:1.3;">${p.event_icon||'📅'} ${_esc(p.title)}</div>
+      <div style="font-size:13px;opacity:.9;margin-top:8px;">⏱ ${p.duration_min} min</div>
+      ${p.description ? `<div style="margin-top:10px;font-size:13px;opacity:.9;line-height:1.55;">${_esc(p.description)}</div>` : ''}
+    </div>
+    <div style="padding:20px 24px;">
+      <div style="font-family:'Noto Serif JP',serif;font-size:13px;color:#3A2410;font-weight:600;margin-bottom:10px;">Escolha um dia</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;max-height:340px;overflow-y:auto;">
+        ${days.map(d => `
+          <button onclick="_syncalBookingPickDay('${d.toISOString().slice(0,10)}')" style="padding:10px 6px;border:0.5px solid #C19A3A;background:#FFFCF5;border-radius:7px;font-family:inherit;cursor:pointer;text-align:center;font-size:11.5px;color:#3A2410;text-transform:capitalize;font-weight:500;">${_esc(fmt(d))}</button>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+async function _syncalBookingPickDay(dateStr) {
+  _syncalBookingState.selectedDate = dateStr;
+  const slug = _syncalBookingState.page.slug;
+  const cfg = _peopleApi._resolveConfig();
+  const anonKey = cfg?.anonKey || cfg?.anon;
+  try {
+    const res = await fetch(`${cfg.url}/rest/v1/rpc/syncal_booking_slots`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey':anonKey, 'Authorization':`Bearer ${anonKey}` },
+      body: JSON.stringify({ p_slug: slug, p_date: dateStr }),
+    });
+    const data = await res.json();
+    const slots = data?.slots || [];
+    const fmtDay = new Date(dateStr+'T00:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long' });
+    document.getElementById('syncal-book-content').innerHTML = `
+      <div style="padding:18px 24px;border-bottom:0.5px solid #C19A3A;display:flex;align-items:center;gap:10px;">
+        <button onclick="_syncalRenderBookingDayPicker()" style="background:transparent;border:none;font-size:18px;cursor:pointer;color:#6B4825;">←</button>
+        <div style="font-family:'Noto Serif JP',serif;font-size:14px;font-weight:600;color:#3A2410;text-transform:capitalize;">${_esc(fmtDay)}</div>
+      </div>
+      <div style="padding:20px 24px;">
+        ${slots.length === 0
+          ? `<div style="text-align:center;padding:30px;color:#6B4825;font-style:italic;">Nenhum horário livre nesse dia. Tenta outro.</div>`
+          : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;">
+              ${slots.map(s => `
+                <button onclick="_syncalBookingPickSlot('${s.start}','${s.end}')" style="padding:11px 6px;border:0.5px solid #C19A3A;background:#FFFCF5;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px;color:#3A2410;font-weight:600;">${_esc(s.start.slice(0,5))}</button>
+              `).join('')}
+            </div>`}
+      </div>`;
+  } catch(e) {
+    document.getElementById('syncal-book-content').innerHTML = `<div style="padding:30px;color:#7A0026;">Erro: ${_esc(e?.message||e)}</div>`;
+  }
+}
+
+function _syncalBookingPickSlot(start, end) {
+  _syncalBookingState.selectedSlot = { start, end };
+  const p = _syncalBookingState.page;
+  const date = _syncalBookingState.selectedDate;
+  const fmtDay = new Date(date+'T00:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long' });
+  document.getElementById('syncal-book-content').innerHTML = `
+    <div style="padding:18px 24px;border-bottom:0.5px solid #C19A3A;">
+      <div style="font-size:11px;color:#6B4825;text-transform:uppercase;letter-spacing:.06em;">Confirmar</div>
+      <div style="font-family:'Noto Serif JP',serif;font-size:15px;font-weight:600;color:#3A2410;margin-top:4px;text-transform:capitalize;">${_esc(fmtDay)} · ${_esc(start.slice(0,5))} - ${_esc(end.slice(0,5))}</div>
+    </div>
+    <div style="padding:20px 24px;">
+      <form onsubmit="event.preventDefault();_syncalBookingConfirm();" style="display:flex;flex-direction:column;gap:10px;">
+        <input id="sb-name" required placeholder="Seu nome *" style="padding:11px 14px;border:0.5px solid #C19A3A;border-radius:8px;font-size:13px;background:#FFFCF5;"/>
+        <input id="sb-email" type="email" required placeholder="Seu email *" style="padding:11px 14px;border:0.5px solid #C19A3A;border-radius:8px;font-size:13px;background:#FFFCF5;"/>
+        <textarea id="sb-notes" placeholder="Mensagem (opcional)" rows="3" style="padding:11px 14px;border:0.5px solid #C19A3A;border-radius:8px;font-size:13px;background:#FFFCF5;font-family:inherit;resize:vertical;"></textarea>
+        <button type="submit" style="padding:12px;background:linear-gradient(135deg,#D4537E,#A03158);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Confirmar agendamento</button>
+        <button type="button" onclick="_syncalBookingPickDay('${date}')" style="padding:10px;background:transparent;border:none;color:#6B4825;cursor:pointer;font-size:12px;">← Escolher outro horário</button>
+      </form>
+    </div>`;
+}
+
+async function _syncalBookingConfirm() {
+  const name = document.getElementById('sb-name')?.value.trim();
+  const email = document.getElementById('sb-email')?.value.trim();
+  const notes = document.getElementById('sb-notes')?.value.trim();
+  if (!name || !email) return;
+  try {
+    const cfg = _peopleApi._resolveConfig();
+    const anonKey = cfg?.anonKey || cfg?.anon;
+    const res = await fetch(`${cfg.url}/rest/v1/rpc/syncal_booking_create_event`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey':anonKey, 'Authorization':`Bearer ${anonKey}` },
+      body: JSON.stringify({
+        p_slug: _syncalBookingState.page.slug,
+        p_name: name,
+        p_email: email,
+        p_start_date: _syncalBookingState.selectedDate,
+        p_start_time: _syncalBookingState.selectedSlot.start,
+        p_notes: notes || null,
+      }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    document.getElementById('syncal-book-content').innerHTML = `
+      <div style="padding:50px 30px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:14px;">🎴</div>
+        <div style="font-family:'Noto Serif JP',serif;font-size:18px;font-weight:600;color:#3A2410;margin-bottom:8px;">Agendado!</div>
+        <div style="font-size:13px;color:#6B4825;line-height:1.6;">${_esc(_syncalBookingState.page.host_name||'Anfitrião')} foi notificado.<br/>Confirmação no seu email <strong>${_esc(email)}</strong>.</div>
+      </div>`;
+  } catch(e) {
+    alert('Erro ao agendar: ' + (e?.message||e));
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Poll page pública (?syncal_poll=<token>)
+// ════════════════════════════════════════════════════════════════════
+async function _syncalRenderPollPage(token) {
+  document.body.innerHTML = `
+    <div id="syncal-public-root" style="min-height:100vh;background:linear-gradient(180deg,#FFFCF5 0%,#F5E8C8 100%);font-family:var(--font-sans,system-ui,sans-serif);display:flex;flex-direction:column;align-items:center;padding:32px 18px;">
+      <div class="syncal-public-card" style="max-width:520px;width:100%;background:#FFF;border-radius:16px;overflow:hidden;box-shadow:0 12px 40px rgba(58,36,16,.20);">
+        <div id="syncal-poll-content" style="padding:60px 30px;text-align:center;color:#6B4825;">⏳ Carregando poll…</div>
+      </div>
+      <div style="margin-top:20px;font-family:'Noto Serif JP',serif;font-size:11px;letter-spacing:.16em;color:#6B4825;text-transform:uppercase;">via SYNKAN · 暦 · Syncal</div>
+    </div>`;
+  try {
+    const cfg = _peopleApi._resolveConfig();
+    const anonKey = cfg?.anonKey || cfg?.anon;
+    const res = await fetch(`${cfg.url}/rest/v1/rpc/syncal_poll_get`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey':anonKey, 'Authorization':`Bearer ${anonKey}` },
+      body: JSON.stringify({ p_token: token }),
+    });
+    const data = await res.json();
+    if (!data?.found) {
+      document.getElementById('syncal-poll-content').innerHTML = `<div style="font-size:42px;">🌑</div><div style="font-family:'Noto Serif JP',serif;font-size:17px;margin-top:10px;">Poll não encontrado</div>`;
+      return;
+    }
+    _syncalRenderPollDetail(data, token);
+  } catch(e) {
+    document.getElementById('syncal-poll-content').innerHTML = `<div style="color:#7A0026;">Erro: ${_esc(e?.message||e)}</div>`;
+  }
+}
+
+function _syncalRenderPollDetail(data, token) {
+  const opts = data.options || [];
+  const votes = data.votes || [];
+  // Tally por option
+  const tally = {};
+  opts.forEach(o => { tally[o.id] = { yes: 0, maybe: 0, no: 0 }; });
+  votes.forEach(v => { if (tally[v.option_id]) tally[v.option_id][v.status] = (tally[v.option_id][v.status]||0) + 1; });
+
+  document.getElementById('syncal-poll-content').innerHTML = `
+    <div style="padding:24px 30px;background:linear-gradient(135deg,#C19A3A,#6B4825);color:#F5E8C8;">
+      <div style="font-family:'Noto Serif JP',serif;font-size:11px;letter-spacing:.14em;opacity:.7;text-transform:uppercase;margin-bottom:6px;">${_esc(data.host_name||'')} propõe</div>
+      <div style="font-family:'Noto Serif JP',serif;font-size:22px;font-weight:600;line-height:1.3;">🗳 ${_esc(data.title)}</div>
+      ${data.description ? `<div style="margin-top:10px;font-size:13px;opacity:.9;line-height:1.55;">${_esc(data.description)}</div>` : ''}
+      <div style="margin-top:10px;font-size:12px;opacity:.85;">Duração: ${data.duration_min} min</div>
+    </div>
+    <div style="padding:20px 24px;">
+      <form onsubmit="event.preventDefault();_syncalPollSubmitVote('${_esc(token)}');" style="display:flex;flex-direction:column;gap:12px;">
+        <input id="sp-name" required placeholder="Seu nome *" style="padding:11px 14px;border:0.5px solid #C19A3A;border-radius:8px;font-size:13px;background:#FFFCF5;"/>
+        <input id="sp-email" type="email" placeholder="Email (opcional)" style="padding:11px 14px;border:0.5px solid #C19A3A;border-radius:8px;font-size:13px;background:#FFFCF5;"/>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${opts.map(o => {
+            const d = new Date(o.date+'T00:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short' });
+            const t = (tally[o.id] || {yes:0,maybe:0,no:0});
+            return `
+              <div style="padding:11px 14px;background:#FFFCF5;border:0.5px solid #C19A3A;border-radius:9px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                  <span style="font-size:13px;font-weight:500;color:#3A2410;text-transform:capitalize;">${_esc(d)} · ${_esc(o.start_time.slice(0,5))}</span>
+                  <span style="font-size:11px;color:#6B4825;">${t.yes}✓ ${t.maybe}? ${t.no}✗</span>
+                </div>
+                <div style="display:flex;gap:5px;">
+                  <label style="flex:1;cursor:pointer;"><input type="radio" name="vote_${o.id}" value="yes" style="display:none;" onchange="this.closest('label').style.background='#3B6D11';this.closest('label').style.color='#fff';"/><div style="padding:7px;text-align:center;border:0.5px solid #3B6D11;border-radius:6px;font-size:11.5px;font-weight:600;">✓ Vou</div></label>
+                  <label style="flex:1;cursor:pointer;"><input type="radio" name="vote_${o.id}" value="maybe" style="display:none;" onchange="this.closest('label').style.background='#7A5500';this.closest('label').style.color='#fff';"/><div style="padding:7px;text-align:center;border:0.5px solid #C19A3A;border-radius:6px;font-size:11.5px;font-weight:600;">? Talvez</div></label>
+                  <label style="flex:1;cursor:pointer;"><input type="radio" name="vote_${o.id}" value="no" style="display:none;" onchange="this.closest('label').style.background='#BC002D';this.closest('label').style.color='#fff';"/><div style="padding:7px;text-align:center;border:0.5px solid #BC002D;border-radius:6px;font-size:11.5px;font-weight:600;">✗ Não vou</div></label>
+                </div>
+              </div>`;
+          }).join('')}
+        </div>
+        <button type="submit" style="padding:12px;background:linear-gradient(135deg,#C19A3A,#8B6634);color:#1A1611;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">🗳 Enviar voto</button>
+      </form>
+    </div>`;
+}
+
+async function _syncalPollSubmitVote(token) {
+  const name = document.getElementById('sp-name')?.value.trim();
+  const email = document.getElementById('sp-email')?.value.trim() || null;
+  if (!name) return;
+  const votes = [];
+  document.querySelectorAll('input[type="radio"][name^="vote_"]').forEach(input => {
+    if (input.checked) {
+      const optionId = input.name.replace('vote_', '');
+      votes.push({ option_id: optionId, status: input.value });
+    }
+  });
+  if (!votes.length) {
+    alert('Vote em pelo menos uma opção.');
+    return;
+  }
+  try {
+    const cfg = _peopleApi._resolveConfig();
+    const anonKey = cfg?.anonKey || cfg?.anon;
+    const res = await fetch(`${cfg.url}/rest/v1/rpc/syncal_poll_vote`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey':anonKey, 'Authorization':`Bearer ${anonKey}` },
+      body: JSON.stringify({ p_token: token, p_voter_name: name, p_voter_email: email, p_votes: votes }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    document.getElementById('syncal-poll-content').innerHTML = `
+      <div style="padding:50px 30px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:14px;">🗳</div>
+        <div style="font-family:'Noto Serif JP',serif;font-size:18px;font-weight:600;color:#3A2410;margin-bottom:8px;">Voto registrado!</div>
+        <div style="font-size:13px;color:#6B4825;line-height:1.6;">${_esc(name)}, seu voto foi enviado.<br/>O organizador escolhe a melhor opção e cria o evento.</div>
+      </div>`;
+  } catch(e) {
+    alert('Erro: ' + (e?.message||e));
+  }
+}
 
 // ════════════════════════════════════════════════════════════════════
 // Atalhos de teclado · só ativos quando Syncal estiver visível
@@ -70561,6 +71822,31 @@ async function _syncalOpenEventModal(prefDate, editingId) {
             ` : ''}
           </div>
 
+          <!-- ───── Lembretes (notificação N min antes) — só pra eventos com horário ───── -->
+          <div class="ppl-modal-row" id="syncal-reminders-row" style="${eventType==='event'?'':'display:none;'}">
+            <label class="ppl-modal-label">🔔 Lembretes antes</label>
+            <div class="syncal-reminder-grid">
+              ${[
+                {min: 60, label: '1h antes'},
+                {min: 30, label: '30 min'},
+                {min: 15, label: '15 min'},
+                {min: 10, label: '10 min'},
+                {min: 5,  label: '5 min'},
+                {min: 0,  label: 'na hora'},
+              ].map(opt => {
+                const checked = (existing?.reminderMinutes || []).includes(opt.min);
+                return `
+                  <label class="syncal-reminder-chip ${checked?'active':''}">
+                    <input type="checkbox" name="reminder_minutes" value="${opt.min}" ${checked?'checked':''} onchange="this.closest('.syncal-reminder-chip').classList.toggle('active',this.checked);"/>
+                    <span>${opt.label}</span>
+                  </label>`;
+              }).join('')}
+            </div>
+            <div style="margin-top:5px;font-size:10.5px;color:var(--color-text-tertiary);line-height:1.4;">
+              Aparecem como banner no app + notificação do sistema (precisa autorizar). Se tem canal Tatami vinculado, Mestre Kan posta lembrete "na hora" pra todo mundo.
+            </div>
+          </div>
+
           <!-- ───── Canal vinculado · disponível pra TODOS os tipos ─────
                · Evento  → "Canal do Tatami" (gera deep link, posta aviso)
                · Outros  → "Avisar canal sobre a [férias/ausência/feriado]"
@@ -70602,12 +71888,54 @@ async function _syncalOpenEventModal(prefDate, editingId) {
           </div>
           <div class="ppl-modal-row" id="syncal-link-target-row" style="${existing?.link?.type?'':'display:none;'}">
             <label class="ppl-modal-label">Selecionar</label>
-            <select class="ppl-modal-select" name="link_id" id="syncal-link-target">
+            <select class="ppl-modal-select" name="link_id" id="syncal-link-target" onchange="_syncalUpdateKrSelect(this.value)">
               ${(existing?.link?.type==='people' ? pessoas : existing?.link?.type==='okr' ? okrsList : []).map(item => {
                 const id = item.id; const label = item.name || item.title || '(sem nome)';
                 return `<option value="${_esc(id)}" ${existing?.link?.id===id?'selected':''}>${_esc(label)}</option>`;
               }).join('')}
             </select>
+          </div>
+
+          <!-- ───── #5 Vínculo a KR específico (aparece se link.type=okr) ───── -->
+          <div class="ppl-modal-row" id="syncal-kr-row" style="${existing?.link?.type==='okr'?'':'display:none;'}">
+            <label class="ppl-modal-label" style="font-size:11px;">🎯 KR específico (opcional)</label>
+            <select class="ppl-modal-select" name="linked_kr_id" id="syncal-kr-select">
+              <option value="">— OKR inteiro (sem KR específico) —</option>
+              ${(() => {
+                if (existing?.link?.type !== 'okr' || !existing?.link?.id) return '';
+                const okr = okrsList.find(o => o.id === existing.link.id);
+                if (!okr || !Array.isArray(okr.krs)) return '';
+                return okr.krs.map(kr => `<option value="${_esc(kr.id)}" ${existing?.linkedKrId===kr.id?'selected':''}>${_esc(kr.title||'(sem título)')}</option>`).join('');
+              })()}
+            </select>
+            <div style="margin-top:5px;font-size:10.5px;color:var(--color-text-tertiary);line-height:1.4;">
+              Vincular a um KR específico ajuda a rastrear quanto cada reunião contribui pra meta.
+            </div>
+          </div>
+
+          <!-- ───── #3 Notas / agenda do evento (markdown) ───── -->
+          <div class="ppl-modal-row" id="syncal-notes-row" style="${eventType==='event'?'':'display:none;'}">
+            <label class="ppl-modal-label">📝 Notas / agenda <span style="font-weight:400;font-size:10.5px;color:var(--color-text-tertiary);text-transform:none;letter-spacing:0;">(markdown OK)</span></label>
+            <textarea class="ppl-modal-input" name="notes_md" rows="4" style="resize:vertical;font-family:'Menlo',monospace;font-size:12px;line-height:1.5;" placeholder="## Agenda&#10;- Item 1&#10;- Item 2&#10;&#10;## Decisões&#10;...">${_esc(existing?.notesMd||'')}</textarea>
+          </div>
+
+          <!-- ───── #8 Anexos do Bunko (arquivos vinculados) ───── -->
+          <div class="ppl-modal-row" id="syncal-bunko-row">
+            <label class="ppl-modal-label" style="display:flex;align-items:center;justify-content:space-between;">
+              <span>📎 Anexos do Bunko</span>
+              <button type="button" onclick="_syncalAddBunkoAttachment()" style="background:transparent;border:none;color:#6B4825;cursor:pointer;text-decoration:underline;font-size:11px;">+ anexar arquivo</button>
+            </label>
+            <div id="syncal-bunko-list" style="display:flex;flex-direction:column;gap:5px;">
+              ${(existing?.bunkoAttachments || []).map((a, i) => `
+                <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--color-background-secondary);border-radius:6px;font-size:12px;">
+                  <span style="font-size:14px;">${a.icon || '📄'}</span>
+                  <span style="flex:1;color:var(--color-text-primary);">${_esc(a.name||'(sem nome)')}</span>
+                  <button type="button" onclick="_syncalRemoveBunkoAttachment(${i})" style="background:transparent;border:none;color:#A02828;cursor:pointer;font-size:14px;padding:2px 6px;">×</button>
+                </div>
+              `).join('')}
+              ${(existing?.bunkoAttachments || []).length === 0 ? `<div style="font-size:11px;color:var(--color-text-tertiary);font-style:italic;padding:6px 0;">Nenhum anexo. Click "+ anexar arquivo" pra adicionar do Bunko Box.</div>` : ''}
+            </div>
+            <input type="hidden" name="bunko_attachments_json" id="syncal-bunko-json" value="${_esc(JSON.stringify(existing?.bunkoAttachments || []))}"/>
           </div>
 
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;">
@@ -70640,6 +71968,9 @@ function _syncalSetEventType(type) {
   if (endWrap)  endWrap.style.display  = isRange ? '' : 'none';
   if (timeWrap) timeWrap.style.display = isRange ? 'none' : '';
   if (startLabel) startLabel.textContent = isRange ? 'Início *' : 'Data *';
+  // Lembretes só aparecem pra eventos com horário (não pra férias/feriado)
+  const remRow = document.getElementById('syncal-reminders-row');
+  if (remRow) remRow.style.display = isRange ? 'none' : '';
   // Atualiza label e hint do canal (não esconde mais — campo disponível pra todos)
   const tatamiLabel = document.getElementById('syncal-tatami-label');
   const tatamiHint  = document.getElementById('syncal-tatami-hint');
@@ -70685,7 +72016,12 @@ function _syncalUpdateLinkTarget(type) {
   const row = document.getElementById('syncal-link-target-row');
   const select = document.getElementById('syncal-link-target');
   if (!row || !select) return;
-  if (!type) { row.style.display = 'none'; return; }
+  if (!type) {
+    row.style.display = 'none';
+    const krRow = document.getElementById('syncal-kr-row');
+    if (krRow) krRow.style.display = 'none';
+    return;
+  }
   row.style.display = '';
   let items = [];
   if (type === 'people' && typeof _peopleState !== 'undefined') {
@@ -70698,6 +72034,95 @@ function _syncalUpdateLinkTarget(type) {
   select.innerHTML = items.length
     ? items.map(i => `<option value="${_esc(i.id)}">${_esc(i.label)}</option>`).join('')
     : `<option value="">— nada disponível —</option>`;
+  // Mostra/esconde linha de KR conforme tipo
+  const krRow = document.getElementById('syncal-kr-row');
+  if (krRow) krRow.style.display = (type === 'okr') ? '' : 'none';
+  if (type === 'okr' && items.length) {
+    _syncalUpdateKrSelect(items[0].id);
+  }
+}
+
+// Atualiza lista de KRs quando OKR muda
+function _syncalUpdateKrSelect(okrId) {
+  const krSel = document.getElementById('syncal-kr-select');
+  if (!krSel || typeof _okrs === 'undefined') return;
+  const okr = _okrs.find(o => o.id === okrId);
+  if (!okr || !Array.isArray(okr.krs) || !okr.krs.length) {
+    krSel.innerHTML = '<option value="">— OKR sem KRs definidos —</option>';
+    return;
+  }
+  krSel.innerHTML = '<option value="">— OKR inteiro —</option>'
+    + okr.krs.map(kr => `<option value="${_esc(kr.id)}">${_esc(kr.title||'(sem título)')}</option>`).join('');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// #8 Anexos do Bunko
+// ════════════════════════════════════════════════════════════════════
+function _syncalAddBunkoAttachment() {
+  // Abre picker do Bunko (se existir) OU usa prompt simples
+  if (typeof _bunkoOpenPicker === 'function') {
+    _bunkoOpenPicker((file) => {
+      _syncalPushBunkoAttachment({
+        id: file.id || file.bunko_id,
+        name: file.name || file.title || 'Arquivo',
+        type: file.mime_type || file.type || 'file',
+        icon: _syncalIconForFile(file.mime_type || file.type),
+        url: file.url || file.signed_url || null,
+      });
+    });
+    return;
+  }
+  // Fallback: prompt simples — pede nome do arquivo
+  const name = prompt('Nome do anexo (você anexará manualmente do Bunko depois):');
+  if (!name) return;
+  _syncalPushBunkoAttachment({ id: 'manual_' + Date.now(), name, icon: '📄', type: 'file' });
+}
+
+function _syncalPushBunkoAttachment(att) {
+  const hidden = document.getElementById('syncal-bunko-json');
+  if (!hidden) return;
+  let list = [];
+  try { list = JSON.parse(hidden.value || '[]'); } catch(_){ list = []; }
+  list.push(att);
+  hidden.value = JSON.stringify(list);
+  _syncalRefreshBunkoList(list);
+}
+
+function _syncalRemoveBunkoAttachment(idx) {
+  const hidden = document.getElementById('syncal-bunko-json');
+  if (!hidden) return;
+  let list = [];
+  try { list = JSON.parse(hidden.value || '[]'); } catch(_){ list = []; }
+  list.splice(idx, 1);
+  hidden.value = JSON.stringify(list);
+  _syncalRefreshBunkoList(list);
+}
+
+function _syncalRefreshBunkoList(list) {
+  const wrap = document.getElementById('syncal-bunko-list');
+  if (!wrap) return;
+  if (!list.length) {
+    wrap.innerHTML = `<div style="font-size:11px;color:var(--color-text-tertiary);font-style:italic;padding:6px 0;">Nenhum anexo. Click "+ anexar arquivo" pra adicionar do Bunko Box.</div>`;
+    return;
+  }
+  wrap.innerHTML = list.map((a, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--color-background-secondary);border-radius:6px;font-size:12px;">
+      <span style="font-size:14px;">${a.icon || '📄'}</span>
+      <span style="flex:1;color:var(--color-text-primary);">${_esc(a.name||'(sem nome)')}</span>
+      <button type="button" onclick="_syncalRemoveBunkoAttachment(${i})" style="background:transparent;border:none;color:#A02828;cursor:pointer;font-size:14px;padding:2px 6px;">×</button>
+    </div>`).join('');
+}
+
+function _syncalIconForFile(mime) {
+  if (!mime) return '📄';
+  if (mime.includes('pdf')) return '📕';
+  if (mime.includes('image')) return '🖼';
+  if (mime.includes('video')) return '🎥';
+  if (mime.includes('audio')) return '🎵';
+  if (mime.includes('spreadsheet') || mime.includes('excel')) return '📊';
+  if (mime.includes('word') || mime.includes('document')) return '📝';
+  if (mime.includes('presentation')) return '🎞';
+  return '📄';
 }
 
 async function _syncalSubmitEvent(editingId) {
@@ -70773,6 +72198,22 @@ async function _syncalSubmitEvent(editingId) {
   // Nota: visibility não é mais por evento — vem do setting GLOBAL do user.
   // Veja `_syncalOpenAjustesModal` no header do Syncal.
 
+  // Captura lembretes (array de minutos antes do evento)
+  const reminderMins = (fd.getAll('reminder_minutes') || []).map(v => parseInt(v, 10)).filter(n => !isNaN(n));
+  ev.reminderMinutes = reminderMins;
+  // Se setou lembretes, pede permissão de Notification (não-blocking)
+  if (reminderMins.length > 0 && typeof _syncalRequestNotifPermission === 'function') {
+    _syncalRequestNotifPermission().catch(()=>{});
+  }
+
+  // Captura notas + KR + anexos Bunko
+  ev.notesMd = (fd.get('notes_md') || '').toString().trim() || null;
+  ev.linkedKrId = fd.get('linked_kr_id') || null;
+  try {
+    const bunkoJson = fd.get('bunko_attachments_json');
+    if (bunkoJson) ev.bunkoAttachments = JSON.parse(bunkoJson) || [];
+  } catch(_){ ev.bunkoAttachments = []; }
+
   // Persiste no Supabase + atualiza state local
   const saveRes = await _syncalUpsertEvent(ev);
   if (!saveRes.ok) {
@@ -70817,22 +72258,129 @@ async function _syncalSubmitEvent(editingId) {
   renderSyncal();
 }
 
+// Delete-com-aviso: oferece postar mensagem de cancelamento no canal
+// vinculado antes de apagar. Se há participantes ou canal, é o caminho
+// recomendado (default = avisar). Se não, só apaga direto.
 async function _syncalDeleteEvent(eventId) {
-  let confirmed = false;
-  if (typeof appConfirm === 'function') {
-    confirmed = await appConfirm('Excluir evento', 'Vai remover esse evento permanentemente — participantes perdem o convite. Não dá pra desfazer.', { okLabel: 'Excluir', cancelLabel: 'Cancelar', icon: '🗑', destructive: true });
-  } else {
-    confirmed = confirm('Excluir esse evento? Não dá pra desfazer.');
+  const ev = _syncalState.events.find(x => x.id === eventId);
+  if (!ev) return;
+  const hasChannel = !!ev.linkedChannelId;
+  const hasParticipants = (_syncalState.participants || []).some(p => p.event_id === eventId);
+  const hasExternalRsvps = false;  // (RSVPs externos não vêm no payload atual)
+
+  // Caminho 1: sem ninguém pra avisar — confirm simples
+  if (!hasChannel && !hasParticipants && !hasExternalRsvps) {
+    let ok = false;
+    if (typeof appConfirm === 'function') {
+      ok = await appConfirm('Excluir evento', 'Vai remover esse evento permanentemente. Não dá pra desfazer.', { okLabel: 'Excluir', cancelLabel: 'Cancelar', icon: '🗑', destructive: true });
+    } else {
+      ok = confirm('Excluir esse evento? Não dá pra desfazer.');
+    }
+    if (!ok) return;
+    return _syncalDoDeleteEvent(eventId, false, null);
   }
-  if (!confirmed) return;
+
+  // Caminho 2: tem canal/participantes — modal com opção de avisar
+  return _syncalOpenDeleteModal(ev);
+}
+
+function _syncalOpenDeleteModal(ev) {
+  let modal = document.getElementById('syncal-delete-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-delete-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10007';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  const channels = (typeof _syncalGetChatChannels === 'function') ? _syncalGetChatChannels() : [];
+  const channelInfo = ev.linkedChannelId ? channels.find(c => c.id === ev.linkedChannelId) : null;
+  const participants = (_syncalState.participants || []).filter(p => p.event_id === ev.id);
+
+  const dateLabel = new Date(ev.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  modal.innerHTML = `
+    <div class="modal" style="max-width:520px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;color:#9F0026;">🗑 Excluir evento</h3>
+        <button onclick="document.getElementById('syncal-delete-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <p style="font-size:13px;color:var(--color-text-primary);line-height:1.55;margin:0 0 10px;">
+          Você vai excluir <strong>${_esc(ev.title)}</strong> <em style="opacity:.75;">(${_esc(dateLabel.toLowerCase())}${ev.time?` · ${_esc(ev.time)}`:''})</em>.
+        </p>
+
+        ${channelInfo || participants.length > 0 ? `
+          <div style="padding:12px 14px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 8px 8px 0;margin-bottom:14px;font-size:12.5px;color:#7A5500;line-height:1.55;">
+            <strong>Tem gente envolvida nesse evento:</strong><br/>
+            ${channelInfo ? `🎴 Canal vinculado: <code>#${_esc(channelInfo.name||'canal')}</code><br/>` : ''}
+            ${participants.length > 0 ? `👥 ${participants.length} participante${participants.length>1?'s':''} convidado${participants.length>1?'s':''}` : ''}
+          </div>
+        ` : ''}
+
+        <form id="syncal-delete-form" onsubmit="event.preventDefault();_syncalConfirmDelete('${_esc(ev.id)}');" style="display:flex;flex-direction:column;gap:10px;">
+          ${channelInfo ? `
+            <label style="display:flex;align-items:flex-start;gap:9px;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;cursor:pointer;">
+              <input type="checkbox" name="notify" checked style="margin-top:2px;cursor:pointer;flex-shrink:0;"/>
+              <span style="font-size:12.5px;color:var(--color-text-primary);line-height:1.5;">
+                <strong>Avisar no canal <code>#${_esc(channelInfo.name||'')}</code></strong> sobre o cancelamento<br/>
+                <span style="font-size:11px;color:var(--color-text-tertiary);">Mestre Kan posta a mensagem antes de apagar.</span>
+              </span>
+            </label>
+          ` : ''}
+          <div class="ppl-modal-row" style="margin:0;">
+            <label class="ppl-modal-label">Motivo / mensagem extra (opcional)</label>
+            <textarea class="ppl-modal-input" name="reason" rows="2" style="resize:vertical;" placeholder="Ex: reagendar pra próxima semana — aviso novo em breve."></textarea>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+            <button type="button" class="ppl-btn" onclick="document.getElementById('syncal-delete-modal').remove()">Cancelar</button>
+            <button type="submit" class="ppl-btn" style="background:#9F0026;color:#fff;border-color:#7A0026;font-weight:600;">🗑 Excluir ${channelInfo?'+ avisar':''}</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function _syncalConfirmDelete(eventId) {
+  const form = document.getElementById('syncal-delete-form');
+  const notify = form?.querySelector('input[name="notify"]')?.checked || false;
+  const reason = (form?.querySelector('textarea[name="reason"]')?.value || '').trim() || null;
+  document.getElementById('syncal-delete-modal')?.remove();
+  return _syncalDoDeleteEvent(eventId, notify, reason);
+}
+
+async function _syncalDoDeleteEvent(eventId, notifyChannel, reason) {
+  const ev = _syncalState.events.find(x => x.id === eventId);
+
+  // 1) Posta mensagem de cancelamento no canal (ANTES de apagar)
+  if (notifyChannel && ev?.linkedChannelId && typeof _syncalPostToChannel === 'function') {
+    const me = (typeof supaUser !== 'undefined' && (supaUser?.user_metadata?.full_name || supaUser?.email)) || 'Alguém';
+    const fmtDate = (s, t) => {
+      const d = new Date(s + 'T00:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short' });
+      return d + (t ? ` às **${t}**` : '');
+    };
+    const body = `🚫 *Reunião cancelada* — **${ev.title}**\n\n`
+      + `Estava marcada pra ${fmtDate(ev.date, ev.time)}.\n`
+      + (reason ? `\n💬 ${reason}\n` : '')
+      + `\n_Cancelado por ${me} no Syncal._\n\n— Mestre Kan 🥋`;
+    try { await _syncalPostToChannel(ev.linkedChannelId, body); } catch(_){}
+  }
+
+  // 2) Apaga do banco
   const res = await _syncalDeleteEventFromDb(eventId);
   if (!res.ok) {
     if (typeof appAlert === 'function') appAlert('Erro ao excluir', res.error || 'Falha desconhecida', { icon: '⚠️' });
     return;
   }
+
   document.getElementById('syncal-event-modal')?.remove();
   document.getElementById('syncal-event-detail')?.remove();
   renderSyncal();
+
+  if (typeof appAlert === 'function') {
+    appAlert('Evento excluído', notifyChannel ? 'Time foi avisado no canal.' : 'Removido com sucesso.', { icon: '✓' });
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════
