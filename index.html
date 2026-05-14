@@ -46926,10 +46926,10 @@ window.dojoReplayWelcome = function() {
   _dojoPlayWelcomeAnimation();
 };
 
-// ── Gate de visitas diárias do Dojo (free só 2x/dia) ─────────────────
+// ── Gate de visitas diárias do Dojo (free só 1x/dia) ─────────────────
 // XP/streak/conquistas continuam acumulando em background — o gate só
-// é UI (impede ABRIR a tab mais que 2× no dia).
-const DOJO_FREE_VISITS_PER_DAY = 2;
+// é UI (impede ABRIR a tab mais que 1× no dia).
+const DOJO_FREE_VISITS_PER_DAY = 1;
 function _dojoTodayKey() {
   return 'synkan_dojo_opens_' + new Date().toISOString().slice(0, 10);
 }
@@ -46949,7 +46949,7 @@ function _dojoCanVisit() {
 
 function renderDojo() {
   const root = document.getElementById('dojo-root'); if (!root) return;
-  // ── Gate: Faixa Branca limitada a 2 visitas/dia ──
+  // ── Gate: Faixa Branca limitada a 1 visita/dia ──
   const gate = _dojoCanVisit();
   if (!gate.ok) {
     // Mostra paywall sem dar acesso ao conteúdo
