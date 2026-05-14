@@ -3634,6 +3634,14 @@ body.density-compact .col{padding:7px;}
 .ppl-btn-primary{background:#BC002D;border-color:#BC002D;color:#fff;}
 .ppl-btn-primary:hover{background:#9F0026;}
 
+/* Segmented switcher de páginas dentro de People Journey (Trilhas | Gestão) */
+.ppl-page-switcher{display:inline-flex;align-self:flex-start;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:11px;padding:4px;gap:2px;}
+.ppl-page-btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:transparent;border:none;font-family:inherit;font-size:13px;font-weight:500;color:var(--color-text-secondary);cursor:pointer;border-radius:8px;transition:all .15s;line-height:1;}
+.ppl-page-btn:hover{color:var(--color-text-primary);}
+.ppl-page-btn.active{background:var(--color-background-primary);color:var(--color-text-primary);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.06), 0 0 0 0.5px var(--color-border-secondary);}
+.ppl-page-btn span{display:inline-flex;align-items:center;}
+:root.dark .ppl-page-btn.active{background:#2A2520;}
+
 .ppl-tabs{display:flex;align-items:center;gap:4px;flex-wrap:wrap;border-bottom:0.5px solid var(--color-border-tertiary);}
 .ppl-tab{background:transparent;border:none;padding:9px 14px;font-size:13px;font-family:inherit;color:var(--color-text-secondary);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
 .ppl-tab.active{color:#BC002D;border-bottom-color:#BC002D;font-weight:600;}
@@ -8051,8 +8059,6 @@ body.tx-active .belt-ring::after{
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></span><span>OKRs</span></button>
     <button class="sb-item" id="sb-people" onclick="switchTab('people')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="5.5" cy="5.2" r="2.4"/><path d="M1.5 13.5c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="11" cy="4.5" r="1.8" opacity=".7"/><path d="M9 11c.5-1.4 1.8-2.4 3.3-2.4 1 0 1.9.4 2.5 1.1" opacity=".7"/></svg></span><span>People Journey</span></button>
-    <button class="sb-item" id="sb-mgmt" onclick="switchTab('mgmt')">
-      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M2.2 7.5a3.2 3.2 0 0 1 6.4 0v.5"/><circle cx="5.4" cy="4.3" r="2.0"/><path d="M9 11.2c0-1.6 1.3-2.8 2.9-2.8s2.9 1.2 2.9 2.8"/><circle cx="11.9" cy="6.4" r="1.5"/><path d="M5.4 13.7v-1.2"/><path d="M11.9 13.7v-1.2"/><circle cx="8" cy="13.7" r="0.55" fill="currentColor"/></svg></span><span>Gestão de Pessoas</span></button>
     <button class="sb-item" id="sb-registry" onclick="switchTab('registry')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5.5 4V2.8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V4"/><rect x="2" y="4" width="12" height="9.2" rx="1.4"/><path d="M2 8h12"/><path d="M7 7.5v1"/><path d="M9 7.5v1"/></svg></span><span>Synconnect</span></button>
     <button class="sb-item" id="sb-bunko" onclick="switchTab('bunko')">
@@ -8244,10 +8250,6 @@ body.tx-active .belt-ring::after{
 
   <div id="view-people" style="display:none;">
     <div id="people-root"></div>
-  </div>
-
-  <div id="view-mgmt" style="display:none;">
-    <div id="mgmt-root"></div>
   </div>
 
   <div id="view-zai" style="display:none;">
@@ -20277,8 +20279,6 @@ function switchTab(tab) {
   document.getElementById('view-okrs').style.display      = tab==='okrs'      ? '' : 'none';
   const peopleEl = document.getElementById('view-people');
   if (peopleEl) peopleEl.style.display = tab==='people' ? '' : 'none';
-  const mgmtEl = document.getElementById('view-mgmt');
-  if (mgmtEl) mgmtEl.style.display = tab==='mgmt' ? '' : 'none';
   document.getElementById('view-zai').style.display       = tab==='zai'       ? '' : 'none';
   document.getElementById('view-chat').style.display      = tab==='chat'      ? '' : 'none';
   const bunkoEl = document.getElementById('view-bunko');
@@ -20313,7 +20313,7 @@ function switchTab(tab) {
   // Mantém compat: ainda marca sb-* dos legados (mas a sidebar de views agora some)
   const viewsSec = document.getElementById('sb-views-section');
   if (viewsSec) viewsSec.style.display = 'none';  // SEMPRE escondida — toolbar nova assume
-  ['home','myboards','gallery','canvas','registry','okrs','people','mgmt','chat','acervo','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker','zai','bunko','syncal'].forEach(t=>{
+  ['home','myboards','gallery','canvas','registry','okrs','people','chat','acervo','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker','zai','bunko','syncal'].forEach(t=>{
     const el = document.getElementById('sb-'+t);
     // 'myboards' (sub-item) corresponde à tab 'boards'
     const matchTab = (t === 'myboards') ? 'boards' : t;
@@ -20333,11 +20333,10 @@ function switchTab(tab) {
   if (tab==='registry') renderRegistry();
   if (tab==='okrs') renderOKRs();
   if (tab==='people' && typeof renderPeople === 'function') renderPeople();
-  if (tab==='mgmt'   && typeof renderMgmt   === 'function') renderMgmt();
   if (tab==='home' && typeof _peopleRenderHomeBanner === 'function') _peopleRenderHomeBanner();
   // Celebrações diárias — checa quem faz aniversário hoje e posta no Tatami (1x/dia).
-  // Roda no home e no mgmt; idempotente via settings.celebrationLastCheck.
-  if ((tab==='home' || tab==='mgmt') && typeof _peopleMgmtCheckCelebrationsDaily === 'function') {
+  // Roda em home e people; idempotente via settings.celebrationLastCheck.
+  if ((tab==='home' || tab==='people') && typeof _peopleMgmtCheckCelebrationsDaily === 'function') {
     setTimeout(() => _peopleMgmtCheckCelebrationsDaily().catch(_=>{}), 1500);
   }
   if (tab==='home' && typeof _syncalInjectHomeWidget === 'function') setTimeout(() => _syncalInjectHomeWidget(), 80);
@@ -36718,7 +36717,8 @@ function setRegistryTab(t) { _registryTab = t; _registrySearch = ''; _registryFi
 let _peopleState = {
   dashboard: null,         // { total_aprendizes, pessoas_ativas, ... }
   templates: [],
-  tab: 'aprendizes',       // 'aprendizes' | 'graduados' | 'historico' | 'templates' | 'pulse' | 'gestao'
+  page: 'trilhas',         // 'trilhas' | 'gestao' — switcher de página dentro de People Journey
+  tab: 'aprendizes',       // 'aprendizes' | 'graduados' | 'historico' | 'templates' | 'pulse'  (só na página trilhas)
   currentPersonId: null,
   currentTrail: null,      // { trail, steps }
   myAprendiz: null,        // se o user atual é aprendiz, guarda o row de people
@@ -37259,6 +37259,13 @@ function _peopleRenderMain() {
     return;
   }
 
+  // Branch por página: Trilhas (default) ou Gestão (página de gestão contínua)
+  const page = _peopleState.page || 'trilhas';
+  if (page === 'gestao') {
+    _peopleRenderGestaoPage(root);
+    return;
+  }
+
   const d = _peopleState.dashboard || { total_aprendizes:0, total_graduados:0, em_pausa:0, steps_atrasados:0, pessoas_ativas: [] };
   const tab = _peopleState.tab || 'aprendizes';
   const pessoas = Array.isArray(d.pessoas_ativas) ? d.pessoas_ativas : [];
@@ -37273,6 +37280,7 @@ function _peopleRenderMain() {
   ` : '';
   root.innerHTML = `
     <div class="ppl-wrap">
+      ${_peoplePageSwitcherHTML('trilhas')}
       <div class="ppl-head">
         <div>
           <div class="ppl-title">
@@ -37612,14 +37620,36 @@ function _peopleRenderTabContent() {
 // Backend: RPCs people_mgmt_*  (ver MIGRATIONS_PEOPLE_MANAGEMENT.sql)
 // ════════════════════════════════════════════════════════════════════
 
-// Render principal da página (chamado por switchTab('mgmt'))
-function renderMgmt() {
-  const root = document.getElementById('mgmt-root');
+// Switcher de página dentro de People Journey (segmented control no topo).
+// Aparece em ambas as páginas (trilhas e gestao) pra alternar entre elas.
+function _peoplePageSwitcherHTML(active) {
+  return `
+    <div class="ppl-page-switcher">
+      <button class="ppl-page-btn ${active==='trilhas'?'active':''}" onclick="_peopleSetPage('trilhas')">
+        <span style="font-size:14px;">🌙</span> Trilhas
+        <span style="font-size:10.5px;opacity:.65;font-weight:400;">onboarding</span>
+      </button>
+      <button class="ppl-page-btn ${active==='gestao'?'active':''}" onclick="_peopleSetPage('gestao')">
+        <span style="font-size:14px;">監</span> Gestão
+        <span style="font-size:10.5px;opacity:.65;font-weight:400;">acompanhamento contínuo</span>
+      </button>
+    </div>`;
+}
+
+function _peopleSetPage(page) {
+  _peopleState.page = page;
+  _peopleRenderMain();
+}
+
+// Render da página "Gestão" dentro do people-root (chamado por _peopleRenderMain)
+function _peopleRenderGestaoPage(root) {
+  if (!root) root = document.getElementById('people-root');
   if (!root) return;
   const settings = _peopleGetMgmtSettings();
 
   root.innerHTML = `
     <div class="ppl-wrap">
+      ${_peoplePageSwitcherHTML('gestao')}
       <div class="ppl-head">
         <div>
           <div class="ppl-title">
@@ -37641,7 +37671,6 @@ function renderMgmt() {
   `;
 
   _peopleRenderGestao(document.getElementById('mgmt-grid-host'));
-  // Banner de celebrações de hoje (se habilitado)
   if (settings.enableCelebrations) {
     _peopleMgmtLoadCelebrationsCount();
     _peopleMgmtRenderTodayBanner();
@@ -37678,7 +37707,7 @@ function _peopleRenderGestao(el) {
         <div class="ppl-mgmt-skel-row"></div>
       </div>`;
     _peopleLoadMgmt().then(() => {
-      if (typeof currentTab !== 'undefined' && currentTab === 'mgmt') _peopleRenderGestao(el);
+      if (typeof currentTab !== 'undefined' && currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(el);
     });
     return;
   }
@@ -38271,7 +38300,7 @@ async function _peopleMgmtSaveNote(personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
   // Recarrega dashboard pra refletir o last_note_at
-  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
   if (typeof appAlert==='function') appAlert('Nota salva 📝', isPrivate?'Visível apenas pra você.':'Registrada na timeline.', { icon:'✓' });
 }
 
@@ -38453,7 +38482,7 @@ async function _peopleMgmtSave1on1(personId, oneOnOneId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
   if (typeof appAlert==='function') appAlert('1:1 salvo 🍵', status==='scheduled'?'Agendado com sucesso.':'Registro atualizado.', { icon:'✓' });
 }
 
@@ -38465,7 +38494,7 @@ async function _peopleMgmtDelete1on1(id, personId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
 }
 
 // ── PDI Modal ───────────────────────────────────────────────────────
@@ -38617,7 +38646,7 @@ async function _peopleMgmtSavePdi(personId, pdiId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
   if (typeof appAlert==='function') appAlert('PDI salvo 🎯', `${goals.length} meta${goals.length===1?'':'s'} registrada${goals.length===1?'':'s'}.`, { icon:'✓' });
 }
 
@@ -38629,7 +38658,7 @@ async function _peopleMgmtDeletePdi(id, personId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
 }
 
 // ── Feedback Modal ──────────────────────────────────────────────────
@@ -38704,7 +38733,7 @@ async function _peopleMgmtSaveFeedback(personId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
   if (typeof appAlert==='function') appAlert('Feedback registrado ✨', is_anonymous?'Salvo de forma anônima.':'Registro adicionado.', { icon:'✓' });
 }
 
@@ -38918,7 +38947,7 @@ function _peopleMgmtSaveSettingsFromForm() {
   s.celebrationWorkAnnivMsg  = document.getElementById('ppl-mgmt-celeb-work-msg')?.value || cur.celebrationWorkAnnivMsg;
   _peopleSaveMgmtSettings(s);
   document.getElementById('ppl-mgmt-settings-modal')?.remove();
-  if (currentTab === 'mgmt') _peopleRenderGestao();
+  if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao();
   if (typeof appAlert === 'function') {
     const offCount = ['enableNotes','enableOneOnOnes','enablePDI','enableFeedback'].filter(k=>!s[k]).length;
     appAlert('Gestão atualizada ⚙', offCount===0?'Todas as 4 ferramentas ativas.':`${4-offCount} ferramentas ativas · ${offCount} desligadas.`, { icon:'✓' });
@@ -39068,7 +39097,7 @@ async function _peopleMgmtSavePersonInfo(personId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
   if (typeof appAlert==='function') appAlert('Pessoa salva 👤', 'Informações atualizadas.', { icon:'✓' });
 }
 
