@@ -37815,7 +37815,7 @@ function _peopleRenderGestao(el) {
   const filter = _peopleState.mgmtFilter || 'all';
   const now = Date.now();
   const filtered = pessoas.filter(p => {
-    if (search && !((p.name||'').toLowerCase().includes(search) || (p.role||'').toLowerCase().includes(search) || (p.team_name||'').toLowerCase().includes(search))) return false;
+    if (search && !((p.name||'').toLowerCase().includes(search) || (p.role||p.role_template||'').toLowerCase().includes(search) || (p.team_name||'').toLowerCase().includes(search))) return false;
     if (filter === 'all') return true;
     if (filter === 'no_1on1_30d') {
       if (!p.last_1on1_at) return true;
@@ -37885,9 +37885,11 @@ function _peopleMgmtCardHTML(p, settings) {
   const beltLabel = _PPL_BELT_LABELS[belt] || 'Lua Nova';
   // Fallback elegante: se não tem papel definido, mostra texto único sem ícone
   // vazio (antes mostrava "人 Papel" que não comunicava nada).
-  const hasRole = !!_PPL_ROLE_LABELS[p.role];
-  const roleEmoji = hasRole ? _PPL_ROLE_EMOJI[p.role] : '';
-  const roleLabel = hasRole ? _PPL_ROLE_LABELS[p.role] : 'Papel não definido';
+  // Aceita tanto `role` (alias do RPC) quanto `role_template` (coluna real).
+  const roleKey = p.role || p.role_template;
+  const hasRole = !!_PPL_ROLE_LABELS[roleKey];
+  const roleEmoji = hasRole ? _PPL_ROLE_EMOJI[roleKey] : '';
+  const roleLabel = hasRole ? _PPL_ROLE_LABELS[roleKey] : 'Papel não definido';
   const now = Date.now();
 
   // Indicadores
@@ -38039,9 +38041,12 @@ function _peopleRenderMgmtDrawer() {
       <div style="flex:1;min-width:0;">
         <div class="ppl-mgmt-drawer-name">${_esc(p.name||'')}</div>
         <div class="ppl-mgmt-drawer-meta">
-          ${_PPL_ROLE_LABELS[p.role]
-            ? `${_PPL_ROLE_EMOJI[p.role]||''} ${_esc(_PPL_ROLE_LABELS[p.role])}`
-            : '<em style="opacity:.55;font-style:normal;">Papel não definido</em>'}
+          ${(() => {
+            const rk = p.role || p.role_template;
+            return _PPL_ROLE_LABELS[rk]
+              ? `${_PPL_ROLE_EMOJI[rk]||''} ${_esc(_PPL_ROLE_LABELS[rk])}`
+              : '<em style="opacity:.55;font-style:normal;">Papel não definido</em>';
+          })()}
           ${p.team_name?` · ${_esc(p.team_name)}`:''}
           ${p.hired_at?` · ⏳ ${_peopleFmtTenure(p.hired_at)} de casa`:''}
         </div>
