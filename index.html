@@ -8860,7 +8860,148 @@ async function loadPlanFromSupabase() {
     _currentPlan = 'trial';
     _currentSubscriptionStatus = null;
   }
+  // Após carregar plano, verifica se user tá com excesso (geralmente após trial expirar
+  // e cair pra Faixa Branca). Aguarda recursos serem carregados antes de checar.
+  setTimeout(() => _checkPlanExcessAndAlert(), 3500);
   return _currentPlan;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Aviso pós-downgrade: detecta excesso de boards/canvas/okrs/zais e
+// mostra modal único por plano. Roda uma vez por mudança de plano —
+// flag em localStorage previne duplicação.
+// ────────────────────────────────────────────────────────────────────
+// Cenário típico: user terminou trial (5 boards) e caiu pra Faixa Branca
+// (1 board). Boards continuam acessíveis, mas user fica confuso por que
+// não consegue criar novo. Aviso clareia tudo de uma vez.
+// ════════════════════════════════════════════════════════════════════
+function _checkPlanExcessAndAlert() {
+  try {
+    if (typeof supaUser === 'undefined' || !supaUser) return;
+    const plan = getCurrentPlanCode();
+    if (!plan) return;
+    const limits = getCurrentPlanLimits();
+    if (!limits) return;
+
+    // Flag idempotência — só mostra 1x por plano (reseta se trocar de plano)
+    const flagKey = 'synkan_excess_warned_' + plan + '_' + supaUser.id;
+    if (localStorage.getItem(flagKey) === '1') return;
+
+    // Conta recursos atuais
+    const stats = {
+      boards: (typeof allBoards !== 'undefined')
+        ? Object.keys(allBoards).filter(id => id !== (typeof UNIFIED_BOARD_ID !== 'undefined' ? UNIFIED_BOARD_ID : '__unified__')).length
+        : 0,
+      canvas: (typeof _canvases !== 'undefined' && _canvases) ? Object.keys(_canvases).length : 0,
+      okrs:   (typeof _okrs !== 'undefined' && Array.isArray(_okrs)) ? _okrs.length : 0,
+    };
+
+    // Detecta excessos (limite -1 = ilimitado, pula)
+    const excessos = [];
+    if (limits.boards > 0 && stats.boards > limits.boards) {
+      excessos.push({ key:'boards', label:'boards',          atual:stats.boards, limite:limits.boards });
+    }
+    if (limits.canvas > 0 && stats.canvas > limits.canvas) {
+      excessos.push({ key:'canvas', label:'Lab (canvas)',    atual:stats.canvas, limite:limits.canvas });
+    }
+    if (limits.okrs > 0 && stats.okrs > limits.okrs) {
+      excessos.push({ key:'okrs',   label:'OKRs ativos',     atual:stats.okrs,   limite:limits.okrs });
+    }
+
+    if (excessos.length === 0) {
+      // Sem excesso: marca flag e segue. Não mostra modal.
+      localStorage.setItem(flagKey, '1');
+      return;
+    }
+
+    // Tem excesso — mostra modal
+    _showExcessTransitionModal(plan, limits, excessos);
+    localStorage.setItem(flagKey, '1');  // marca pra não repetir
+  } catch(e) {
+    console.warn('[plan-excess] check falhou:', e?.message);
+  }
+}
+
+function _showExcessTransitionModal(plan, limits, excessos) {
+  // Remove modal antigo se houver
+  document.getElementById('plan-excess-modal')?.remove();
+
+  // Plan-specific copy
+  const planName = limits.name || 'Plano atual';
+  const isFree = plan === 'faixa_branca';
+  const isExpired = plan === 'faixa_branca' && !!_currentSubscriptionStatus; // pode ter sido pago antes
+  const title = isFree
+    ? (isExpired ? '🥋 Seu trial terminou' : '🥋 Bem-vindo à Faixa Branca')
+    : '🥋 Plano atualizado';
+  const intro = isFree
+    ? 'Você está agora na <strong>Faixa Branca (grátis)</strong>. Durante o trial, você criou mais coisas do que o plano free permite — vamos te explicar como fica.'
+    : `Você está agora no <strong>${_esc(planName)}</strong>. Alguns recursos que você criou estão acima do limite do novo plano.`;
+
+  // Sugestão de upgrade — qual é o plano mínimo que cobre tudo?
+  // Branca → Azul resolve a maioria; se Azul não cobre, vai pra Roxa
+  let upgradeSuggestion = null;
+  const planOrder = ['faixa_azul', 'faixa_roxa', 'faixa_preta'];
+  for (const candPlan of planOrder) {
+    const candLimits = PLAN_LIMITS[candPlan];
+    if (!candLimits) continue;
+    const cobre = excessos.every(e => {
+      const lim = candLimits[e.key];
+      return lim === -1 || lim >= e.atual;
+    });
+    if (cobre) {
+      const priceLabel = candLimits.price > 0 ? `R$ ${candLimits.price.toFixed(2).replace('.',',')}/mês` : 'Grátis';
+      upgradeSuggestion = { code: candPlan, name: candLimits.name, price: priceLabel };
+      break;
+    }
+  }
+
+  const linhasExcesso = excessos.map(e =>
+    `<li><strong>${e.atual} ${e.label}</strong> · plano aceita <strong>${e.limite}</strong> (${e.atual - e.limite} acima)</li>`
+  ).join('');
+
+  const upgradeBtn = upgradeSuggestion
+    ? `<a class="btn-c btn-primary plan-excess-btn-primary" href="${typeof getUpgradeURL === 'function' ? getUpgradeURL() : 'https://synkan.com.br/upgrade'}" style="background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;border:none;padding:11px 18px;border-radius:8px;font-weight:600;font-size:13.5px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">⏫ Assinar ${_esc(upgradeSuggestion.name.split('·')[0].trim())} · ${_esc(upgradeSuggestion.price)}</a>`
+    : '';
+
+  const modal = document.createElement('div');
+  modal.id = 'plan-excess-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10010';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `
+    <div class="modal" style="max-width:520px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;border-bottom:0.5px solid var(--color-border-tertiary,#E8DFCA);">
+        <h3 style="margin:0;font-size:18px;font-family:'Noto Serif JP',serif;font-weight:600;">${title}</h3>
+        <button onclick="document.getElementById('plan-excess-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <p style="font-size:13.5px;color:var(--color-text-primary);line-height:1.6;margin:0 0 14px;">${intro}</p>
+
+        <div style="padding:12px 14px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 8px 8px 0;margin-bottom:14px;">
+          <div style="font-size:11px;color:#7A5500;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:6px;">⚠ Você tem acima do limite:</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;color:#3A2410;line-height:1.7;">${linhasExcesso}</ul>
+        </div>
+
+        <div style="padding:12px 14px;background:rgba(59,109,17,.08);border-left:3px solid #3B6D11;border-radius:0 8px 8px 0;margin-bottom:14px;">
+          <div style="font-size:11px;color:#2A4F0A;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:6px;">✓ Não se preocupa:</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;color:#2A4F0A;line-height:1.7;">
+            <li>Seus dados <strong>continuam intactos e acessíveis</strong></li>
+            <li>Pode <strong>editar tudo</strong> que já tem normalmente</li>
+            <li>Só não conseguirá <strong>criar novos</strong> até resolver</li>
+          </ul>
+        </div>
+
+        <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 16px;">
+          <strong>Como destravar:</strong> ou você <strong>arquiva/exclui</strong> o que está em excesso, ou faz <strong>upgrade</strong> pra um plano que cubra tudo.
+        </p>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+          <button class="btn-c" onclick="document.getElementById('plan-excess-modal').remove()" style="background:transparent;border:0.5px solid var(--color-border-secondary);padding:11px 16px;border-radius:8px;font-size:13px;cursor:pointer;">OK, entendi</button>
+          ${upgradeBtn}
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 async function loadAIUsageThisMonth() {
