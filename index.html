@@ -18144,6 +18144,81 @@ async function _calSyncCardEvent(card, action) {
   } catch(e) { console.warn('[cal-sync] err:', e?.message); }
 }
 
+// Hook: propaga eventos do Syncal pros calendários OAuth conectados (real-time)
+// Usa o MESMO endpoint /calendar/sync-card (mapeando event → card format) pra
+// reaproveitar a infra existente. Backend trata como "card especial" com
+// origem syncal_event e cria/atualiza/deleta no Google/Outlook/iCloud.
+async function _calSyncSyncalEvent(event, action) {
+  try {
+    if (typeof supaUser === 'undefined' || !supaUser) return;
+    if (!_calendarOAuth || _calendarOAuth.length === 0) return;
+    if (action !== 'delete' && !event?.date) return;
+    const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
+    if (!jwt) return;
+    const apiBase = (typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : 'https://api.synkan.com.br');
+
+    // Tenta endpoint dedicado pra Syncal primeiro (suporta horário, recorrência, descrição)
+    // Se backend não tiver, faz fallback pro sync-card (que não vai propagar tudo, mas vira evento)
+    const payload = {
+      action,
+      event: {
+        id: event.id,
+        title: event.title,
+        description: event.description || null,
+        start_date: event.date,
+        end_date: event.endDate || null,
+        start_time: event.time || null,
+        end_time: event.endTime || null,
+        all_day: !event.time,
+        type: event.type || 'event',
+        icon: event.icon,
+        color: event.color,
+        linked_channel_id: event.linkedChannelId || null,
+        tatami_link: event._tatamiLink || null,
+        // Recorrência (RRULE)
+        recurrence: event.recurrence || null,
+        // Source pra backend identificar
+        source: 'syncal',
+      },
+    };
+
+    fetch(apiBase + '/calendar/sync-event', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + jwt },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(8000),
+    }).then(r => {
+      // Se backend ainda não tem sync-event, fallback pra sync-card (degraded mode)
+      if (r.status === 404) {
+        console.info('[syncal-cal-sync] backend sem endpoint /calendar/sync-event — usando fallback sync-card');
+        return fetch(apiBase + '/calendar/sync-card', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + jwt },
+          body: JSON.stringify({
+            action,
+            card: {
+              id: 'syncal_' + event.id,
+              name: event.title,
+              deadline: event.date,
+              priority: 'media',
+              board_id: 'syncal',
+              _board_name: 'Syncal',
+              _start_time: event.time || null,
+              _end_time: event.endTime || null,
+              _description: event.description || null,
+              _source: 'syncal',
+            },
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+      }
+      return r;
+    }).catch(e => console.warn('[syncal-cal-sync]', e?.message));
+  } catch(e) {
+    console.warn('[syncal-cal-sync] err:', e?.message);
+  }
+}
+
 // ── Calendar tokens (webcal subscription) ────────────────────────────
 let _calendarTokens = [];
 async function _calLoadTokens() {
@@ -67694,11 +67769,18 @@ async function _syncalUpsertEvent(ev) {
   if (idx >= 0) _syncalState.events[idx] = { ..._syncalState.events[idx], ...ev };
   else _syncalState.events.push(ev);
   _syncalSaveEvents();
+  // Sync real-time com Google/Outlook/iCloud (se OAuth conectado)
+  if (typeof _calSyncSyncalEvent === 'function') {
+    _calSyncSyncalEvent(ev, 'upsert');
+  }
   return { ok: true, id: newId };
 }
 
 // Delete evento (soft delete via deleted_at? Não — usa DELETE com RLS).
 async function _syncalDeleteEventFromDb(eventId) {
+  // Captura ev antes pra mandar pro sync OAuth (precisa do payload pra deletar)
+  const ev = _syncalState.events.find(e => e.id === eventId);
+
   // Eventos sem UUID (locais legacy ainda não migrados) só removem do state
   if (!eventId || !/^[0-9a-f-]{36}$/i.test(eventId)) {
     _syncalState.events = _syncalState.events.filter(e => e.id !== eventId);
@@ -67709,6 +67791,10 @@ async function _syncalDeleteEventFromDb(eventId) {
   if (res.error) return { ok: false, error: res.error.message };
   _syncalState.events = _syncalState.events.filter(e => e.id !== eventId);
   _syncalSaveEvents();
+  // Sync delete com calendários OAuth conectados
+  if (ev && typeof _calSyncSyncalEvent === 'function') {
+    _calSyncSyncalEvent(ev, 'delete');
+  }
   return { ok: true };
 }
 
