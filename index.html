@@ -4080,6 +4080,31 @@ body.density-compact .col{padding:7px;}
 .ppl-info-attach-btn{background:transparent;border:0.5px solid var(--color-border-secondary);color:var(--color-text-secondary);width:24px;height:24px;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;line-height:1;padding:0;transition:all .12s;}
 .ppl-info-attach-btn:hover{border-color:var(--color-text-primary);color:var(--color-text-primary);background:var(--color-background-secondary);}
 
+/* Paywall screen (People Journey bloqueado) */
+.ppl-paywall-screen{max-width:780px;margin:0 auto;padding:40px 20px;}
+.ppl-paywall-hero{text-align:center;margin-bottom:32px;}
+.ppl-paywall-icon{font-size:56px;font-family:'Noto Serif JP',serif;background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;width:84px;height:84px;border-radius:18px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;box-shadow:0 8px 24px rgba(58,36,16,.20);}
+.ppl-paywall-title{font-size:30px;font-weight:700;color:var(--color-text-primary);margin:0;}
+.ppl-paywall-sub{font-size:15px;color:var(--color-text-secondary);margin-top:6px;font-family:'Noto Serif JP',serif;font-style:italic;}
+.ppl-paywall-features{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:28px;}
+.ppl-paywall-feat{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px 18px;}
+.ppl-paywall-feat .ic{font-size:24px;margin-bottom:6px;}
+.ppl-paywall-feat .t{font-size:14px;font-weight:600;color:var(--color-text-primary);margin-bottom:4px;}
+.ppl-paywall-feat .d{font-size:12px;color:var(--color-text-secondary);line-height:1.55;}
+.ppl-paywall-plans{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.ppl-paywall-plan{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:18px 20px;position:relative;}
+.ppl-paywall-plan.is-best{border-color:#BC002D;background:linear-gradient(180deg,#FDF2F3 0%,var(--color-background-primary) 60%);box-shadow:0 8px 24px rgba(188,0,45,.10);}
+:root.dark .ppl-paywall-plan.is-best{background:linear-gradient(180deg,rgba(188,0,45,.10) 0%,var(--color-background-primary) 60%);}
+.ppl-paywall-plan .badge{position:absolute;top:-10px;right:14px;background:#BC002D;color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:.04em;text-transform:uppercase;}
+.ppl-paywall-plan .name{font-size:13px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.ppl-paywall-plan .price{font-size:24px;color:var(--color-text-primary);margin-bottom:8px;}
+.ppl-paywall-plan .price strong{font-weight:700;}
+.ppl-paywall-plan .desc{font-size:12px;color:var(--color-text-secondary);line-height:1.5;}
+
+@media (max-width: 640px) {
+  .ppl-paywall-plans{grid-template-columns:1fr;}
+}
+
 /* Hero do Resumo (drawer Gestão) */
 .ppl-mgmt-hero-block{background:linear-gradient(135deg,var(--color-background-secondary) 0%,var(--color-background-primary) 100%);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
 .ppl-mgmt-hero-row{display:flex;gap:22px;flex-wrap:wrap;}
@@ -8848,21 +8873,43 @@ const PLAN_LIMITS = {
   // Trial alinhado com Faixa Azul pra zero conflito em qualquer downgrade.
   // (Quem assina Azul não fica com excesso; quem sobe pra Roxa/Preta ganha espaço.)
   // Mantém Tatame full + gravação pra mostrar valor do produto durante o trial.
+  // Trial libera também People Journey (3/mês) + Syncal full pra mostrar valor.
   trial:        { ai: 30,   boards: 5,  canvas: 5,  okrs: 3,  unified: -1, zai: 3,
                   seats: 1, editors: 0, viewers: 1,
                   chat_history_days: -1, integrations: true, shared_boards: false, synconnect: true,
                   tatame: 'full', synconnect_contacts: 50, bunko_storage_gb: 5, rec_hours_per_month: 5,
+                  // People Journey + Gestão (trial = Roxa = experiência completa pra avaliar)
+                  people_journey_enabled: true, people_trail_per_month: 3,
+                  people_mgmt_enabled: true, people_pdi: true, people_feedback360: true,
+                  people_celebrations: true,
+                  // Syncal (trial = full)
+                  syncal_events_per_month: -1, syncal_gcal: true, syncal_rsvp: true,
+                  syncal_booking_pages: 1, syncal_polls: true, syncal_ai_suggest: true,
                   name: 'Trial 7 dias',                price: 0     },
   faixa_branca: { ai: 10,   boards: 1,  canvas: 1,  okrs: 1,  unified: 1,  zai: 1,
                   seats: 1, editors: 0, viewers: 0,
                   chat_history_days: 30, integrations: false, shared_boards: false, synconnect: false,
                   boards_with_zai: 2, // bônus: 1 Zai ativo libera 2º board
                   tatame: 'none', synconnect_contacts: 0, bunko_storage_gb: 0.1, rec_hours_per_month: 0,  // 100MB
+                  // People Journey LOCKED no Branca
+                  people_journey_enabled: false, people_trail_per_month: 0,
+                  people_mgmt_enabled: false, people_pdi: false, people_feedback360: false,
+                  people_celebrations: false,
+                  // Syncal basic: 10 eventos/mês, sem Google sync nem booking
+                  syncal_events_per_month: 10, syncal_gcal: false, syncal_rsvp: false,
+                  syncal_booking_pages: 0, syncal_polls: false, syncal_ai_suggest: false,
                   name: 'Faixa Branca · Grátis',       price: 0     },
   faixa_azul:   { ai: 100,  boards: 5,  canvas: 5,  okrs: 3,  unified: -1, zai: 3,
                   seats: -1, editors: 3, viewers: 5,
                   chat_history_days: 90, integrations: true, shared_boards: true, synconnect: true,
                   tatame: 'none', synconnect_contacts: 50, bunko_storage_gb: 5, rec_hours_per_month: 0,
+                  // People Journey ainda LOCKED no Azul (é plano pessoal, não faz sentido onboardar gente)
+                  people_journey_enabled: false, people_trail_per_month: 0,
+                  people_mgmt_enabled: false, people_pdi: false, people_feedback360: false,
+                  people_celebrations: false,
+                  // Syncal full: ilimitado + Google sync + RSVP, sem booking page nem polls
+                  syncal_events_per_month: -1, syncal_gcal: true, syncal_rsvp: true,
+                  syncal_booking_pages: 0, syncal_polls: false, syncal_ai_suggest: false,
                   name: 'Faixa Azul · Pessoal',        price: 15.90 },
   // Roxa expandida (Opção B): mais boards/OKRs/contacts (virtual = sem custo)
   // + AI 500 + storage 50GB + Tatame FULL com gravação 5h/mês (custo coberto pelo +R$10)
@@ -8870,11 +8917,27 @@ const PLAN_LIMITS = {
                   seats: -1, editors: 5, viewers: 10,
                   chat_history_days: -1, integrations: true, shared_boards: true, synconnect: true,
                   tatame: 'full', synconnect_contacts: 5000, bunko_storage_gb: 50, rec_hours_per_month: 5,
+                  // People Journey: 3 novas pessoas em trilha por mês
+                  people_journey_enabled: true, people_trail_per_month: 3,
+                  // Gestão básica: Notas + 1:1 + Celebrações. Sem PDI / Feedback 360.
+                  people_mgmt_enabled: true, people_pdi: false, people_feedback360: false,
+                  people_celebrations: true,
+                  // Syncal pro: booking 1 page + polls
+                  syncal_events_per_month: -1, syncal_gcal: true, syncal_rsvp: true,
+                  syncal_booking_pages: 1, syncal_polls: true, syncal_ai_suggest: false,
                   name: 'Faixa Roxa · Profissional',   price: 39.90 },
   faixa_preta:  { ai: 1000, boards: -1, canvas: -1, okrs: -1, unified: -1, zai: -1,
                   seats: -1, editors: 5, viewers: 10,
                   chat_history_days: -1, integrations: true, shared_boards: true, synconnect: true,
                   tatame: 'full', synconnect_contacts: -1, bunko_storage_gb: 200, rec_hours_per_month: 30,
+                  // People Journey: 10 novas pessoas em trilha por mês
+                  people_journey_enabled: true, people_trail_per_month: 10,
+                  // Gestão completa: PDI + Feedback 360 + Celebrações
+                  people_mgmt_enabled: true, people_pdi: true, people_feedback360: true,
+                  people_celebrations: true,
+                  // Syncal unlimited: booking ilimitado + polls + AI
+                  syncal_events_per_month: -1, syncal_gcal: true, syncal_rsvp: true,
+                  syncal_booking_pages: -1, syncal_polls: true, syncal_ai_suggest: true,
                   name: 'Faixa Preta · Empresarial',   price: 89.90 },
 };
 // seats   = ADMINS pagos (mesmo valor do plano; -1 = ilimitado).
@@ -9218,6 +9281,151 @@ async function loadAIUsageThisMonth() {
 
 function getCurrentPlanCode() { return _currentPlan || 'trial'; }
 function getCurrentPlanLimits() { return PLAN_LIMITS[getCurrentPlanCode()] || PLAN_LIMITS.trial; }
+
+// ════════════════════════════════════════════════════════════════════
+// PLAN GATES · helper unificado pra features pagas
+// ────────────────────────────────────────────────────────────────────
+// Uso: if (!_planAllows('people_journey_enabled')) { _planPaywall('people_journey'); return; }
+//      if (!_planAllows('syncal_gcal')) { _planPaywall('syncal_gcal'); return; }
+// Para limites quantitativos: _planAllows('people_trail_per_month', currentCount)
+// ════════════════════════════════════════════════════════════════════
+function _planAllows(feature, currentCount) {
+  const limits = getCurrentPlanLimits();
+  const val = limits[feature];
+  if (val === undefined) return true; // feature sem flag = liberada
+  if (typeof val === 'boolean') return val;
+  if (typeof val === 'number') {
+    if (val === -1) return true; // -1 = ilimitado
+    if (val === 0)  return false; // 0 = bloqueado
+    if (typeof currentCount === 'number') return currentCount < val;
+    return true; // numérico sem currentCount = libera (vão checar no momento da ação)
+  }
+  return !!val;
+}
+
+// Mensagens de paywall por feature — copy específico pra cada gate
+const _PAYWALL_COPY = {
+  people_journey: {
+    icon: '道',
+    title: 'People Journey é Faixa Roxa+',
+    plans: [
+      { name: 'Faixa Roxa',  price: 'R$ 39,90/mês', desc: '3 novas pessoas em trilha por mês · Gestão básica (notas + 1:1) · Celebrações Tatami' },
+      { name: 'Faixa Preta', price: 'R$ 89,90/mês', desc: '10 novas pessoas/mês · PDI · Feedback 360 · Tudo da Gestão' },
+    ],
+    bullet: 'Onboarding estruturado tipo dojo: do "Lua Nova" ao "Lua Cheia" com etapas, pulses semanais e check-ins.',
+  },
+  people_journey_limit: {
+    icon: '🌑',
+    title: 'Limite mensal de aprendizes atingido',
+    plans: [
+      { name: 'Faixa Preta', price: 'R$ 89,90/mês', desc: '10 novas pessoas em trilha por mês (vs 3 atuais)' },
+    ],
+    bullet: 'Você atingiu o limite de novas pessoas em trilha neste mês. Renova no dia 1º do próximo mês.',
+  },
+  people_mgmt: {
+    icon: '監',
+    title: 'Gestão de Pessoas é Faixa Roxa+',
+    plans: [
+      { name: 'Faixa Roxa',  price: 'R$ 39,90/mês', desc: 'Notas do gestor · 1:1s registrados · Celebrações' },
+      { name: 'Faixa Preta', price: 'R$ 89,90/mês', desc: 'Tudo do Roxa + PDI + Feedback 360' },
+    ],
+    bullet: 'Acompanhamento contínuo das pessoas do time, além do onboarding.',
+  },
+  people_pdi: {
+    icon: '🎯',
+    title: 'PDI é Faixa Preta',
+    plans: [
+      { name: 'Faixa Preta', price: 'R$ 89,90/mês', desc: 'PDI customizável (cadência mensal/trimestral/semestral/anual) com metas, auto-avaliação e avaliação do gestor' },
+    ],
+    bullet: 'Plano de Desenvolvimento Individual estruturado pra crescimento da pessoa.',
+  },
+  people_feedback360: {
+    icon: '✨',
+    title: 'Feedback 360 é Faixa Preta',
+    plans: [
+      { name: 'Faixa Preta', price: 'R$ 89,90/mês', desc: 'Feedback de pares · gestores · clientes · auto-avaliação · com modo anônimo opcional' },
+    ],
+    bullet: 'Cultura de feedback contínuo e transparente.',
+  },
+  syncal_gcal: {
+    icon: '📅',
+    title: 'Google Calendar sync é Faixa Azul+',
+    plans: [
+      { name: 'Faixa Azul', price: 'R$ 15,90/mês', desc: 'Sincronização bidirecional com Google Calendar' },
+    ],
+    bullet: 'Cards de board e eventos do Syncal viram eventos no Google e vice-versa.',
+  },
+  syncal_events_per_month: {
+    icon: '📆',
+    title: 'Limite mensal de eventos atingido',
+    plans: [
+      { name: 'Faixa Azul', price: 'R$ 15,90/mês', desc: 'Eventos ilimitados + Google Calendar sync + lembretes + RSVP' },
+    ],
+    bullet: 'Faixa Branca tem 10 eventos por mês no Syncal — renova no dia 1º.',
+  },
+  syncal_booking_pages: {
+    icon: '🤝',
+    title: 'Booking pages é Faixa Roxa+',
+    plans: [
+      { name: 'Faixa Roxa',  price: 'R$ 39,90/mês', desc: '1 booking page (Calendly-style) + Polls (when2meet)' },
+      { name: 'Faixa Preta', price: 'R$ 89,90/mês', desc: 'Booking pages ilimitadas + AI sugestão de horário' },
+    ],
+    bullet: 'Compartilhe um link e deixe as pessoas agendarem com você sem ping-pong de email.',
+  },
+  syncal_polls: {
+    icon: '🗳',
+    title: 'Polls de horário é Faixa Roxa+',
+    plans: [
+      { name: 'Faixa Roxa',  price: 'R$ 39,90/mês', desc: 'Polls when2meet integrados ao Tatami + criação automática do evento campeão' },
+    ],
+    bullet: 'Decide o melhor horário em grupo sem 30 mensagens no chat.',
+  },
+  syncal_ai_suggest: {
+    icon: '✨',
+    title: 'AI sugestão de horário é Faixa Preta',
+    plans: [
+      { name: 'Faixa Preta', price: 'R$ 89,90/mês', desc: 'Mestre Kan sugere o melhor horário pro evento com base na agenda dos participantes' },
+    ],
+    bullet: 'Diga "marca um café com a Maria semana que vem" e a IA acha o slot.',
+  },
+};
+
+// Componente de paywall reusável — mostra modal com upgrade + "falar com vendas"
+function _planPaywall(feature, opts) {
+  opts = opts || {};
+  const copy = _PAYWALL_COPY[feature] || { icon: '🔒', title: 'Recurso bloqueado', plans: [], bullet: '' };
+  const planCode = getCurrentPlanCode();
+  if (typeof appConfirm !== 'function') return;
+
+  const plansHTML = (copy.plans||[]).map(p => `
+    <div style="padding:10px 14px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:9px;margin-bottom:8px;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px;">
+        <strong style="color:var(--color-text-primary);font-size:13.5px;">${_esc(p.name)}</strong>
+        <span style="color:#BC002D;font-weight:700;font-size:13px;">${_esc(p.price)}</span>
+      </div>
+      <div style="font-size:11.5px;color:var(--color-text-secondary);line-height:1.5;">${_esc(p.desc)}</div>
+    </div>
+  `).join('');
+
+  const html = `
+    <div style="text-align:left;">
+      ${copy.bullet ? `<p style="margin:0 0 14px;font-size:13px;color:var(--color-text-primary);line-height:1.55;">${_esc(copy.bullet)}</p>` : ''}
+      ${plansHTML}
+      ${opts.extra ? `<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:8px;line-height:1.5;">${opts.extra}</div>` : ''}
+    </div>
+  `;
+
+  appConfirm(copy.title, html, {
+    icon: copy.icon,
+    html: true,
+    okLabel: 'Fazer upgrade',
+    cancelLabel: 'Agora não',
+  }).then(choice => {
+    if (choice === true) {
+      try { window.open(getUpgradeURL(), '_blank'); } catch(_){}
+    }
+  });
+}
 
 // ─── Trial: contagem de dias e soft block ─────────────────────────
 const TRIAL_DAYS_TOTAL = 7;
@@ -15071,7 +15279,7 @@ function _seedExampleData() {
 // Roda DEPOIS do seed local. Pode falhar silenciosamente se user não tá em modo
 // Supabase ou se RPCs não existem. Não bloqueia a UX.
 async function _seedExampleDataCloud() {
-  let cloudSummary = { bunko_pages: 0, transcripts: 0, deals: 0, leads: 0 };
+  let cloudSummary = { bunko_pages: 0, transcripts: 0, deals: 0, leads: 0, people: 0, syncal_events: 0 };
   try {
     const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() :
               (typeof _ensureSupaClient === 'function' ? _ensureSupaClient() : null);
@@ -15166,6 +15374,78 @@ async function _seedExampleDataCloud() {
         }
       } catch(e) { console.warn('[seed] lead cloud falhou:', e?.message); }
     } catch(e) { console.warn('[seed] synconnect cloud falhou:', e?.message); }
+
+    // ── People Journey: 1 aprendiz de exemplo com trilha (só se plano permitir) ──
+    // Mostra valor do módulo. Idempotente — checa se já existe [Exemplo].
+    try {
+      if (typeof _planAllows === 'function' && _planAllows('people_journey_enabled')) {
+        const existPplRes = await c.from('people').select('id').ilike('name','[Exemplo]%').eq('workspace_owner', supaUser.id).limit(1);
+        if (!existPplRes.data || existPplRes.data.length === 0) {
+          try {
+            const { data: person } = await c.rpc('people_create_aprendiz', {
+              p_name: '[Exemplo] Ana Beatriz',
+              p_role: 'dev',
+              p_email: null,
+              p_belt: 'amarela',
+              p_journey_days: 60,
+              p_template_id: null,
+            });
+            if (person?.person_id || person?.id) {
+              const personId = person.person_id || person.id;
+              // Preenche campos básicos pra mostrar potencial
+              await c.from('people').update({
+                full_name: '[Exemplo] Ana Beatriz Silva',
+                birthday: '1995-05-14',
+                hired_at: new Date(Date.now() - 45*86400000).toISOString().slice(0,10), // 45 dias atrás
+                team_name: 'Engenharia',
+                role_seniority: 'pleno',
+                phone: '(11) 99900-1234',
+              }).eq('id', personId);
+              cloudSummary.people = 1;
+            }
+          } catch(e) { console.warn('[seed] people create:', e?.message); }
+        }
+      }
+    } catch(e) { console.warn('[seed] people cloud falhou:', e?.message); }
+
+    // ── Syncal: 2 eventos de exemplo (1 reunião, 1 deadline) ──
+    try {
+      const existSyncalRes = await c.from('syncal_events').select('id').ilike('title','[Exemplo]%').eq('workspace_owner', supaUser.id).limit(1);
+      if (!existSyncalRes.data || existSyncalRes.data.length === 0) {
+        const tomorrow = new Date(Date.now() + 86400000);
+        const nextWeek = new Date(Date.now() + 7*86400000);
+        try {
+          const ev1 = {
+            workspace_owner: supaUser.id,
+            owner_id: supaUser.id,
+            title: '[Exemplo] Reunião de alinhamento semanal',
+            description: 'Pauta: progresso dos OKRs, blockers, prioridades da semana.',
+            date: tomorrow.toISOString().slice(0,10),
+            time: '10:00',
+            duration_minutes: 60,
+            type: 'event',
+            color: '#6B4825',
+            reminder_minutes: 15,
+          };
+          const ev2 = {
+            workspace_owner: supaUser.id,
+            owner_id: supaUser.id,
+            title: '[Exemplo] Deadline · Apresentação Q2',
+            description: 'Finalizar slide deck e enviar pro CEO até 18h.',
+            date: nextWeek.toISOString().slice(0,10),
+            time: '18:00',
+            duration_minutes: 0,
+            type: 'deadline',
+            color: '#BC002D',
+            reminder_minutes: 1440, // 1 dia antes
+          };
+          const { error: ev1Err } = await c.from('syncal_events').insert(ev1);
+          if (!ev1Err) cloudSummary.syncal_events++;
+          const { error: ev2Err } = await c.from('syncal_events').insert(ev2);
+          if (!ev2Err) cloudSummary.syncal_events++;
+        } catch(e) { console.warn('[seed] syncal events:', e?.message); }
+      }
+    } catch(e) { console.warn('[seed] syncal cloud falhou:', e?.message); }
   } catch(e) { console.warn('[seed] cloud geral falhou:', e?.message); }
   console.log('[seed] cloud:', cloudSummary);
   return cloudSummary;
@@ -15176,7 +15456,7 @@ async function _settingsLoadExampleData() {
   if (typeof appConfirm !== 'function') return;
   const ok = await appConfirm(
     'Carregar dados de exemplo?',
-    'Vou criar exemplos em todos os módulos relevantes: <strong>1 Kanban (Marketing)</strong>, <strong>1 Zai (Financeiro)</strong>, <strong>1 OKR</strong>, <strong>5 contatos + 1 deal + 1 lead</strong> no Synconnect, <strong>1 Lab</strong>, e <strong>2 páginas no Bunko Box</strong> (incluindo uma transcrição simulada). Todos prefixados com <strong>[Exemplo]</strong> — apague individualmente quando não precisar.',
+    'Vou criar exemplos em todos os módulos relevantes: <strong>1 Kanban (Marketing)</strong>, <strong>1 Zai (Financeiro)</strong>, <strong>1 OKR</strong>, <strong>5 contatos + 1 deal + 1 lead</strong> no Synconnect, <strong>1 Lab</strong>, <strong>2 páginas no Bunko Box</strong> (incluindo uma transcrição simulada), <strong>1 aprendiz em trilha</strong> no People Journey e <strong>2 eventos</strong> no Syncal. Todos prefixados com <strong>[Exemplo]</strong> — apague individualmente quando não precisar.',
     { icon:'✨', okLabel:'Carregar exemplos', html:true }
   );
   if (!ok) return;
@@ -15189,18 +15469,21 @@ async function _settingsLoadExampleData() {
   try { cloud = await _seedExampleDataCloud(); } catch(_){}
 
   const total = (s.boards||0) + (s.canvas||0) + (s.okrs||0) + (s.contacts||0)
-              + cloud.bunko_pages + cloud.transcripts + cloud.deals + cloud.leads;
+              + cloud.bunko_pages + cloud.transcripts + cloud.deals + cloud.leads
+              + (cloud.people||0) + (cloud.syncal_events||0);
   if (typeof appAlert === 'function') {
     if (total > 0) {
       const parts = [];
-      if (s.boards)         parts.push(`${s.boards} board${s.boards>1?'s':''}`);
-      if (s.okrs)           parts.push(`1 OKR`);
-      if (s.contacts)       parts.push(`${s.contacts} contatos`);
-      if (s.canvas)         parts.push(`1 Lab`);
-      if (cloud.bunko_pages)parts.push(`${cloud.bunko_pages} página Bunko`);
-      if (cloud.transcripts)parts.push(`1 transcrição Mestre Kan`);
-      if (cloud.deals)      parts.push(`1 deal`);
-      if (cloud.leads)      parts.push(`1 lead captação`);
+      if (s.boards)            parts.push(`${s.boards} board${s.boards>1?'s':''}`);
+      if (s.okrs)              parts.push(`1 OKR`);
+      if (s.contacts)          parts.push(`${s.contacts} contatos`);
+      if (s.canvas)            parts.push(`1 Lab`);
+      if (cloud.bunko_pages)   parts.push(`${cloud.bunko_pages} página Bunko`);
+      if (cloud.transcripts)   parts.push(`1 transcrição Mestre Kan`);
+      if (cloud.deals)         parts.push(`1 deal`);
+      if (cloud.leads)         parts.push(`1 lead captação`);
+      if (cloud.people)        parts.push(`1 aprendiz em trilha (People Journey)`);
+      if (cloud.syncal_events) parts.push(`${cloud.syncal_events} eventos no Syncal`);
       appAlert('Exemplos carregados', `<strong>Criado:</strong><br/>${parts.map(p => '✓ '+p).join('<br/>')}<br/><br/>Tudo prefixado com [Exemplo] — apague quando quiser.`, { icon:'✓', html:true });
     } else {
       appAlert('Já existem exemplos', 'Seus módulos já têm dados marcados como [Exemplo]. Apague-os antes pra recarregar.', { icon:'ℹ️' });
@@ -15219,7 +15502,7 @@ const OB_STEPS = [
   {
     type: 'welcome',
     title: '🥋 Boas-vindas ao dojo',
-    body: 'Vou te mostrar o Synkan em <strong>14 passos rápidos</strong> — leva uns 3-4 minutos. Cobre todos os módulos: kanban, CRM, financeiro, OKRs, Bunko Box, reuniões com gravação, o Dojo (gamificação) e o Mestre Kan IA.<br/><br/>A qualquer momento você pode pular e explorar por conta própria.',
+    body: 'Vou te mostrar o Synkan em <strong>16 passos rápidos</strong> — leva uns 4-5 minutos. Cobre todos os módulos: kanban, CRM, financeiro, OKRs, People Journey, Syncal (agenda), Bunko Box, reuniões com gravação, o Dojo (gamificação) e o Mestre Kan IA.<br/><br/>A qualquer momento você pode pular e explorar por conta própria.',
     primary: 'Começar',
   },
   {
@@ -15263,6 +15546,20 @@ const OB_STEPS = [
     placement: 'right',
     title: '🤝 Synconnect · CRM completo',
     body: '<strong>Pipeline kanban arrastável</strong> com estágios customizáveis, deals com múltiplos contatos (decisor + técnico + influenciador), atividades automáticas, <strong>Customer 360</strong> (cards, transcrições, mensagens e deals do contato numa tela), <strong>captação de leads</strong> que cai direto no funil, metas mensais, workflows + webhooks, exportação CSV e <strong>IA Faixa Preta</strong> (resumo 360, daily brief, próxima ação por deal). Substitui HubSpot/Pipedrive pra time pequeno/médio.',
+    primary: 'Próximo',
+  },
+  {
+    target: '#sb-people',
+    placement: 'right',
+    title: '道 People Journey · onboarding tipo dojo',
+    body: 'Da <em>Lua Nova</em> à <em>Lua Cheia</em>: trilhas customizadas por papel (dev, vendas, design, etc) com etapas, prazos e categorias.<br/><br/>Cada pessoa nova ganha automático:<br/>• <strong>Pasta no Bunko Box</strong> com 4 subpastas<br/>• <strong>Canal de chat privado</strong> com sensei + padrinho<br/>• <strong>Pulses semanais</strong> do Mestre Kan<br/>• <strong>Celebrações automáticas</strong> de aniversário no Tatami<br/><br/>A página <strong>Gestão</strong> agrega notas, 1:1s, PDI e Feedback 360 — acompanhamento contínuo, não só onboarding.<br/><br/><em>Disponível a partir da Faixa Roxa. No Trial é liberado pra você experimentar.</em>',
+    primary: 'Próximo',
+  },
+  {
+    target: '#sb-syncal',
+    placement: 'right',
+    title: '📅 Syncal · calendário integrado',
+    body: 'Uma agenda que entende seu workspace:<br/>• <strong>Eventos</strong> com convidados, lembretes e RSVP<br/>• <strong>Sync bidirecional</strong> com Google Calendar / Outlook (Faixa Azul+)<br/>• <strong>Booking pages</strong> tipo Calendly — link compartilhável (Roxa+)<br/>• <strong>Polls when2meet</strong> integrados ao Tatami (Roxa+)<br/>• <strong>AI sugestão</strong> de horário cruzando agenda dos participantes (Preta)<br/><br/>Cards de board com prazo aparecem direto na agenda. Eventos viram tarefas. <em>Faixa Branca: 10 eventos/mês.</em>',
     primary: 'Próximo',
   },
   {
@@ -18478,6 +18775,8 @@ function _calConnectCaldav()    { _calOpenCaldavModal(); }
 
 function _calStartOAuth(provider) {
   if (!supaUser) { appAlert('Login necessário'); return; }
+  // Gate: sync com Google/Microsoft Calendar é Faixa Azul+
+  if (!_planAllows('syncal_gcal')) { _planPaywall('syncal_gcal'); return; }
   const jwt = (typeof _capReadJWTFromStorage === 'function') ? _capReadJWTFromStorage() : null;
   if (!jwt) { appAlert('Sessão expirada'); return; }
   const apiBase = (typeof KANBAN_SYNC_BASE !== 'undefined' ? KANBAN_SYNC_BASE : 'https://api.synkan.com.br');
@@ -29708,6 +30007,20 @@ const TOUR_STEPS = [
     body: 'É <strong>drive de arquivos</strong> (PDF, planilha, contrato, imagem) <em>e</em> base de conhecimento:<br/>· <strong>Arrasta qualquer arquivo</strong> pra dentro de uma pasta<br/>· <strong>Páginas markdown</strong> editáveis com anexos e capa<br/>· <strong>Transcrições</strong> do Mestre Kan (entram sozinhas)<br/>· <strong>Gravações MP4</strong> com play e download<br/><br/>Use <strong>⚡ Acesso rápido</strong> nos ⋯ pra fixar o que abre todo dia.',
   },
 
+  // ━━ ATO 5b: PESSOAS — JOURNEY + GESTÃO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  {
+    icon: '道',
+    title: 'People Journey — onboarding tipo dojo',
+    body: '<strong>Da Lua Nova à Lua Cheia.</strong> Cria trilhas customizadas por papel (dev/vendas/design) com etapas, prazos e categorias. Cada pessoa nova tem:<br/>· <strong>Pasta automática</strong> no Bunko (Documentos · Contratos · Materiais · Gravações)<br/>· <strong>Canal de chat privado</strong> com sensei + padrinho<br/>· <strong>Pulses semanais</strong> que o Mestre Kan dispara automático<br/><br/>Página <strong>Gestão</strong> tem 1:1s, notas, PDI e Feedback 360 pro acompanhamento contínuo.<br/><br/><em>Disponível na Faixa Roxa+ (durante o Trial você experimenta full).</em>',
+  },
+
+  // ━━ ATO 5c: AGENDA — SYNCAL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  {
+    icon: '📅',
+    title: 'Syncal — calendário do workspace',
+    body: 'Uma agenda que entende seu workspace inteiro:<br/>· <strong>Eventos</strong> com convidados, lembretes e RSVP<br/>· <strong>Sync bidirecional</strong> com Google Calendar / Outlook<br/>· <strong>Booking pages</strong> tipo Calendly (Roxa+) — link compartilhável<br/>· <strong>Polls</strong> when2meet integrados ao Tatami<br/>· <strong>AI sugestão</strong> de horário cruzando agenda dos participantes (Preta)<br/><br/>Cards de board com prazo aparecem direto no Syncal.',
+  },
+
   // ━━ ATO 6: IA TRANSPARENTE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   {
     icon: '⚔️',
@@ -36888,6 +37201,12 @@ const _PPL_ROLE_EMOJI = {
 async function renderPeople() {
   const root = document.getElementById('people-root');
   if (!root) return;
+  // Gate de plano: se People Journey está bloqueado no plano atual, mostra paywall
+  // (não bloqueia entrada — quem é colaborador vinculado pode ver a própria trilha)
+  if (!_planAllows('people_journey_enabled') && !_peopleState.myAprendiz) {
+    root.innerHTML = _peoplePaywallScreen();
+    return;
+  }
   // Render OTIMISTA: pinta a UI imediatamente com o que tá no cache (ou zeros
   // se for primeira vez). Não bloqueia o usuário esperando rede.
   try { _peopleRenderMain(); }
@@ -37673,7 +37992,83 @@ function _peoplePageSwitcherHTML(active) {
     </div>`;
 }
 
+// Conta trilhas (start_date) abertas no mês corrente. Usado pra gate mensal.
+function _peopleCountTrailsCreatedThisMonth() {
+  const dash = _peopleState.dashboard;
+  if (!dash) return 0;
+  const pessoas = Array.isArray(dash.pessoas_ativas) ? dash.pessoas_ativas : [];
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  return pessoas.filter(p => {
+    if (!p.start_date) return false;
+    try { return new Date(p.start_date) >= firstOfMonth; } catch(_) { return false; }
+  }).length;
+}
+
+// Renderiza tela de paywall quando People Journey tá bloqueado no plano atual.
+// Mantém o sidebar visível mas o conteúdo central mostra desejo + CTA.
+function _peoplePaywallScreen() {
+  const planCode = getCurrentPlanCode();
+  const planName = getCurrentPlanLimits().name || '';
+  return `
+    <div class="ppl-wrap ppl-paywall-screen">
+      <div class="ppl-paywall-hero">
+        <div class="ppl-paywall-icon">道</div>
+        <h2 class="ppl-paywall-title">People Journey</h2>
+        <p class="ppl-paywall-sub">Onboarding estruturado tipo dojo — da <em>Lua Nova</em> à <em>Lua Cheia</em></p>
+        <div style="font-size:11.5px;color:var(--color-text-tertiary);margin-top:8px;">Você está em <strong>${_esc(planName)}</strong></div>
+      </div>
+
+      <div class="ppl-paywall-features">
+        <div class="ppl-paywall-feat">
+          <div class="ic">🌑</div>
+          <div class="t">Trilha personalizada</div>
+          <div class="d">Etapas customizadas por papel (dev, vendas, ops…), prazo até a graduação e categorização (documentos, treinamento, social, etc).</div>
+        </div>
+        <div class="ppl-paywall-feat">
+          <div class="ic">💚</div>
+          <div class="t">Pulses semanais</div>
+          <div class="d">Mestre Kan pergunta "como tá indo?" a cada 7 dias. Resposta vira histórico de sentimento que o sensei acompanha.</div>
+        </div>
+        <div class="ppl-paywall-feat">
+          <div class="ic">監</div>
+          <div class="t">Gestão de pessoas</div>
+          <div class="d">Notas do gestor · 1:1s registrados · celebrações automáticas no Tatami · PDI e Feedback 360 (Faixa Preta).</div>
+        </div>
+        <div class="ppl-paywall-feat">
+          <div class="ic">🎴</div>
+          <div class="t">Integração total</div>
+          <div class="d">Pasta automática no Bunko · canal de chat privado · sincronia com Syncal pros 1:1s · linka com OKRs.</div>
+        </div>
+      </div>
+
+      <div class="ppl-paywall-plans">
+        <div class="ppl-paywall-plan">
+          <div class="name">Faixa Roxa</div>
+          <div class="price"><strong>R$ 39,90</strong>/mês</div>
+          <div class="desc">3 novas pessoas em trilha/mês · Gestão básica · Celebrações</div>
+        </div>
+        <div class="ppl-paywall-plan is-best">
+          <div class="badge">Recomendado pra times</div>
+          <div class="name">Faixa Preta</div>
+          <div class="price"><strong>R$ 89,90</strong>/mês</div>
+          <div class="desc">10 pessoas/mês · PDI · Feedback 360 · Gestão completa</div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:18px;">
+        <button class="ppl-btn ppl-btn-primary" style="font-size:14px;padding:11px 22px;" onclick="window.open(getUpgradeURL(),'_blank')">Fazer upgrade →</button>
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:8px;">Sem contrato · cancela quando quiser</div>
+      </div>
+    </div>`;
+}
+
 function _peopleSetPage(page) {
+  // Gate de plano: Gestão precisa de plano que habilite people_mgmt
+  if (page === 'gestao' && !_planAllows('people_mgmt_enabled')) {
+    _planPaywall('people_mgmt');
+    return;
+  }
   _peopleState.page = page;
   _peopleRenderMain();
   // Auto-refresh: ao trocar pra Gestão, busca dashboard fresh em background.
@@ -38707,6 +39102,7 @@ async function _peopleMgmtDelete1on1(id, personId) {
 
 // ── PDI Modal ───────────────────────────────────────────────────────
 function _peopleMgmtOpenPdiModal(personId, pdiId) {
+  if (!_planAllows('people_pdi')) { _planPaywall('people_pdi'); return; }
   const data = _peopleState.mgmtCurrentPerson;
   const existing = pdiId && data ? (data.pdis||[]).find(d => d.id === pdiId) : null;
   const settings = _peopleGetMgmtSettings();
@@ -38874,6 +39270,7 @@ async function _peopleMgmtDeletePdi(id, personId) {
 
 // ── Feedback Modal ──────────────────────────────────────────────────
 function _peopleMgmtOpenFeedbackModal(personId) {
+  if (!_planAllows('people_feedback360')) { _planPaywall('people_feedback360'); return; }
   let m = document.getElementById('ppl-mgmt-fb-modal'); if (m) m.remove();
   m = document.createElement('div'); m.id = 'ppl-mgmt-fb-modal';
   m.className = 'ov open'; m.style.zIndex = '10012';
@@ -40981,6 +41378,15 @@ function _peopleOpenIntegrationsHelp() {
 
 // ── Modal de criação de aprendiz ────────────────────────────────────
 function _peopleOpenCreateModal() {
+  // Gate de plano: People Journey precisa estar habilitado
+  if (!_planAllows('people_journey_enabled')) { _planPaywall('people_journey'); return; }
+  // Gate de quantidade: aprendizes criados neste mês <= limite do plano
+  const trailsThisMonth = _peopleCountTrailsCreatedThisMonth();
+  if (!_planAllows('people_trail_per_month', trailsThisMonth)) {
+    const limits = getCurrentPlanLimits();
+    _planPaywall('people_journey_limit', { extra: `Você já abriu <strong>${trailsThisMonth} trilha${trailsThisMonth===1?'':'s'}</strong> neste mês (limite do plano ${limits.name}: ${limits.people_trail_per_month}).` });
+    return;
+  }
   let modal = document.getElementById('ppl-create-modal');
   if (modal) modal.remove();
   modal = document.createElement('div');
@@ -73309,6 +73715,7 @@ function _syncalRequestNotifPermission() {
 // e retorna até 10 slots livres na janela escolhida.
 // ════════════════════════════════════════════════════════════════════
 function _syncalOpenFindSlotsModal() {
+  if (!_planAllows('syncal_ai_suggest')) { _planPaywall('syncal_ai_suggest'); return; }
   let modal = document.getElementById('syncal-find-slots');
   if (modal) modal.remove();
   modal = document.createElement('div');
@@ -73466,7 +73873,25 @@ function _syncalCreateFromSlot(date, startTime, endTime, userIdsCsv) {
 // Modal pra criar/listar páginas de booking. Cada uma tem slug único,
 // duração, horários de trabalho. Link `?syncal_book=<slug>` é público.
 // ════════════════════════════════════════════════════════════════════
+// Conta eventos criados no mês corrente (pra gate da Faixa Branca)
+function _syncalCountEventsThisMonth() {
+  const events = (_syncalState && Array.isArray(_syncalState.events)) ? _syncalState.events : [];
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  return events.filter(e => {
+    if (!e.date) return false;
+    try { return new Date(e.date + 'T00:00:00') >= firstOfMonth; } catch(_) { return false; }
+  }).length;
+}
+
 async function _syncalOpenBookingPagesModal() {
+  // Gate: booking pages é Faixa Roxa+
+  if (!_planAllows('syncal_booking_pages') && getCurrentPlanLimits().syncal_booking_pages !== -1) {
+    if (getCurrentPlanLimits().syncal_booking_pages === 0) {
+      _planPaywall('syncal_booking_pages');
+      return;
+    }
+  }
   let modal = document.getElementById('syncal-booking-modal');
   if (modal) modal.remove();
   modal = document.createElement('div');
@@ -73650,6 +74075,7 @@ async function _syncalDeleteBookingPage(pageId) {
 // Quando fechar, escolhe a opção mais votada e vira evento real.
 // ════════════════════════════════════════════════════════════════════
 async function _syncalOpenPollsModal() {
+  if (!_planAllows('syncal_polls')) { _planPaywall('syncal_polls'); return; }
   let modal = document.getElementById('syncal-polls-modal');
   if (modal) modal.remove();
   modal = document.createElement('div');
@@ -74618,6 +75044,17 @@ function _syncalOpenDay(dateStr) {
 // Modal de criação/edição de evento Syncal nativo
 async function _syncalOpenEventModal(prefDate, editingId) {
   const existing = editingId ? _syncalState.events.find(e => e.id === editingId) : null;
+  // Gate: limite mensal de eventos (só pra Branca; outros planos = -1 ilimitado)
+  if (!existing) {
+    const limit = (getCurrentPlanLimits().syncal_events_per_month);
+    if (typeof limit === 'number' && limit > 0) {
+      const count = _syncalCountEventsThisMonth();
+      if (count >= limit) {
+        _planPaywall('syncal_events_per_month', { extra: `Você criou <strong>${count} de ${limit}</strong> eventos neste mês.` });
+        return;
+      }
+    }
+  }
   let modal = document.getElementById('syncal-event-modal');
   if (modal) modal.remove();
   modal = document.createElement('div');
