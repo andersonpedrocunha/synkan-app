@@ -4070,6 +4070,16 @@ body.density-compact .col{padding:7px;}
 .ppl-info-help-btn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-tertiary);font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;padding:0;line-height:1;margin-left:4px;vertical-align:1px;transition:all .12s;}
 .ppl-info-help-btn:hover{border-color:var(--color-text-primary);color:var(--color-text-primary);}
 
+/* Anexos · drop zone + lista */
+.ppl-info-attachments-section{margin-top:18px;padding-top:18px;border-top:0.5px solid var(--color-border-tertiary);}
+.ppl-info-drop-zone{border:1.5px dashed var(--color-border-secondary);border-radius:10px;padding:18px 16px;text-align:center;cursor:pointer;transition:all .15s;background:var(--color-background-secondary);}
+.ppl-info-drop-zone:hover{border-color:#6B4825;background:rgba(193,154,58,.06);}
+.ppl-info-drop-zone.is-over{border-color:#6B4825;border-style:solid;background:rgba(193,154,58,.12);transform:scale(1.01);}
+.ppl-info-attach-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:7px;background:var(--color-background-primary);margin-bottom:5px;transition:border-color .12s;}
+.ppl-info-attach-row:hover{border-color:var(--color-text-secondary);}
+.ppl-info-attach-btn{background:transparent;border:0.5px solid var(--color-border-secondary);color:var(--color-text-secondary);width:24px;height:24px;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;line-height:1;padding:0;transition:all .12s;}
+.ppl-info-attach-btn:hover{border-color:var(--color-text-primary);color:var(--color-text-primary);background:var(--color-background-secondary);}
+
 /* Hero do Resumo (drawer Gestão) */
 .ppl-mgmt-hero-block{background:linear-gradient(135deg,var(--color-background-secondary) 0%,var(--color-background-primary) 100%);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
 .ppl-mgmt-hero-row{display:flex;gap:22px;flex-wrap:wrap;}
@@ -39270,6 +39280,45 @@ function _peopleMgmtOpenPersonInfoModal(personId) {
           </div>
           ` : ''}
         </div>
+
+        ${existing ? `
+          <!-- Seção de anexos / documentos · usa pasta Bunko da pessoa -->
+          <div class="ppl-info-attachments-section">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:10px;">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--color-text-primary);display:flex;align-items:center;gap:6px;">📎 Anexos · documentos da pessoa</div>
+                <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">Salvos automaticamente na pasta <code style="background:var(--color-background-secondary);padding:1px 5px;border-radius:3px;font-size:10.5px;">People · ${_esc(p.name||'')}</code> do Bunko Box.</div>
+              </div>
+              ${p.bunko_folder_id
+                ? `<button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpenBunkoFolder('${_esc(p.bunko_folder_id)}')">📦 Abrir no Bunko</button>`
+                : `<button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtCreateBunkoFolderFor('${_esc(existing.id)}','${_esc(p.name||'')}')">📦 Criar pasta Bunko</button>`}
+            </div>
+
+            ${p.bunko_folder_id ? `
+              <div class="ppl-info-drop-zone" id="ppl-info-drop-zone"
+                ondragover="event.preventDefault();this.classList.add('is-over');"
+                ondragleave="this.classList.remove('is-over');"
+                ondrop="event.preventDefault();this.classList.remove('is-over');_peopleMgmtHandleDrop(event,'${_esc(p.bunko_folder_id)}','${_esc(existing.id)}');"
+                onclick="document.getElementById('ppl-info-file-input').click();">
+                <div style="font-size:22px;color:var(--color-text-tertiary);">📎</div>
+                <div style="font-size:12.5px;color:var(--color-text-secondary);margin-top:4px;"><strong>Clique pra escolher</strong> ou arraste arquivos aqui</div>
+                <div style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:2px;">Contratos · documentos pessoais · materiais · etc</div>
+                <input id="ppl-info-file-input" type="file" multiple style="display:none;" onchange="_peopleMgmtUploadAttachments(this.files,'${_esc(p.bunko_folder_id)}','${_esc(existing.id)}');this.value=''"/>
+              </div>
+              <div id="ppl-info-attachments-list" style="margin-top:10px;">
+                <div style="font-size:11px;color:var(--color-text-tertiary);padding:6px 0;">Carregando anexos…</div>
+              </div>
+            ` : `
+              <div style="padding:14px;background:var(--color-background-secondary);border-radius:8px;font-size:11.5px;color:var(--color-text-secondary);text-align:center;line-height:1.5;">
+                Essa pessoa ainda não tem pasta Bunko. Clique em <strong>Criar pasta Bunko</strong> acima pra gerar a estrutura (Documentos, Contratos, Materiais, Gravações).
+              </div>
+            `}
+          </div>
+        ` : `
+          <div style="grid-column:1/-1;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;font-size:11px;color:var(--color-text-tertiary);font-style:italic;text-align:center;margin-top:12px;">
+            Salve a pessoa primeiro pra poder anexar documentos.
+          </div>
+        `}
       </div>
       <div style="padding:14px 22px 18px;border-top:0.5px solid var(--color-border-secondary);display:flex;justify-content:flex-end;gap:8px;">
         <button class="ppl-btn" onclick="document.getElementById('ppl-mgmt-info-modal').remove()">Cancelar</button>
@@ -39278,6 +39327,10 @@ function _peopleMgmtOpenPersonInfoModal(personId) {
     </div>`;
   document.body.appendChild(m);
   setTimeout(() => document.getElementById('ppl-info-name')?.focus(), 50);
+  // Carrega anexos do Bunko (se tem pasta)
+  if (existing && existing.bunko_folder_id) {
+    _peopleMgmtLoadAttachmentsList(existing.bunko_folder_id);
+  }
   // Se tiver user_id, busca dados do perfil pra mostrar email/nome real
   if (existing && existing.user_id) {
     _peopleMgmtFetchSynkanProfile(existing.user_id).then(profile => {
@@ -39445,6 +39498,177 @@ function _peopleDaysUntilNext(isoDate) {
     if (next < today) next.setFullYear(next.getFullYear()+1);
     return Math.round((next - today)/86400000);
   } catch(_) { return null; }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ANEXOS · pasta Bunko da pessoa (Info básica modal)
+// ────────────────────────────────────────────────────────────────────
+// Reusa `bunko-files` storage + tabela `bunko_files` (já existe).
+// Cada pessoa tem `bunko_folder_id` apontando pra pasta `People · [Nome]`.
+// Upload usa _bunkoUploadFilesToFolder (gate de storage por plano incluso).
+// Lista mostra arquivos da pasta + subpastas (5 mais recentes).
+// ════════════════════════════════════════════════════════════════════
+
+// Carrega lista de anexos da pasta (e subpastas) e renderiza no modal
+async function _peopleMgmtLoadAttachmentsList(folderId) {
+  const target = document.getElementById('ppl-info-attachments-list');
+  if (!target || !folderId) return;
+  try {
+    // Busca IDs das subpastas (Documentos pessoais, Contratos, etc.)
+    const subRes = await _peopleApi.get(`bunko_folders?parent_id=eq.${folderId}&select=id,name,icon&deleted_at=is.null`);
+    const subFolders = Array.isArray(subRes.data) ? subRes.data : [];
+    const folderIds = [folderId, ...subFolders.map(f => f.id)];
+    const inClause = folderIds.map(id => `"${id}"`).join(',');
+    // Busca arquivos das pastas
+    const filesRes = await _peopleApi.get(`bunko_files?folder_id=in.(${inClause})&deleted_at=is.null&select=id,name,size_bytes,mime_type,storage_path,storage_bucket,folder_id,created_at&order=created_at.desc&limit=20`);
+    const files = Array.isArray(filesRes.data) ? filesRes.data : [];
+    if (files.length === 0) {
+      target.innerHTML = `<div style="font-size:11.5px;color:var(--color-text-tertiary);padding:8px 0;font-style:italic;">Nenhum arquivo anexado ainda.</div>`;
+      return;
+    }
+    // Mapa folder_id → nome de subpasta (pra mostrar onde tá)
+    const folderNames = {};
+    subFolders.forEach(f => folderNames[f.id] = `${f.icon||'📁'} ${f.name}`);
+    folderNames[folderId] = '📦 Raiz';
+    target.innerHTML = `
+      <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);margin-bottom:6px;">Anexos recentes <span style="font-weight:400;opacity:.65;">(${files.length})</span></div>
+      ${files.slice(0, 10).map(f => `
+        <div class="ppl-info-attach-row">
+          <span style="font-size:14px;flex-shrink:0;">${_peopleMgmtFileIcon(f.mime_type)}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12.5px;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(f.name)}</div>
+            <div style="font-size:10.5px;color:var(--color-text-tertiary);">${_peopleMgmtFmtBytes(f.size_bytes)} · ${_esc(folderNames[f.folder_id]||'📁 Subpasta')} · ${_peopleFmtDate(f.created_at)}</div>
+          </div>
+          <button class="ppl-info-attach-btn" onclick="_peopleMgmtDownloadAttachment('${_esc(f.storage_path)}','${_esc(f.storage_bucket||'bunko-files')}','${_esc(f.name)}')" title="Baixar">↓</button>
+          <button class="ppl-info-attach-btn" onclick="_peopleMgmtDeleteAttachment('${_esc(f.id)}','${_esc(folderId)}')" title="Excluir" style="color:#BC002D;">×</button>
+        </div>
+      `).join('')}
+      ${files.length > 10 ? `<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:6px;text-align:center;"><a onclick="_peopleMgmtOpenBunkoFolder('${_esc(folderId)}')" style="cursor:pointer;text-decoration:underline;">Ver todos os ${files.length} arquivos no Bunko →</a></div>` : ''}
+    `;
+  } catch(e) {
+    console.warn('[people-mgmt] load attachments:', e?.message);
+    target.innerHTML = `<div style="font-size:11.5px;color:#BC002D;padding:6px 0;">Erro ao carregar anexos.</div>`;
+  }
+}
+
+function _peopleMgmtFileIcon(mime) {
+  if (!mime) return '📄';
+  if (mime.startsWith('image/')) return '🖼';
+  if (mime.startsWith('video/')) return '🎬';
+  if (mime.startsWith('audio/')) return '🎵';
+  if (mime.includes('pdf')) return '📑';
+  if (mime.includes('zip') || mime.includes('rar') || mime.includes('compressed')) return '🗜';
+  if (mime.includes('word') || mime.includes('document')) return '📝';
+  if (mime.includes('sheet') || mime.includes('excel') || mime.includes('csv')) return '📊';
+  if (mime.includes('presentation') || mime.includes('powerpoint')) return '📈';
+  return '📄';
+}
+
+function _peopleMgmtFmtBytes(bytes) {
+  if (!bytes || bytes < 1024) return `${bytes||0} B`;
+  if (bytes < 1024*1024) return `${(bytes/1024).toFixed(1)} KB`;
+  if (bytes < 1024*1024*1024) return `${(bytes/1024/1024).toFixed(1)} MB`;
+  return `${(bytes/1024/1024/1024).toFixed(2)} GB`;
+}
+
+async function _peopleMgmtHandleDrop(event, folderId, personId) {
+  const files = event.dataTransfer?.files;
+  if (!files || !files.length) return;
+  await _peopleMgmtUploadAttachments(files, folderId, personId);
+}
+
+async function _peopleMgmtUploadAttachments(fileList, folderId, personId) {
+  if (!fileList || !fileList.length) return;
+  if (!folderId) {
+    if (typeof appAlert === 'function') appAlert('Sem pasta', 'Crie a pasta Bunko da pessoa primeiro.', { icon:'⚠' });
+    return;
+  }
+  if (typeof _bunkoUploadFilesToFolder !== 'function') {
+    if (typeof appAlert === 'function') appAlert('Bunko indisponível', 'O módulo Bunko ainda não carregou. Tente em alguns segundos.', { icon:'⚠' });
+    return;
+  }
+  // Delega pro Bunko (gate de storage por plano + upload + register em bunko_files)
+  await _bunkoUploadFilesToFolder(folderId, fileList);
+  // Re-renderiza a lista
+  await _peopleMgmtLoadAttachmentsList(folderId);
+}
+
+async function _peopleMgmtDownloadAttachment(storagePath, bucket, fileName) {
+  try {
+    const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+    if (!c) { if (typeof appAlert==='function') appAlert('Erro', 'Cliente Supabase indisponível.', { icon:'⚠' }); return; }
+    const { data, error } = await c.storage.from(bucket||'bunko-files').createSignedUrl(storagePath, 60);
+    if (error || !data?.signedUrl) {
+      if (typeof appAlert==='function') appAlert('Erro ao baixar', error?.message||'Tente novamente.', { icon:'⚠' });
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = data.signedUrl;
+    a.download = fileName || '';
+    a.target = '_blank';
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch(e) {
+    console.warn('[people-mgmt] download:', e?.message);
+  }
+}
+
+async function _peopleMgmtDeleteAttachment(fileId, folderId) {
+  const ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Excluir anexo?', 'O arquivo será removido permanentemente do Bunko. Esta ação não pode ser desfeita.', { danger:true, okLabel:'Excluir', icon:'🗑' })
+    : confirm('Excluir esse anexo?');
+  if (!ok) return;
+  try {
+    // Soft-delete (igual ao Bunko padrão)
+    const { error } = await _peopleApi.patch(`bunko_files?id=eq.${fileId}`, { deleted_at: new Date().toISOString() });
+    if (error) { if (typeof appAlert==='function') appAlert('Erro', error.message||'Tente novamente.', { icon:'⚠' }); return; }
+    await _peopleMgmtLoadAttachmentsList(folderId);
+  } catch(e) {
+    console.warn('[people-mgmt] delete attachment:', e?.message);
+  }
+}
+
+// Abre o Bunko na pasta da pessoa
+function _peopleMgmtOpenBunkoFolder(folderId) {
+  document.getElementById('ppl-mgmt-info-modal')?.remove();
+  if (typeof switchTab === 'function') switchTab('bunko');
+  // Deep-link na pasta (se Bunko tiver essa função)
+  setTimeout(() => {
+    if (typeof _bunkoNavigateToFolder === 'function') {
+      _bunkoNavigateToFolder(folderId);
+    }
+  }, 250);
+}
+
+// Cria pasta Bunko + subpastas pra uma pessoa que ainda não tem
+async function _peopleMgmtCreateBunkoFolderFor(personId, personName) {
+  try {
+    const { data: folder, error: fErr } = await _peopleApi.rpc('create_bunko_folder', {
+      p_name: `People · ${personName||'Pessoa'}`, p_parent_id: null, p_icon: '🥋', p_color: '#6B4825'
+    });
+    if (fErr || !folder?.id) {
+      if (typeof appAlert==='function') appAlert('Erro ao criar pasta', fErr?.message||'Tente novamente.', { icon:'⚠' });
+      return;
+    }
+    // Subpastas padrão
+    const subs = [
+      { name: 'Documentos pessoais', icon: '📄' },
+      { name: 'Contratos',           icon: '📑' },
+      { name: 'Materiais de boas-vindas', icon: '🎴' },
+      { name: 'Gravações dos check-ins', icon: '🎬' },
+    ];
+    await Promise.all(subs.map(s =>
+      _peopleApi.rpc('create_bunko_folder', { p_name: s.name, p_parent_id: folder.id, p_icon: s.icon, p_color: '#A88150' }).catch(_=>null)
+    ));
+    // Atualiza people.bunko_folder_id
+    await _peopleApi.patch(`people?id=eq.${personId}`, { bunko_folder_id: folder.id });
+    // Reabre o modal com a pasta nova
+    document.getElementById('ppl-mgmt-info-modal')?.remove();
+    _peopleMgmtOpenPersonInfoModal(personId);
+    _peopleRefreshAll();
+    if (typeof appAlert==='function') appAlert('Pasta criada 📦', `Estrutura "People · ${personName}" com 4 subpastas criada no Bunko.`, { icon:'✓' });
+  } catch(e) {
+    console.warn('[people-mgmt] create folder:', e?.message);
+  }
 }
 
 function _peopleBirthDistance(isoDate, fromHired) {
