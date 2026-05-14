@@ -3607,6 +3607,34 @@ body.density-compact .col{padding:7px;}
 .ppl-next-step strong{color:var(--color-text-primary);font-weight:600;font-style:normal;}
 .ppl-overdue-flag{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:#BC002D;font-weight:600;padding:2px 7px;background:#FBEAEB;border-radius:6px;}
 
+/* ════════ Vista do COLABORADOR — auto-serviço "minha jornada" ════════ */
+.ppl-colab{}
+.ppl-colab-hero{background:linear-gradient(135deg,#1A1611 0%,#3A2410 50%,#6B4825 100%);color:#F5E8C8;border-radius:16px;padding:24px 28px;margin-bottom:18px;box-shadow:0 8px 32px rgba(0,0,0,.18);position:relative;overflow:hidden;}
+.ppl-colab-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,209,122,.25) 0%,transparent 70%);pointer-events:none;}
+.ppl-colab-hero-l{display:flex;align-items:center;gap:16px;margin-bottom:18px;position:relative;}
+.ppl-colab-name{font-family:'Noto Serif JP',serif;font-size:24px;font-weight:600;color:#F5E8C8;line-height:1.2;margin-top:2px;}
+.ppl-colab-phase{font-size:14px;color:rgba(245,232,200,.85);margin-top:5px;font-weight:500;}
+.ppl-colab-progress{position:relative;}
+.ppl-colab-prog-bar{height:8px;background:rgba(245,232,200,.15);border-radius:999px;overflow:hidden;}
+.ppl-colab-prog-fill{height:100%;background:linear-gradient(to right,#FFD17A,#C19A3A);border-radius:999px;transition:width .6s ease;}
+.ppl-colab-prog-text{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11.5px;color:rgba(245,232,200,.85);font-variant-numeric:tabular-nums;}
+.ppl-colab-prog-text strong{color:#F5E8C8;font-size:13.5px;}
+
+.ppl-colab-alert{background:#FBEAEB;border-left:4px solid #BC002D;color:#7A0026;padding:11px 14px;border-radius:0 8px 8px 0;font-size:12.5px;margin-bottom:12px;line-height:1.5;}
+
+.ppl-colab-pulse{background:linear-gradient(135deg,#FFF4D1 0%,#FBE7A4 100%);border:0.5px solid #C19A3A;border-radius:12px;padding:16px 18px;margin-bottom:18px;}
+
+.ppl-colab-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;}
+.ppl-colab-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:14px 16px;}
+.ppl-colab-card-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.ppl-colab-card-title{font-family:var(--font-sans);font-size:11.5px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:700;}
+.ppl-colab-card-meta{font-size:10.5px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;}
+.ppl-colab-empty{padding:18px 4px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12px;}
+.ppl-colab-step{display:flex;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);}
+.ppl-colab-step:last-child{border-bottom:0;}
+.ppl-colab-team-row{display:flex;gap:11px;padding:8px 0;align-items:center;border-bottom:0.5px solid var(--color-border-tertiary);}
+.ppl-colab-team-row:last-child{border-bottom:0;}
+
 .ppl-empty{padding:60px 20px;text-align:center;color:var(--color-text-tertiary);font-family:'Noto Serif JP',serif;font-style:italic;}
 .ppl-empty-icon{font-size:48px;opacity:.4;color:#BC002D;margin-bottom:10px;font-family:'Hiragino Mincho ProN',serif;}
 .ppl-empty-title{font-size:16px;color:var(--color-text-primary);font-style:normal;font-family:var(--font-sans);margin-bottom:6px;font-weight:600;}
@@ -3665,6 +3693,22 @@ body.density-compact .col{padding:7px;}
 .ppl-dur-btn{background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);color:var(--color-text-secondary);font-size:11.5px;padding:6px 11px;border-radius:6px;cursor:pointer;font-family:inherit;transition:all .12s;}
 .ppl-dur-btn:hover{border-color:var(--color-text-primary);color:var(--color-text-primary);}
 .ppl-dur-btn.active{background:#3A2410;border-color:#3A2410;color:#F5E8C8;font-weight:600;}
+.ppl-dur-btn.fast{border-color:#C19A3A;color:#7A5500;background:rgba(193,154,58,.08);}
+.ppl-dur-btn.fast:hover{background:rgba(193,154,58,.18);}
+.ppl-dur-btn.fast.active{background:linear-gradient(135deg,#FFD17A,#C19A3A);border-color:#8B6634;color:#1A1611;}
+.ppl-fasttrack-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;padding:1px 6px;border-radius:999px;background:linear-gradient(135deg,#FFD17A,#C19A3A);color:#1A1611;border:0.5px solid #8B6634;letter-spacing:.02em;}
+.ppl-docs-chip{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:999px;background:#E7EEF7;color:#1A4778;border:0.5px solid #B9C9E2;letter-spacing:.02em;}
+.ppl-docs-section{background:linear-gradient(135deg,rgba(231,238,247,.4) 0%,rgba(231,238,247,.15) 100%);border:0.5px solid #B9C9E2;border-radius:10px;padding:12px 14px;margin-bottom:14px;}
+.ppl-docs-section-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.ppl-docs-section-title{font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:#1A4778;font-weight:700;}
+.ppl-docs-item{display:flex;align-items:center;gap:9px;padding:7px 9px;background:rgba(255,255,255,.6);border-radius:7px;margin-bottom:4px;font-size:12.5px;}
+.ppl-docs-item.is-done{opacity:.55;text-decoration:line-through;}
+.ppl-docs-cat{display:inline-block;font-size:9.5px;font-weight:600;padding:1px 5px;border-radius:4px;background:#E7EEF7;color:#1A4778;letter-spacing:.04em;text-transform:uppercase;}
+.ppl-docs-cat.cat-acesso{background:#F5E8E0;color:#7A3510;}
+.ppl-docs-action{background:#FFF;border:0.5px solid #B9C9E2;color:#1A4778;font-size:10.5px;padding:3px 8px;border-radius:5px;cursor:pointer;font-family:inherit;}
+.ppl-docs-action:hover{background:#E7EEF7;}
+.ppl-dur-hint{font-size:11px;color:var(--color-text-tertiary);margin-top:6px;line-height:1.5;}
+.ppl-dur-hint.express{color:#7A5500;}
 /* Editor de etapas — botões inline ✎ e 🗑 */
 .ppl-step-edit-btn{background:transparent;border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:5px 9px;border-radius:6px;line-height:1;flex-shrink:0;transition:all .12s;}
 .ppl-step-edit-btn:hover{border-color:var(--color-text-primary);color:var(--color-text-primary);}
@@ -3824,6 +3868,82 @@ body.density-compact .col{padding:7px;}
 .cap-banner code{background:rgba(255,255,255,.6);padding:1px 5px;border-radius:3px;font-size:11.5px;}
 :root.dark .cap-banner{background:#4A3D14;color:#FFE497;border-color:#6B5A28;}
 :root.dark .cap-banner code{background:rgba(0,0,0,.25);}
+
+/* ══════════ Syncal · módulo calendário ══════════ */
+.syncal-wrap{padding:8px 0 24px;display:flex;flex-direction:column;gap:14px;max-width:1180px;}
+.syncal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:6px;}
+.syncal-title{font-size:22px;font-weight:600;color:var(--color-text-primary);display:inline-flex;align-items:center;gap:10px;}
+.syncal-title-badge{font-family:'Noto Serif JP',serif;font-size:13px;background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;padding:2px 9px;border-radius:6px;letter-spacing:.05em;}
+.syncal-sub{font-size:13px;color:var(--color-text-secondary);margin-top:3px;}
+.syncal-actions{display:flex;align-items:center;gap:10px;}
+.syncal-view-switcher{display:inline-flex;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:7px;padding:2px;}
+.syncal-view-btn{background:transparent;border:none;font-family:inherit;font-size:12.5px;padding:6px 14px;border-radius:5px;cursor:pointer;color:var(--color-text-secondary);transition:all .12s;}
+.syncal-view-btn:hover{color:var(--color-text-primary);}
+.syncal-view-btn.active{background:var(--color-background-primary);color:var(--color-text-primary);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.syncal-btn-primary{background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;border:0.5px solid #6B4825;font-family:inherit;font-size:13px;font-weight:500;padding:8px 14px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:transform .1s;}
+.syncal-btn-primary:hover{transform:translateY(-1px);}
+.syncal-nav{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;gap:10px;flex-wrap:wrap;}
+.syncal-nav-l{display:flex;align-items:center;gap:8px;}
+.syncal-nav-btn{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);font-family:inherit;font-size:12.5px;padding:6px 12px;border-radius:6px;cursor:pointer;color:var(--color-text-primary);transition:all .12s;}
+.syncal-nav-btn:hover{background:var(--color-background-secondary);border-color:var(--color-text-secondary);}
+.syncal-month-label{font-family:'Noto Serif JP',serif;font-size:18px;font-weight:500;color:var(--color-text-primary);margin-left:8px;text-transform:capitalize;}
+.syncal-filters{display:flex;gap:6px;flex-wrap:wrap;}
+.syncal-filter-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:4px 10px;border-radius:999px;cursor:pointer;font-family:inherit;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-tertiary);transition:all .12s;user-select:none;}
+.syncal-filter-chip.active{background:var(--color-background-primary);color:var(--color-text-primary);border-color:var(--color-text-secondary);}
+.syncal-filter-chip:not(.active){opacity:.55;}
+.syncal-filter-chip.syncal-filter-boards.active{background:#E7EEF7;border-color:#378ADD;color:#1A4778;}
+.syncal-filter-chip.syncal-filter-people.active{background:#FFF4D1;border-color:#C19A3A;color:#7A5500;}
+.syncal-filter-chip.syncal-filter-okrs.active{background:#E2DCC8;border-color:#6B4825;color:#3A2410;}
+.syncal-filter-chip.syncal-filter-native.active{background:#E2F0D0;border-color:#3B6D11;color:#2A4F0A;}
+
+.syncal-grid{border:0.5px solid var(--color-border-tertiary);border-radius:10px;overflow:hidden;background:var(--color-background-primary);}
+.syncal-grid-header{display:grid;grid-template-columns:repeat(7,1fr);background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary);}
+.syncal-dow{padding:9px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-tertiary);font-weight:600;text-align:center;}
+.syncal-grid-body{display:grid;grid-template-columns:repeat(7,1fr);}
+.syncal-cell{min-height:100px;padding:6px 7px;border-right:0.5px solid var(--color-border-tertiary);border-bottom:0.5px solid var(--color-border-tertiary);cursor:pointer;position:relative;transition:background .1s;}
+.syncal-cell:nth-child(7n){border-right:none;}
+.syncal-cell:nth-last-child(-n+7){border-bottom:none;}
+.syncal-cell:hover{background:var(--color-background-secondary);}
+.syncal-cell.is-other{opacity:.42;}
+.syncal-cell.is-today{background:rgba(193,154,58,.08);}
+.syncal-cell.is-today .syncal-day-num{background:#C19A3A;color:#1A1611;font-weight:700;}
+.syncal-cell.is-weekend{background:rgba(0,0,0,.015);}
+.syncal-day-num{display:inline-block;font-size:11.5px;font-weight:500;color:var(--color-text-primary);width:20px;height:20px;line-height:20px;text-align:center;border-radius:50%;font-variant-numeric:tabular-nums;}
+.syncal-event{font-size:10.5px;padding:2px 6px;border-radius:4px;margin-top:3px;display:flex;align-items:center;gap:4px;color:var(--color-text-primary);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer;transition:transform .08s;}
+.syncal-event:hover{transform:translateX(1px);}
+.syncal-event-time{font-weight:600;font-variant-numeric:tabular-nums;color:var(--color-text-secondary);font-size:10px;}
+.syncal-event-title{overflow:hidden;text-overflow:ellipsis;}
+.syncal-more{font-size:10px;color:var(--color-text-tertiary);font-style:italic;margin-top:2px;cursor:pointer;}
+.syncal-more:hover{color:var(--color-text-primary);}
+
+.syncal-week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.syncal-week-col{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;min-height:340px;}
+.syncal-week-col.is-today{border-color:#C19A3A;box-shadow:0 0 0 1px rgba(193,154,58,.20);}
+.syncal-week-h{padding:8px 10px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary);text-align:center;}
+.syncal-week-dow{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-tertiary);font-weight:600;}
+.syncal-week-num{font-size:18px;font-weight:600;color:var(--color-text-primary);font-variant-numeric:tabular-nums;margin-top:2px;}
+.syncal-week-num.is-today{color:#C19A3A;}
+.syncal-week-body{padding:6px;flex:1;cursor:pointer;display:flex;flex-direction:column;gap:4px;}
+.syncal-week-empty{font-size:10.5px;color:var(--color-text-tertiary);text-align:center;padding:14px 4px;font-style:italic;opacity:.5;}
+.syncal-week-event{padding:5px 7px;border-radius:5px;background:var(--color-background-secondary);font-size:11px;line-height:1.35;cursor:pointer;}
+.syncal-week-event:hover{filter:brightness(.96);}
+.syncal-week-event-time{font-size:9.5px;font-weight:600;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;}
+.syncal-week-event-title{color:var(--color-text-primary);font-weight:500;margin-top:1px;}
+
+.syncal-agenda{display:flex;flex-direction:column;gap:20px;max-width:720px;}
+.syncal-agenda-group{}
+.syncal-agenda-date{font-family:'Noto Serif JP',serif;font-size:13px;font-weight:600;color:var(--color-text-tertiary);letter-spacing:.08em;margin-bottom:8px;padding-bottom:6px;border-bottom:0.5px solid var(--color-border-tertiary);}
+.syncal-agenda-date.is-today{color:#C19A3A;}
+.syncal-agenda-items{display:flex;flex-direction:column;gap:6px;}
+.syncal-agenda-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;cursor:pointer;transition:all .12s;}
+.syncal-agenda-item:hover{background:var(--color-background-secondary);transform:translateX(2px);}
+.syncal-agenda-time{font-family:var(--font-sans);font-size:13px;font-weight:600;color:var(--color-text-primary);font-variant-numeric:tabular-nums;width:50px;flex-shrink:0;}
+.syncal-agenda-icon{font-size:18px;width:28px;text-align:center;flex-shrink:0;}
+.syncal-agenda-body{flex:1;min-width:0;}
+.syncal-agenda-title{font-size:13.5px;color:var(--color-text-primary);line-height:1.35;font-weight:500;}
+.syncal-agenda-source{font-size:11px;color:var(--color-text-tertiary);margin-top:2px;}
+
+.syncal-empty{padding:60px 24px;text-align:center;}
 
 /* ── OKRs ── */
 .okrs-wrap{padding:8px 0 24px;display:flex;flex-direction:column;gap:18px;max-width:920px;}
@@ -7567,6 +7687,8 @@ body.tx-active .belt-ring::after{
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5.5 4V2.8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V4"/><rect x="2" y="4" width="12" height="9.2" rx="1.4"/><path d="M2 8h12"/><path d="M7 7.5v1"/><path d="M9 7.5v1"/></svg></span><span>Synconnect</span></button>
     <button class="sb-item" id="sb-bunko" onclick="switchTab('bunko')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M2 4 L 8 1.5 L 14 4 L 14 12 L 8 14.5 L 2 12 Z"/><path d="M2 4 L 8 6.5 L 14 4" opacity=".7"/><path d="M8 6.5 L 8 14.5" opacity=".5"/><path d="M5 5.2 L 5 12.7" opacity=".3"/><path d="M11 5.2 L 11 12.7" opacity=".3"/></svg></span><span>Bunko Box</span></button>
+    <button class="sb-item" id="sb-syncal" onclick="switchTab('syncal')">
+      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><rect x="2" y="3.5" width="12" height="10.5" rx="1.3"/><line x1="2" y1="6.4" x2="14" y2="6.4"/><line x1="5" y1="1.8" x2="5" y2="4.4"/><line x1="11" y1="1.8" x2="11" y2="4.4"/><circle cx="5.5" cy="9.2" r="0.85" fill="currentColor"/><circle cx="8.0" cy="9.2" r="0.85" fill="currentColor" opacity=".7"/><circle cx="10.5" cy="9.2" r="0.85" fill="currentColor" opacity=".4"/><circle cx="5.5" cy="11.6" r="0.85" fill="currentColor" opacity=".5"/></svg></span><span>Syncal</span></button>
     <div id="sb-views-section" style="display:none;">
       <div class="sb-divider"></div>
       <div class="sb-section-label" id="sb-current-board"></div>
@@ -7728,6 +7850,10 @@ body.tx-active .belt-ring::after{
 
   <div id="view-bunko" style="display:none;">
     <div id="bunko-root"></div>
+  </div>
+
+  <div id="view-syncal" style="display:none;">
+    <div id="syncal-root"></div>
   </div>
 
   <div id="view-dojo" style="display:none;">
@@ -19468,6 +19594,8 @@ function switchTab(tab) {
   document.getElementById('view-chat').style.display      = tab==='chat'      ? '' : 'none';
   const bunkoEl = document.getElementById('view-bunko');
   if (bunkoEl) bunkoEl.style.display = tab==='bunko' ? '' : 'none';
+  const syncalEl = document.getElementById('view-syncal');
+  if (syncalEl) syncalEl.style.display = tab==='syncal' ? '' : 'none';
   document.getElementById('view-dojo').style.display      = tab==='dojo'      ? '' : 'none';
   document.getElementById('view-settings').style.display  = tab==='settings'  ? '' : 'none';
   document.getElementById('view-kanban').style.display    = tab==='kanban'    ? '' : 'none';
@@ -19484,7 +19612,7 @@ function switchTab(tab) {
   // Sidebar — seção de visões só aparece quando está dentro de um board
   const viewsSec = document.getElementById('sb-views-section');
   if (viewsSec) viewsSec.style.display = inBoard ? '' : 'none';
-  ['home','myboards','gallery','canvas','registry','okrs','people','chat','acervo','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker','zai','bunko'].forEach(t=>{
+  ['home','myboards','gallery','canvas','registry','okrs','people','chat','acervo','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker','zai','bunko','syncal'].forEach(t=>{
     const el = document.getElementById('sb-'+t);
     // 'myboards' (sub-item) corresponde à tab 'boards'
     const matchTab = (t === 'myboards') ? 'boards' : t;
@@ -19508,6 +19636,7 @@ function switchTab(tab) {
   if (tab==='zai') renderZaiHub();
   if (tab==='chat') renderChat();
   if (tab==='bunko' && typeof renderBunko === 'function') renderBunko();
+  if (tab==='syncal' && typeof renderSyncal === 'function') renderSyncal();
   // Limpa subscription realtime do chat ao sair da aba (pra não vazar conexões)
   if (tab !== 'chat' && typeof _chatUnsubscribeRealtime === 'function') _chatUnsubscribeRealtime();
   // Tatame: ao sair do chat, minimiza pra não ocupar a tela; ao entrar, reativa monitor.
@@ -35730,8 +35859,26 @@ let _peopleState = {
   currentPersonId: null,
   currentTrail: null,      // { trail, steps }
   myAprendiz: null,        // se o user atual é aprendiz, guarda o row de people
+  // mode: 'admin' (gestor/sensei) | 'colaborador' (auto-serviço minha jornada)
+  // Auto-decide com base em myAprendiz e em ter (ou não) gente sob gestão.
+  mode: 'admin',
+  myTrail: null,           // trilha + steps + pulses da pessoa quando em modo colaborador
   loading: false,
 };
+
+// Decide o modo inicial:
+// - Se sou só aprendiz (sem gente sob minha gestão) → colaborador
+// - Se gerencio gente mas também sou aprendiz → admin (mas o botão "Minha jornada" troca)
+// - Se gerencio gente e não sou aprendiz → admin
+function _peopleDecideMode() {
+  const ownedPeople = Number(_peopleState.dashboard?.total_aprendizes||0)
+                    + Number(_peopleState.dashboard?.total_graduados||0)
+                    + Number(_peopleState.dashboard?.total_desligados||0)
+                    + Number(_peopleState.dashboard?.em_pausa||0);
+  const isAprendiz  = !!_peopleState.myAprendiz;
+  if (isAprendiz && ownedPeople === 0) return 'colaborador';
+  return 'admin';
+}
 
 // ── Ajustes do módulo (toggles de automação, persistidos no localStorage) ──
 // Nem todo workspace quer tudo automático. Esses ajustes deixam cada coisa
@@ -35813,9 +35960,58 @@ async function renderPeople() {
   // Em background, busca dados. Quando chegar, re-renderiza com dados frescos.
   // Sem timeout, sem banner, sem mensagem de "carregando" — só atualiza.
   _peopleLoadAll().then(() => {
+    // Define o modo inicial só na primeira vez (não sobrescreve depois que
+    // o user troca manualmente). Se o user clicou "Minha jornada" antes,
+    // mantém a escolha; só seta automático na primeira renderização.
+    if (!_peopleState._modeInitialized) {
+      _peopleState.mode = _peopleDecideMode();
+      _peopleState._modeInitialized = true;
+    }
     try { _peopleRenderMain(); }
     catch(e) { console.error('[people] re-render:', e); }
   }).catch(e => console.warn('[people] load:', e?.message || e));
+}
+
+// Troca entre modos (admin ↔ colaborador). Botão de canto.
+function _peopleSetMode(mode) {
+  _peopleState.mode = (mode === 'colaborador') ? 'colaborador' : 'admin';
+  _peopleState._modeInitialized = true;
+  if (mode === 'colaborador') {
+    // Carrega trilha completa da pessoa pra render do auto-serviço
+    _peopleLoadMyTrail().then(() => _peopleRenderMain()).catch(e => {
+      console.warn('[people] minha trilha:', e?.message);
+      _peopleRenderMain();
+    });
+  } else {
+    _peopleRenderMain();
+  }
+}
+
+// Carrega trilha + steps + pulses da pessoa logada (pra modo colaborador)
+async function _peopleLoadMyTrail() {
+  const me = _peopleState.myAprendiz;
+  if (!me) { _peopleState.myTrail = null; return; }
+  try {
+    const [trailRes, pulsesRes] = await Promise.all([
+      _peopleApi.get(`people_trails?person_id=eq.${me.id}&select=*&order=created_at.desc&limit=1`),
+      _peopleApi.get(`people_pulse?person_id=eq.${me.id}&select=*&order=asked_at.desc&limit=10`),
+    ]);
+    const trail = Array.isArray(trailRes.data) ? trailRes.data[0] : null;
+    let steps = [];
+    if (trail) {
+      const stepsRes = await _peopleApi.get(`people_trail_steps?trail_id=eq.${trail.id}&select=*&order=order_idx.asc,day_offset.asc`);
+      steps = Array.isArray(stepsRes.data) ? stepsRes.data : [];
+    }
+    _peopleState.myTrail = {
+      person: me,
+      trail,
+      steps,
+      pulses: Array.isArray(pulsesRes.data) ? pulsesRes.data : [],
+    };
+  } catch(e) {
+    console.warn('[people] load myTrail:', e?.message);
+    _peopleState.myTrail = null;
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -36155,6 +36351,13 @@ async function _peoplePulseSubmit(pulseId) {
 function _peopleRenderMain() {
   const root = document.getElementById('people-root');
   if (!root) return;
+
+  // Branch por modo: colaborador (auto-serviço) tem render totalmente diferente
+  if (_peopleState.mode === 'colaborador' && _peopleState.myAprendiz) {
+    _peopleRenderColaboradorView();
+    return;
+  }
+
   const d = _peopleState.dashboard || { total_aprendizes:0, total_graduados:0, em_pausa:0, steps_atrasados:0, pessoas_ativas: [] };
   const tab = _peopleState.tab || 'aprendizes';
   const pessoas = Array.isArray(d.pessoas_ativas) ? d.pessoas_ativas : [];
@@ -36163,8 +36366,8 @@ function _peopleRenderMain() {
 
   const me = _peopleState.myAprendiz;
   const myCardHTML = me ? `
-    <button class="ppl-btn" onclick="_peopleOpenPersonDrawer('${_esc(me.id)}')" style="background:linear-gradient(135deg,#3A2410 0%,#6B4825 100%);color:#F5E8C8;border-color:#6B4825;font-weight:600;">
-      Minha trilha · ${_esc(_PPL_BELT_LABELS[me.belt]||'Lua Nova')}
+    <button class="ppl-btn" onclick="_peopleSetMode('colaborador')" style="background:linear-gradient(135deg,#3A2410 0%,#6B4825 100%);color:#F5E8C8;border-color:#6B4825;font-weight:600;" title="Abrir minha visão de aprendiz (auto-serviço)">
+      🧭 Minha jornada · ${_esc(_PPL_BELT_LABELS[me.belt]||'Lua Nova')}
     </button>
   ` : '';
   root.innerHTML = `
@@ -36180,7 +36383,7 @@ function _peopleRenderMain() {
         </div>
         <div class="ppl-actions">
           ${myCardHTML}
-          <button class="ppl-btn" onclick="_peopleOpenSettingsModal()" title="Ajustes do módulo (toggles de automação)">⚙</button>
+          <button class="ppl-btn" onclick="_peopleOpenSettingsModal()" title="Ajustes do módulo (toggles de automação)" style="font-size:18px;line-height:1;padding:8px 11px;display:inline-flex;align-items:center;justify-content:center;"><span style="display:inline-block;transform:translateY(-1px);">⚙</span></button>
           <button class="ppl-btn-primary ppl-btn" onclick="_peopleOpenCreateModal()">＋ Nova pessoa</button>
         </div>
       </div>
@@ -36207,6 +36410,246 @@ function _peopleRenderMain() {
 }
 
 function _peopleSetTab(t) { _peopleState.tab = t; _peopleRenderMain(); }
+
+// ════════════════════════════════════════════════════════════════════
+// Vista do COLABORADOR — auto-serviço "minha jornada"
+// ────────────────────────────────────────────────────────────────────
+// Diferente do dashboard admin: foca em "o que EU preciso fazer hoje".
+// Visual de diário pessoal (não painel de controle). Acessível via
+// botão "Minha jornada" no header quando o user tem people.user_id.
+// ════════════════════════════════════════════════════════════════════
+function _peopleRenderColaboradorView() {
+  const root = document.getElementById('people-root');
+  if (!root) return;
+  const data = _peopleState.myTrail;
+  // Se não carregou ainda, dispara load + render mínimo
+  if (!data) {
+    root.innerHTML = `
+      <div class="ppl-wrap"><div style="padding:60px;text-align:center;color:var(--color-text-tertiary);">
+        Carregando sua jornada…
+      </div></div>`;
+    _peopleLoadMyTrail().then(() => _peopleRenderColaboradorView());
+    return;
+  }
+  const { person, trail, steps, pulses } = data;
+  const belt = person?.belt || 'branca';
+  const beltLabel = _PPL_BELT_LABELS[belt] || 'Lua Nova';
+  const beltEmoji = belt==='preta'?'🌕':belt==='roxa'?'🌓':belt==='verde'?'🌒':belt==='amarela'?'🌒':'🌑';
+  const stage = _PPL_BELT_STAGE[belt] || '';
+  const total = steps.length;
+  const done  = steps.filter(s => s.status === 'feito').length;
+  const pct   = total ? Math.round(100*done/total) : 0;
+  // Días desde início
+  const startDate = trail?.start_date ? new Date(trail.start_date) : null;
+  const targetDate = trail?.target_graduation_date ? new Date(trail.target_graduation_date) : null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const daysSince = startDate ? Math.floor((today - new Date(startDate))/(1000*60*60*24)) : 0;
+  const daysToGo  = targetDate ? Math.max(0, Math.floor((new Date(targetDate) - today)/(1000*60*60*24))) : 0;
+  // Pra hoje (deadline hoje ou amanhã, pendente)
+  const para_hoje = steps.filter(s => {
+    if (s.status === 'feito') return false;
+    if (!s.deadline_date) return false;
+    const d = new Date(s.deadline_date); d.setHours(0,0,0,0);
+    return d <= new Date(today.getTime() + 86400000);
+  }).slice(0, 5);
+  // Próximos passos (próximos 14d, pendente, fora do "hoje")
+  const proximos = steps.filter(s => {
+    if (s.status === 'feito') return false;
+    if (!s.deadline_date) return false;
+    const d = new Date(s.deadline_date); d.setHours(0,0,0,0);
+    return d > new Date(today.getTime() + 86400000) && d <= new Date(today.getTime() + 14*86400000);
+  }).slice(0, 5);
+  // Atrasadas
+  const atrasadas = steps.filter(s => {
+    if (s.status === 'feito') return false;
+    if (!s.deadline_date) return false;
+    const d = new Date(s.deadline_date); d.setHours(0,0,0,0);
+    return d < today;
+  });
+  // Pulse pendente
+  const pulsePendente = (pulses || []).find(p => !p.responded_at);
+  // Equipe
+  const sensei = person?.sensei_id ? (_peopleState.dashboard?.pessoas_ativas||[]).find(p => p.id === person.sensei_id) : null;
+  const buddy  = person?.buddy_id  ? (_peopleState.dashboard?.pessoas_ativas||[]).find(p => p.id === person.buddy_id)  : null;
+
+  // Mostra botão "voltar ao admin" só se o user tiver dashboard com gente
+  const ownedPeople = Number(_peopleState.dashboard?.total_aprendizes||0)
+                    + Number(_peopleState.dashboard?.total_graduados||0)
+                    + Number(_peopleState.dashboard?.total_desligados||0)
+                    + Number(_peopleState.dashboard?.em_pausa||0);
+  const showBackToAdmin = ownedPeople > 0;
+
+  const initials = (person?.name || '?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+
+  root.innerHTML = `
+    <div class="ppl-wrap ppl-colab">
+      <div class="ppl-colab-hero">
+        <div class="ppl-colab-hero-l">
+          <div class="ppl-avatar belt-${belt}" style="width:72px;height:72px;font-size:24px;flex-shrink:0;">${person.photo_url?`<img src="${_esc(person.photo_url)}" alt=""/>`:_esc(initials)}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'Noto Serif JP',serif;font-size:13px;letter-spacing:.10em;text-transform:uppercase;color:rgba(245,232,200,.6);">Minha Jornada</div>
+            <div class="ppl-colab-name">${_esc(person.name||'')}</div>
+            <div class="ppl-colab-phase">${beltEmoji} ${_esc(beltLabel)} <span style="opacity:.55;font-weight:400;">· ${_esc(stage)}</span></div>
+          </div>
+          ${showBackToAdmin ? `<button class="ppl-btn" onclick="_peopleSetMode('admin')" title="Voltar para o painel de gestão" style="background:rgba(245,232,200,.12);color:#F5E8C8;border-color:rgba(245,232,200,.25);">← Painel</button>` : ''}
+        </div>
+        <div class="ppl-colab-progress">
+          <div class="ppl-colab-prog-bar"><div class="ppl-colab-prog-fill" style="width:${pct}%;"></div></div>
+          <div class="ppl-colab-prog-text">
+            <span><strong>${pct}%</strong> da jornada</span>
+            <span>${done}/${total} etapas concluídas</span>
+            ${targetDate ? `<span>${daysToGo === 0 ? '<strong>Lua cheia hoje! 🌕</strong>' : daysToGo+'d até a lua cheia'}</span>` : ''}
+          </div>
+        </div>
+      </div>
+
+      ${atrasadas.length > 0 ? `
+        <div class="ppl-colab-alert">
+          <strong>⚠ ${atrasadas.length} etapa${atrasadas.length>1?'s atrasadas':' atrasada'}</strong> — quanto antes você marcar, mais leve a trilha fica. Avisa seu sensei se precisar de ajuda.
+        </div>
+      ` : ''}
+
+      ${pulsePendente ? `
+        <div class="ppl-colab-pulse">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="font-size:38px;flex-shrink:0;">心</div>
+            <div style="flex:1;">
+              <div style="font-family:'Noto Serif JP',serif;font-size:13px;letter-spacing:.06em;color:#7A5500;font-weight:600;">Check-in semanal</div>
+              <div style="font-size:14px;color:#3A2410;margin-top:2px;">Como tá indo a jornada? Sua resposta vai pro Mestre Kan e pro seu sensei.</div>
+            </div>
+            <button class="ppl-btn-primary ppl-btn" onclick="_peopleRespondPulse('${_esc(pulsePendente.id)}')">Responder</button>
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="ppl-colab-grid">
+        <div class="ppl-colab-card">
+          <div class="ppl-colab-card-h">
+            <div class="ppl-colab-card-title">📅 Pra hoje</div>
+            <span class="ppl-colab-card-meta">${para_hoje.length} ${para_hoje.length===1?'item':'itens'}</span>
+          </div>
+          ${para_hoje.length === 0
+            ? `<div class="ppl-colab-empty">Nada urgente pra hoje. 🌿</div>`
+            : para_hoje.map(s => `
+              <div class="ppl-colab-step">
+                <button class="ppl-step-check" onclick="_peopleColabToggleStep('${_esc(s.id)}', true)" title="Marcar como feito"></button>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${_esc(s.title)}</div>
+                  ${s.description ? `<div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:2px;line-height:1.45;">${_esc(s.description)}</div>` : ''}
+                  <div style="display:flex;gap:6px;margin-top:4px;font-size:10.5px;color:var(--color-text-tertiary);">
+                    <span>${_peopleFmtDate(s.deadline_date)}</span>
+                    ${s.category ? `<span class="ppl-step-cat cat-${_esc(s.category)}" style="font-size:9.5px;">${_esc(s.category)}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+            `).join('')
+          }
+        </div>
+
+        <div class="ppl-colab-card">
+          <div class="ppl-colab-card-h">
+            <div class="ppl-colab-card-title">🗓 Próximas 2 semanas</div>
+            <span class="ppl-colab-card-meta">${proximos.length} ${proximos.length===1?'item':'itens'}</span>
+          </div>
+          ${proximos.length === 0
+            ? `<div class="ppl-colab-empty">Nada agendado pros próximos 14 dias.</div>`
+            : proximos.map(s => `
+              <div class="ppl-colab-step">
+                <div style="width:8px;height:8px;border-radius:50%;background:#C19A3A;flex-shrink:0;margin:7px 0;"></div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${_esc(s.title)}</div>
+                  <div style="display:flex;gap:6px;margin-top:3px;font-size:10.5px;color:var(--color-text-tertiary);">
+                    <span>${_peopleFmtDate(s.deadline_date)}</span>
+                    ${s.category ? `<span class="ppl-step-cat cat-${_esc(s.category)}" style="font-size:9.5px;">${_esc(s.category)}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+            `).join('')
+          }
+        </div>
+
+        <div class="ppl-colab-card">
+          <div class="ppl-colab-card-h">
+            <div class="ppl-colab-card-title">🤝 Minha equipe</div>
+          </div>
+          ${sensei ? `
+            <div class="ppl-colab-team-row">
+              <div class="ppl-avatar belt-${sensei.belt||'branca'}" style="width:36px;height:36px;font-size:13px;">${sensei.photo_url?`<img src="${_esc(sensei.photo_url)}" alt=""/>`:_esc((sensei.name||'?').split(' ').slice(0,2).map(s=>s[0]).join(''))}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);font-weight:600;">Sensei</div>
+                <div style="font-size:13.5px;font-weight:500;">${_esc(sensei.name)}</div>
+              </div>
+            </div>
+          ` : `<div class="ppl-colab-team-row" style="opacity:.55;"><div style="font-size:11.5px;font-style:italic;">Sem sensei atribuído ainda.</div></div>`}
+          ${buddy ? `
+            <div class="ppl-colab-team-row">
+              <div class="ppl-avatar belt-${buddy.belt||'branca'}" style="width:36px;height:36px;font-size:13px;">${buddy.photo_url?`<img src="${_esc(buddy.photo_url)}" alt=""/>`:_esc((buddy.name||'?').split(' ').slice(0,2).map(s=>s[0]).join(''))}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);font-weight:600;">Padrinho/Madrinha</div>
+                <div style="font-size:13.5px;font-weight:500;">${_esc(buddy.name)}</div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="ppl-colab-card">
+          <div class="ppl-colab-card-h">
+            <div class="ppl-colab-card-title">📜 Linha do tempo</div>
+            <span class="ppl-colab-card-meta">${daysSince}d desde o início</span>
+          </div>
+          <div style="position:relative;padding:8px 0;">
+            <div style="position:absolute;left:18px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom, #C19A3A, var(--color-border-tertiary));"></div>
+            ${steps.filter(s => s.status === 'feito').slice(-4).reverse().map(s => `
+              <div style="display:flex;align-items:center;gap:12px;padding:6px 0;position:relative;">
+                <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#FFD17A,#C19A3A);color:#1A1611;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;z-index:1;border:2px solid var(--color-background-primary);">✓</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:12.5px;font-weight:500;color:var(--color-text-primary);">${_esc(s.title)}</div>
+                  <div style="font-size:10.5px;color:var(--color-text-tertiary);">D+${s.day_offset||0}</div>
+                </div>
+              </div>
+            `).join('') || `<div class="ppl-colab-empty">Suas conquistas aparecem aqui conforme você marca etapas.</div>`}
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:30px;padding:20px;font-family:'Noto Serif JP',serif;color:var(--color-text-tertiary);font-style:italic;font-size:13px;line-height:1.7;">
+        「千里の道も一歩から」<br/>
+        <span style="font-size:11.5px;opacity:.75;">— uma jornada de mil quilômetros começa com um único passo —</span>
+      </div>
+    </div>
+  `;
+}
+
+// Toggle de step na vista colaborador (recarrega myTrail)
+async function _peopleColabToggleStep(stepId, makeChecked) {
+  try {
+    if (makeChecked) {
+      await _peopleApi.rpc('people_step_complete', { p_step_id: stepId });
+    } else {
+      await _peopleApi.patch(`people_trail_steps?id=eq.${stepId}`, { status: 'pendente', completed_at: null });
+    }
+    await _peopleLoadMyTrail();
+    _peopleRenderColaboradorView();
+  } catch(e) {
+    console.warn('[people] colab toggle step:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro', e?.message || String(e), { icon: '⚠️' });
+  }
+}
+
+// Abre modal de resposta de pulse (usa a função existente do drawer)
+function _peopleRespondPulse(pulseId) {
+  if (typeof _peopleOpenPulseRespondModal === 'function') {
+    _peopleOpenPulseRespondModal(pulseId);
+  } else {
+    // Fallback: tenta a função genérica
+    const pulse = (_peopleState.myTrail?.pulses || []).find(p => p.id === pulseId);
+    if (!pulse) return;
+    // Reusa o modal existente se houver
+    if (typeof _peoplePulseRowHTML === 'function' && typeof _peopleOpenPulseModal === 'function') {
+      _peopleOpenPulseModal(pulse);
+    }
+  }
+}
 
 function _peopleRenderTabContent() {
   const el = document.getElementById('ppl-tab-content');
@@ -36273,6 +36716,186 @@ function _peopleSetHistFilter(f) {
   _peopleHistFilter = f;
   const el = document.getElementById('ppl-tab-content');
   if (el) _peopleRenderHistorico(el);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// BENCHMARKS: tendências históricas (comparativo current vs anterior)
+// ────────────────────────────────────────────────────────────────────
+// Mostra:
+//   - Tempo médio até graduação (últimos 180d) vs período anterior
+//   - Taxa de graduação (últimos 180d) vs período anterior
+//   - Volume mensal (sparkline 12 meses)
+// Só renderiza se tiver >= 5 pessoas com history (senão muito ruído).
+// ════════════════════════════════════════════════════════════════════
+function _peopleRenderBenchmarksHTML(pessoas, graduados, desligados) {
+  const finalizados = graduados.length + desligados.length;
+  if (finalizados < 5) {
+    return `<div style="background:rgba(193,154,58,.08);border:0.5px dashed #C19A3A;border-radius:10px;padding:14px 16px;font-size:12px;color:#7A5500;line-height:1.55;">
+      <strong>📊 Benchmarks</strong> — comparativos históricos aparecem aqui quando houver pelo menos 5 pessoas com jornada finalizada (graduadas ou desligadas). Hoje: <strong>${finalizados}</strong>.
+    </div>`;
+  }
+  const now = new Date();
+  const sixMonthsAgo  = new Date(now.getTime() - 180*86400000);
+  const twelveMonthsAgo = new Date(now.getTime() - 360*86400000);
+
+  // Particiona graduados/desligados por janela (últimos 180d vs 180-360d atrás)
+  const inWindow = (p, from, to) => {
+    const ref = p.graduated_at || p.desligado_at;
+    if (!ref) return false;
+    const d = new Date(ref);
+    return d >= from && d < to;
+  };
+  const curr   = pessoas.filter(p => inWindow(p, sixMonthsAgo, now));
+  const prior  = pessoas.filter(p => inWindow(p, twelveMonthsAgo, sixMonthsAgo));
+
+  const avgDaysOf = (list, status) => {
+    const v = list.filter(p => p.status === status && p.days_to_complete != null);
+    if (!v.length) return null;
+    return Math.round(v.reduce((s,p)=>s+Number(p.days_to_complete),0) / v.length);
+  };
+  const taxaGradOf = (list) => {
+    const g = list.filter(p => p.status === 'graduado').length;
+    const d = list.filter(p => p.status === 'desligado').length;
+    if (g+d === 0) return null;
+    return Math.round(100*g/(g+d));
+  };
+
+  const currAvgGrad = avgDaysOf(curr, 'graduado');
+  const priorAvgGrad = avgDaysOf(prior, 'graduado');
+  const currTaxa = taxaGradOf(curr);
+  const priorTaxa = taxaGradOf(prior);
+
+  // Delta com seta colorida
+  const renderDelta = (curr, prior, inverse = false) => {
+    if (curr == null || prior == null) return '<span style="color:var(--color-text-tertiary);font-size:11px;">sem histórico anterior</span>';
+    const diff = curr - prior;
+    if (diff === 0) return '<span style="color:var(--color-text-tertiary);font-size:11px;">→ estável</span>';
+    // Inverse = quando MENOR é melhor (ex: tempo até graduar)
+    const isGood = inverse ? diff < 0 : diff > 0;
+    const arrow = diff > 0 ? '↑' : '↓';
+    const color = isGood ? '#3B6D11' : '#BC002D';
+    return `<span style="color:${color};font-size:11.5px;font-weight:600;">${arrow} ${Math.abs(diff)}${typeof curr==='number' && inverse ? 'd' : '%' }</span> <span style="color:var(--color-text-tertiary);font-size:10.5px;">vs ${prior}${typeof curr==='number' && inverse ? 'd' : '%'}</span>`;
+  };
+
+  // Volume mensal últimos 12 meses (sparkline)
+  const monthBuckets = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    monthBuckets.push({ label: d.toLocaleDateString('pt-BR', { month:'short' }).replace('.',''), key: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`, count: 0, grad: 0 });
+  }
+  pessoas.forEach(p => {
+    const s = p.start_date;
+    if (!s) return;
+    const d = new Date(s);
+    const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const b = monthBuckets.find(b => b.key === k);
+    if (b) {
+      b.count++;
+      if (p.status === 'graduado') b.grad++;
+    }
+  });
+  const maxCount = Math.max(1, ...monthBuckets.map(b => b.count));
+
+  return `
+    <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
+      <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:12px;">📈 Tendências · últimos 6 meses vs anteriores</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px;">
+        <div style="padding:11px 13px;background:var(--color-background-secondary);border-radius:8px;border-left:3px solid #3B6D11;">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);font-weight:600;">Tempo até graduação</div>
+          <div style="font-size:22px;font-weight:700;color:var(--color-text-primary);margin-top:2px;font-variant-numeric:tabular-nums;">${currAvgGrad != null ? currAvgGrad+'d' : '—'}</div>
+          <div style="margin-top:4px;">${renderDelta(currAvgGrad, priorAvgGrad, true)}</div>
+        </div>
+        <div style="padding:11px 13px;background:var(--color-background-secondary);border-radius:8px;border-left:3px solid #C19A3A;">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);font-weight:600;">Taxa de graduação</div>
+          <div style="font-size:22px;font-weight:700;color:var(--color-text-primary);margin-top:2px;font-variant-numeric:tabular-nums;">${currTaxa != null ? currTaxa+'%' : '—'}</div>
+          <div style="margin-top:4px;">${renderDelta(currTaxa, priorTaxa, false)}</div>
+        </div>
+        <div style="padding:11px 13px;background:var(--color-background-secondary);border-radius:8px;border-left:3px solid #6B4825;">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);font-weight:600;">Volume novos</div>
+          <div style="font-size:22px;font-weight:700;color:var(--color-text-primary);margin-top:2px;font-variant-numeric:tabular-nums;">${curr.length}</div>
+          <div style="margin-top:4px;color:var(--color-text-tertiary);font-size:11px;">finalizados nos últimos 180d</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:54px;padding:0 4px;">
+        ${monthBuckets.map(b => {
+          const h = Math.round((b.count / maxCount) * 100);
+          const hGrad = b.count > 0 ? Math.round((b.grad / b.count) * h) : 0;
+          return `
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;" title="${b.label}: ${b.count} iniciaram (${b.grad} graduados)">
+              <div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:38px;background:var(--color-background-secondary);border-radius:3px 3px 0 0;overflow:hidden;position:relative;">
+                <div style="width:100%;background:linear-gradient(180deg,#C19A3A,#7A5500);height:${h}%;"></div>
+                <div style="width:100%;background:#3B6D11;height:${hGrad}%;position:absolute;bottom:0;"></div>
+              </div>
+              <div style="font-size:9.5px;color:var(--color-text-tertiary);">${b.label}</div>
+            </div>`;
+        }).join('')}
+      </div>
+      <div style="margin-top:6px;font-size:10.5px;color:var(--color-text-tertiary);text-align:right;line-height:1.4;">
+        <span style="display:inline-block;width:8px;height:8px;background:linear-gradient(180deg,#C19A3A,#7A5500);border-radius:2px;vertical-align:middle;"></span> iniciaram &nbsp;·&nbsp;
+        <span style="display:inline-block;width:8px;height:8px;background:#3B6D11;border-radius:2px;vertical-align:middle;"></span> graduaram (mesmo mês de início)
+      </div>
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PERFORMANCE POR SENSEI · leaderboard
+// ────────────────────────────────────────────────────────────────────
+// Agrupa pessoas pelo sensei_id (resolvendo o nome no próprio array de
+// pessoas, já que sensei também é people). Mostra média de dias até
+// graduação + taxa por sensei. Só renderiza se houver ≥ 2 senseis.
+// ════════════════════════════════════════════════════════════════════
+function _peopleRenderSenseiPerfHTML(pessoas) {
+  const bySensei = {};
+  pessoas.forEach(p => {
+    if (!p.sensei_id) return;
+    if (!bySensei[p.sensei_id]) bySensei[p.sensei_id] = { total:0, grad:0, deslig:0, ativos:0, daysSum:0, daysCount:0 };
+    const x = bySensei[p.sensei_id];
+    x.total++;
+    if (p.status === 'graduado')  x.grad++;
+    if (p.status === 'desligado') x.deslig++;
+    if (p.status === 'ativo')     x.ativos++;
+    if (p.days_to_complete != null && p.status === 'graduado') { x.daysSum += Number(p.days_to_complete); x.daysCount++; }
+  });
+  const senseiList = Object.entries(bySensei);
+  if (senseiList.length < 2) return '';
+
+  // Resolve nome do sensei procurando no array de pessoas
+  const senseiName = (id) => {
+    const found = pessoas.find(p => p.id === id);
+    return found?.name || 'Sensei desconhecido';
+  };
+
+  const rows = senseiList.map(([sid, v]) => ({
+    sid,
+    name: senseiName(sid),
+    ...v,
+    avgDays: v.daysCount ? Math.round(v.daysSum / v.daysCount) : null,
+    taxaGrad: (v.grad + v.deslig) > 0 ? Math.round(100 * v.grad / (v.grad + v.deslig)) : null,
+  })).sort((a, b) => (b.grad + b.deslig) - (a.grad + a.deslig));
+
+  return `
+    <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
+      <div style="font-family:var(--font-sans);font-size:11px;text-transform:uppercase;letter-spacing:.10em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:10px;">🥋 Performance por sensei</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;">
+        <div style="display:grid;grid-template-columns:2fr .6fr .8fr .8fr .8fr 1fr;gap:8px;padding:6px 8px;color:var(--color-text-tertiary);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:600;">
+          <div>Sensei</div><div style="text-align:center;">Total</div><div style="text-align:center;">Em trilha</div><div style="text-align:center;">✓ Grad</div><div style="text-align:center;">✗ Sai</div><div style="text-align:center;">Taxa · Média</div>
+        </div>
+        ${rows.map(r => `
+          <div style="display:grid;grid-template-columns:2fr .6fr .8fr .8fr .8fr 1fr;gap:8px;padding:8px;background:var(--color-background-secondary);border-radius:6px;align-items:center;">
+            <div style="font-weight:500;display:flex;align-items:center;gap:6px;"><span style="font-size:14px;">🥋</span> ${_esc(r.name)}</div>
+            <div style="text-align:center;font-variant-numeric:tabular-nums;">${r.total}</div>
+            <div style="text-align:center;font-variant-numeric:tabular-nums;color:#7A5500;">${r.ativos||'—'}</div>
+            <div style="text-align:center;font-variant-numeric:tabular-nums;color:#3B6D11;font-weight:600;">${r.grad||'—'}</div>
+            <div style="text-align:center;font-variant-numeric:tabular-nums;color:#BC002D;font-weight:600;">${r.deslig||'—'}</div>
+            <div style="text-align:center;font-variant-numeric:tabular-nums;font-size:11px;color:var(--color-text-secondary);">
+              ${r.taxaGrad!=null?`<strong style="color:${r.taxaGrad>=70?'#3B6D11':r.taxaGrad>=50?'#7A5500':'#BC002D'};">${r.taxaGrad}%</strong>`:'—'} · ${r.avgDays!=null?r.avgDays+'d':'—'}
+            </div>
+          </div>`).join('')}
+      </div>
+      <div style="margin-top:8px;font-size:10.5px;color:var(--color-text-tertiary);line-height:1.4;">
+        Taxa = graduados ÷ (graduados + desligados) só com pessoas que finalizaram a jornada. Média = dias até graduação dos formados sob esse sensei.
+      </div>
+    </div>`;
 }
 
 function _peopleRenderHistorico(el) {
@@ -36383,6 +37006,12 @@ function _peopleRenderHistorico(el) {
         </div>
       </div>
       ` : ''}
+
+      <!-- ━━ TENDÊNCIAS (BENCHMARKS) ━━ -->
+      ${_peopleRenderBenchmarksHTML(pessoas, graduados, desligados)}
+
+      <!-- ━━ POR SENSEI ━━ -->
+      ${_peopleRenderSenseiPerfHTML(pessoas)}
 
       <!-- ━━ POR TEMPLATE ━━ -->
       <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:14px 16px;">
@@ -36558,14 +37187,20 @@ function _peopleCardHTML(p) {
       <div class="ppl-card-h">
         <div class="ppl-avatar belt-${belt}">${p.photo_url ? `<img src="${_esc(p.photo_url)}" alt=""/>` : _esc(initials)}</div>
         <div style="flex:1;min-width:0;">
-          <div class="ppl-card-name">${_esc(p.name)}</div>
+          <div class="ppl-card-name">${_esc(p.name)}${(Number(p.duration_days)>0 && Number(p.duration_days)<=21) ? ` <span class="ppl-fasttrack-badge" title="Jornada express de ${Number(p.duration_days)}d">⚡ ${Number(p.duration_days)}d</span>` : ''}</div>
           <div class="ppl-card-role">${_esc(p.role_title || role || 'colaborador(a)')}</div>
         </div>
         <span class="ppl-belt-badge belt-${belt}">${_esc(_PPL_BELT_LABELS[belt]||'')}</span>
       </div>
       <div class="ppl-prog">
         <div class="ppl-prog-bar"><div class="ppl-prog-fill" style="width:${progress}%;"></div></div>
-        <div class="ppl-prog-text"><span><strong>${progress}%</strong> da trilha</span>${overdue>0?`<span class="ppl-overdue-flag">⚠ ${overdue} atrasada${overdue>1?'s':''}</span>`:''}</div>
+        <div class="ppl-prog-text">
+          <span><strong>${progress}%</strong> da trilha</span>
+          <span style="display:inline-flex;gap:6px;align-items:center;">
+            ${Number(p.docs_pending_count)>0 ? `<span class="ppl-docs-chip" title="Documentos e acessos pendentes">📎 ${Number(p.docs_pending_count)} pend${Number(p.docs_pending_count)>1?'ências':'ência'}</span>` : ''}
+            ${overdue>0?`<span class="ppl-overdue-flag">⚠ ${overdue} atrasada${overdue>1?'s':''}</span>`:''}
+          </span>
+        </div>
       </div>
       ${nextStepHTML}
     </div>
@@ -36580,13 +37215,17 @@ function _peopleTemplateCardHTML(t) {
     ? `_peopleCloneTemplate('${_esc(t.id)}')`
     : `_peopleEditTemplate('${_esc(t.id)}')`;
   const roleEmoji = _PPL_ROLE_EMOJI[t.role] || (_PPL_ROLE_LABELS[t.role]||'?')[0];
+  // Badge visual distinguindo origem (público = cinza-bege, workspace = âmbar)
+  const sourceBadge = isPublic
+    ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:600;padding:1px 6px;border-radius:999px;background:rgba(0,0,0,.04);color:var(--color-text-tertiary);border:0.5px solid var(--color-border-tertiary);letter-spacing:.04em;">SISTEMA</span>`
+    : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:600;padding:1px 6px;border-radius:999px;background:rgba(193,154,58,.15);color:#7A5500;border:0.5px solid #C19A3A;letter-spacing:.04em;">SEU</span>`;
   return `
-    <div class="ppl-card" style="cursor:pointer;min-height:170px;" onclick="_peoplePreviewTemplate('${_esc(t.id)}')">
+    <div class="ppl-card" style="cursor:pointer;min-height:170px;${isPublic?'':'border-color:#C19A3A;background:rgba(255,244,209,.25);'}" onclick="_peoplePreviewTemplate('${_esc(t.id)}')">
       <div class="ppl-card-h" style="align-items:flex-start;">
         <div class="ppl-avatar" style="width:40px;height:40px;font-size:18px;background:linear-gradient(135deg,#FFF4D1 0%,#E6C84F 100%);color:#7A5500;border-color:transparent;flex-shrink:0;">${_esc(roleEmoji)}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;">
           <div style="font-size:13.5px;font-weight:600;color:var(--color-text-primary);line-height:1.3;">${_esc(t.name)}</div>
-          <div style="font-size:11px;color:var(--color-text-tertiary);">${_esc(_PPL_ROLE_LABELS[t.role] || t.role)} · ${isPublic ? '<em>público</em>' : '<em>do workspace</em>'}</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary);display:flex;align-items:center;gap:6px;">${_esc(_PPL_ROLE_LABELS[t.role] || t.role)} ${sourceBadge}</div>
         </div>
       </div>
       ${t.description ? `<div style="font-size:11.5px;color:var(--color-text-secondary);line-height:1.55;flex:1;">${_esc(t.description)}</div>` : '<div style="flex:1;"></div>'}
@@ -36824,22 +37463,29 @@ function _peopleTemplateEditorHTML(t, steps) {
         <div id="ppl-tmpl-steps-list" style="display:flex;flex-direction:column;gap:6px;">
           ${steps.length === 0
             ? '<div style="padding:20px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12.5px;">Sem etapas ainda. Clica em "+ Adicionar etapa" pra criar a primeira.</div>'
-            : steps.map((s, idx) => _peopleTemplateStepRowHTML(s, idx)).join('')}
+            : steps.map((s, idx) => _peopleTemplateStepRowHTML(s, idx, steps.length)).join('')}
         </div>
         <button class="ppl-btn" style="margin-top:14px;width:100%;justify-content:center;border-style:dashed;color:var(--color-text-secondary);" onclick="_peopleAddTemplateStep('${_esc(t.id)}')">＋ Adicionar etapa</button>
       </div>
-      <div style="padding:12px 22px;border-top:0.5px solid var(--color-border-tertiary);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;">
+      <div style="padding:12px 22px;border-top:0.5px solid var(--color-border-tertiary);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-shrink:0;">
+        <button class="ppl-btn" style="color:#A02828;border-color:rgba(160,40,40,.3);" onclick="_peopleDeleteTemplate('${_esc(t.id)}')" title="Excluir template do workspace">🗑 Excluir template</button>
         <button class="ppl-btn-primary ppl-btn" onclick="document.getElementById('ppl-tmpl-editor').remove();_peopleLoadAll().then(()=>_peopleRenderTabContent());">Concluir</button>
       </div>
     </div>`;
 }
 
-function _peopleTemplateStepRowHTML(s, idx) {
+function _peopleTemplateStepRowHTML(s, idx, total) {
   const cat = (s.category||'').toLowerCase();
+  const isFirst = idx === 0;
+  const isLast  = idx === (Number(total)||0) - 1;
   return `
     <div class="ppl-step-edit-row" data-step-idx="${idx}" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;border:0.5px solid var(--color-border-tertiary);">
+      <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0;">
+        <button class="ppl-step-edit-btn" onclick="event.stopPropagation();_peopleMoveTemplateStep(${idx},-1)" title="Mover pra cima" style="padding:1px 5px;font-size:9px;line-height:1;${isFirst?'opacity:.25;pointer-events:none;':''}">▲</button>
+        <button class="ppl-step-edit-btn" onclick="event.stopPropagation();_peopleMoveTemplateStep(${idx},1)" title="Mover pra baixo" style="padding:1px 5px;font-size:9px;line-height:1;${isLast?'opacity:.25;pointer-events:none;':''}">▼</button>
+      </div>
       <span style="font-size:10.5px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;width:34px;flex-shrink:0;">D+${s.day_offset||0}</span>
-      <div style="flex:1;min-width:0;">
+      <div style="flex:1;min-width:0;cursor:pointer;" onclick="_peopleEditTemplateStep(${idx})">
         <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);">${_esc(s.title||'(sem título)')}</div>
         ${s.description?`<div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px;line-height:1.4;">${_esc(s.description)}</div>`:''}
         <div style="display:flex;gap:6px;margin-top:4px;align-items:center;flex-wrap:wrap;">
@@ -36847,9 +37493,70 @@ function _peopleTemplateStepRowHTML(s, idx) {
           ${s.assignee_role?`<span style="font-size:10px;color:var(--color-text-tertiary);">${_esc(_PPL_ASSIGNEES.find(a=>a.key===s.assignee_role)?.label || s.assignee_role)}</span>`:''}
         </div>
       </div>
-      <button class="ppl-step-edit-btn" onclick="_peopleEditTemplateStep(${idx})" title="Editar etapa">✎</button>
-      <button class="ppl-step-edit-btn is-del" onclick="_peopleDeleteTemplateStep(${idx})" title="Remover etapa">🗑</button>
+      <button class="ppl-step-edit-btn" onclick="event.stopPropagation();_peopleEditTemplateStep(${idx})" title="Editar etapa">✎</button>
+      <button class="ppl-step-edit-btn" onclick="event.stopPropagation();_peopleDuplicateTemplateStep(${idx})" title="Duplicar etapa">⎘</button>
+      <button class="ppl-step-edit-btn is-del" onclick="event.stopPropagation();_peopleDeleteTemplateStep(${idx})" title="Remover etapa">🗑</button>
     </div>`;
+}
+
+// Move step pra cima ou pra baixo (delta = -1 ou +1)
+async function _peopleMoveTemplateStep(idx, delta) {
+  const modal = document.getElementById('ppl-tmpl-editor');
+  const templateId = modal?.dataset?.templateId;
+  if (!templateId) return;
+  const res = await _peopleApi.get(`people_trail_templates?id=eq.${templateId}&select=steps&limit=1`);
+  const t = Array.isArray(res.data) ? res.data[0] : null;
+  const steps = Array.isArray(t?.steps) ? t.steps.slice() : [];
+  const newIdx = idx + delta;
+  if (newIdx < 0 || newIdx >= steps.length) return;
+  [steps[idx], steps[newIdx]] = [steps[newIdx], steps[idx]];
+  // Mantém ordem natural por day_offset: se invertemos com dia maior/menor, ajusta
+  await _peopleApi.patch(`people_trail_templates?id=eq.${templateId}`, { steps });
+  await _peopleRefreshTemplateEditor(templateId);
+}
+
+// Duplica etapa (clone + " (cópia)" no título)
+async function _peopleDuplicateTemplateStep(idx) {
+  const modal = document.getElementById('ppl-tmpl-editor');
+  const templateId = modal?.dataset?.templateId;
+  if (!templateId) return;
+  const res = await _peopleApi.get(`people_trail_templates?id=eq.${templateId}&select=steps&limit=1`);
+  const t = Array.isArray(res.data) ? res.data[0] : null;
+  const steps = Array.isArray(t?.steps) ? t.steps.slice() : [];
+  const orig = steps[idx];
+  if (!orig) return;
+  const copy = { ...orig, title: `${orig.title||'Etapa'} (cópia)` };
+  steps.splice(idx + 1, 0, copy);
+  await _peopleApi.patch(`people_trail_templates?id=eq.${templateId}`, { steps });
+  await _peopleRefreshTemplateEditor(templateId);
+}
+
+// Deleta template inteiro (só workspace, com confirmação)
+async function _peopleDeleteTemplate(templateId) {
+  if (typeof appConfirm !== 'function') return;
+  const t = _peopleState.templates.find(x => x.id === templateId);
+  if (!t) return;
+  if (t.workspace_owner === null) {
+    if (typeof appAlert === 'function') appAlert('Template público', 'Templates do sistema não podem ser excluídos.', { icon: 'ⓘ' });
+    return;
+  }
+  const ok = await appConfirm(
+    'Excluir template do workspace',
+    `Vai remover <strong>${_esc(t.name)}</strong> dos templates disponíveis. <em>Pessoas que já usaram esse template mantêm a trilha intacta</em> — só some das opções de criação.`,
+    { okLabel: 'Excluir', cancelLabel: 'Cancelar', icon: '🗑', html: true, destructive: true }
+  );
+  if (!ok) return;
+  try {
+    const { error } = await _peopleApi.del(`people_trail_templates?id=eq.${templateId}&workspace_owner=eq.${supaUser.id}`);
+    if (error) throw error;
+    document.getElementById('ppl-tmpl-editor')?.remove();
+    await _peopleLoadAll();
+    _peopleRenderTabContent();
+    if (typeof appAlert === 'function') appAlert('Template removido', '', { icon: '✓' });
+  } catch(e) {
+    console.warn('[people] delete template:', e?.message);
+    if (typeof appAlert === 'function') appAlert('Erro ao excluir', e?.message || String(e), { icon: '⚠️' });
+  }
 }
 
 async function _peopleSaveTemplateMeta(templateId) {
@@ -36985,7 +37692,7 @@ async function _peopleRefreshTemplateEditor(templateId) {
   if (list) {
     list.innerHTML = steps.length === 0
       ? '<div style="padding:20px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12.5px;">Sem etapas ainda. Clica em "+ Adicionar etapa" pra criar a primeira.</div>'
-      : steps.map((s, idx) => _peopleTemplateStepRowHTML(s, idx)).join('');
+      : steps.map((s, idx) => _peopleTemplateStepRowHTML(s, idx, steps.length)).join('');
   }
 }
 
@@ -37109,17 +37816,24 @@ function _peopleOpenCreateModal() {
           </div>
           <div class="ppl-modal-row">
             <label class="ppl-modal-label">Duração da jornada *</label>
-            <div style="display:flex;gap:6px;align-items:center;">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <div style="display:flex;gap:4px;align-items:center;">
+                <span style="font-size:10px;color:#7A5500;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-right:2px;">⚡Express</span>
+                <button type="button" class="ppl-dur-btn fast" data-days="7" onclick="_peopleSelectDuration(7)">7d</button>
+                <button type="button" class="ppl-dur-btn fast" data-days="14" onclick="_peopleSelectDuration(14)">14d</button>
+              </div>
+              <span style="width:1px;height:18px;background:var(--color-border-tertiary);"></span>
               <div style="display:flex;gap:4px;">
-                <button type="button" class="ppl-dur-btn" data-days="30" onclick="_peopleSelectDuration(30)">30 dias</button>
-                <button type="button" class="ppl-dur-btn" data-days="60" onclick="_peopleSelectDuration(60)">60 dias</button>
-                <button type="button" class="ppl-dur-btn active" data-days="90" onclick="_peopleSelectDuration(90)">90 dias</button>
-                <button type="button" class="ppl-dur-btn" data-days="120" onclick="_peopleSelectDuration(120)">120 dias</button>
+                <button type="button" class="ppl-dur-btn" data-days="30" onclick="_peopleSelectDuration(30)">30d</button>
+                <button type="button" class="ppl-dur-btn" data-days="60" onclick="_peopleSelectDuration(60)">60d</button>
+                <button type="button" class="ppl-dur-btn active" data-days="90" onclick="_peopleSelectDuration(90)">90d</button>
+                <button type="button" class="ppl-dur-btn" data-days="120" onclick="_peopleSelectDuration(120)">120d</button>
               </div>
               <span style="color:var(--color-text-tertiary);font-size:11px;">ou</span>
-              <input class="ppl-modal-input" name="duration_days" type="number" min="7" max="365" value="90" style="width:80px;padding:7px 9px;font-size:12.5px;" oninput="_peopleSyncDurationButtons(this.value)"/>
+              <input class="ppl-modal-input" name="duration_days" type="number" min="7" max="365" value="90" style="width:70px;padding:7px 9px;font-size:12.5px;" oninput="_peopleSyncDurationButtons(this.value)"/>
               <span style="font-size:11px;color:var(--color-text-tertiary);">dias</span>
             </div>
+            <div id="ppl-dur-hint" class="ppl-dur-hint">A trilha escala proporcionalmente — etapas distribuídas ao longo dos 90 dias.</div>
           </div>
           <div class="ppl-modal-row">
             <label class="ppl-modal-label">Template de trilha *</label>
@@ -37159,11 +37873,30 @@ function _peopleSelectDuration(days) {
   document.querySelectorAll('.ppl-dur-btn').forEach(b => b.classList.toggle('active', Number(b.dataset.days) === days));
   const input = document.querySelector('#ppl-create-form input[name="duration_days"]');
   if (input) input.value = String(days);
+  _peopleUpdateDurationHint(days);
 }
 
 function _peopleSyncDurationButtons(value) {
   const v = Number(value);
   document.querySelectorAll('.ppl-dur-btn').forEach(b => b.classList.toggle('active', Number(b.dataset.days) === v));
+  _peopleUpdateDurationHint(v);
+}
+
+// Hint contextual conforme a duração — fast track vs. normal vs. longo
+function _peopleUpdateDurationHint(days) {
+  const el = document.getElementById('ppl-dur-hint');
+  if (!el) return;
+  const d = Number(days) || 90;
+  el.classList.toggle('express', d <= 14);
+  if (d <= 14) {
+    el.innerHTML = `<strong style="color:#7A5500;">⚡ Modo express</strong> — etapas comprimidas em <strong>${d} dias</strong>. Ideal pra PJ curto, estágio, freelancer ou onboarding-relâmpago. <em style="opacity:.75;">Lua cheia em ${d}d.</em>`;
+  } else if (d < 30) {
+    el.innerHTML = `Trilha curta de <strong>${d} dias</strong>. Etapas distribuídas proporcionalmente — bom pra reposições e movimentações internas.`;
+  } else if (d <= 90) {
+    el.innerHTML = `Trilha padrão de <strong>${d} dias</strong>. As etapas escalam proporcionalmente — distribuídas ao longo do período.`;
+  } else {
+    el.innerHTML = `Trilha estendida de <strong>${d} dias</strong>. Indicado pra papéis seniores ou áreas com curva longa (ex: produto, liderança).`;
+  }
 }
 
 function _peopleSelectTemplate(btn) {
@@ -37479,12 +38212,278 @@ function _peopleRenderDrawer(state, loading) {
             ${trail?.target_graduation_date ? `Graduação: ${new Date(trail.target_graduation_date).toLocaleDateString('pt-BR')}` : ''}
           </div>
         </div>
+        ${_peopleDocsSectionHTML(person, steps)}
+        ${_peopleDevPlanSectionHTML(person)}
         ${total ? groupedHTML : '<div style="padding:30px;text-align:center;color:var(--color-text-tertiary);font-style:italic;">Trilha sem etapas — algo deu errado na criação.</div>'}
         ${_peoplePulseSectionHTML(person, pulses)}
       </div>
     </div>
   `;
   setTimeout(() => ov.classList.add('is-open'), 10);
+}
+
+// ── Seção de Documentos e Acessos dentro do drawer da pessoa ────────
+// Lista todas as etapas de categoria "documentos" ou "acesso" como checklist
+// destacado no topo do drawer. Isso evita o pattern atual de o admin abrir
+// Bunko separado pra checar quem mandou RG/contrato. Quando todas as
+// pendências do tipo são fechadas, a seção some discretamente.
+function _peopleDocsSectionHTML(person, steps) {
+  if (!Array.isArray(steps)) return '';
+  const docs = steps.filter(s => s.category === 'documentos' || s.category === 'acesso');
+  if (!docs.length) return '';
+  const pending = docs.filter(s => s.status !== 'feito');
+  const allDone = pending.length === 0;
+  if (allDone) {
+    // Versão minimalista quando tudo OK — só uma linha discreta de confirmação
+    return `
+      <div class="ppl-docs-section" style="padding:9px 12px;background:rgba(180,230,160,.25);border-color:#9BC97A;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:14px;">📎</span>
+        <div style="flex:1;font-size:11.5px;color:#2A4F0A;">
+          <strong>Documentos e acessos completos.</strong> Todos os ${docs.length} itens entregues.
+        </div>
+        <span style="font-size:14px;">✓</span>
+      </div>`;
+  }
+  const personId = person?.id || '';
+  const personName = person?.name || '';
+  // Ordena por prazo (mais urgentes primeiro), depois por day_offset
+  const ordered = docs.slice().sort((a, b) => {
+    const da = a.deadline_date ? new Date(a.deadline_date).getTime() : 9e15;
+    const db = b.deadline_date ? new Date(b.deadline_date).getTime() : 9e15;
+    if (da !== db) return da - db;
+    return (Number(a.day_offset)||0) - (Number(b.day_offset)||0);
+  });
+  return `
+    <div class="ppl-docs-section">
+      <div class="ppl-docs-section-h">
+        <div class="ppl-docs-section-title">📎 Documentos e acessos · ${pending.length} pendente${pending.length>1?'s':''}</div>
+        <button class="ppl-docs-action" onclick="_peopleOpenBunkoFolderForPerson('${_esc(personId)}', '${_esc(personName)}')" title="Abrir a pasta da pessoa no Bunko Box">📦 Abrir pasta Bunko</button>
+      </div>
+      ${ordered.map(s => {
+        const isDone = s.status === 'feito';
+        const overdue = !isDone && s.deadline_date && new Date(s.deadline_date) < new Date(new Date().toDateString());
+        const cat = s.category || '';
+        const dl = s.deadline_date ? _peopleFmtDate(s.deadline_date) : '';
+        return `
+          <div class="ppl-docs-item ${isDone?'is-done':''}" style="${overdue?'border-left:3px solid #BC002D;':''}">
+            <button class="ppl-step-check ${isDone?'is-checked':''}" onclick="_peopleToggleStep('${_esc(s.id)}', ${!isDone})" title="${isDone?'Desmarcar':'Marcar como entregue'}" style="width:18px;height:18px;font-size:10px;flex-shrink:0;">${isDone?'✓':''}</button>
+            <span class="ppl-docs-cat cat-${_esc(cat)}">${_esc(cat)}</span>
+            <span style="flex:1;min-width:0;">${_esc(s.title||'sem título')}${dl?` <span style="opacity:.55;font-size:11px;">· ${dl}</span>`:''}</span>
+            ${cat === 'documentos'
+              ? `<button class="ppl-docs-action" onclick="_peopleOpenBunkoFolderForPerson('${_esc(personId)}', '${_esc(personName)}')" title="Subir documento no Bunko">↑ subir</button>`
+              : `<button class="ppl-docs-action" onclick="_peopleToggleStep('${_esc(s.id)}', true)" title="Marcar acesso como concedido">✓ concedido</button>`
+            }
+          </div>`;
+      }).join('')}
+      <div style="margin-top:6px;font-size:10.5px;color:var(--color-text-tertiary);line-height:1.4;">
+        ${pending.filter(s => s.category === 'documentos').length > 0 ? `📂 Pasta no Bunko: <code>People · ${_esc(personName)}</code> · ` : ''}Marque cada item conforme a pessoa entrega — fica vinculado à trilha.
+      </div>
+    </div>`;
+}
+
+// Abre a pasta Bunko da pessoa (procura por convenção "People · [Nome]")
+async function _peopleOpenBunkoFolderForPerson(personId, personName) {
+  try {
+    // Tenta achar pasta com a convenção do _peopleProvisionIntegrations
+    const folderName = `People · ${personName}`;
+    if (typeof openModule === 'function') {
+      openModule('bunko');
+      // Sinaliza pro Bunko abrir essa pasta se o módulo tiver listener
+      setTimeout(() => {
+        try { window.dispatchEvent(new CustomEvent('bunko:open-folder', { detail: { name: folderName, personId } })); } catch(_) {}
+      }, 200);
+    } else if (typeof appAlert === 'function') {
+      appAlert('Bunko Box', `Abra o Bunko Box e procure a pasta <code>${_esc(folderName)}</code>.`, { icon: '📦', html: true });
+    }
+  } catch(_) {}
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PÓS-GRADUAÇÃO · plano de desenvolvimento contínuo via OKRs
+// ────────────────────────────────────────────────────────────────────
+// Quando a pessoa gradua (🌕 Lua Cheia), a jornada não termina —
+// começa o próximo capítulo: plano de desenvolvimento trimestral.
+// Vincula a pessoa ao módulo OKRs setando o campo `personId` na OKR.
+// ════════════════════════════════════════════════════════════════════
+function _peopleDevPlanSectionHTML(person) {
+  if (!person) return '';
+  const isGrad = person.status === 'graduado';
+  // Só mostra a seção se a pessoa graduou OU já tem OKR vinculado
+  const okrs = (typeof _okrs !== 'undefined' && Array.isArray(_okrs)) ? _okrs : [];
+  const myOkrs = okrs.filter(o => o.personId === person.id);
+  if (!isGrad && myOkrs.length === 0) return '';
+
+  // Período atual e próximo
+  const now = new Date();
+  const quarter = Math.floor(now.getMonth()/3) + 1;
+  const year = now.getFullYear();
+  const currentPeriod = `Q${quarter} ${year}`;
+
+  // Calcula progresso agregado dos OKRs ativos
+  const renderOkrCard = (o) => {
+    const prog = typeof _okrProgress === 'function' ? _okrProgress(o) : 0;
+    const color = prog >= 70 ? '#3B6D11' : prog >= 40 ? '#854F0B' : '#A32D2D';
+    const krsCount = Array.isArray(o.krs) ? o.krs.length : 0;
+    return `
+      <div style="padding:10px 12px;background:rgba(255,255,255,.6);border-radius:7px;margin-bottom:5px;cursor:pointer;border:0.5px solid rgba(193,154,58,.3);" onclick="_peopleOpenOkrFromPerson('${_esc(o.id)}')">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:var(--color-text-primary);line-height:1.3;">${_esc(o.title||'(sem título)')}</div>
+            <div style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:2px;">${_esc(o.period||'')} · ${krsCount} KR${krsCount!==1?'s':''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:13px;font-weight:700;color:${color};font-variant-numeric:tabular-nums;">${prog}%</div>
+            <div style="width:60px;height:5px;background:rgba(0,0,0,.06);border-radius:3px;margin-top:2px;overflow:hidden;">
+              <div style="width:${prog}%;height:100%;background:${color};"></div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  };
+
+  return `
+    <div class="ppl-docs-section" style="background:linear-gradient(135deg,rgba(193,154,58,.10) 0%,rgba(255,209,122,.08) 100%);border-color:#C19A3A;margin-top:14px;">
+      <div class="ppl-docs-section-h">
+        <div class="ppl-docs-section-title" style="color:#7A5500;">🎯 Plano de desenvolvimento ${isGrad?'<span style="font-weight:400;text-transform:none;letter-spacing:normal;font-size:10.5px;opacity:.7;">· pós-graduação</span>':''}</div>
+        <button class="ppl-docs-action" style="background:#FFD17A;border-color:#8B6634;color:#1A1611;" onclick="_peopleOpenDevPlanModal('${_esc(person.id)}', '${_esc(person.name||'')}')">＋ Novo objetivo</button>
+      </div>
+      ${myOkrs.length === 0 ? `
+        <div style="padding:14px;text-align:center;font-size:12px;color:#7A5500;line-height:1.55;font-style:italic;">
+          🌕 ${_esc(person.name||'A pessoa')} graduou! Hora de começar o próximo capítulo.<br/>
+          <span style="font-size:11px;opacity:.85;">Vincule OKRs trimestrais pra acompanhar desenvolvimento contínuo.</span>
+        </div>
+      ` : myOkrs.map(renderOkrCard).join('')}
+      <div style="margin-top:8px;font-size:10.5px;color:#7A5500;line-height:1.4;">
+        Os OKRs vinculados aparecem também no módulo geral 🎯 OKRs. ${myOkrs.length>0?'Clique no card pra editar.':''}
+      </div>
+    </div>`;
+}
+
+// Abre o editor de OKRs existente, navegando até o objetivo
+function _peopleOpenOkrFromPerson(okrId) {
+  if (typeof openOKREditor === 'function') {
+    if (typeof switchTab === 'function') switchTab('okrs');
+    setTimeout(() => openOKREditor(okrId), 150);
+    _peopleCloseDrawer();
+  }
+}
+
+// Modal pra criar OKR ligado à pessoa (template de plano de desenvolvimento)
+function _peopleOpenDevPlanModal(personId, personName) {
+  let modal = document.getElementById('ppl-devplan-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'ppl-devplan-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10006';
+  const now = new Date();
+  const q = Math.floor(now.getMonth()/3) + 1;
+  const year = now.getFullYear();
+  const periodOptions = [`Q${q} ${year}`, `Q${q+1>4?1:q+1} ${q+1>4?year+1:year}`, `${year} (anual)`];
+  modal.innerHTML = `
+    <div class="modal" style="max-width:560px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">🎯 Plano de desenvolvimento · ${_esc(personName)}</h3>
+        <button onclick="document.getElementById('ppl-devplan-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 12px;">
+          A trilha de onboarding terminou — agora a jornada vira <strong>desenvolvimento contínuo</strong> via OKRs trimestrais. Crie 1 objetivo claro com 2-3 resultados-chave mensuráveis.
+        </p>
+        <form id="ppl-devplan-form" class="ppl-modal-form" onsubmit="event.preventDefault();_peopleSubmitDevPlan('${_esc(personId)}', '${_esc(personName)}');">
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Título do objetivo *</label>
+            <input class="ppl-modal-input" name="title" required placeholder="Ex: Dominar arquitetura do backend" autocomplete="off"/>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Período</label>
+            <select class="ppl-modal-select" name="period">
+              ${periodOptions.map(p => `<option value="${_esc(p)}">${_esc(p)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Resultado-chave 1 *</label>
+            <input class="ppl-modal-input" name="kr1_title" required placeholder="Ex: Resolver 8 tickets de produção sozinho(a)"/>
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <input class="ppl-modal-input" name="kr1_target" type="number" step="any" placeholder="alvo" style="flex:.6;"/>
+              <select class="ppl-modal-select" name="kr1_unit" style="flex:.4;">
+                ${['#','%','R$','und','h','d'].map(u => `<option value="${u}">${u}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Resultado-chave 2</label>
+            <input class="ppl-modal-input" name="kr2_title" placeholder="Ex: Ler 2 livros técnicos da área"/>
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <input class="ppl-modal-input" name="kr2_target" type="number" step="any" placeholder="alvo" style="flex:.6;"/>
+              <select class="ppl-modal-select" name="kr2_unit" style="flex:.4;">
+                ${['#','%','R$','und','h','d'].map(u => `<option value="${u}">${u}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Resultado-chave 3</label>
+            <input class="ppl-modal-input" name="kr3_title" placeholder="Ex: Liderar 1 onboarding de pessoa nova"/>
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <input class="ppl-modal-input" name="kr3_target" type="number" step="any" placeholder="alvo" style="flex:.6;"/>
+              <select class="ppl-modal-select" name="kr3_unit" style="flex:.4;">
+                ${['#','%','R$','und','h','d'].map(u => `<option value="${u}">${u}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div style="padding:10px 12px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11.5px;color:#7A5500;line-height:1.55;">
+            <strong>Como funciona:</strong> o OKR fica vinculado a ${_esc(personName)} e aparece tanto aqui no drawer dela quanto no módulo geral 🎯 OKRs. Atualize o progresso conforme avança.
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;">
+            <button type="button" class="ppl-btn" onclick="document.getElementById('ppl-devplan-modal').remove()">Cancelar</button>
+            <button type="submit" class="ppl-btn ppl-btn-primary">🌑→🌕 Iniciar plano</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => { try { modal.querySelector('input[name="title"]').focus(); } catch(_){} }, 50);
+}
+
+function _peopleSubmitDevPlan(personId, personName) {
+  const form = document.getElementById('ppl-devplan-form');
+  if (!form) return;
+  if (typeof _okrs === 'undefined' || typeof _genOkrId !== 'function' || typeof _saveOKRs !== 'function') {
+    if (typeof appAlert === 'function') appAlert('Módulo OKRs indisponível', 'O módulo de OKRs não carregou ainda. Tenta de novo em alguns segundos.', { icon: '⚠️' });
+    return;
+  }
+  const fd = new FormData(form);
+  const krs = [];
+  for (let i = 1; i <= 3; i++) {
+    const title = (fd.get(`kr${i}_title`)||'').toString().trim();
+    if (!title) continue;
+    krs.push({
+      id: _genOkrId('kr_'),
+      title,
+      target: Number(fd.get(`kr${i}_target`)) || 0,
+      unit: fd.get(`kr${i}_unit`) || '#',
+      current: 0,
+    });
+  }
+  const okr = {
+    id: _genOkrId(),
+    personId: personId,
+    personName: personName,
+    title: (fd.get('title')||'').toString().trim() || `Desenvolvimento - ${personName}`,
+    period: fd.get('period') || '',
+    notes: `Plano de desenvolvimento pós-graduação de ${personName} no People Journey.`,
+    krs,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  _okrs.push(okr);
+  _saveOKRs();
+  document.getElementById('ppl-devplan-modal')?.remove();
+  // Re-render drawer pra mostrar o novo OKR vinculado
+  if (_peopleState.currentPersonId) _peopleOpenPersonDrawer(_peopleState.currentPersonId);
+  if (typeof appAlert === 'function') {
+    appAlert('Plano iniciado 🎯', `O plano de desenvolvimento de <strong>${_esc(personName)}</strong> foi criado e vinculado à pessoa. Acompanhe aqui no drawer ou no módulo geral 🎯 OKRs.`, { icon: '🎯', html: true });
+  }
 }
 
 // ── Seção de Pulse dentro do drawer da pessoa ───────────────────────
@@ -65974,6 +66973,608 @@ async function _chatMestreKanRun(mode) {
 }
 // ══════════════════════════════════════════════════════════════════════
 // ░░ Fim do módulo Chat ░░
+// ══════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════
+// ░░ Syncal · módulo calendário workspace-wide ░░
+// ──────────────────────────────────────────────────────────────────────
+// Agrega eventos de múltiplas fontes do Synkan numa visão unificada:
+//   • Boards · deadlines de cards (todos os boards do user)
+//   • People Journey · steps com deadline, milestones (graduações)
+//   • OKRs · início/fim de período, checkpoints
+//   • Syncal nativo · eventos criados aqui (reuniões, lembretes)
+//
+// Storage: eventos nativos em localStorage por enquanto (consistente com
+// OKRs). Migrar pra Supabase quando crescer. Eventos externos são lidos
+// "live" das memórias dos outros módulos.
+// ══════════════════════════════════════════════════════════════════════
+
+const _SYNCAL_STORAGE_KEY = 'synkan_syncal_events_v1';
+let _syncalState = {
+  view: 'mes',                 // 'mes' | 'semana' | 'agenda'
+  cursor: null,                // primeiro dia visível
+  events: [],                  // eventos nativos (carregados do localStorage)
+  filters: {
+    boards:  true,
+    people:  true,
+    okrs:    true,
+    native:  true,
+  },
+};
+
+function _syncalLoadEvents() {
+  try {
+    const raw = localStorage.getItem(_SYNCAL_STORAGE_KEY);
+    _syncalState.events = raw ? JSON.parse(raw) : [];
+  } catch(_) { _syncalState.events = []; }
+}
+function _syncalSaveEvents() {
+  try { localStorage.setItem(_SYNCAL_STORAGE_KEY, JSON.stringify(_syncalState.events)); } catch(_){}
+}
+function _syncalNewId() {
+  return 'sc_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+// Agrega eventos de TODAS as fontes em um array unificado.
+// Cada evento: { id, source, title, date, time?, color, icon, link, meta }
+function _syncalCollectEvents(fromDate, toDate) {
+  const out = [];
+  const f = _syncalState.filters;
+
+  // 1) Eventos Syncal nativos
+  if (f.native) {
+    _syncalState.events.forEach(e => {
+      if (!e.date) return;
+      out.push({
+        id: e.id, source: 'native', title: e.title || 'Sem título',
+        date: e.date, time: e.time || null,
+        color: e.color || '#3B6D11', icon: e.icon || '📌',
+        link: { type: 'syncal', id: e.id },
+        meta: e,
+      });
+    });
+  }
+
+  // 2) Board cards com deadline (variável global `cards` no escopo Synkan)
+  if (f.boards && typeof cards !== 'undefined' && Array.isArray(cards)) {
+    cards.forEach(c => {
+      if (!c.deadline) return;
+      const isDone = c.col === (typeof TERMINAL_COL !== 'undefined' ? TERMINAL_COL : 'done');
+      out.push({
+        id: 'b_' + c.id, source: 'boards',
+        title: c.name || 'Card',
+        date: c.deadline, time: c.deadlineTime || null,
+        color: isDone ? '#9BC97A' : (c.priority==='alta' ? '#D4537E' : c.priority==='media' ? '#BA7517' : '#378ADD'),
+        icon: isDone ? '✓' : '📋',
+        link: { type: 'board-card', id: c.id, boardId: c._sourceBoardId || c.boardId },
+        meta: c,
+      });
+    });
+  }
+
+  // 3) People Journey · steps com deadline + milestones
+  if (f.people && typeof _peopleState !== 'undefined' && _peopleState.dashboard) {
+    const pessoas = _peopleState.dashboard.pessoas_ativas || [];
+    pessoas.forEach(p => {
+      // Marco: data de graduação prevista (target_graduation_date)
+      // Esse dado vem da trilha — não tá direto no dashboard JSON.
+      // Próxima step da pessoa já vem em next_step.
+      const ns = p.next_step;
+      if (ns && ns.deadline_date) {
+        out.push({
+          id: 'p_' + ns.id,
+          source: 'people',
+          title: `${p.name} · ${ns.title}`,
+          date: ns.deadline_date,
+          color: '#C19A3A',
+          icon: '🌙',
+          link: { type: 'people-person', personId: p.id, stepId: ns.id },
+          meta: { person: p, step: ns },
+        });
+      }
+    });
+  }
+
+  // 4) OKRs · marcos de período (trimestre start/end)
+  if (f.okrs && typeof _okrs !== 'undefined' && Array.isArray(_okrs)) {
+    _okrs.forEach(o => {
+      // Tenta deduzir período como "Q1 2026" → start = jan 1, end = mar 31
+      const m = /^Q([1-4])\s+(\d{4})$/.exec(o.period || '');
+      if (m) {
+        const q = parseInt(m[1], 10);
+        const year = parseInt(m[2], 10);
+        const startMonth = (q-1)*3;
+        const start = new Date(year, startMonth, 1);
+        const end = new Date(year, startMonth+3, 0);
+        const fmt = (d) => d.toISOString().slice(0,10);
+        out.push({
+          id: 'okr_s_' + o.id, source: 'okrs',
+          title: `🎯 Início ${o.period}: ${o.title||'(sem título)'}`,
+          date: fmt(start),
+          color: '#6B4825', icon: '🎯',
+          link: { type: 'okr', id: o.id },
+          meta: o,
+        });
+        out.push({
+          id: 'okr_e_' + o.id, source: 'okrs',
+          title: `🎯 Fim ${o.period}: revisar resultados`,
+          date: fmt(end),
+          color: '#3A2410', icon: '🎯',
+          link: { type: 'okr', id: o.id },
+          meta: o,
+        });
+      }
+    });
+  }
+
+  // Filtra por range se passado
+  if (fromDate && toDate) {
+    const from = fromDate.toISOString().slice(0,10);
+    const to = toDate.toISOString().slice(0,10);
+    return out.filter(e => e.date >= from && e.date <= to);
+  }
+  return out;
+}
+
+function renderSyncal() {
+  const root = document.getElementById('syncal-root');
+  if (!root) return;
+  if (!_syncalState.cursor) {
+    _syncalState.cursor = new Date();
+    _syncalState.cursor.setDate(1);
+    _syncalState.cursor.setHours(0,0,0,0);
+  }
+  _syncalLoadEvents();
+  // Bootstrap: se módulos adjacentes não carregaram, dispara o load em background
+  // pra eventos deles aparecerem no Syncal logo que vier resposta.
+  try {
+    if (typeof _peopleState !== 'undefined' && !_peopleState.dashboard && typeof _peopleLoadAll === 'function') {
+      _peopleLoadAll().then(() => { if (currentTab === 'syncal') _syncalRenderContent(); }).catch(()=>{});
+    }
+  } catch(_){}
+
+  const cursor = new Date(_syncalState.cursor);
+  const monthLabel = cursor.toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+
+  root.innerHTML = `
+    <div class="syncal-wrap">
+      <div class="syncal-head">
+        <div>
+          <div class="syncal-title">📅 Syncal <span class="syncal-title-badge">暦</span></div>
+          <div class="syncal-sub">a agenda do Synkan — uma única visão pra Boards, People, OKRs e tudo mais.</div>
+        </div>
+        <div class="syncal-actions">
+          <div class="syncal-view-switcher">
+            <button class="syncal-view-btn ${_syncalState.view==='mes'?'active':''}" onclick="_syncalSetView('mes')">Mês</button>
+            <button class="syncal-view-btn ${_syncalState.view==='semana'?'active':''}" onclick="_syncalSetView('semana')">Semana</button>
+            <button class="syncal-view-btn ${_syncalState.view==='agenda'?'active':''}" onclick="_syncalSetView('agenda')">Agenda</button>
+          </div>
+          <button class="syncal-btn-primary" onclick="_syncalOpenEventModal()">＋ Novo evento</button>
+        </div>
+      </div>
+
+      <div class="syncal-nav">
+        <div class="syncal-nav-l">
+          <button class="syncal-nav-btn" onclick="_syncalNavPrev()" title="Anterior">◂</button>
+          <button class="syncal-nav-btn" onclick="_syncalNavToday()" title="Hoje">Hoje</button>
+          <button class="syncal-nav-btn" onclick="_syncalNavNext()" title="Próximo">▸</button>
+          <div class="syncal-month-label">${_esc(monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1))}</div>
+        </div>
+        <div class="syncal-filters" id="syncal-filters">
+          <label class="syncal-filter-chip syncal-filter-boards ${_syncalState.filters.boards?'active':''}" onclick="_syncalToggleFilter('boards')"><span>📋</span><span>Boards</span></label>
+          <label class="syncal-filter-chip syncal-filter-people ${_syncalState.filters.people?'active':''}" onclick="_syncalToggleFilter('people')"><span>🌙</span><span>People</span></label>
+          <label class="syncal-filter-chip syncal-filter-okrs ${_syncalState.filters.okrs?'active':''}" onclick="_syncalToggleFilter('okrs')"><span>🎯</span><span>OKRs</span></label>
+          <label class="syncal-filter-chip syncal-filter-native ${_syncalState.filters.native?'active':''}" onclick="_syncalToggleFilter('native')"><span>📌</span><span>Syncal</span></label>
+        </div>
+      </div>
+
+      <div id="syncal-content"></div>
+    </div>`;
+  _syncalRenderContent();
+}
+
+function _syncalRenderContent() {
+  const el = document.getElementById('syncal-content');
+  if (!el) return;
+  if (_syncalState.view === 'mes')    return _syncalRenderMonth(el);
+  if (_syncalState.view === 'semana') return _syncalRenderWeek(el);
+  if (_syncalState.view === 'agenda') return _syncalRenderAgenda(el);
+}
+
+function _syncalRenderMonth(el) {
+  const cursor = new Date(_syncalState.cursor);
+  cursor.setDate(1); cursor.setHours(0,0,0,0);
+  const month = cursor.getMonth();
+  const firstDow = cursor.getDay();
+  const startOffset = firstDow === 0 ? 6 : firstDow - 1;
+  const gridStart = new Date(cursor); gridStart.setDate(cursor.getDate() - startOffset);
+  const days = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart); d.setDate(gridStart.getDate() + i);
+    days.push(d);
+  }
+  const monthEnd = new Date(gridStart); monthEnd.setDate(gridStart.getDate() + 41);
+
+  const events = _syncalCollectEvents(gridStart, monthEnd);
+  const byDate = new Map();
+  events.forEach(e => {
+    if (!byDate.has(e.date)) byDate.set(e.date, []);
+    byDate.get(e.date).push(e);
+  });
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().slice(0,10);
+  const dows = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+
+  let html = `<div class="syncal-grid"><div class="syncal-grid-header">${dows.map(d=>`<div class="syncal-dow">${d}</div>`).join('')}</div><div class="syncal-grid-body">`;
+  for (const d of days) {
+    const dStr = d.toISOString().slice(0,10);
+    const isOther = d.getMonth() !== month;
+    const isToday = dStr === todayStr;
+    const dow = d.getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const dayEvents = (byDate.get(dStr) || []).slice().sort((a,b) => (a.time||'').localeCompare(b.time||''));
+    const visibleEvents = dayEvents.slice(0, 3);
+    const hidden = dayEvents.length - visibleEvents.length;
+    const cellCls = `syncal-cell${isOther?' is-other':''}${isToday?' is-today':''}${isWeekend?' is-weekend':''}`;
+    html += `<div class="${cellCls}" onclick="_syncalOpenDay('${dStr}')">
+      <div class="syncal-day-num">${d.getDate()}</div>
+      ${visibleEvents.map(e => `
+        <div class="syncal-event" style="background:${e.color}22;border-left:3px solid ${e.color};" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.id)}', '${e.source}')" title="${_esc(e.title)}">
+          ${e.time ? `<span class="syncal-event-time">${_esc(e.time.slice(0,5))}</span>` : ''}
+          <span class="syncal-event-title">${e.icon||''} ${_esc(e.title)}</span>
+        </div>
+      `).join('')}
+      ${hidden > 0 ? `<div class="syncal-more" onclick="event.stopPropagation();_syncalOpenDay('${dStr}')">+${hidden} mais</div>` : ''}
+    </div>`;
+  }
+  html += `</div></div>`;
+  el.innerHTML = html;
+}
+
+function _syncalRenderWeek(el) {
+  // Cursor = início da semana (segunda)
+  const cursor = new Date(_syncalState.cursor);
+  cursor.setHours(0,0,0,0);
+  const dow = cursor.getDay();
+  const offsetToMonday = dow === 0 ? -6 : 1 - dow;
+  const weekStart = new Date(cursor); weekStart.setDate(cursor.getDate() + offsetToMonday);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
+    days.push(d);
+  }
+
+  const events = _syncalCollectEvents(weekStart, weekEnd);
+  const byDate = new Map();
+  events.forEach(e => {
+    if (!byDate.has(e.date)) byDate.set(e.date, []);
+    byDate.get(e.date).push(e);
+  });
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().slice(0,10);
+  const dowLabels = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+
+  let html = `<div class="syncal-week">`;
+  days.forEach((d, idx) => {
+    const dStr = d.toISOString().slice(0,10);
+    const isToday = dStr === todayStr;
+    const dayEvents = (byDate.get(dStr) || []).slice().sort((a,b) => (a.time||'00:00').localeCompare(b.time||'00:00'));
+    html += `<div class="syncal-week-col ${isToday?'is-today':''}">
+      <div class="syncal-week-h">
+        <div class="syncal-week-dow">${dowLabels[idx]}</div>
+        <div class="syncal-week-num ${isToday?'is-today':''}">${d.getDate()}</div>
+      </div>
+      <div class="syncal-week-body" onclick="_syncalOpenEventModal('${dStr}')">
+        ${dayEvents.length === 0
+          ? `<div class="syncal-week-empty">+ adicionar</div>`
+          : dayEvents.map(e => `
+            <div class="syncal-week-event" style="background:${e.color}22;border-left:3px solid ${e.color};" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.id)}', '${e.source}')">
+              ${e.time ? `<div class="syncal-week-event-time">${_esc(e.time.slice(0,5))}</div>` : ''}
+              <div class="syncal-week-event-title">${e.icon||''} ${_esc(e.title)}</div>
+            </div>`).join('')
+        }
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+function _syncalRenderAgenda(el) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const future = new Date(today); future.setDate(today.getDate() + 60);
+  const events = _syncalCollectEvents(today, future).slice().sort((a,b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return (a.time||'00:00').localeCompare(b.time||'00:00');
+  });
+
+  if (!events.length) {
+    el.innerHTML = `<div class="syncal-empty">
+      <div style="font-size:48px;margin-bottom:14px;opacity:.4;">📅</div>
+      <div style="font-size:16px;color:var(--color-text-primary);font-weight:500;margin-bottom:6px;">Sem eventos nos próximos 60 dias</div>
+      <div style="font-size:13px;color:var(--color-text-tertiary);max-width:380px;margin:0 auto 16px;line-height:1.55;">Eventos de Boards, People, OKRs e Syncal aparecem aqui. Clique em "+ Novo evento" pra criar o primeiro.</div>
+    </div>`;
+    return;
+  }
+
+  // Agrupa por data
+  const byDate = new Map();
+  events.forEach(e => {
+    if (!byDate.has(e.date)) byDate.set(e.date, []);
+    byDate.get(e.date).push(e);
+  });
+
+  const sortedDates = [...byDate.keys()].sort();
+  let html = `<div class="syncal-agenda">`;
+  sortedDates.forEach(dateStr => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const isToday = dateStr === today.toISOString().slice(0,10);
+    const dayLabel = isToday ? 'HOJE' : d.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short' });
+    const items = byDate.get(dateStr);
+    html += `<div class="syncal-agenda-group">
+      <div class="syncal-agenda-date ${isToday?'is-today':''}">${_esc(dayLabel.toUpperCase())}</div>
+      <div class="syncal-agenda-items">
+        ${items.map(e => `
+          <div class="syncal-agenda-item" style="border-left:4px solid ${e.color};" onclick="_syncalOpenEvent('${_esc(e.id)}', '${e.source}')">
+            <div class="syncal-agenda-time">${e.time ? _esc(e.time.slice(0,5)) : '—'}</div>
+            <div class="syncal-agenda-icon">${e.icon||'·'}</div>
+            <div class="syncal-agenda-body">
+              <div class="syncal-agenda-title">${_esc(e.title)}</div>
+              <div class="syncal-agenda-source">${_syncalSourceLabel(e.source)}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+function _syncalSourceLabel(src) {
+  return { boards: '📋 Board', people: '🌙 People Journey', okrs: '🎯 OKRs', native: '📌 Syncal' }[src] || src;
+}
+
+function _syncalSetView(v) { _syncalState.view = v; renderSyncal(); }
+function _syncalNavPrev() {
+  const c = _syncalState.cursor || new Date();
+  if (_syncalState.view === 'mes') c.setMonth(c.getMonth() - 1);
+  else if (_syncalState.view === 'semana') c.setDate(c.getDate() - 7);
+  else c.setDate(c.getDate() - 14);
+  renderSyncal();
+}
+function _syncalNavNext() {
+  const c = _syncalState.cursor || new Date();
+  if (_syncalState.view === 'mes') c.setMonth(c.getMonth() + 1);
+  else if (_syncalState.view === 'semana') c.setDate(c.getDate() + 7);
+  else c.setDate(c.getDate() + 14);
+  renderSyncal();
+}
+function _syncalNavToday() {
+  _syncalState.cursor = new Date();
+  if (_syncalState.view === 'mes') _syncalState.cursor.setDate(1);
+  _syncalState.cursor.setHours(0,0,0,0);
+  renderSyncal();
+}
+
+function _syncalToggleFilter(key) {
+  _syncalState.filters[key] = !_syncalState.filters[key];
+  renderSyncal();
+}
+
+// Abre evento clicado — dispatcha pra módulo apropriado
+function _syncalOpenEvent(id, source) {
+  if (source === 'boards') {
+    const cardId = id.replace(/^b_/, '');
+    if (typeof editCard === 'function') editCard(cardId);
+  } else if (source === 'people') {
+    // id formato p_<stepId>; precisamos do personId — vamos extrair do meta
+    const events = _syncalCollectEvents();
+    const found = events.find(e => e.id === id);
+    if (found && typeof _peopleOpenPersonDrawer === 'function') {
+      if (typeof switchTab === 'function') switchTab('people');
+      setTimeout(() => _peopleOpenPersonDrawer(found.link.personId), 100);
+    }
+  } else if (source === 'okrs') {
+    const okrId = id.replace(/^okr_[se]_/, '');
+    if (typeof switchTab === 'function') switchTab('okrs');
+    setTimeout(() => { if (typeof openOKREditor === 'function') openOKREditor(okrId); }, 100);
+  } else if (source === 'native') {
+    _syncalOpenEventModal(null, id);
+  }
+}
+
+// Abre todos os eventos de um dia em modal
+function _syncalOpenDay(dateStr) {
+  const events = _syncalCollectEvents(new Date(dateStr+'T00:00:00'), new Date(dateStr+'T23:59:59'));
+  let modal = document.getElementById('syncal-day-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-day-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10005';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  const d = new Date(dateStr+'T00:00:00');
+  const label = d.toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  modal.innerHTML = `
+    <div class="modal" style="max-width:520px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;text-transform:capitalize;">${_esc(label)}</h3>
+        <button onclick="document.getElementById('syncal-day-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        ${events.length === 0
+          ? `<div style="text-align:center;padding:32px;color:var(--color-text-tertiary);font-style:italic;">Sem eventos neste dia.</div>`
+          : events.map(e => `
+            <div class="syncal-agenda-item" style="border-left:4px solid ${e.color};margin-bottom:6px;cursor:pointer;" onclick="document.getElementById('syncal-day-modal').remove();_syncalOpenEvent('${_esc(e.id)}', '${e.source}')">
+              <div class="syncal-agenda-time">${e.time ? _esc(e.time.slice(0,5)) : '—'}</div>
+              <div class="syncal-agenda-icon">${e.icon||'·'}</div>
+              <div class="syncal-agenda-body">
+                <div class="syncal-agenda-title">${_esc(e.title)}</div>
+                <div class="syncal-agenda-source">${_syncalSourceLabel(e.source)}</div>
+              </div>
+            </div>`).join('')}
+        <button class="syncal-btn-primary" style="margin-top:10px;width:100%;justify-content:center;" onclick="document.getElementById('syncal-day-modal').remove();_syncalOpenEventModal('${dateStr}')">＋ Adicionar evento neste dia</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+// Modal de criação/edição de evento Syncal nativo
+function _syncalOpenEventModal(prefDate, editingId) {
+  const existing = editingId ? _syncalState.events.find(e => e.id === editingId) : null;
+  let modal = document.getElementById('syncal-event-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-event-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10006';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  const today = (prefDate || existing?.date || new Date().toISOString().slice(0,10));
+
+  // Lookup de pessoas, boards, okrs pra link opcional
+  const pessoas = (typeof _peopleState !== 'undefined' && _peopleState.dashboard?.pessoas_ativas) ? _peopleState.dashboard.pessoas_ativas : [];
+  const okrsList = (typeof _okrs !== 'undefined' && Array.isArray(_okrs)) ? _okrs : [];
+
+  modal.innerHTML = `
+    <div class="modal" style="max-width:520px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">${existing?'✎ Editar evento':'＋ Novo evento Syncal'}</h3>
+        <button onclick="document.getElementById('syncal-event-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <form id="syncal-event-form" class="ppl-modal-form" onsubmit="event.preventDefault();_syncalSubmitEvent('${editingId||''}');">
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Título *</label>
+            <input class="ppl-modal-input" name="title" required value="${_esc(existing?.title||'')}" placeholder="Ex: Reunião de planejamento" autocomplete="off"/>
+          </div>
+          <div class="ppl-modal-row cols">
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Data *</label>
+              <input class="ppl-modal-input" name="date" type="date" required value="${_esc(today)}"/>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Hora</label>
+              <input class="ppl-modal-input" name="time" type="time" value="${_esc(existing?.time||'')}"/>
+            </div>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Descrição</label>
+            <textarea class="ppl-modal-input" name="description" rows="2" style="resize:vertical;" placeholder="Detalhes, link da call, agenda…">${_esc(existing?.description||'')}</textarea>
+          </div>
+          <div class="ppl-modal-row cols">
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Ícone</label>
+              <select class="ppl-modal-select" name="icon">
+                ${['📌','📅','📞','🎯','🥋','📋','🎓','🍵','⛩','🌙','💚','🔔'].map(i => `<option value="${i}" ${existing?.icon===i?'selected':''}>${i}</option>`).join('')}
+              </select>
+            </div>
+            <div class="ppl-modal-row" style="margin:0;">
+              <label class="ppl-modal-label">Cor</label>
+              <select class="ppl-modal-select" name="color">
+                <option value="#3B6D11" ${existing?.color==='#3B6D11'?'selected':''}>🟢 Verde sálvia</option>
+                <option value="#C19A3A" ${existing?.color==='#C19A3A'?'selected':''}>🟡 Dourado lua</option>
+                <option value="#378ADD" ${existing?.color==='#378ADD'?'selected':''}>🔵 Azul céu</option>
+                <option value="#D4537E" ${existing?.color==='#D4537E'?'selected':''}>🔴 Sakura</option>
+                <option value="#6B4825" ${existing?.color==='#6B4825'?'selected':''}>🟤 Madeira</option>
+                <option value="#7A3510" ${existing?.color==='#7A3510'?'selected':''}>🟠 Outono</option>
+              </select>
+            </div>
+          </div>
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Vincular a (opcional)</label>
+            <select class="ppl-modal-select" name="link_type" onchange="_syncalUpdateLinkTarget(this.value)">
+              <option value="">— sem vínculo —</option>
+              <option value="people"  ${existing?.link?.type==='people'?'selected':''}>🌙 Uma pessoa do People Journey</option>
+              <option value="okr"     ${existing?.link?.type==='okr'?'selected':''}>🎯 Um OKR</option>
+              <option value="board"   ${existing?.link?.type==='board'?'selected':''}>📋 Um board</option>
+            </select>
+          </div>
+          <div class="ppl-modal-row" id="syncal-link-target-row" style="${existing?.link?.type?'':'display:none;'}">
+            <label class="ppl-modal-label">Selecionar</label>
+            <select class="ppl-modal-select" name="link_id" id="syncal-link-target">
+              ${(existing?.link?.type==='people' ? pessoas : existing?.link?.type==='okr' ? okrsList : []).map(item => {
+                const id = item.id; const label = item.name || item.title || '(sem nome)';
+                return `<option value="${_esc(id)}" ${existing?.link?.id===id?'selected':''}>${_esc(label)}</option>`;
+              }).join('')}
+            </select>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;">
+            <div>${existing?`<button type="button" class="ppl-btn" style="color:#A02828;border-color:rgba(160,40,40,.3);" onclick="_syncalDeleteEvent('${editingId}')">🗑 Excluir</button>`:''}</div>
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="ppl-btn" onclick="document.getElementById('syncal-event-modal').remove()">Cancelar</button>
+              <button type="submit" class="ppl-btn ppl-btn-primary">${existing?'Salvar':'Criar evento'}</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => { try { modal.querySelector('input[name="title"]').focus(); } catch(_){} }, 50);
+}
+
+function _syncalUpdateLinkTarget(type) {
+  const row = document.getElementById('syncal-link-target-row');
+  const select = document.getElementById('syncal-link-target');
+  if (!row || !select) return;
+  if (!type) { row.style.display = 'none'; return; }
+  row.style.display = '';
+  let items = [];
+  if (type === 'people' && typeof _peopleState !== 'undefined') {
+    items = (_peopleState.dashboard?.pessoas_ativas || []).map(p => ({ id: p.id, label: p.name }));
+  } else if (type === 'okr' && typeof _okrs !== 'undefined') {
+    items = _okrs.map(o => ({ id: o.id, label: o.title || '(sem título)' }));
+  } else if (type === 'board' && typeof allBoards !== 'undefined' && allBoards && typeof allBoards === 'object') {
+    items = Object.entries(allBoards).map(([id, b]) => ({ id, label: (b?.name) || '(sem nome)' }));
+  }
+  select.innerHTML = items.length
+    ? items.map(i => `<option value="${_esc(i.id)}">${_esc(i.label)}</option>`).join('')
+    : `<option value="">— nada disponível —</option>`;
+}
+
+function _syncalSubmitEvent(editingId) {
+  const form = document.getElementById('syncal-event-form');
+  if (!form) return;
+  const fd = new FormData(form);
+  const ev = {
+    id: editingId || _syncalNewId(),
+    title: (fd.get('title')||'').toString().trim() || 'Evento sem título',
+    date: fd.get('date'),
+    time: fd.get('time') || null,
+    description: (fd.get('description')||'').toString().trim() || null,
+    icon: fd.get('icon') || '📌',
+    color: fd.get('color') || '#3B6D11',
+    createdAt: editingId ? undefined : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  const linkType = fd.get('link_type');
+  if (linkType) {
+    ev.link = { type: linkType, id: fd.get('link_id') };
+  }
+  if (editingId) {
+    const idx = _syncalState.events.findIndex(e => e.id === editingId);
+    if (idx >= 0) _syncalState.events[idx] = { ..._syncalState.events[idx], ...ev };
+  } else {
+    _syncalState.events.push(ev);
+  }
+  _syncalSaveEvents();
+  document.getElementById('syncal-event-modal')?.remove();
+  renderSyncal();
+}
+
+function _syncalDeleteEvent(eventId) {
+  if (!confirm('Excluir esse evento? Não dá pra desfazer.')) return;
+  _syncalState.events = _syncalState.events.filter(e => e.id !== eventId);
+  _syncalSaveEvents();
+  document.getElementById('syncal-event-modal')?.remove();
+  renderSyncal();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ░░ Fim do módulo Syncal ░░
 // ══════════════════════════════════════════════════════════════════════
 </script>
 </body>
