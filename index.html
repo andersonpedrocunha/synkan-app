@@ -3955,7 +3955,105 @@ body.density-compact .col{padding:7px;}
 .syncal-type-emoji{font-size:20px;line-height:1;margin-bottom:2px;}
 .syncal-type-label{font-size:12px;font-weight:600;color:inherit;}
 .syncal-type-hint{font-size:9.5px;color:var(--color-text-tertiary);line-height:1.3;margin-top:1px;}
-@media (max-width:520px){.syncal-type-grid{grid-template-columns:repeat(2,1fr);}}
+
+/* Templates rápidos no modal de evento */
+.syncal-tmpl-grid{display:flex;gap:6px;flex-wrap:wrap;}
+.syncal-tmpl-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);border-radius:7px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--color-text-secondary);transition:all .12s;}
+.syncal-tmpl-chip:hover{border-color:#6B4825;background:rgba(107,72,37,.04);color:var(--color-text-primary);}
+.syncal-tmpl-chip.active{background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;border-color:#3A2410;}
+.syncal-tmpl-emoji{font-size:14px;}
+.syncal-tmpl-name{font-weight:500;}
+
+/* Byday checkboxes (dias da semana) */
+.syncal-byday-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.syncal-byday-chip{padding:7px 0;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);border-radius:6px;cursor:pointer;text-align:center;font-size:11px;font-weight:500;color:var(--color-text-secondary);transition:all .12s;text-transform:capitalize;user-select:none;}
+.syncal-byday-chip input{display:none;}
+.syncal-byday-chip:hover{border-color:#6B4825;}
+.syncal-byday-chip.active{background:#6B4825;color:#F5E8C8;border-color:#6B4825;}
+
+/* Participantes (chip multi-select) */
+.syncal-participants-grid{display:flex;flex-wrap:wrap;gap:6px;}
+.syncal-participant-chip{display:inline-flex;align-items:center;gap:7px;padding:5px 10px 5px 5px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);border-radius:999px;cursor:pointer;font-size:12px;font-family:inherit;transition:all .12s;user-select:none;}
+.syncal-participant-chip input{display:none;}
+.syncal-participant-chip:hover{border-color:#6B4825;}
+.syncal-participant-chip.active{background:rgba(107,72,37,.10);border-color:#6B4825;color:#3A2410;}
+.syncal-participant-avatar{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#FFD17A,#C19A3A);color:#1A1611;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;overflow:hidden;}
+.syncal-participant-avatar img{width:100%;height:100%;object-fit:cover;}
+.syncal-participant-name{font-weight:500;}
+
+/* Vista de Dia (timeline horária) */
+.syncal-day-view{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;overflow:hidden;}
+.syncal-day-header{padding:14px 18px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between;}
+.syncal-day-header.is-today{background:rgba(193,154,58,.08);}
+.syncal-day-title{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:500;color:var(--color-text-primary);text-transform:capitalize;}
+.syncal-day-today-pill{font-size:10px;font-weight:700;letter-spacing:.08em;padding:3px 9px;background:#C19A3A;color:#1A1611;border-radius:999px;}
+.syncal-day-allday{padding:10px 18px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;gap:14px;align-items:flex-start;}
+.syncal-day-allday-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);font-weight:600;flex-shrink:0;padding-top:4px;width:70px;}
+.syncal-day-allday-events{flex:1;display:flex;flex-direction:column;gap:4px;}
+.syncal-day-allday-chip{padding:5px 10px;border-radius:5px;font-size:12px;cursor:pointer;color:var(--color-text-primary);}
+.syncal-day-allday-chip:hover{filter:brightness(.97);}
+.syncal-day-timeline{position:relative;max-height:600px;overflow-y:auto;}
+.syncal-day-hour{display:flex;align-items:flex-start;border-bottom:0.5px solid rgba(0,0,0,.04);cursor:pointer;height:50px;}
+.syncal-day-hour:hover{background:rgba(193,154,58,.03);}
+.syncal-day-hour-label{width:60px;font-size:11px;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;padding:4px 10px;flex-shrink:0;border-right:0.5px solid var(--color-border-tertiary);}
+.syncal-day-hour-line{flex:1;height:50px;}
+.syncal-day-event{position:absolute;left:60px;right:14px;padding:5px 9px;border-radius:5px;font-size:11.5px;cursor:pointer;overflow:hidden;color:var(--color-text-primary);z-index:2;}
+.syncal-day-event:hover{filter:brightness(.97);transform:translateX(1px);}
+.syncal-day-event-time{font-size:10px;font-weight:600;color:var(--color-text-tertiary);font-variant-numeric:tabular-nums;}
+.syncal-day-event-title{font-weight:500;margin-top:1px;}
+.syncal-day-now{position:absolute;left:60px;right:14px;z-index:3;pointer-events:none;}
+.syncal-day-now-dot{position:absolute;left:-4px;top:-4px;width:9px;height:9px;border-radius:50%;background:#BC002D;}
+.syncal-day-now-line{position:absolute;left:0;right:0;top:0;height:1.5px;background:#BC002D;}
+
+/* Drag-to-reschedule visual feedback */
+.syncal-cell.drag-over{background:rgba(193,154,58,.18);box-shadow:inset 0 0 0 2px #C19A3A;}
+
+/* Widget de Home */
+.syncal-widget{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:14px 16px;}
+.syncal-widget-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.syncal-widget-title{font-family:var(--font-sans);font-size:13px;font-weight:600;color:var(--color-text-primary);display:flex;align-items:center;}
+.syncal-widget-action{background:transparent;border:none;font-family:inherit;font-size:11.5px;color:#6B4825;cursor:pointer;font-weight:500;}
+.syncal-widget-action:hover{text-decoration:underline;}
+.syncal-widget-empty{padding:18px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12.5px;}
+.syncal-widget-list{display:flex;flex-direction:column;gap:5px;}
+.syncal-widget-item{display:grid;grid-template-columns:60px 50px 1fr;gap:10px;align-items:center;padding:8px 10px;background:var(--color-background-secondary);border-radius:7px;cursor:pointer;transition:all .1s;}
+.syncal-widget-item:hover{background:var(--color-background-primary);transform:translateX(2px);}
+.syncal-widget-day{font-family:var(--font-sans);font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--color-text-tertiary);}
+.syncal-widget-time{font-size:12.5px;font-weight:600;color:var(--color-text-primary);font-variant-numeric:tabular-nums;}
+.syncal-widget-info{min-width:0;}
+.syncal-widget-event-title{font-size:12.5px;font-weight:500;color:var(--color-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.syncal-widget-source{font-size:10.5px;color:var(--color-text-tertiary);margin-top:1px;}
+
+/* Mobile responsive — quebra grids em telas estreitas */
+@media (max-width:768px){
+  .syncal-head{flex-direction:column;align-items:stretch;gap:10px;}
+  .syncal-actions{flex-wrap:wrap;}
+  .syncal-view-switcher{flex:1;}
+  .syncal-nav{flex-direction:column;align-items:stretch;}
+  .syncal-month-label{margin-left:0;margin-top:4px;font-size:16px;}
+  /* Mês fica scrollable horizontal em mobile, células menores */
+  .syncal-grid{overflow-x:auto;}
+  .syncal-grid-header, .syncal-grid-body{min-width:560px;}
+  .syncal-cell{min-height:80px;}
+  /* Semana vira coluna única scrollable */
+  .syncal-week{grid-template-columns:repeat(7,minmax(140px,1fr));overflow-x:auto;}
+  /* Type grid 2 colunas */
+  .syncal-type-grid{grid-template-columns:repeat(2,1fr);}
+  /* Byday 4 colunas (2 linhas) */
+  .syncal-byday-grid{grid-template-columns:repeat(4,1fr);}
+  /* Vista de dia: hour label menor */
+  .syncal-day-hour-label{width:48px;font-size:10px;}
+  .syncal-day-event{left:48px;right:10px;}
+  /* Widget item compacto */
+  .syncal-widget-item{grid-template-columns:50px 1fr;gap:8px;padding:7px 9px;}
+  .syncal-widget-time{display:none;}
+}
+@media (max-width:480px){
+  .syncal-grid-header, .syncal-grid-body{min-width:420px;}
+  .syncal-cell{min-height:60px;padding:4px 5px;}
+  .syncal-day-num{font-size:10.5px;width:18px;height:18px;line-height:18px;}
+  .syncal-event{font-size:9.5px;padding:1px 4px;}
+}
 
 /* ── OKRs ── */
 .okrs-wrap{padding:8px 0 24px;display:flex;flex-direction:column;gap:18px;max-width:920px;}
@@ -19645,6 +19743,7 @@ function switchTab(tab) {
   if (tab==='okrs') renderOKRs();
   if (tab==='people' && typeof renderPeople === 'function') renderPeople();
   if (tab==='home' && typeof _peopleRenderHomeBanner === 'function') _peopleRenderHomeBanner();
+  if (tab==='home' && typeof _syncalInjectHomeWidget === 'function') setTimeout(() => _syncalInjectHomeWidget(), 80);
   if (tab==='zai') renderZaiHub();
   if (tab==='chat') renderChat();
   if (tab==='bunko' && typeof renderBunko === 'function') renderBunko();
@@ -67001,30 +67100,622 @@ async function _chatMestreKanRun(mode) {
 // "live" das memórias dos outros módulos.
 // ══════════════════════════════════════════════════════════════════════
 
-const _SYNCAL_STORAGE_KEY = 'synkan_syncal_events_v1';
+// Cache offline pra render instantâneo (UX), Supabase = source of truth.
+// Migra automaticamente eventos legados do localStorage v1 pro Supabase
+// na primeira chamada de _syncalLoadEvents (idempotente via flag).
+const _SYNCAL_STORAGE_KEY  = 'synkan_syncal_events_v1';      // legado (migration source)
+const _SYNCAL_CACHE_KEY    = 'synkan_syncal_cache_v2';       // cache do payload do Supabase
+const _SYNCAL_MIGRATION_KEY = 'synkan_syncal_migrated_v1to2';
+
 let _syncalState = {
-  view: 'mes',                 // 'mes' | 'semana' | 'agenda'
+  view: 'mes',                 // 'mes' | 'semana' | 'dia' | 'agenda'
   cursor: null,                // primeiro dia visível
-  events: [],                  // eventos nativos (carregados do localStorage)
+  events: [],                  // eventos nativos (cache local + Supabase truth)
+  tags: [],                    // tags coloridas custom do workspace
+  participants: [],            // RSVPs (event_id, user_id, status, user_name)
+  loaded: false,               // primeira sync já rodou
+  loading: false,
   filters: {
     boards:  true,
     people:  true,
     okrs:    true,
     native:  true,
   },
+  // Filtros adicionais (tags + busca)
+  tagFilter: null,             // null = todas; ou tag_id
 };
 
-function _syncalLoadEvents() {
+// ════════════════════════════════════════════════════════════════════
+// _syncalApi · wrapper raw fetch (mesmo padrão de _peopleApi)
+// ════════════════════════════════════════════════════════════════════
+const _syncalApi = {
+  _cfg() {
+    try {
+      if (typeof _peopleApi !== 'undefined' && typeof _peopleApi._resolveConfig === 'function') {
+        return _peopleApi._resolveConfig();
+      }
+    } catch(_){}
+    return null;
+  },
+  async _fetch(method, path, opts = {}) {
+    const cfg = this._cfg();
+    if (!cfg) throw new Error('Sem config Supabase');
+    const url = `${cfg.url}/rest/v1/${path}`;
+    const headers = {
+      'apikey': cfg.anon,
+      'Authorization': `Bearer ${cfg.token}`,
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    };
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs || 15000);
+    try {
+      const res = await fetch(url, { method, headers, body: opts.body, signal: ctrl.signal });
+      clearTimeout(timer);
+      if (!res.ok) {
+        const txt = await res.text().catch(()=>'');
+        return { error: { message: `HTTP ${res.status}: ${txt}` } };
+      }
+      // Sem corpo pra DELETE com Prefer:return=minimal
+      if (res.status === 204) return { data: null };
+      const data = await res.json().catch(()=>null);
+      return { data };
+    } catch(e) {
+      clearTimeout(timer);
+      return { error: { message: e?.message || String(e) } };
+    }
+  },
+  get(path)    { return this._fetch('GET', path); },
+  post(path, body) { return this._fetch('POST', path, { body: typeof body === 'string' ? body : JSON.stringify(body), headers: { 'Prefer': 'return=representation' } }); },
+  patch(path, body){ return this._fetch('PATCH', path, { body: typeof body === 'string' ? body : JSON.stringify(body), headers: { 'Prefer': 'return=representation' } }); },
+  del(path)    { return this._fetch('DELETE', path, { headers: { 'Prefer': 'return=minimal' } }); },
+  async rpc(fn, args) {
+    return this._fetch('POST', `rpc/${fn}`, {
+      body: args ? JSON.stringify(args) : '{}',
+      headers: { 'Prefer': 'return=representation' },
+    });
+  },
+};
+
+// Carrega eventos + tags + participants do Supabase (com cache local pra UX)
+async function _syncalLoadEvents() {
+  // 1) Render instantâneo com cache local
   try {
+    const raw = localStorage.getItem(_SYNCAL_CACHE_KEY);
+    if (raw) {
+      const cached = JSON.parse(raw);
+      _syncalState.events = cached.events || [];
+      _syncalState.tags = cached.tags || [];
+      _syncalState.participants = cached.participants || [];
+    }
+  } catch(_){}
+
+  // 2) Migra eventos legados do v1 (localStorage) pro Supabase, uma vez só
+  await _syncalMigrateLegacyOnce();
+
+  // 3) Busca fresh do Supabase
+  _syncalState.loading = true;
+  try {
+    const { data, error } = await _syncalApi.rpc('syncal_dashboard');
+    if (error) throw new Error(error.message);
+    if (data) {
+      _syncalState.events = (data.events || []).map(_syncalNormalizeRow);
+      _syncalState.tags = data.tags || [];
+      _syncalState.participants = data.participants || [];
+      _syncalState.loaded = true;
+      try {
+        localStorage.setItem(_SYNCAL_CACHE_KEY, JSON.stringify({
+          events: _syncalState.events,
+          tags: _syncalState.tags,
+          participants: _syncalState.participants,
+        }));
+      } catch(_){}
+    }
+  } catch(e) {
+    console.warn('[syncal] load falhou:', e?.message);
+  } finally {
+    _syncalState.loading = false;
+  }
+}
+
+// Converte row do Supabase (snake_case) pro shape camelCase usado pelo frontend
+function _syncalNormalizeRow(r) {
+  return {
+    id: r.id,
+    type: r.type || 'event',
+    title: r.title || 'Sem título',
+    description: r.description || null,
+    date: r.start_date,             // mantém shape antigo (date/endDate/time)
+    endDate: r.end_date || null,
+    time: r.start_time ? String(r.start_time).slice(0,5) : null,
+    endTime: r.end_time ? String(r.end_time).slice(0,5) : null,
+    allDay: !!r.all_day,
+    icon: r.icon || '📌',
+    color: r.color || '#3B6D11',
+    colorTagId: r.color_tag_id || null,
+    // Recorrência
+    recurrence: r.recurrence_freq ? {
+      freq: r.recurrence_freq,
+      interval: r.recurrence_interval || 1,
+      byday: r.recurrence_byday || null,
+      until: r.recurrence_until || null,
+      count: r.recurrence_count || null,
+      exdates: r.recurrence_exdates || [],
+    } : null,
+    linkedChannelId: r.linked_channel_id || null,
+    link: r.link_type ? { type: r.link_type, id: r.link_id } : null,
+    _announcedToChannelId: r.announced_to_channel_id || null,
+    _announcedAt: r.announced_at || null,
+    _tatamiLink: r.tatami_link || null,
+    isOwner: !!r.is_owner,
+    createdBy: r.created_by,
+    workspaceOwner: r.workspace_owner,
+  };
+}
+
+// Migra eventos legados (localStorage v1) pro Supabase, uma vez só.
+// Depois marca o flag pra nunca rodar de novo.
+async function _syncalMigrateLegacyOnce() {
+  try {
+    if (localStorage.getItem(_SYNCAL_MIGRATION_KEY) === 'done') return;
     const raw = localStorage.getItem(_SYNCAL_STORAGE_KEY);
-    _syncalState.events = raw ? JSON.parse(raw) : [];
-  } catch(_) { _syncalState.events = []; }
+    if (!raw) {
+      localStorage.setItem(_SYNCAL_MIGRATION_KEY, 'done');
+      return;
+    }
+    const legacy = JSON.parse(raw);
+    if (!Array.isArray(legacy) || legacy.length === 0) {
+      localStorage.setItem(_SYNCAL_MIGRATION_KEY, 'done');
+      return;
+    }
+    let migrated = 0;
+    for (const ev of legacy) {
+      const body = _syncalEventToServerShape(ev);
+      const res = await _syncalApi.rpc('syncal_event_upsert', { p_event: body });
+      if (!res.error) migrated++;
+    }
+    console.log('[syncal] migration legado: ' + migrated + '/' + legacy.length);
+    localStorage.setItem(_SYNCAL_MIGRATION_KEY, 'done');
+  } catch(e) {
+    console.warn('[syncal] migration falhou:', e?.message);
+  }
 }
+
+// Converte evento client-side (camelCase) pra shape Supabase (snake_case JSONB)
+function _syncalEventToServerShape(ev) {
+  return {
+    id: ev.id && /^[0-9a-f-]{36}$/i.test(ev.id) ? ev.id : null,  // só envia se for UUID válido
+    type: ev.type || 'event',
+    title: ev.title || 'Sem título',
+    description: ev.description || null,
+    start_date: ev.date,
+    end_date: ev.endDate || null,
+    start_time: ev.time || null,
+    end_time: ev.endTime || null,
+    all_day: ev.allDay || false,
+    recurrence_freq:     ev.recurrence?.freq || null,
+    recurrence_interval: ev.recurrence?.interval || 1,
+    recurrence_byday:    ev.recurrence?.byday || null,
+    recurrence_until:    ev.recurrence?.until || null,
+    recurrence_count:    ev.recurrence?.count || null,
+    recurrence_exdates:  ev.recurrence?.exdates || [],
+    icon: ev.icon || '📌',
+    color: ev.color || '#3B6D11',
+    color_tag_id: ev.colorTagId || null,
+    linked_channel_id: ev.linkedChannelId || null,
+    link_type: ev.link?.type || null,
+    link_id: ev.link?.id || null,
+  };
+}
+
+// Salva todo o state.events de uma vez (compat com código legacy que chama isso)
+// Internamente vira no-op porque os saves agora são incrementais via _syncalUpsertEvent.
 function _syncalSaveEvents() {
-  try { localStorage.setItem(_SYNCAL_STORAGE_KEY, JSON.stringify(_syncalState.events)); } catch(_){}
+  // Mantém o cache local sincronizado pra próximo render
+  try {
+    localStorage.setItem(_SYNCAL_CACHE_KEY, JSON.stringify({
+      events: _syncalState.events,
+      tags: _syncalState.tags,
+      participants: _syncalState.participants,
+    }));
+  } catch(_){}
 }
+
+// Cria ou atualiza evento no Supabase, atualiza state local
+async function _syncalUpsertEvent(ev) {
+  const oldId = ev.id;  // captura antes do server sobrescrever (pra evitar duplicata)
+  const body = _syncalEventToServerShape(ev);
+  const res = await _syncalApi.rpc('syncal_event_upsert', { p_event: body });
+  if (res.error) return { ok: false, error: res.error.message };
+  // RPC retorna { success, id }
+  const newId = res.data?.id || (Array.isArray(res.data) && res.data[0]?.id);
+  if (newId) ev.id = newId;
+  // Acha o item pelo id ANTIGO (pra atualizar in-place) ou pelo novo (idempotência)
+  const idx = _syncalState.events.findIndex(e => e.id === oldId || (newId && e.id === newId));
+  if (idx >= 0) _syncalState.events[idx] = { ..._syncalState.events[idx], ...ev };
+  else _syncalState.events.push(ev);
+  _syncalSaveEvents();
+  return { ok: true, id: newId };
+}
+
+// Delete evento (soft delete via deleted_at? Não — usa DELETE com RLS).
+async function _syncalDeleteEventFromDb(eventId) {
+  // Eventos sem UUID (locais legacy ainda não migrados) só removem do state
+  if (!eventId || !/^[0-9a-f-]{36}$/i.test(eventId)) {
+    _syncalState.events = _syncalState.events.filter(e => e.id !== eventId);
+    _syncalSaveEvents();
+    return { ok: true };
+  }
+  const res = await _syncalApi.del(`syncal_events?id=eq.${encodeURIComponent(eventId)}`);
+  if (res.error) return { ok: false, error: res.error.message };
+  _syncalState.events = _syncalState.events.filter(e => e.id !== eventId);
+  _syncalSaveEvents();
+  return { ok: true };
+}
+
 function _syncalNewId() {
+  // ID provisório só pra estado local; o servidor gera UUID real no INSERT
   return 'sc_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Expansão de recorrência (subset RRULE)
+// ────────────────────────────────────────────────────────────────────
+// Gera instâncias de um evento recorrente dentro de uma janela [from, to].
+// Limita a 365 instâncias por evento (defensivo). Respeita:
+//   - freq: daily/weekly/monthly/yearly
+//   - interval: a cada N (ex: a cada 2 semanas)
+//   - byday: ['MO','WE','FR'] (só pra freq=weekly)
+//   - until: data limite
+//   - count: número máximo de instâncias
+//   - exdates: datas excluídas (deletei "só essa ocorrência")
+// ════════════════════════════════════════════════════════════════════
+function _syncalExpandRecurrence(event, rangeStart, rangeEnd) {
+  const rule = event.recurrence;
+  if (!rule) return [{ start: event.date, end: event.endDate || null }];
+
+  const out = [];
+  const fromTime = rangeStart instanceof Date ? rangeStart.getTime() : new Date(rangeStart).getTime();
+  const toTime   = rangeEnd   instanceof Date ? rangeEnd.getTime()   : new Date(rangeEnd).getTime();
+  const startMs = new Date(event.date + 'T00:00:00').getTime();
+  // Duração em dias do range single-day ou multi-day (preservada nas instâncias)
+  const durationDays = event.endDate
+    ? Math.round((new Date(event.endDate) - new Date(event.date)) / 86400000)
+    : 0;
+
+  const exdatesSet = new Set(rule.exdates || []);
+  const untilMs = rule.until ? new Date(rule.until + 'T23:59:59').getTime() : Infinity;
+  const maxCount = rule.count || 365;  // cap defensivo
+  const interval = Math.max(1, rule.interval || 1);
+
+  // Mapeamento dia da semana RFC5545 → JS getDay()
+  const dayMap = { SU:0, MO:1, TU:2, WE:3, TH:4, FR:5, SA:6 };
+  const bydaySet = (rule.byday && rule.byday.length)
+    ? new Set(rule.byday.map(d => dayMap[d]).filter(d => d !== undefined))
+    : null;
+
+  let count = 0;
+  let cursor = new Date(startMs);
+  let safety = 0;
+  const SAFETY_LIMIT = 5000;
+
+  const pushInstance = (instStart) => {
+    const dStr = instStart.toISOString().slice(0,10);
+    if (exdatesSet.has(dStr)) return;
+    const endStr = durationDays > 0
+      ? new Date(instStart.getTime() + durationDays*86400000).toISOString().slice(0,10)
+      : null;
+    out.push({ start: dStr, end: endStr });
+    count++;
+  };
+
+  if (rule.freq === 'daily') {
+    while (cursor.getTime() <= toTime && count < maxCount && safety++ < SAFETY_LIMIT) {
+      if (cursor.getTime() > untilMs) break;
+      // Pra daily: só pula instâncias antes do fromTime
+      if (cursor.getTime() + durationDays*86400000 >= fromTime) {
+        pushInstance(new Date(cursor));
+      }
+      cursor.setDate(cursor.getDate() + interval);
+    }
+  } else if (rule.freq === 'weekly') {
+    // Weekly com byday: itera dia a dia dentro de cada semana, salta por interval-1 semanas
+    if (bydaySet && bydaySet.size > 0) {
+      // Começa do início da semana (segunda) do evento original
+      const startDow = cursor.getDay();
+      const offsetToMonday = startDow === 0 ? -6 : 1 - startDow;
+      const weekStart = new Date(cursor); weekStart.setDate(cursor.getDate() + offsetToMonday);
+      cursor = weekStart;
+      while (cursor.getTime() <= toTime && count < maxCount && safety++ < SAFETY_LIMIT) {
+        if (cursor.getTime() > untilMs) break;
+        // Pra cada dia da semana, checa se bate no byday
+        for (let d = 0; d < 7 && count < maxCount; d++) {
+          const day = new Date(cursor); day.setDate(cursor.getDate() + d);
+          if (day.getTime() < startMs) continue;
+          if (day.getTime() > untilMs) break;
+          if (bydaySet.has(day.getDay())) {
+            if (day.getTime() + durationDays*86400000 >= fromTime && day.getTime() <= toTime) {
+              pushInstance(day);
+            }
+          }
+        }
+        cursor.setDate(cursor.getDate() + 7 * interval);
+      }
+    } else {
+      // Weekly simples: mesmo dia da semana a cada N semanas
+      while (cursor.getTime() <= toTime && count < maxCount && safety++ < SAFETY_LIMIT) {
+        if (cursor.getTime() > untilMs) break;
+        if (cursor.getTime() + durationDays*86400000 >= fromTime) {
+          pushInstance(new Date(cursor));
+        }
+        cursor.setDate(cursor.getDate() + 7 * interval);
+      }
+    }
+  } else if (rule.freq === 'monthly') {
+    while (cursor.getTime() <= toTime && count < maxCount && safety++ < SAFETY_LIMIT) {
+      if (cursor.getTime() > untilMs) break;
+      if (cursor.getTime() + durationDays*86400000 >= fromTime) {
+        pushInstance(new Date(cursor));
+      }
+      cursor.setMonth(cursor.getMonth() + interval);
+    }
+  } else if (rule.freq === 'yearly') {
+    while (cursor.getTime() <= toTime && count < maxCount && safety++ < SAFETY_LIMIT) {
+      if (cursor.getTime() > untilMs) break;
+      if (cursor.getTime() + durationDays*86400000 >= fromTime) {
+        pushInstance(new Date(cursor));
+      }
+      cursor.setFullYear(cursor.getFullYear() + interval);
+    }
+  }
+
+  return out;
+}
+
+// Toggle visibilidade dos detalhes de recorrência (interval/byday/until)
+function _syncalToggleRecurrence(freq) {
+  const details = document.getElementById('syncal-rec-details');
+  const bydayRow = document.getElementById('syncal-byday-row');
+  const unit = document.getElementById('syncal-rec-unit');
+  if (details) details.style.display = (freq === 'none' || !freq) ? 'none' : '';
+  if (bydayRow) bydayRow.style.display = (freq === 'weekly') ? '' : 'none';
+  if (unit) {
+    unit.textContent = { daily:'dia(s)', weekly:'semana(s)', monthly:'mês(es)', yearly:'ano(s)' }[freq] || '';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Templates de evento · presets pra criações recorrentes comuns
+// ════════════════════════════════════════════════════════════════════
+function _syncalGetEventTemplates() {
+  return [
+    { id: 'daily',    icon: '🌅', label: 'Daily', description: 'Daily standup todo dia útil 9h',
+      apply: { title: 'Daily standup', time: '09:00', icon: '🌅', color: '#378ADD',
+               type: 'event', duration: 15,
+               recurrence: { freq: 'weekly', interval: 1, byday: ['MO','TU','WE','TH','FR'] } } },
+    { id: 'weekly1on1', icon: '🍵', label: '1:1 semanal', description: '1:1 com sensei, toda semana',
+      apply: { title: '1:1 com sensei', time: '14:00', icon: '🍵', color: '#6B4825',
+               type: 'event', duration: 30,
+               recurrence: { freq: 'weekly', interval: 1 } } },
+    { id: 'retro',    icon: '🪞', label: 'Retro', description: 'Retrô de sprint, a cada 2 semanas',
+      apply: { title: 'Retrospectiva', time: '15:00', icon: '🪞', color: '#8E7AB5',
+               type: 'event', duration: 60,
+               recurrence: { freq: 'weekly', interval: 2, byday: ['FR'] } } },
+    { id: 'planning', icon: '🗺', label: 'Planning', description: 'Sprint planning quinzenal',
+      apply: { title: 'Sprint planning', time: '10:00', icon: '🗺', color: '#3B6D11',
+               type: 'event', duration: 60,
+               recurrence: { freq: 'weekly', interval: 2, byday: ['MO'] } } },
+    { id: 'review',   icon: '🎯', label: 'Review', description: 'Review trimestral de OKRs',
+      apply: { title: 'Review de OKRs', time: '14:00', icon: '🎯', color: '#C19A3A',
+               type: 'event', duration: 90,
+               recurrence: { freq: 'monthly', interval: 3 } } },
+    { id: 'focus',    icon: '🧘', label: 'Foco', description: 'Bloco de deep work',
+      apply: { title: 'Deep work', time: '14:00', icon: '🧘', color: '#5C6E9C',
+               type: 'event', duration: 120 } },
+  ];
+}
+
+// Aplica template no form aberto
+function _syncalApplyTemplate(tmplId) {
+  const tmpl = _syncalGetEventTemplates().find(t => t.id === tmplId);
+  if (!tmpl) return;
+  const form = document.getElementById('syncal-event-form');
+  if (!form) return;
+  const a = tmpl.apply;
+  // Title
+  const titleInput = form.querySelector('input[name="title"]');
+  if (titleInput) titleInput.value = a.title;
+  // Time
+  const timeInput = form.querySelector('input[name="time"]');
+  if (timeInput) timeInput.value = a.time || '';
+  // Icon
+  const iconSel = form.querySelector('select[name="icon"]');
+  if (iconSel) {
+    // Procura o option ou cria
+    let found = false;
+    for (const opt of iconSel.options) if (opt.value === a.icon) { found = true; break; }
+    if (!found) {
+      const opt = document.createElement('option'); opt.value = a.icon; opt.textContent = a.icon;
+      iconSel.appendChild(opt);
+    }
+    iconSel.value = a.icon;
+    iconSel.dataset.userTouched = '1';
+  }
+  // Color
+  const colorSel = form.querySelector('select[name="color"]');
+  if (colorSel) {
+    colorSel.value = a.color;
+    colorSel.dataset.userTouched = '1';
+  }
+  // Recurrence
+  if (a.recurrence) {
+    const freqSel = form.querySelector('select[name="recurrence_freq"]');
+    if (freqSel) {
+      freqSel.value = a.recurrence.freq;
+      _syncalToggleRecurrence(a.recurrence.freq);
+    }
+    const intervalInput = form.querySelector('input[name="recurrence_interval"]');
+    if (intervalInput) intervalInput.value = a.recurrence.interval || 1;
+    // Byday
+    if (a.recurrence.byday) {
+      form.querySelectorAll('input[name="recurrence_byday"]').forEach(cb => {
+        cb.checked = a.recurrence.byday.includes(cb.value);
+        cb.closest('.syncal-byday-chip')?.classList.toggle('active', cb.checked);
+      });
+    }
+  }
+  // Highlight escolhido
+  document.querySelectorAll('.syncal-tmpl-chip').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.syncal-tmpl-chip[onclick*="'${tmplId}'"]`)?.classList.add('active');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Gerenciador de tags · CRUD inline pra workspace
+// ════════════════════════════════════════════════════════════════════
+function _syncalOpenTagManager() {
+  let modal = document.getElementById('syncal-tag-mgr');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-tag-mgr';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10007';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  _syncalRenderTagManager(modal);
+  document.body.appendChild(modal);
+}
+
+function _syncalRenderTagManager(modal) {
+  const tags = _syncalState.tags || [];
+  modal.innerHTML = `
+    <div class="modal" style="max-width:460px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">🏷 Tags coloridas</h3>
+        <button onclick="document.getElementById('syncal-tag-mgr').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 12px;">
+          Tags pra agrupar eventos por team, projeto ou área (ex: <em>Produto</em>, <em>People</em>, <em>Pessoal</em>). Eventos com tag pintam com a cor escolhida e ficam filtráveis no calendário.
+        </p>
+        ${tags.length === 0 ? `<div style="padding:16px;text-align:center;color:var(--color-text-tertiary);font-style:italic;font-size:12.5px;">Nenhuma tag ainda. Crie a primeira abaixo.</div>` : `
+          <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;">
+            ${tags.map(t => `
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:${t.color}11;border-left:3px solid ${t.color};border-radius:6px;">
+                <span style="font-size:16px;">${t.emoji||'•'}</span>
+                <span style="flex:1;font-size:13px;font-weight:500;color:var(--color-text-primary);">${_esc(t.name)}</span>
+                <span style="font-size:10px;font-family:monospace;color:var(--color-text-tertiary);">${_esc(t.color)}</span>
+                <button onclick="_syncalDeleteTag('${_esc(t.id)}')" style="background:transparent;border:none;cursor:pointer;color:#9F0026;font-size:14px;padding:2px 6px;">🗑</button>
+              </div>
+            `).join('')}
+          </div>
+        `}
+        <form onsubmit="event.preventDefault();_syncalCreateTag();" style="display:flex;flex-direction:column;gap:8px;padding:12px;background:var(--color-background-secondary);border-radius:8px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);font-weight:600;">＋ Nova tag</div>
+          <input class="ppl-modal-input" id="syncal-tag-name" placeholder="Nome (ex: Produto)" required autocomplete="off"/>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input class="ppl-modal-input" id="syncal-tag-emoji" placeholder="emoji (ex: 🎯)" maxlength="4" style="width:90px;"/>
+            <select class="ppl-modal-select" id="syncal-tag-color" style="flex:1;">
+              <option value="#378ADD">🔵 Azul céu</option>
+              <option value="#C19A3A">🟡 Dourado lua</option>
+              <option value="#3B6D11">🟢 Verde sálvia</option>
+              <option value="#D4537E">🔴 Sakura</option>
+              <option value="#6B4825">🟤 Madeira</option>
+              <option value="#7A3510">🟠 Outono</option>
+              <option value="#8E7AB5">🟣 Glicínia</option>
+              <option value="#5C6E9C">🔵 Índigo</option>
+            </select>
+            <button type="submit" class="ppl-btn ppl-btn-primary" style="white-space:nowrap;">＋ Criar</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+}
+
+async function _syncalCreateTag() {
+  const name = (document.getElementById('syncal-tag-name')?.value||'').trim();
+  const emoji = (document.getElementById('syncal-tag-emoji')?.value||'').trim() || null;
+  const color = document.getElementById('syncal-tag-color')?.value || '#378ADD';
+  if (!name) return;
+  const cfg = _syncalApi._cfg();
+  if (!cfg) return;
+  const res = await _syncalApi.post('syncal_color_tags', {
+    workspace_owner: cfg.uid, name, color, emoji,
+  });
+  if (res.error) {
+    if (typeof appAlert === 'function') appAlert('Erro', res.error.message, { icon: '⚠️' });
+    return;
+  }
+  // Recarrega tags + re-render manager
+  await _syncalLoadEvents();
+  const modal = document.getElementById('syncal-tag-mgr');
+  if (modal) _syncalRenderTagManager(modal);
+  // Re-popula select no modal de evento se aberto
+  const tagSel = document.getElementById('syncal-tag-select');
+  if (tagSel) {
+    const current = tagSel.value;
+    tagSel.innerHTML = '<option value="">— sem tag —</option>'
+      + _syncalState.tags.map(t => `<option value="${_esc(t.id)}" ${current===t.id?'selected':''}>${t.emoji||'•'} ${_esc(t.name)}</option>`).join('');
+  }
+}
+
+async function _syncalDeleteTag(tagId) {
+  let ok = false;
+  if (typeof appConfirm === 'function') {
+    ok = await appConfirm('Excluir tag', 'Eventos que usam essa tag ficam sem tag (não são deletados). Tem certeza?', { okLabel: 'Excluir', cancelLabel: 'Cancelar', icon: '🗑' });
+  } else ok = confirm('Excluir essa tag?');
+  if (!ok) return;
+  await _syncalApi.del(`syncal_color_tags?id=eq.${encodeURIComponent(tagId)}`);
+  await _syncalLoadEvents();
+  const modal = document.getElementById('syncal-tag-mgr');
+  if (modal) _syncalRenderTagManager(modal);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// RSVP — botões "vou / não vou / talvez" pro user logado
+// ════════════════════════════════════════════════════════════════════
+async function _syncalRsvp(eventId, status) {
+  const res = await _syncalApi.rpc('syncal_rsvp', { p_event_id: eventId, p_status: status });
+  if (res.error) {
+    if (typeof appAlert === 'function') appAlert('Erro no RSVP', res.error.message, { icon: '⚠️' });
+    return;
+  }
+  // Atualiza state local imediatamente
+  const cfg = _syncalApi._cfg();
+  const idx = _syncalState.participants.findIndex(p => p.event_id === eventId && p.user_id === cfg?.uid);
+  if (idx >= 0) {
+    _syncalState.participants[idx].status = status;
+    _syncalState.participants[idx].responded_at = new Date().toISOString();
+  } else {
+    _syncalState.participants.push({
+      event_id: eventId, user_id: cfg?.uid, status,
+      responded_at: new Date().toISOString(),
+      user_name: 'Você',
+    });
+  }
+  _syncalSaveEvents();
+  // Re-render popover
+  document.getElementById('syncal-event-detail')?.remove();
+  _syncalOpenEventDetail(eventId);
+}
+
+// Helper pra exibir resumo de recorrência (ex: "toda 2ª e 5ª")
+function _syncalRecurrenceSummary(rule) {
+  if (!rule || !rule.freq) return '';
+  const interval = rule.interval || 1;
+  const daysPt = { SU:'dom', MO:'seg', TU:'ter', WE:'qua', TH:'qui', FR:'sex', SA:'sáb' };
+  const freqLabel = {
+    daily:   interval === 1 ? 'todo dia' : `a cada ${interval} dias`,
+    weekly:  interval === 1 ? 'toda semana' : `a cada ${interval} semanas`,
+    monthly: interval === 1 ? 'todo mês' : `a cada ${interval} meses`,
+    yearly:  interval === 1 ? 'todo ano' : `a cada ${interval} anos`,
+  }[rule.freq] || '';
+  let byday = '';
+  if (rule.byday && rule.byday.length && rule.freq === 'weekly') {
+    byday = ' · ' + rule.byday.map(d => daysPt[d]).filter(Boolean).join('/');
+  }
+  const until = rule.until
+    ? ` · até ${new Date(rule.until + 'T00:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'2-digit' })}`
+    : '';
+  return `${freqLabel}${byday}${until}`;
 }
 
 // Agrega eventos de TODAS as fontes em um array unificado.
@@ -67033,51 +67724,78 @@ function _syncalCollectEvents(fromDate, toDate) {
   const out = [];
   const f = _syncalState.filters;
 
-  // 1) Eventos Syncal nativos — agora suportam intervalos (endDate) e tipos
-  //    especiais (absence/vacation/holiday). Quando tem endDate, expande em
-  //    múltiplas entradas (uma por dia) marcadas com _span ('start','middle','end').
+  // 1) Eventos Syncal nativos — suporta intervalos (endDate), recorrência
+  //    (RRULE subset), tipos especiais (absence/vacation/holiday/focus), e
+  //    filtro por tag de cor (team/projeto).
   if (f.native) {
+    // Janela de expansão: usa fromDate/toDate se passou, senão default próximos 6 meses
+    const rangeStart = fromDate || new Date();
+    const rangeEnd   = toDate   || new Date(Date.now() + 180*86400000);
     _syncalState.events.forEach(e => {
       if (!e.date) return;
-      const isRange = e.endDate && e.endDate > e.date;
-      if (!isRange) {
-        out.push({
-          id: e.id, source: 'native', title: e.title || 'Sem título',
-          date: e.date, time: e.time || null,
-          color: e.color || '#3B6D11', icon: e.icon || '📌',
-          type: e.type || 'event',
-          link: e.link || { type: 'syncal', id: e.id },
-          meta: e,
-          _span: 'single',
-        });
-        return;
-      }
-      // Multi-day: gera uma entrada por dia entre date e endDate (inclusivo)
-      const start = new Date(e.date + 'T00:00:00');
-      const end   = new Date(e.endDate + 'T00:00:00');
-      const dayMs = 86400000;
-      const totalDays = Math.round((end - start) / dayMs) + 1;
-      let idx = 0;
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1), idx++) {
-        const dStr = d.toISOString().slice(0,10);
-        const span = idx === 0 ? 'start' : (idx === totalDays-1 ? 'end' : 'middle');
-        out.push({
-          id: e.id + '_' + idx,
-          rootId: e.id,
-          source: 'native',
-          title: e.title || 'Sem título',
-          date: dStr,
-          time: null,
-          color: e.color || '#3B6D11',
-          icon: e.icon || (e.type === 'vacation' ? '🌴' : e.type === 'absence' ? '✈' : '📌'),
-          type: e.type || 'event',
-          link: e.link || { type: 'syncal', id: e.id },
-          meta: e,
-          _span: span,
-          _spansCount: totalDays,
-          _spanDayIdx: idx,
-        });
-      }
+      // Filtro de tag
+      if (_syncalState.tagFilter && e.colorTagId !== _syncalState.tagFilter) return;
+      // Gera instâncias (1+ se recorrente)
+      const instances = e.recurrence
+        ? _syncalExpandRecurrence(e, rangeStart, rangeEnd)
+        : [{ start: e.date, end: e.endDate || null }];
+
+      instances.forEach((inst, instIdx) => {
+        const startDate = inst.start;
+        const endDate = inst.end || null;
+        const isRange = endDate && endDate > startDate;
+        const instId = instIdx === 0 ? e.id : `${e.id}@${startDate}`;
+
+        if (!isRange) {
+          out.push({
+            id: instId,
+            rootId: e.id,
+            source: 'native',
+            title: e.title || 'Sem título',
+            date: startDate,
+            time: e.time || null,
+            endTime: e.endTime || null,
+            color: e.color || '#3B6D11',
+            colorTagId: e.colorTagId || null,
+            icon: e.icon || '📌',
+            type: e.type || 'event',
+            link: e.link || { type: 'syncal', id: e.id },
+            meta: e,
+            _span: 'single',
+            _isRecurring: !!e.recurrence,
+            _instanceDate: startDate,
+          });
+          return;
+        }
+        // Multi-day: expande em uma entrada por dia (start/middle/end)
+        const start = new Date(startDate + 'T00:00:00');
+        const end   = new Date(endDate + 'T00:00:00');
+        const dayMs = 86400000;
+        const totalDays = Math.round((end - start) / dayMs) + 1;
+        let idx = 0;
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1), idx++) {
+          const dStr = d.toISOString().slice(0,10);
+          const span = idx === 0 ? 'start' : (idx === totalDays-1 ? 'end' : 'middle');
+          out.push({
+            id: `${instId}_${idx}`,
+            rootId: e.id,
+            source: 'native',
+            title: e.title || 'Sem título',
+            date: dStr,
+            time: null,
+            color: e.color || '#3B6D11',
+            colorTagId: e.colorTagId || null,
+            icon: e.icon || (e.type === 'vacation' ? '🌴' : e.type === 'absence' ? '✈' : '📌'),
+            type: e.type || 'event',
+            link: e.link || { type: 'syncal', id: e.id },
+            meta: e,
+            _span: span,
+            _spansCount: totalDays,
+            _spanDayIdx: idx,
+            _isRecurring: !!e.recurrence,
+          });
+        }
+      });
     });
   }
 
@@ -67170,7 +67888,11 @@ function renderSyncal() {
     _syncalState.cursor.setDate(1);
     _syncalState.cursor.setHours(0,0,0,0);
   }
-  _syncalLoadEvents();
+  // Carga otimista: pinta tela com o cache local imediatamente, depois sincroniza
+  // com Supabase em background e re-renderiza quando chegar.
+  _syncalLoadEvents().then(() => {
+    if (currentTab === 'syncal') _syncalRenderContent();
+  }).catch(e => console.warn('[syncal] sync falhou:', e?.message));
   // Bootstrap: se módulos adjacentes não carregaram, dispara o load em background
   // pra eventos deles aparecerem no Syncal logo que vier resposta.
   try {
@@ -67191,11 +67913,14 @@ function renderSyncal() {
         </div>
         <div class="syncal-actions">
           <div class="syncal-view-switcher">
-            <button class="syncal-view-btn ${_syncalState.view==='mes'?'active':''}" onclick="_syncalSetView('mes')">Mês</button>
-            <button class="syncal-view-btn ${_syncalState.view==='semana'?'active':''}" onclick="_syncalSetView('semana')">Semana</button>
-            <button class="syncal-view-btn ${_syncalState.view==='agenda'?'active':''}" onclick="_syncalSetView('agenda')">Agenda</button>
+            <button class="syncal-view-btn ${_syncalState.view==='mes'?'active':''}" onclick="_syncalSetView('mes')" title="Mês (M)">Mês</button>
+            <button class="syncal-view-btn ${_syncalState.view==='semana'?'active':''}" onclick="_syncalSetView('semana')" title="Semana (W)">Semana</button>
+            <button class="syncal-view-btn ${_syncalState.view==='dia'?'active':''}" onclick="_syncalSetView('dia')" title="Dia (D)">Dia</button>
+            <button class="syncal-view-btn ${_syncalState.view==='agenda'?'active':''}" onclick="_syncalSetView('agenda')" title="Agenda (A)">Agenda</button>
           </div>
-          <button class="syncal-btn-primary" onclick="_syncalOpenEventModal()">＋ Novo evento</button>
+          <button class="syncal-btn-primary" onclick="_syncalOpenWorkloadModal()" title="Carga de reuniões por pessoa" style="background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);">⏱ Carga</button>
+          <button class="syncal-btn-primary" onclick="_syncalOpenIcsMenu()" title="Importar / Exportar .ics" style="background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);">⇅ ICS</button>
+          <button class="syncal-btn-primary" onclick="_syncalOpenEventModal()" title="Novo evento (N)">＋ Novo evento</button>
         </div>
       </div>
 
@@ -67211,6 +67936,13 @@ function renderSyncal() {
           <label class="syncal-filter-chip syncal-filter-people ${_syncalState.filters.people?'active':''}" onclick="_syncalToggleFilter('people')"><span>🌙</span><span>People</span></label>
           <label class="syncal-filter-chip syncal-filter-okrs ${_syncalState.filters.okrs?'active':''}" onclick="_syncalToggleFilter('okrs')"><span>🎯</span><span>OKRs</span></label>
           <label class="syncal-filter-chip syncal-filter-native ${_syncalState.filters.native?'active':''}" onclick="_syncalToggleFilter('native')"><span>📌</span><span>Syncal</span></label>
+          ${(_syncalState.tags || []).length > 0 ? `
+            <span style="width:1px;height:18px;background:var(--color-border-tertiary);margin:0 3px;"></span>
+            <label class="syncal-filter-chip ${!_syncalState.tagFilter?'active':''}" onclick="_syncalSetTagFilter(null)" style="${!_syncalState.tagFilter?'background:#3A2410;color:#F5E8C8;border-color:#3A2410;':''}"><span>🏷</span><span>Todas tags</span></label>
+            ${_syncalState.tags.map(t => `
+              <label class="syncal-filter-chip ${_syncalState.tagFilter===t.id?'active':''}" onclick="_syncalSetTagFilter('${_esc(t.id)}')" style="${_syncalState.tagFilter===t.id?`background:${t.color};color:#fff;border-color:${t.color};`:`color:${t.color};`}"><span>${t.emoji||'•'}</span><span>${_esc(t.name)}</span></label>
+            `).join('')}
+          ` : ''}
         </div>
       </div>
 
@@ -67224,7 +67956,121 @@ function _syncalRenderContent() {
   if (!el) return;
   if (_syncalState.view === 'mes')    return _syncalRenderMonth(el);
   if (_syncalState.view === 'semana') return _syncalRenderWeek(el);
+  if (_syncalState.view === 'dia')    return _syncalRenderDay(el);
   if (_syncalState.view === 'agenda') return _syncalRenderAgenda(el);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Vista de DIA · timeline horária (00h-23h)
+// ────────────────────────────────────────────────────────────────────
+// Mostra um dia inteiro com eventos posicionados pelo horário. Eventos
+// sem horário ficam numa faixa "dia inteiro" no topo. Click em qualquer
+// horário vazio cria evento nesse slot.
+// ════════════════════════════════════════════════════════════════════
+function _syncalRenderDay(el) {
+  const cursor = new Date(_syncalState.cursor);
+  cursor.setHours(0,0,0,0);
+  const dStr = cursor.toISOString().slice(0,10);
+  const events = _syncalCollectEvents(cursor, new Date(cursor.getTime() + 86400000)).filter(e => e.date === dStr);
+  const isToday = dStr === new Date().toISOString().slice(0,10);
+
+  // Separa: timed vs all-day/range
+  const allDay = events.filter(e => !e.time || (e._span && e._span !== 'single'));
+  const timed  = events.filter(e => e.time && (!e._span || e._span === 'single'));
+  timed.sort((a,b) => (a.time||'').localeCompare(b.time||''));
+
+  // Posiciona timed events por hora (cada hora = 50px de altura)
+  const HOUR_HEIGHT = 50;
+  const HOURS = Array.from({length:24}, (_,i) => i);
+
+  const dayLabel = cursor.toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+
+  let html = `
+    <div class="syncal-day-view">
+      <div class="syncal-day-header ${isToday?'is-today':''}">
+        <div class="syncal-day-title">${_esc(dayLabel)}</div>
+        ${isToday ? '<span class="syncal-day-today-pill">HOJE</span>' : ''}
+      </div>
+
+      ${allDay.length > 0 ? `
+        <div class="syncal-day-allday">
+          <div class="syncal-day-allday-label">o dia todo</div>
+          <div class="syncal-day-allday-events">
+            ${allDay.map(e => `
+              <div class="syncal-day-allday-chip" style="background:${e.color}33;border-left:3px solid ${e.color};" onclick="_syncalOpenEvent('${_esc(e.rootId||e.id)}', '${e.source}')">
+                ${e.icon||''} ${_esc(e.title)}
+                ${e._spansCount ? `<span style="opacity:.6;font-size:10.5px;">· dia ${e._spanDayIdx+1}/${e._spansCount}</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="syncal-day-timeline">
+        ${HOURS.map(h => {
+          const hStr = String(h).padStart(2,'0') + ':00';
+          return `
+            <div class="syncal-day-hour" onclick="_syncalCreateEventAtTime('${dStr}', '${hStr}')">
+              <div class="syncal-day-hour-label">${hStr}</div>
+              <div class="syncal-day-hour-line"></div>
+            </div>`;
+        }).join('')}
+
+        ${timed.map(e => {
+          const [h, m] = (e.time||'00:00').split(':').map(Number);
+          const top = (h * HOUR_HEIGHT) + Math.round((m/60) * HOUR_HEIGHT);
+          // Calcula duração se tiver endTime
+          let height = HOUR_HEIGHT;  // default 1h
+          if (e.endTime) {
+            const [eh, em] = e.endTime.split(':').map(Number);
+            const durMin = (eh*60+em) - (h*60+m);
+            height = Math.max(20, Math.round((durMin/60) * HOUR_HEIGHT));
+          }
+          return `
+            <div class="syncal-day-event" style="top:${top}px;height:${height}px;background:${e.color}33;border-left:4px solid ${e.color};" draggable="true"
+                 onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.rootId||e.id)}', '${e.source}')"
+                 ondragstart="_syncalDragStart(event, '${_esc(e.rootId||e.id)}', '${e.source}')"
+                 title="${_esc(e.title)}">
+              <div class="syncal-day-event-time">${e.time}${e.endTime?` - ${e.endTime}`:''}</div>
+              <div class="syncal-day-event-title">${e.icon||''} ${_esc(e.title)}</div>
+            </div>`;
+        }).join('')}
+
+        ${isToday ? `<div class="syncal-day-now" id="syncal-day-now" style="top:${_syncalNowTop()}px;"><div class="syncal-day-now-dot"></div><div class="syncal-day-now-line"></div></div>` : ''}
+      </div>
+    </div>`;
+  el.innerHTML = html;
+
+  // Auto-scroll pra hora atual se for hoje
+  if (isToday) {
+    setTimeout(() => {
+      const now = document.getElementById('syncal-day-now');
+      if (now) now.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  }
+}
+
+function _syncalNowTop() {
+  const now = new Date();
+  return (now.getHours() * 50) + Math.round((now.getMinutes()/60) * 50);
+}
+
+// Cria evento rápido num slot horário clicado
+function _syncalCreateEventAtTime(dateStr, timeStr) {
+  // Abre modal pré-preenchido
+  _syncalOpenEventModal(dateStr);
+  setTimeout(() => {
+    const timeInput = document.querySelector('#syncal-event-form input[name="time"]');
+    if (timeInput) timeInput.value = timeStr;
+    const titleInput = document.querySelector('#syncal-event-form input[name="title"]');
+    if (titleInput) titleInput.focus();
+  }, 100);
+}
+
+// Tag filter handler
+function _syncalSetTagFilter(tagId) {
+  _syncalState.tagFilter = tagId;
+  renderSyncal();
 }
 
 function _syncalRenderMonth(el) {
@@ -67263,9 +68109,13 @@ function _syncalRenderMonth(el) {
     const visibleEvents = dayEvents.slice(0, 3);
     const hidden = dayEvents.length - visibleEvents.length;
     const cellCls = `syncal-cell${isOther?' is-other':''}${isToday?' is-today':''}${isWeekend?' is-weekend':''}`;
-    html += `<div class="${cellCls}" onclick="_syncalOpenDay('${dStr}')">
+    html += `<div class="${cellCls}" data-date="${dStr}"
+      onclick="_syncalOpenDay('${dStr}')"
+      ondragover="event.preventDefault();this.classList.add('drag-over');"
+      ondragleave="this.classList.remove('drag-over');"
+      ondrop="event.preventDefault();this.classList.remove('drag-over');_syncalDragDrop(event, '${dStr}');">
       <div class="syncal-day-num">${d.getDate()}</div>
-      ${visibleEvents.map(e => _syncalRenderEventChip(e)).join('')}
+      ${visibleEvents.map(e => _syncalRenderEventChip(e, true)).join('')}
       ${hidden > 0 ? `<div class="syncal-more" onclick="event.stopPropagation();_syncalOpenDay('${dStr}')">+${hidden} mais</div>` : ''}
     </div>`;
   }
@@ -67396,9 +68246,15 @@ function _syncalSourceLabel(src) {
 
 // Renderiza um chip de evento. Trata multi-day: borda diferente em start/middle/end
 // pra simular barra contínua através das células.
-function _syncalRenderEventChip(e) {
+// `draggable` = true só pra eventos nativos do Syncal (não dá pra mover deadline
+// de board card daqui — só do board).
+function _syncalRenderEventChip(e, draggable = true) {
   const isRange = e._span && e._span !== 'single';
   const isAbsence = e.type === 'absence' || e.type === 'vacation' || e.type === 'holiday';
+  const canDrag = draggable && e.source === 'native' && e._span !== 'middle' && e._span !== 'end';
+  const dragAttrs = canDrag
+    ? `draggable="true" ondragstart="event.stopPropagation();_syncalDragStart(event, '${_esc(e.rootId||e.id)}', '${e.source}')"`
+    : '';
   // Pra eventos multi-day: visual de barra contínua. Cor sólida (não 22%).
   if (isRange) {
     const startCorner = e._span === 'start' ? '8px' : '2px';
@@ -67406,15 +68262,330 @@ function _syncalRenderEventChip(e) {
     const showTitle   = e._span === 'start';
     const bg = isAbsence ? e.color + 'AA' : e.color + '88';
     return `
-      <div class="syncal-event syncal-event-range" style="background:${bg};color:#fff;border-radius:${startCorner} ${endCorner} ${endCorner} ${startCorner};margin-left:${e._span==='start'?'0':'-7px'};margin-right:${e._span==='end'?'0':'-7px'};padding-left:${e._span==='start'?'8px':'7px'};padding-right:${e._span==='end'?'8px':'7px'};" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.rootId||e.id)}', '${e.source}')" title="${_esc(e.title)} (${e._spansCount} dias)">
+      <div class="syncal-event syncal-event-range" ${dragAttrs} style="background:${bg};color:#fff;border-radius:${startCorner} ${endCorner} ${endCorner} ${startCorner};margin-left:${e._span==='start'?'0':'-7px'};margin-right:${e._span==='end'?'0':'-7px'};padding-left:${e._span==='start'?'8px':'7px'};padding-right:${e._span==='end'?'8px':'7px'};" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.rootId||e.id)}', '${e.source}')" title="${_esc(e.title)} (${e._spansCount} dias)">
         ${showTitle ? `<span class="syncal-event-title">${e.icon||''} ${_esc(e.title)} <span style="opacity:.7;font-weight:400;">· ${e._spansCount}d</span></span>` : '<span class="syncal-event-title" style="opacity:.55;">·</span>'}
       </div>`;
   }
   return `
-    <div class="syncal-event" style="background:${e.color}22;border-left:3px solid ${e.color};" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.id)}', '${e.source}')" title="${_esc(e.title)}">
+    <div class="syncal-event" ${dragAttrs} style="background:${e.color}22;border-left:3px solid ${e.color};" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.id)}', '${e.source}')" title="${_esc(e.title)}">
+      ${e._isRecurring ? '<span style="font-size:9px;opacity:.65;margin-right:2px;">🔁</span>' : ''}
       ${e.time ? `<span class="syncal-event-time">${_esc(e.time.slice(0,5))}</span>` : ''}
       <span class="syncal-event-title">${e.icon||''} ${_esc(e.title)}</span>
     </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Drag-to-reschedule · arrastar evento pra outro dia
+// ────────────────────────────────────────────────────────────────────
+// Drag só pra eventos nativos do Syncal (board card deadline / People step
+// não dá pra mover daqui — origem é outro módulo).
+// Antes de mover, checa conflitos com outros eventos no destino e avisa.
+// ════════════════════════════════════════════════════════════════════
+let _syncalDragData = null;
+
+function _syncalDragStart(ev, eventId, source) {
+  if (source !== 'native') {
+    ev.preventDefault();
+    return;
+  }
+  _syncalDragData = { eventId, source };
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.dataTransfer.setData('text/plain', eventId);
+  // Visual feedback
+  try { ev.target.style.opacity = '0.4'; } catch(_){}
+}
+
+async function _syncalDragDrop(ev, targetDate) {
+  ev.preventDefault();
+  const drag = _syncalDragData;
+  _syncalDragData = null;
+  // Restaura opacidade
+  document.querySelectorAll('.syncal-event').forEach(el => { try { el.style.opacity = ''; } catch(_){} });
+  if (!drag || drag.source !== 'native') return;
+
+  const e = _syncalState.events.find(x => x.id === drag.eventId);
+  if (!e) return;
+  if (e.date === targetDate) return;  // mesmo dia, no-op
+
+  // Detecta conflitos
+  const conflicts = _syncalDetectConflicts(e, targetDate);
+  if (conflicts.length > 0 && typeof appConfirm === 'function') {
+    const list = conflicts.map(c => `• <strong>${_esc(c.title)}</strong>${c.time?` <span style="opacity:.7;">às ${_esc(c.time)}</span>`:''}`).join('<br/>');
+    const ok = await appConfirm(
+      '⚠ Conflito detectado',
+      `Já tem ${conflicts.length === 1 ? 'um evento' : conflicts.length+' eventos'} em <strong>${_esc(targetDate)}</strong>:<br/><br/>${list}<br/><br/>Mover mesmo assim?`,
+      { okLabel: 'Mover', cancelLabel: 'Cancelar', icon: '⚠️', html: true }
+    );
+    if (!ok) return;
+  }
+
+  // Atualiza datas (preserva duração se range)
+  const oldStart = new Date(e.date + 'T00:00:00');
+  const newStart = new Date(targetDate + 'T00:00:00');
+  const deltaDays = Math.round((newStart - oldStart) / 86400000);
+  const updated = { ...e, date: targetDate };
+  if (e.endDate) {
+    const oldEnd = new Date(e.endDate + 'T00:00:00');
+    const newEnd = new Date(oldEnd.getTime() + deltaDays*86400000);
+    updated.endDate = newEnd.toISOString().slice(0,10);
+  }
+  await _syncalUpsertEvent(updated);
+  renderSyncal();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ICS Import / Export (RFC 5545 subset)
+// ────────────────────────────────────────────────────────────────────
+// Pra ser compatível com Google Calendar, Outlook, iCal, Apple Cal.
+// Suporta: VEVENT com DTSTART/DTEND, SUMMARY, DESCRIPTION, RRULE,
+// EXDATE, UID, DTSTAMP. Recorrência idempotente.
+// ════════════════════════════════════════════════════════════════════
+
+// Menu ICS — abre dropdown com opções importar/exportar
+function _syncalOpenIcsMenu() {
+  let modal = document.getElementById('syncal-ics-menu');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-ics-menu';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10006';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `
+    <div class="modal" style="max-width:480px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">⇅ Importar / Exportar ICS</h3>
+        <button onclick="document.getElementById('syncal-ics-menu').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 14px;">
+          ICS é o formato universal de calendário (RFC 5545). Compatível com Google Calendar, Outlook, Apple Calendar e qualquer app sério.
+        </p>
+
+        <div style="padding:14px;background:linear-gradient(135deg,rgba(58,138,221,.08) 0%,rgba(58,138,221,.03) 100%);border:0.5px solid #378ADD;border-radius:9px;margin-bottom:10px;">
+          <div style="font-size:13.5px;font-weight:600;color:#1A4778;margin-bottom:4px;">⬇ Exportar Syncal pra .ics</div>
+          <div style="font-size:11.5px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.5;">Baixa todos os eventos nativos do Syncal num arquivo. Você importa no Google Calendar / Outlook em seguida.</div>
+          <button class="ppl-btn ppl-btn-primary" style="background:#378ADD;border-color:#378ADD;color:#fff;" onclick="_syncalExportIcs()">⬇ Baixar syncal.ics</button>
+        </div>
+
+        <div style="padding:14px;background:linear-gradient(135deg,rgba(59,109,17,.08) 0%,rgba(59,109,17,.03) 100%);border:0.5px solid #3B6D11;border-radius:9px;">
+          <div style="font-size:13.5px;font-weight:600;color:#2A4F0A;margin-bottom:4px;">⬆ Importar .ics no Syncal</div>
+          <div style="font-size:11.5px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.5;">Faz upload de arquivo .ics do Google/Outlook/Apple. Eventos vão pra sua agenda do Syncal preservando título, datas, horários e recorrência.</div>
+          <label class="ppl-btn ppl-btn-primary" style="background:#3B6D11;border-color:#3B6D11;color:#fff;cursor:pointer;">
+            ⬆ Selecionar arquivo .ics
+            <input type="file" accept=".ics,text/calendar" style="display:none;" onchange="_syncalImportIcs(this.files[0])"/>
+          </label>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+// Exporta todos os eventos nativos como .ics
+function _syncalExportIcs() {
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Synkan//Syncal//PT-BR',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Syncal',
+    'X-WR-TIMEZONE:America/Sao_Paulo',
+  ];
+  const now = new Date();
+  const dtstamp = _syncalIcsFormatDateTime(now);
+
+  _syncalState.events.forEach(e => {
+    if (!e.date) return;
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:' + e.id + '@synkan.app');
+    lines.push('DTSTAMP:' + dtstamp);
+    if (e.time) {
+      const startDt = new Date(e.date + 'T' + e.time);
+      lines.push('DTSTART:' + _syncalIcsFormatDateTime(startDt));
+      // End: usa endTime se tiver, senão +1h
+      let endDt;
+      if (e.endTime) {
+        endDt = new Date(e.date + 'T' + e.endTime);
+      } else {
+        endDt = new Date(startDt.getTime() + 3600000);
+      }
+      lines.push('DTEND:' + _syncalIcsFormatDateTime(endDt));
+    } else {
+      // All-day ou range
+      lines.push('DTSTART;VALUE=DATE:' + e.date.replace(/-/g, ''));
+      const end = e.endDate ? new Date(e.endDate + 'T00:00:00') : new Date(e.date + 'T00:00:00');
+      end.setDate(end.getDate() + 1);  // ICS DTEND é exclusivo
+      lines.push('DTEND;VALUE=DATE:' + end.toISOString().slice(0,10).replace(/-/g, ''));
+    }
+    lines.push('SUMMARY:' + _syncalIcsEscape(e.title || 'Sem título'));
+    if (e.description) lines.push('DESCRIPTION:' + _syncalIcsEscape(e.description));
+
+    // Recorrência → RRULE
+    if (e.recurrence) {
+      const r = e.recurrence;
+      const parts = ['FREQ=' + r.freq.toUpperCase()];
+      if (r.interval && r.interval > 1) parts.push('INTERVAL=' + r.interval);
+      if (r.byday && r.byday.length) parts.push('BYDAY=' + r.byday.join(','));
+      if (r.until) {
+        const untilDt = new Date(r.until + 'T23:59:59Z');
+        parts.push('UNTIL=' + _syncalIcsFormatDateTime(untilDt));
+      }
+      if (r.count) parts.push('COUNT=' + r.count);
+      lines.push('RRULE:' + parts.join(';'));
+      if (r.exdates && r.exdates.length) {
+        lines.push('EXDATE;VALUE=DATE:' + r.exdates.map(d => d.replace(/-/g,'')).join(','));
+      }
+    }
+    lines.push('END:VEVENT');
+  });
+
+  lines.push('END:VCALENDAR');
+  const ics = lines.join('\r\n');
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `syncal-${new Date().toISOString().slice(0,10)}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+  if (typeof appAlert === 'function') appAlert('Export pronto ⬇', `Arquivo <code>syncal-${new Date().toISOString().slice(0,10)}.ics</code> baixado. Importa no Google Calendar em Configurações → Importar.`, { icon: '✓', html: true });
+}
+
+function _syncalIcsFormatDateTime(d) {
+  return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+function _syncalIcsEscape(s) {
+  return String(s||'').replace(/[\\;,]/g, m => '\\'+m).replace(/\n/g, '\\n');
+}
+function _syncalIcsUnescape(s) {
+  return String(s||'').replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\');
+}
+
+// Importa .ics file → cria eventos no Supabase
+async function _syncalImportIcs(file) {
+  if (!file) return;
+  const text = await file.text();
+  // Desdobra linhas continuadas (RFC 5545: linhas que começam com espaço continuam a anterior)
+  const unfolded = text.replace(/\r?\n[ \t]/g, '');
+  const events = [];
+  let current = null;
+  unfolded.split(/\r?\n/).forEach(line => {
+    if (line === 'BEGIN:VEVENT') { current = {}; return; }
+    if (line === 'END:VEVENT')   { if (current) events.push(current); current = null; return; }
+    if (!current) return;
+    const colonIdx = line.indexOf(':');
+    if (colonIdx < 0) return;
+    const keyFull = line.slice(0, colonIdx);
+    const value = line.slice(colonIdx + 1);
+    const [key, ...params] = keyFull.split(';');
+    if (key === 'SUMMARY')     current.title = _syncalIcsUnescape(value);
+    else if (key === 'DESCRIPTION') current.description = _syncalIcsUnescape(value);
+    else if (key === 'DTSTART') current.dtstart = { value, params: params.join(';') };
+    else if (key === 'DTEND')   current.dtend   = { value, params: params.join(';') };
+    else if (key === 'RRULE')   current.rrule = value;
+    else if (key === 'EXDATE')  current.exdate = value;
+    else if (key === 'UID')     current.uid = value;
+  });
+
+  if (events.length === 0) {
+    if (typeof appAlert === 'function') appAlert('Nenhum evento', 'Não achei eventos no arquivo (nada com BEGIN:VEVENT).', { icon: 'ⓘ' });
+    return;
+  }
+
+  let created = 0, failed = 0;
+  for (const ev of events) {
+    try {
+      const evObj = _syncalIcsToEvent(ev);
+      if (!evObj) { failed++; continue; }
+      const res = await _syncalUpsertEvent(evObj);
+      if (res.ok) created++; else failed++;
+    } catch(e) {
+      console.warn('[syncal] import ev:', e?.message);
+      failed++;
+    }
+  }
+  await _syncalLoadEvents();
+  document.getElementById('syncal-ics-menu')?.remove();
+  renderSyncal();
+  if (typeof appAlert === 'function') {
+    appAlert('Import concluído ⬆', `<strong>${created}</strong> evento${created>1?'s':''} importado${created>1?'s':''}${failed?` · ${failed} falharam`:''}.`, { icon: '✓', html: true });
+  }
+}
+
+// Converte VEVENT bruto pra shape de Syncal
+function _syncalIcsToEvent(v) {
+  if (!v.dtstart) return null;
+  const parseIcs = (s) => {
+    // YYYYMMDD ou YYYYMMDDTHHMMSSZ
+    s = String(s||'').trim();
+    if (/^\d{8}$/.test(s)) {
+      return { date: `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`, time: null };
+    }
+    const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?$/.exec(s);
+    if (m) return { date: `${m[1]}-${m[2]}-${m[3]}`, time: `${m[4]}:${m[5]}` };
+    return null;
+  };
+  const start = parseIcs(v.dtstart.value);
+  const end   = v.dtend ? parseIcs(v.dtend.value) : null;
+  if (!start) return null;
+  const ev = {
+    id: null,  // server gera UUID
+    type: 'event',
+    title: v.title || 'Sem título',
+    description: v.description || null,
+    date: start.date,
+    time: start.time,
+    endTime: end?.time || null,
+    endDate: null,
+    icon: '📅',
+    color: '#378ADD',
+  };
+  // Multi-day all-day: DTEND é exclusivo em ICS, então subtrai 1
+  if (start.time === null && end && end.time === null) {
+    const endD = new Date(end.date + 'T00:00:00');
+    endD.setDate(endD.getDate() - 1);
+    const endStr = endD.toISOString().slice(0,10);
+    if (endStr !== start.date) ev.endDate = endStr;
+    ev.icon = '📌';
+  }
+  // RRULE → recurrence
+  if (v.rrule) {
+    const rule = {};
+    v.rrule.split(';').forEach(p => {
+      const [k, val] = p.split('=');
+      if (k === 'FREQ')     rule.freq = val.toLowerCase();
+      if (k === 'INTERVAL') rule.interval = parseInt(val, 10) || 1;
+      if (k === 'BYDAY')    rule.byday = val.split(',').map(s => s.replace(/^\d+/, ''));
+      if (k === 'COUNT')    rule.count = parseInt(val, 10);
+      if (k === 'UNTIL') {
+        const u = parseIcs(val);
+        if (u) rule.until = u.date;
+      }
+    });
+    if (rule.freq) ev.recurrence = rule;
+  }
+  return ev;
+}
+
+// Detecta eventos no mesmo dia que poderiam conflitar
+// Heurística: mesmo dia. Se ambos têm horário, mais preciso checa sobreposição.
+function _syncalDetectConflicts(event, targetDate) {
+  const sameDayEvents = _syncalCollectEvents(new Date(targetDate+'T00:00:00'), new Date(targetDate+'T23:59:59'))
+    .filter(other => {
+      // Não conflita consigo mesmo
+      const otherRoot = other.rootId || other.id;
+      const evRoot = event.id;
+      if (otherRoot === evRoot) return false;
+      // Só conta como conflito se ambos são eventos pontuais (não absence/vacation/holiday)
+      if (event.type !== 'event' && event.type !== 'focus') return false;
+      // Compara horários se ambos têm
+      if (!event.time || !other.time) return false;
+      // Sobreposição simples: mesmo horário ou faixa overlap
+      return event.time === other.time
+        || (event.time < other.time && (event.endTime || event.time) >= other.time);
+    });
+  return sameDayEvents;
 }
 
 // Tenta obter lista de canais do chat sem forçar carga pesada
@@ -67625,7 +68796,11 @@ function _syncalOpenEvent(id, source) {
 
 // Popover de detalhe pro evento nativo com ações disponíveis
 function _syncalOpenEventDetail(eventId) {
-  const e = _syncalState.events.find(x => x.id === eventId);
+  // Pode receber id "raiz" ou expansão de recorrência (eventId@DATA). Normaliza.
+  const rootId = (eventId||'').split('@')[0].split('_')[0]; // fallback robusto
+  const e = _syncalState.events.find(x => x.id === eventId)
+         || _syncalState.events.find(x => x.id === eventId.split('@')[0])
+         || _syncalState.events.find(x => x.id === rootId);
   if (!e) return;
   let modal = document.getElementById('syncal-event-detail');
   if (modal) modal.remove();
@@ -67696,6 +68871,11 @@ function _syncalOpenEventDetail(eventId) {
       </div>
       <div class="mb">
         ${e.description ? `<div style="padding:11px 13px;background:var(--color-background-secondary);border-radius:8px;font-size:13px;color:var(--color-text-primary);line-height:1.55;margin-bottom:12px;white-space:pre-wrap;">${_esc(e.description)}</div>` : ''}
+        ${e.recurrence ? `
+          <div style="padding:9px 13px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 8px 8px 0;font-size:12px;color:#7A5500;margin-bottom:12px;line-height:1.5;">
+            🔁 <strong>Repete:</strong> ${_esc(_syncalRecurrenceSummary(e.recurrence))}
+          </div>
+        ` : ''}
         ${channelInfo ? `
           <div style="padding:11px 13px;background:linear-gradient(135deg,rgba(58,36,16,.06) 0%,rgba(107,72,37,.04) 100%);border:0.5px solid #6B4825;border-radius:8px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
             <span style="font-size:22px;flex-shrink:0;">🎴</span>
@@ -67705,16 +68885,71 @@ function _syncalOpenEventDetail(eventId) {
             </div>
           </div>
         ` : ''}
-        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;">
+        ${_syncalParticipantsSectionHTML(e)}
+        ${_syncalRsvpButtonsHTML(e)}
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px;">
           ${tatamiActionHTML}
           ${copyLinkHTML}
           ${announceStatusHTML}
           ${linkActionHTML}
           <button class="ppl-btn" onclick="document.getElementById('syncal-event-detail').remove();_syncalOpenEventModal(null, '${_esc(e.id)}');">✎ Editar</button>
+          ${e.isOwner !== false ? `<button class="ppl-btn" style="color:#A02828;border-color:rgba(160,40,40,.3);" onclick="_syncalDeleteEvent('${_esc(e.id)}')">🗑 Excluir</button>` : ''}
         </div>
       </div>
     </div>`;
   document.body.appendChild(modal);
+}
+
+// Render seção de participantes + status (visível se evento tem participantes)
+function _syncalParticipantsSectionHTML(e) {
+  const list = (_syncalState.participants || []).filter(p => p.event_id === e.id);
+  if (!list.length) return '';
+  const counts = { accepted: 0, declined: 0, maybe: 0, pending: 0 };
+  list.forEach(p => { counts[p.status] = (counts[p.status]||0) + 1; });
+  return `
+    <div style="padding:11px 13px;background:var(--color-background-secondary);border-radius:8px;margin-bottom:12px;">
+      <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+        <span>👥 Participantes (${list.length})</span>
+        <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--color-text-secondary);">
+          ${counts.accepted>0?`<span style="color:#3B6D11;">${counts.accepted}✓</span>`:''}
+          ${counts.declined>0?` <span style="color:#BC002D;">${counts.declined}✗</span>`:''}
+          ${counts.maybe>0?` <span style="color:#7A5500;">${counts.maybe}?</span>`:''}
+          ${counts.pending>0?` <span style="opacity:.6;">${counts.pending}⏳</span>`:''}
+        </span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        ${list.map(p => {
+          const emoji = { accepted:'✓', declined:'✗', maybe:'?', pending:'⏳' }[p.status] || '⏳';
+          const color = { accepted:'#3B6D11', declined:'#BC002D', maybe:'#7A5500', pending:'var(--color-text-tertiary)' }[p.status];
+          return `
+            <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;">
+              <span style="color:${color};font-weight:600;width:14px;">${emoji}</span>
+              <span style="flex:1;color:var(--color-text-primary);">${_esc(p.user_name||p.user_email||'?')}</span>
+              <span style="font-size:10.5px;color:var(--color-text-tertiary);text-transform:capitalize;">${p.status==='pending'?'aguardando':p.status==='accepted'?'vai':p.status==='declined'?'não vai':'talvez'}</span>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+// Botões RSVP — só se o user logado é participante (e não owner)
+function _syncalRsvpButtonsHTML(e) {
+  const cfg = _syncalApi._cfg();
+  if (!cfg) return '';
+  const myParticipation = (_syncalState.participants || []).find(p => p.event_id === e.id && p.user_id === cfg.uid);
+  if (!myParticipation) return '';
+  const current = myParticipation.status;
+  const btn = (status, emoji, label, color) => `
+    <button class="ppl-btn ${current===status?'ppl-btn-primary':''}" style="${current===status?`background:${color};color:#fff;border-color:${color};`:''}" onclick="_syncalRsvp('${_esc(e.id)}','${status}')">${emoji} ${label}</button>`;
+  return `
+    <div style="padding:11px 13px;background:linear-gradient(135deg,rgba(193,154,58,.08) 0%,rgba(255,209,122,.04) 100%);border:0.5px solid #C19A3A;border-radius:8px;margin-bottom:12px;">
+      <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#7A5500;font-weight:600;margin-bottom:8px;">Você está convidado(a)</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${btn('accepted', '✓', 'Vou', '#3B6D11')}
+        ${btn('declined', '✗', 'Não vou', '#BC002D')}
+        ${btn('maybe', '?', 'Talvez', '#7A5500')}
+      </div>
+    </div>`;
 }
 
 // Entra no canal Tatami (selecionado no evento). Fecha o popover, troca pra aba
@@ -67835,6 +69070,235 @@ function _syncalHandleDeepLink() {
 // Dispara o handler — uma vez por carregamento de página
 _syncalHandleDeepLink();
 
+// ════════════════════════════════════════════════════════════════════
+// Atalhos de teclado · só ativos quando Syncal estiver visível
+// ────────────────────────────────────────────────────────────────────
+// T = hoje · M = mês · W = semana · D = dia · A = agenda
+// N = novo evento · ← = anterior · → = próximo
+// Ignora se foco em input/textarea pra não atrapalhar digitação.
+// ════════════════════════════════════════════════════════════════════
+document.addEventListener('keydown', (e) => {
+  if (currentTab !== 'syncal') return;
+  // Não captura se modal aberto (input atual)
+  const inField = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
+  if (inField) return;
+  // Ignora se algum modal Syncal está aberto
+  if (document.getElementById('syncal-event-modal') || document.getElementById('syncal-event-detail') || document.getElementById('syncal-tag-mgr') || document.getElementById('syncal-ics-menu')) return;
+  // Não captura combinações com modifier
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  switch (k) {
+    case 't': _syncalNavToday(); break;
+    case 'm': _syncalSetView('mes'); break;
+    case 'w': _syncalSetView('semana'); break;
+    case 'd': _syncalSetView('dia'); break;
+    case 'a': _syncalSetView('agenda'); break;
+    case 'n': _syncalOpenEventModal(); break;
+    case 'arrowleft':  _syncalNavPrev(); break;
+    case 'arrowright': _syncalNavNext(); break;
+    default: return;
+  }
+  e.preventDefault();
+});
+
+// ════════════════════════════════════════════════════════════════════
+// Widget de Home · "próximos 5 eventos da semana"
+// ────────────────────────────────────────────────────────────────────
+// Função exposta pra o Home chamar e renderizar dentro de um container.
+// Auto-carrega dados se módulo Syncal nunca foi aberto.
+// ════════════════════════════════════════════════════════════════════
+
+// Injeta o container do widget no Home (idempotente). Posiciona logo após
+// o banner People se existir; senão no topo do home.
+async function _syncalInjectHomeWidget() {
+  const home = document.getElementById('home');
+  if (!home) return;
+  // Remove versão antiga
+  document.getElementById('syncal-home-widget')?.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'syncal-home-widget';
+  wrap.style.cssText = 'margin:0 0 20px;';
+  // Posiciona: depois do banner People se houver, senão no topo
+  const pplBanner = document.getElementById('ppl-home-banner');
+  if (pplBanner && pplBanner.nextSibling) {
+    home.insertBefore(wrap, pplBanner.nextSibling);
+  } else {
+    home.insertBefore(wrap, home.firstChild);
+  }
+  await renderSyncalHomeWidget('syncal-home-widget');
+}
+
+async function renderSyncalHomeWidget(containerId = 'syncal-home-widget') {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  // Triggera load se ainda não rodou
+  if (!_syncalState.loaded) {
+    await _syncalLoadEvents();
+  }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const sevenDaysLater = new Date(today.getTime() + 7*86400000);
+  const events = _syncalCollectEvents(today, sevenDaysLater)
+    .filter(e => {
+      const evDate = new Date(e.date + 'T00:00:00');
+      return evDate >= today && evDate <= sevenDaysLater;
+    })
+    .sort((a,b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (a.time||'00:00').localeCompare(b.time||'00:00');
+    })
+    .slice(0, 5);
+
+  if (!events.length) {
+    el.innerHTML = `
+      <div class="syncal-widget">
+        <div class="syncal-widget-head">
+          <div class="syncal-widget-title">📅 Syncal · próximos 7 dias</div>
+          <button class="syncal-widget-action" onclick="switchTab('syncal')">abrir →</button>
+        </div>
+        <div class="syncal-widget-empty">Nada agendado nos próximos 7 dias. ☘</div>
+      </div>`;
+    return;
+  }
+
+  const fmtDay = (s) => {
+    const d = new Date(s + 'T00:00:00');
+    const todayStr = today.toISOString().slice(0,10);
+    const tomorrowStr = new Date(today.getTime()+86400000).toISOString().slice(0,10);
+    if (s === todayStr) return 'HOJE';
+    if (s === tomorrowStr) return 'AMANHÃ';
+    return d.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short' }).toUpperCase().replace('.','');
+  };
+
+  el.innerHTML = `
+    <div class="syncal-widget">
+      <div class="syncal-widget-head">
+        <div class="syncal-widget-title">📅 Syncal <span style="font-family:'Noto Serif JP',serif;color:var(--color-text-tertiary);font-size:11px;margin-left:6px;">暦</span></div>
+        <button class="syncal-widget-action" onclick="switchTab('syncal')">abrir →</button>
+      </div>
+      <div class="syncal-widget-list">
+        ${events.map(e => `
+          <div class="syncal-widget-item" style="border-left:3px solid ${e.color};" onclick="switchTab('syncal');setTimeout(()=>_syncalOpenEvent('${_esc(e.rootId||e.id)}','${e.source}'),120);">
+            <div class="syncal-widget-day">${_esc(fmtDay(e.date))}</div>
+            <div class="syncal-widget-time">${e.time ? _esc(e.time.slice(0,5)) : '·'}</div>
+            <div class="syncal-widget-info">
+              <div class="syncal-widget-event-title">${e.icon||'·'} ${_esc(e.title)}</div>
+              <div class="syncal-widget-source">${_syncalSourceLabel(e.source)}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Workload Analytics · horas por pessoa na semana
+// ────────────────────────────────────────────────────────────────────
+// Modal que mostra carga de calls/reuniões por pessoa nos últimos 7 dias
+// e próximos 7 dias. Usa participants table pra contar quem tá invited
+// ou aceitou. Mostra horas estimadas baseado em duração (endTime - time)
+// ou padrão 1h se não tiver endTime.
+// ════════════════════════════════════════════════════════════════════
+function _syncalOpenWorkloadModal() {
+  let modal = document.getElementById('syncal-workload-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-workload-modal';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10006';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  // Calcula carga: cada participante (não-pending/declined) ganha as horas do evento
+  const today = new Date(); today.setHours(0,0,0,0);
+  const weekStart = new Date(today); weekStart.setDate(today.getDate() - 7);
+  const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7);
+
+  const stats = {};  // user_id → { name, pastHours, futureHours, count }
+  const addToUser = (uid, name, hours, isFuture) => {
+    if (!stats[uid]) stats[uid] = { name: name || 'Sem nome', pastHours: 0, futureHours: 0, count: 0 };
+    if (isFuture) stats[uid].futureHours += hours;
+    else stats[uid].pastHours += hours;
+    stats[uid].count++;
+  };
+
+  // Itera por eventos do Syncal nativos com horário (calls)
+  _syncalState.events.forEach(e => {
+    if (!e.time || e.type !== 'event') return;
+    const evDate = new Date(e.date + 'T00:00:00');
+    if (evDate < weekStart || evDate > weekEnd) return;
+    // Calcula duração em horas
+    let hours = 1;
+    if (e.endTime) {
+      const [h1, m1] = e.time.split(':').map(Number);
+      const [h2, m2] = e.endTime.split(':').map(Number);
+      hours = Math.max(0.25, ((h2*60+m2) - (h1*60+m1))/60);
+    }
+    const isFuture = evDate > today;
+    // Owner sempre conta
+    if (e.workspaceOwner) {
+      const cfg = _syncalApi._cfg();
+      addToUser(e.workspaceOwner, e.workspaceOwner === cfg?.uid ? 'Você' : 'Owner', hours, isFuture);
+    }
+    // Participantes (não-declined)
+    const parts = (_syncalState.participants || []).filter(p => p.event_id === e.id && p.status !== 'declined');
+    parts.forEach(p => addToUser(p.user_id, p.user_name, hours, isFuture));
+  });
+
+  const sorted = Object.entries(stats)
+    .map(([uid, s]) => ({ uid, ...s, total: s.pastHours + s.futureHours }))
+    .sort((a,b) => b.total - a.total);
+
+  const maxHours = Math.max(8, ...sorted.map(s => s.total));
+
+  modal.innerHTML = `
+    <div class="modal" style="max-width:620px;width:95%;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">⏱ Carga de reuniões · ±7 dias</h3>
+        <button onclick="document.getElementById('syncal-workload-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb">
+        <p style="font-size:12.5px;color:var(--color-text-secondary);line-height:1.55;margin:0 0 14px;">
+          Total de horas em reuniões agendadas por pessoa. Cores: <span style="color:#3B6D11;">verde</span> = última semana · <span style="color:#C19A3A;">dourado</span> = próxima semana.<br/>
+          <em style="font-size:11px;">Considera apenas eventos com horário (tipo: Evento) — exclui pessoas que recusaram.</em>
+        </p>
+        ${sorted.length === 0 ? `
+          <div style="padding:30px;text-align:center;color:var(--color-text-tertiary);font-style:italic;">
+            Sem reuniões agendadas nos próximos/passados 7 dias.
+          </div>
+        ` : `
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${sorted.map(s => {
+              const pastW  = (s.pastHours / maxHours * 100).toFixed(1);
+              const futW   = (s.futureHours / maxHours * 100).toFixed(1);
+              const overloaded = s.total > 15;
+              return `
+                <div style="padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;${overloaded?'border-left:3px solid #BC002D;':''}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                    <div style="font-size:13.5px;font-weight:500;color:var(--color-text-primary);">${_esc(s.name)}</div>
+                    <div style="font-size:12px;color:var(--color-text-secondary);font-variant-numeric:tabular-nums;">
+                      <strong style="color:${overloaded?'#BC002D':'var(--color-text-primary)'};">${s.total.toFixed(1)}h</strong>
+                      <span style="opacity:.6;font-size:10.5px;"> · ${s.count} eventos</span>
+                    </div>
+                  </div>
+                  <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:rgba(0,0,0,.04);">
+                    <div style="width:${pastW}%;background:#3B6D11;"></div>
+                    <div style="width:${futW}%;background:#C19A3A;"></div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--color-text-tertiary);margin-top:3px;">
+                    <span style="color:#3B6D11;">↩ ${s.pastHours.toFixed(1)}h</span>
+                    <span style="color:#C19A3A;">${s.futureHours.toFixed(1)}h ↪</span>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        `}
+        <div style="margin-top:14px;padding:10px 12px;background:rgba(193,154,58,.08);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11.5px;color:#7A5500;line-height:1.5;">
+          <strong>💡 Dica de sensei:</strong> 15h+ de calls/semana é zona vermelha. Considera proteger 2-3 blocos de "Foco" no Syncal pra deep work — o time inteiro produz mais.
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
 // Abre todos os eventos de um dia em modal
 function _syncalOpenDay(dateStr) {
   const events = _syncalCollectEvents(new Date(dateStr+'T00:00:00'), new Date(dateStr+'T23:59:59'));
@@ -67900,6 +69364,26 @@ async function _syncalOpenEventModal(prefDate, editingId) {
   const eventType = existing?.type || 'event';
   const linkedChannelId = existing?.linkedChannelId || '';
 
+  // Tags coloridas do workspace
+  const tags = _syncalState.tags || [];
+  const currentTagId = existing?.colorTagId || '';
+
+  // Recorrência (subset)
+  const rec = existing?.recurrence || null;
+  const currentRecFreq = rec?.freq || 'none';
+  const currentByday = new Set(rec?.byday || []);
+  const recInterval = rec?.interval || 1;
+  const recUntil = rec?.until || '';
+
+  // Pessoas convidáveis (gente do People Journey com user_id linkado)
+  const inviteCandidates = pessoas.filter(p => p.user_id);
+  // Já convidadas neste evento
+  const alreadyInvited = new Set(
+    editingId
+      ? (_syncalState.participants || []).filter(p => p.event_id === editingId).map(p => p.user_id)
+      : []
+  );
+
   modal.innerHTML = `
     <div class="modal" style="max-width:560px;width:95%;max-height:92vh;display:flex;flex-direction:column;">
       <div class="mh" style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
@@ -67908,6 +69392,24 @@ async function _syncalOpenEventModal(prefDate, editingId) {
       </div>
       <div class="mb" style="overflow-y:auto;flex:1;">
         <form id="syncal-event-form" class="ppl-modal-form" onsubmit="event.preventDefault();_syncalSubmitEvent('${editingId||''}');">
+
+          ${!existing ? `
+          <!-- ───── TEMPLATES rápidos pra eventos comuns (só na criação) ───── -->
+          <div class="ppl-modal-row" style="margin-bottom:6px;">
+            <label class="ppl-modal-label" style="display:flex;align-items:center;justify-content:space-between;">
+              <span>Começar de um template</span>
+              <span style="font-size:10px;color:var(--color-text-tertiary);font-weight:400;text-transform:none;letter-spacing:0;">opcional</span>
+            </label>
+            <div class="syncal-tmpl-grid">
+              ${_syncalGetEventTemplates().map(t => `
+                <button type="button" class="syncal-tmpl-chip" onclick="_syncalApplyTemplate('${_esc(t.id)}')" title="${_esc(t.description||'')}">
+                  <span class="syncal-tmpl-emoji">${t.icon}</span>
+                  <span class="syncal-tmpl-name">${_esc(t.label)}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
 
           <!-- ───── TIPO DE ENTRADA — define se é evento simples, ausência, férias, feriado ───── -->
           <div class="ppl-modal-row">
@@ -67966,6 +69468,45 @@ async function _syncalOpenEventModal(prefDate, editingId) {
             <textarea class="ppl-modal-input" name="description" rows="2" style="resize:vertical;" placeholder="Detalhes, agenda da reunião, contexto…">${_esc(existing?.description||'')}</textarea>
           </div>
 
+          <!-- ───── Recorrência ───── -->
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">🔁 Repetir</label>
+            <select class="ppl-modal-select" name="recurrence_freq" id="syncal-rec-freq" onchange="_syncalToggleRecurrence(this.value)">
+              <option value="none" ${currentRecFreq==='none'?'selected':''}>Não repete</option>
+              <option value="daily" ${currentRecFreq==='daily'?'selected':''}>Todo dia</option>
+              <option value="weekly" ${currentRecFreq==='weekly'?'selected':''}>Toda semana</option>
+              <option value="monthly" ${currentRecFreq==='monthly'?'selected':''}>Todo mês</option>
+              <option value="yearly" ${currentRecFreq==='yearly'?'selected':''}>Todo ano</option>
+            </select>
+          </div>
+          <div class="ppl-modal-row" id="syncal-rec-details" style="${currentRecFreq==='none'?'display:none;':''}">
+            <div class="ppl-modal-row cols" style="margin:0;">
+              <div class="ppl-modal-row" style="margin:0;">
+                <label class="ppl-modal-label">Intervalo</label>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <span style="font-size:12px;color:var(--color-text-secondary);">a cada</span>
+                  <input class="ppl-modal-input" name="recurrence_interval" type="number" min="1" max="99" value="${recInterval}" style="width:60px;text-align:center;"/>
+                  <span style="font-size:12px;color:var(--color-text-secondary);" id="syncal-rec-unit">${currentRecFreq==='daily'?'dia(s)':currentRecFreq==='weekly'?'semana(s)':currentRecFreq==='monthly'?'mês(es)':'ano(s)'}</span>
+                </div>
+              </div>
+              <div class="ppl-modal-row" style="margin:0;">
+                <label class="ppl-modal-label">Até (opcional)</label>
+                <input class="ppl-modal-input" name="recurrence_until" type="date" value="${_esc(recUntil)}"/>
+              </div>
+            </div>
+            <div class="ppl-modal-row" id="syncal-byday-row" style="margin-top:8px;margin-bottom:0;${currentRecFreq==='weekly'?'':'display:none;'}">
+              <label class="ppl-modal-label">Dias da semana</label>
+              <div class="syncal-byday-grid">
+                ${[['MO','seg'],['TU','ter'],['WE','qua'],['TH','qui'],['FR','sex'],['SA','sáb'],['SU','dom']].map(([k,label]) => `
+                  <label class="syncal-byday-chip ${currentByday.has(k)?'active':''}">
+                    <input type="checkbox" name="recurrence_byday" value="${k}" ${currentByday.has(k)?'checked':''} onchange="this.closest('.syncal-byday-chip').classList.toggle('active',this.checked);"/>
+                    <span>${label}</span>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
           <!-- ───── Visual (ícone + cor) ───── -->
           <div class="ppl-modal-row cols">
             <div class="ppl-modal-row" style="margin:0;">
@@ -67987,6 +69528,47 @@ async function _syncalOpenEventModal(prefDate, editingId) {
                 <option value="#5C6E9C" ${existing?.color==='#5C6E9C'?'selected':''}>🔵 Índigo</option>
               </select>
             </div>
+          </div>
+
+          <!-- ───── Tag de cor (team/projeto) — pra agrupar visualmente ───── -->
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label" style="display:flex;align-items:center;justify-content:space-between;">
+              <span>🏷 Tag (team/projeto)</span>
+              <button type="button" onclick="_syncalOpenTagManager()" style="background:transparent;border:none;font-size:11px;color:#6B4825;cursor:pointer;text-decoration:underline;">gerenciar tags</button>
+            </label>
+            <select class="ppl-modal-select" name="color_tag_id" id="syncal-tag-select">
+              <option value="">— sem tag —</option>
+              ${tags.map(t => `<option value="${_esc(t.id)}" style="background:${t.color}22;" ${currentTagId===t.id?'selected':''}>${t.emoji||'•'} ${_esc(t.name)}</option>`).join('')}
+            </select>
+            ${tags.length === 0 ? `<div style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:4px;font-style:italic;">Nenhuma tag ainda — <a href="#" onclick="event.preventDefault();_syncalOpenTagManager()" style="color:#6B4825;">cria uma</a> pra agrupar eventos por team/projeto.</div>` : ''}
+          </div>
+
+          <!-- ───── Participantes (convites + RSVP) — só pra type=event ───── -->
+          <div class="ppl-modal-row" id="syncal-participants-row" style="${eventType==='event'?'':'display:none;'}">
+            <label class="ppl-modal-label">👥 Convidar pessoas</label>
+            ${inviteCandidates.length === 0
+              ? `<div style="padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;font-size:11.5px;color:var(--color-text-tertiary);line-height:1.5;font-style:italic;">Ninguém com conta Synkan vinculada ainda. Vai em <strong>People Journey</strong> e adicione pessoas com email — quando vincularem a conta, aparecerão aqui.</div>`
+              : `<div class="syncal-participants-grid">
+                  ${inviteCandidates.map(p => {
+                    const isInvited = alreadyInvited.has(p.user_id);
+                    const initials = (p.name||'?').split(' ').slice(0,2).map(s=>s[0]).join('').toUpperCase();
+                    return `
+                      <label class="syncal-participant-chip ${isInvited?'active':''}">
+                        <input type="checkbox" name="participant_ids" value="${_esc(p.user_id)}" ${isInvited?'checked':''} onchange="this.closest('.syncal-participant-chip').classList.toggle('active',this.checked);"/>
+                        <span class="syncal-participant-avatar">${p.photo_url ? `<img src="${_esc(p.photo_url)}" alt=""/>` : _esc(initials)}</span>
+                        <span class="syncal-participant-name">${_esc(p.name)}</span>
+                      </label>`;
+                  }).join('')}
+                </div>`
+            }
+            ${editingId && _syncalState.participants?.some(p => p.event_id === editingId) ? `
+              <div style="margin-top:10px;font-size:11px;color:var(--color-text-tertiary);">RSVPs registrados:
+                ${(_syncalState.participants.filter(p => p.event_id === editingId)).map(p => {
+                  const emoji = { accepted:'✓', declined:'✗', maybe:'?', pending:'⏳' }[p.status] || '⏳';
+                  return `<span style="display:inline-block;margin:2px 5px 2px 0;padding:1px 7px;background:var(--color-background-secondary);border-radius:4px;font-size:10.5px;">${emoji} ${_esc(p.user_name||p.user_email||'?')}</span>`;
+                }).join('')}
+              </div>
+            ` : ''}
           </div>
 
           <!-- ───── Canal vinculado · disponível pra TODOS os tipos ─────
@@ -68128,7 +69710,7 @@ function _syncalUpdateLinkTarget(type) {
     : `<option value="">— nada disponível —</option>`;
 }
 
-function _syncalSubmitEvent(editingId) {
+async function _syncalSubmitEvent(editingId) {
   const form = document.getElementById('syncal-event-form');
   if (!form) return;
   const fd = new FormData(form);
@@ -68177,12 +69759,50 @@ function _syncalSubmitEvent(editingId) {
       ev._announcedAt = existing._announcedAt;
       ev._tatamiLink = existing._tatamiLink;
     }
-    const idx = _syncalState.events.findIndex(e => e.id === editingId);
-    if (idx >= 0) _syncalState.events[idx] = { ..._syncalState.events[idx], ...ev };
-  } else {
-    _syncalState.events.push(ev);
   }
-  _syncalSaveEvents();
+
+  // Captura recorrência do form (se preencheu)
+  const recFreq = fd.get('recurrence_freq');
+  if (recFreq && recFreq !== 'none') {
+    const byday = (fd.getAll('recurrence_byday') || []).filter(Boolean);
+    ev.recurrence = {
+      freq: recFreq,
+      interval: Math.max(1, parseInt(fd.get('recurrence_interval')||'1', 10)),
+      byday: byday.length ? byday : null,
+      until: fd.get('recurrence_until') || null,
+      count: null,
+      exdates: (editingId && _syncalState.events.find(e => e.id === editingId)?.recurrence?.exdates) || [],
+    };
+  } else {
+    ev.recurrence = null;
+  }
+
+  // Captura tag de cor (team/projeto)
+  const tagId = fd.get('color_tag_id');
+  ev.colorTagId = tagId || null;
+
+  // Persiste no Supabase + atualiza state local
+  const saveRes = await _syncalUpsertEvent(ev);
+  if (!saveRes.ok) {
+    if (typeof appAlert === 'function') appAlert('Erro ao salvar', saveRes.error || 'Falha desconhecida', { icon: '⚠️' });
+    return;
+  }
+  // Pega o ID real (UUID do server)
+  if (saveRes.id) ev.id = saveRes.id;
+
+  // Captura participantes adicionados no form (RSVP fica pendente até resposta)
+  const participantIds = (fd.getAll('participant_ids') || []).filter(Boolean);
+  if (participantIds.length && ev.id) {
+    for (const uid of participantIds) {
+      try {
+        await _syncalApi.post('syncal_event_participants', {
+          event_id: ev.id, user_id: uid, status: 'pending',
+        });
+      } catch(_){}
+    }
+    // Recarrega participants pra trazer os recém-adicionados com nome
+    _syncalLoadEvents();
+  }
 
   // Aviso no canal — só dispara na CRIAÇÃO (não em edição) e se o user marcou
   const shouldAnnounce = !editingId && ev.linkedChannelId && fd.get('announce') === 'on';
@@ -68205,11 +69825,21 @@ function _syncalSubmitEvent(editingId) {
   renderSyncal();
 }
 
-function _syncalDeleteEvent(eventId) {
-  if (!confirm('Excluir esse evento? Não dá pra desfazer.')) return;
-  _syncalState.events = _syncalState.events.filter(e => e.id !== eventId);
-  _syncalSaveEvents();
+async function _syncalDeleteEvent(eventId) {
+  let confirmed = false;
+  if (typeof appConfirm === 'function') {
+    confirmed = await appConfirm('Excluir evento', 'Vai remover esse evento permanentemente — participantes perdem o convite. Não dá pra desfazer.', { okLabel: 'Excluir', cancelLabel: 'Cancelar', icon: '🗑', destructive: true });
+  } else {
+    confirmed = confirm('Excluir esse evento? Não dá pra desfazer.');
+  }
+  if (!confirmed) return;
+  const res = await _syncalDeleteEventFromDb(eventId);
+  if (!res.ok) {
+    if (typeof appAlert === 'function') appAlert('Erro ao excluir', res.error || 'Falha desconhecida', { icon: '⚠️' });
+    return;
+  }
   document.getElementById('syncal-event-modal')?.remove();
+  document.getElementById('syncal-event-detail')?.remove();
   renderSyncal();
 }
 
