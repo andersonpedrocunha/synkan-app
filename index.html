@@ -3911,6 +3911,8 @@ body.density-compact .col{padding:7px;}
 .syncal-day-num{display:inline-block;font-size:11.5px;font-weight:500;color:var(--color-text-primary);width:20px;height:20px;line-height:20px;text-align:center;border-radius:50%;font-variant-numeric:tabular-nums;}
 .syncal-event{font-size:10.5px;padding:2px 6px;border-radius:4px;margin-top:3px;display:flex;align-items:center;gap:4px;color:var(--color-text-primary);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer;transition:transform .08s;}
 .syncal-event:hover{transform:translateX(1px);}
+.syncal-event-range{border-left:none !important;font-weight:500;letter-spacing:.01em;text-shadow:0 1px 0 rgba(0,0,0,.08);}
+.syncal-event-range:hover{transform:none;filter:brightness(1.05);}
 .syncal-event-time{font-weight:600;font-variant-numeric:tabular-nums;color:var(--color-text-secondary);font-size:10px;}
 .syncal-event-title{overflow:hidden;text-overflow:ellipsis;}
 .syncal-more{font-size:10px;color:var(--color-text-tertiary);font-style:italic;margin-top:2px;cursor:pointer;}
@@ -3944,6 +3946,16 @@ body.density-compact .col{padding:7px;}
 .syncal-agenda-source{font-size:11px;color:var(--color-text-tertiary);margin-top:2px;}
 
 .syncal-empty{padding:60px 24px;text-align:center;}
+
+.syncal-type-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.syncal-type-opt{padding:10px 6px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);border-radius:8px;cursor:pointer;text-align:center;transition:all .12s;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.syncal-type-opt:hover{border-color:var(--color-text-secondary);background:var(--color-background-secondary);}
+.syncal-type-opt.active{background:linear-gradient(135deg,#3A2410,#6B4825);border-color:#3A2410;color:#F5E8C8;box-shadow:0 2px 6px rgba(58,36,16,.20);}
+.syncal-type-opt.active .syncal-type-hint{color:rgba(245,232,200,.7);}
+.syncal-type-emoji{font-size:20px;line-height:1;margin-bottom:2px;}
+.syncal-type-label{font-size:12px;font-weight:600;color:inherit;}
+.syncal-type-hint{font-size:9.5px;color:var(--color-text-tertiary);line-height:1.3;margin-top:1px;}
+@media (max-width:520px){.syncal-type-grid{grid-template-columns:repeat(2,1fr);}}
 
 /* ── OKRs ── */
 .okrs-wrap{padding:8px 0 24px;display:flex;flex-direction:column;gap:18px;max-width:920px;}
@@ -67021,17 +67033,51 @@ function _syncalCollectEvents(fromDate, toDate) {
   const out = [];
   const f = _syncalState.filters;
 
-  // 1) Eventos Syncal nativos
+  // 1) Eventos Syncal nativos — agora suportam intervalos (endDate) e tipos
+  //    especiais (absence/vacation/holiday). Quando tem endDate, expande em
+  //    múltiplas entradas (uma por dia) marcadas com _span ('start','middle','end').
   if (f.native) {
     _syncalState.events.forEach(e => {
       if (!e.date) return;
-      out.push({
-        id: e.id, source: 'native', title: e.title || 'Sem título',
-        date: e.date, time: e.time || null,
-        color: e.color || '#3B6D11', icon: e.icon || '📌',
-        link: { type: 'syncal', id: e.id },
-        meta: e,
-      });
+      const isRange = e.endDate && e.endDate > e.date;
+      if (!isRange) {
+        out.push({
+          id: e.id, source: 'native', title: e.title || 'Sem título',
+          date: e.date, time: e.time || null,
+          color: e.color || '#3B6D11', icon: e.icon || '📌',
+          type: e.type || 'event',
+          link: e.link || { type: 'syncal', id: e.id },
+          meta: e,
+          _span: 'single',
+        });
+        return;
+      }
+      // Multi-day: gera uma entrada por dia entre date e endDate (inclusivo)
+      const start = new Date(e.date + 'T00:00:00');
+      const end   = new Date(e.endDate + 'T00:00:00');
+      const dayMs = 86400000;
+      const totalDays = Math.round((end - start) / dayMs) + 1;
+      let idx = 0;
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1), idx++) {
+        const dStr = d.toISOString().slice(0,10);
+        const span = idx === 0 ? 'start' : (idx === totalDays-1 ? 'end' : 'middle');
+        out.push({
+          id: e.id + '_' + idx,
+          rootId: e.id,
+          source: 'native',
+          title: e.title || 'Sem título',
+          date: dStr,
+          time: null,
+          color: e.color || '#3B6D11',
+          icon: e.icon || (e.type === 'vacation' ? '🌴' : e.type === 'absence' ? '✈' : '📌'),
+          type: e.type || 'event',
+          link: e.link || { type: 'syncal', id: e.id },
+          meta: e,
+          _span: span,
+          _spansCount: totalDays,
+          _spanDayIdx: idx,
+        });
+      }
     });
   }
 
@@ -67219,12 +67265,7 @@ function _syncalRenderMonth(el) {
     const cellCls = `syncal-cell${isOther?' is-other':''}${isToday?' is-today':''}${isWeekend?' is-weekend':''}`;
     html += `<div class="${cellCls}" onclick="_syncalOpenDay('${dStr}')">
       <div class="syncal-day-num">${d.getDate()}</div>
-      ${visibleEvents.map(e => `
-        <div class="syncal-event" style="background:${e.color}22;border-left:3px solid ${e.color};" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.id)}', '${e.source}')" title="${_esc(e.title)}">
-          ${e.time ? `<span class="syncal-event-time">${_esc(e.time.slice(0,5))}</span>` : ''}
-          <span class="syncal-event-title">${e.icon||''} ${_esc(e.title)}</span>
-        </div>
-      `).join('')}
+      ${visibleEvents.map(e => _syncalRenderEventChip(e)).join('')}
       ${hidden > 0 ? `<div class="syncal-more" onclick="event.stopPropagation();_syncalOpenDay('${dStr}')">+${hidden} mais</div>` : ''}
     </div>`;
   }
@@ -67271,11 +67312,21 @@ function _syncalRenderWeek(el) {
       <div class="syncal-week-body" onclick="_syncalOpenEventModal('${dStr}')">
         ${dayEvents.length === 0
           ? `<div class="syncal-week-empty">+ adicionar</div>`
-          : dayEvents.map(e => `
-            <div class="syncal-week-event" style="background:${e.color}22;border-left:3px solid ${e.color};" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.id)}', '${e.source}')">
-              ${e.time ? `<div class="syncal-week-event-time">${_esc(e.time.slice(0,5))}</div>` : ''}
-              <div class="syncal-week-event-title">${e.icon||''} ${_esc(e.title)}</div>
-            </div>`).join('')
+          : dayEvents.map(e => {
+              const isRange = e._span && e._span !== 'single';
+              if (isRange) {
+                const showTitle = e._span === 'start' || (idx === 0);
+                return `
+                  <div class="syncal-week-event syncal-event-range" style="background:${e.color}AA;color:#fff;border-left:none;" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.rootId||e.id)}', '${e.source}')">
+                    <div class="syncal-week-event-title">${e.icon||''} ${_esc(e.title)} ${showTitle?`<span style="opacity:.75;font-size:9.5px;">· dia ${e._spanDayIdx+1}/${e._spansCount}</span>`:''}</div>
+                  </div>`;
+              }
+              return `
+                <div class="syncal-week-event" style="background:${e.color}22;border-left:3px solid ${e.color};" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.id)}', '${e.source}')">
+                  ${e.time ? `<div class="syncal-week-event-time">${_esc(e.time.slice(0,5))}</div>` : ''}
+                  <div class="syncal-week-event-title">${e.icon||''} ${_esc(e.title)}</div>
+                </div>`;
+            }).join('')
         }
       </div>
     </div>`;
@@ -67318,15 +67369,20 @@ function _syncalRenderAgenda(el) {
     html += `<div class="syncal-agenda-group">
       <div class="syncal-agenda-date ${isToday?'is-today':''}">${_esc(dayLabel.toUpperCase())}</div>
       <div class="syncal-agenda-items">
-        ${items.map(e => `
-          <div class="syncal-agenda-item" style="border-left:4px solid ${e.color};" onclick="_syncalOpenEvent('${_esc(e.id)}', '${e.source}')">
-            <div class="syncal-agenda-time">${e.time ? _esc(e.time.slice(0,5)) : '—'}</div>
-            <div class="syncal-agenda-icon">${e.icon||'·'}</div>
-            <div class="syncal-agenda-body">
-              <div class="syncal-agenda-title">${_esc(e.title)}</div>
-              <div class="syncal-agenda-source">${_syncalSourceLabel(e.source)}</div>
-            </div>
-          </div>`).join('')}
+        ${items.map(e => {
+          const isRange = e._span && e._span !== 'single';
+          const clickId = e.rootId || e.id;
+          const spanLabel = isRange ? ` <span style="opacity:.7;font-size:11px;">· dia ${e._spanDayIdx+1}/${e._spansCount}</span>` : '';
+          return `
+            <div class="syncal-agenda-item" style="border-left:4px solid ${e.color};" onclick="_syncalOpenEvent('${_esc(clickId)}', '${e.source}')">
+              <div class="syncal-agenda-time">${e.time ? _esc(e.time.slice(0,5)) : (isRange?'—':'·')}</div>
+              <div class="syncal-agenda-icon">${e.icon||'·'}</div>
+              <div class="syncal-agenda-body">
+                <div class="syncal-agenda-title">${_esc(e.title)}${spanLabel}</div>
+                <div class="syncal-agenda-source">${_syncalSourceLabel(e.source)}</div>
+              </div>
+            </div>`;
+        }).join('')}
       </div>
     </div>`;
   });
@@ -67336,6 +67392,47 @@ function _syncalRenderAgenda(el) {
 
 function _syncalSourceLabel(src) {
   return { boards: '📋 Board', people: '🌙 People Journey', okrs: '🎯 OKRs', native: '📌 Syncal' }[src] || src;
+}
+
+// Renderiza um chip de evento. Trata multi-day: borda diferente em start/middle/end
+// pra simular barra contínua através das células.
+function _syncalRenderEventChip(e) {
+  const isRange = e._span && e._span !== 'single';
+  const isAbsence = e.type === 'absence' || e.type === 'vacation' || e.type === 'holiday';
+  // Pra eventos multi-day: visual de barra contínua. Cor sólida (não 22%).
+  if (isRange) {
+    const startCorner = e._span === 'start' ? '8px' : '2px';
+    const endCorner   = e._span === 'end'   ? '8px' : '2px';
+    const showTitle   = e._span === 'start';
+    const bg = isAbsence ? e.color + 'AA' : e.color + '88';
+    return `
+      <div class="syncal-event syncal-event-range" style="background:${bg};color:#fff;border-radius:${startCorner} ${endCorner} ${endCorner} ${startCorner};margin-left:${e._span==='start'?'0':'-7px'};margin-right:${e._span==='end'?'0':'-7px'};padding-left:${e._span==='start'?'8px':'7px'};padding-right:${e._span==='end'?'8px':'7px'};" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.rootId||e.id)}', '${e.source}')" title="${_esc(e.title)} (${e._spansCount} dias)">
+        ${showTitle ? `<span class="syncal-event-title">${e.icon||''} ${_esc(e.title)} <span style="opacity:.7;font-weight:400;">· ${e._spansCount}d</span></span>` : '<span class="syncal-event-title" style="opacity:.55;">·</span>'}
+      </div>`;
+  }
+  return `
+    <div class="syncal-event" style="background:${e.color}22;border-left:3px solid ${e.color};" onclick="event.stopPropagation();_syncalOpenEvent('${_esc(e.id)}', '${e.source}')" title="${_esc(e.title)}">
+      ${e.time ? `<span class="syncal-event-time">${_esc(e.time.slice(0,5))}</span>` : ''}
+      <span class="syncal-event-title">${e.icon||''} ${_esc(e.title)}</span>
+    </div>`;
+}
+
+// Tenta obter lista de canais do chat sem forçar carga pesada
+function _syncalGetChatChannels() {
+  try {
+    if (typeof _chatState !== 'undefined' && Array.isArray(_chatState?.channels) && _chatState.channels.length) {
+      return _chatState.channels;
+    }
+  } catch(_){}
+  return [];
+}
+
+// Carrega canais em background se não tiver ainda (pra dropdown do modal)
+async function _syncalEnsureChatChannels() {
+  if (_syncalGetChatChannels().length) return;
+  if (typeof _chatLoadChannels === 'function') {
+    try { await _chatLoadChannels(); } catch(_){}
+  }
 }
 
 function _syncalSetView(v) { _syncalState.view = v; renderSyncal(); }
@@ -67383,8 +67480,102 @@ function _syncalOpenEvent(id, source) {
     if (typeof switchTab === 'function') switchTab('okrs');
     setTimeout(() => { if (typeof openOKREditor === 'function') openOKREditor(okrId); }, 100);
   } else if (source === 'native') {
-    _syncalOpenEventModal(null, id);
+    // Pra eventos nativos: abre detail popover com ações (editar, tatami, vínculos)
+    _syncalOpenEventDetail(id);
   }
+}
+
+// Popover de detalhe pro evento nativo com ações disponíveis
+function _syncalOpenEventDetail(eventId) {
+  const e = _syncalState.events.find(x => x.id === eventId);
+  if (!e) return;
+  let modal = document.getElementById('syncal-event-detail');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'syncal-event-detail';
+  modal.className = 'ov open';
+  modal.style.zIndex = '10006';
+  modal.onclick = (ev) => { if (ev.target === modal) modal.remove(); };
+
+  // Resolve canal vinculado pra mostrar nome
+  let channelInfo = null;
+  if (e.linkedChannelId) {
+    const channels = _syncalGetChatChannels();
+    channelInfo = channels.find(c => c.id === e.linkedChannelId) || null;
+  }
+
+  // Formata data + hora
+  const dateLabel = new Date(e.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const endLabel = e.endDate ? new Date(e.endDate + 'T00:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) : null;
+  const totalDays = e.endDate ? Math.round((new Date(e.endDate) - new Date(e.date))/86400000) + 1 : 1;
+
+  // Linha de ação extra conforme vínculo
+  let linkActionHTML = '';
+  if (e.link?.type === 'people' && e.link.id) {
+    linkActionHTML = `<button class="ppl-btn" onclick="document.getElementById('syncal-event-detail').remove();switchTab('people');setTimeout(()=>_peopleOpenPersonDrawer('${_esc(e.link.id)}'),100);">🌙 Ver pessoa</button>`;
+  } else if (e.link?.type === 'okr' && e.link.id) {
+    linkActionHTML = `<button class="ppl-btn" onclick="document.getElementById('syncal-event-detail').remove();switchTab('okrs');setTimeout(()=>openOKREditor('${_esc(e.link.id)}'),100);">🎯 Ver OKR</button>`;
+  } else if (e.link?.type === 'board' && e.link.id) {
+    linkActionHTML = `<button class="ppl-btn" onclick="document.getElementById('syncal-event-detail').remove();if(typeof switchBoard==='function'){switchBoard('${_esc(e.link.id)}');switchTab('kanban');}">📋 Abrir board</button>`;
+  }
+
+  const tatamiActionHTML = (e.linkedChannelId && channelInfo)
+    ? `<button class="ppl-btn ppl-btn-primary" style="background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;border-color:#3A2410;" onclick="_syncalEnterTatami('${_esc(e.linkedChannelId)}')">🎴 Entrar no Tatami · #${_esc(channelInfo.name||'canal')}</button>`
+    : (e.linkedChannelId
+        ? `<button class="ppl-btn" disabled style="opacity:.5;cursor:not-allowed;" title="Canal não encontrado (foi deletado?)">🎴 Canal indisponível</button>`
+        : '');
+
+  const typeBadge = {
+    event:    '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#E7EEF7;color:#1A4778;letter-spacing:.04em;">📅 EVENTO</span>',
+    absence:  '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#E2DAF0;color:#3F2A6B;letter-spacing:.04em;">✈ AUSÊNCIA</span>',
+    vacation: '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#F5E8E0;color:#7A3510;letter-spacing:.04em;">🌴 FÉRIAS</span>',
+    holiday:  '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FBEAEB;color:#9F0026;letter-spacing:.04em;">🎌 FERIADO</span>',
+  }[e.type || 'event'];
+
+  modal.innerHTML = `
+    <div class="modal" style="max-width:480px;width:95%;">
+      <div class="mh" style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:0.5px solid var(--color-border-tertiary);">
+        <div style="flex:1;min-width:0;">
+          <div style="margin-bottom:6px;">${typeBadge}</div>
+          <h3 style="margin:0;font-size:18px;line-height:1.3;">${e.icon||''} ${_esc(e.title||'(sem título)')}</h3>
+          <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px;text-transform:capitalize;line-height:1.4;">
+            ${_esc(dateLabel)}${e.time ? ` · <strong>${_esc(e.time.slice(0,5))}</strong>` : ''}
+            ${endLabel ? `<br/>até ${_esc(endLabel)} <span style="opacity:.7;">· ${totalDays} dias</span>` : ''}
+          </div>
+        </div>
+        <button onclick="document.getElementById('syncal-event-detail').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);flex-shrink:0;">×</button>
+      </div>
+      <div class="mb">
+        ${e.description ? `<div style="padding:11px 13px;background:var(--color-background-secondary);border-radius:8px;font-size:13px;color:var(--color-text-primary);line-height:1.55;margin-bottom:12px;white-space:pre-wrap;">${_esc(e.description)}</div>` : ''}
+        ${channelInfo ? `
+          <div style="padding:11px 13px;background:linear-gradient(135deg,rgba(58,36,16,.06) 0%,rgba(107,72,37,.04) 100%);border:0.5px solid #6B4825;border-radius:8px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:22px;flex-shrink:0;">🎴</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#6B4825;font-weight:600;">Canal vinculado</div>
+              <div style="font-size:13px;font-weight:500;color:#3A2410;margin-top:1px;">#${_esc(channelInfo.name||'canal')}</div>
+            </div>
+          </div>
+        ` : ''}
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;">
+          ${tatamiActionHTML}
+          ${linkActionHTML}
+          <button class="ppl-btn" onclick="document.getElementById('syncal-event-detail').remove();_syncalOpenEventModal(null, '${_esc(e.id)}');">✎ Editar</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+// Entra no canal Tatami (selecionado no evento). Fecha o popover, troca pra aba
+// Chat e seleciona o canal — usuário pode clicar "subir no tatame" lá.
+function _syncalEnterTatami(channelId) {
+  document.getElementById('syncal-event-detail')?.remove();
+  if (typeof switchTab === 'function') switchTab('chat');
+  setTimeout(() => {
+    if (typeof _chatSelectChannel === 'function') {
+      _chatSelectChannel(channelId);
+    }
+  }, 150);
 }
 
 // Abre todos os eventos de um dia em modal
@@ -67408,15 +67599,20 @@ function _syncalOpenDay(dateStr) {
       <div class="mb">
         ${events.length === 0
           ? `<div style="text-align:center;padding:32px;color:var(--color-text-tertiary);font-style:italic;">Sem eventos neste dia.</div>`
-          : events.map(e => `
-            <div class="syncal-agenda-item" style="border-left:4px solid ${e.color};margin-bottom:6px;cursor:pointer;" onclick="document.getElementById('syncal-day-modal').remove();_syncalOpenEvent('${_esc(e.id)}', '${e.source}')">
-              <div class="syncal-agenda-time">${e.time ? _esc(e.time.slice(0,5)) : '—'}</div>
-              <div class="syncal-agenda-icon">${e.icon||'·'}</div>
-              <div class="syncal-agenda-body">
-                <div class="syncal-agenda-title">${_esc(e.title)}</div>
-                <div class="syncal-agenda-source">${_syncalSourceLabel(e.source)}</div>
-              </div>
-            </div>`).join('')}
+          : events.map(e => {
+              const isRange = e._span && e._span !== 'single';
+              const clickId = e.rootId || e.id;
+              const spanLabel = isRange ? ` <span style="opacity:.7;font-size:11px;">· dia ${e._spanDayIdx+1}/${e._spansCount}</span>` : '';
+              return `
+                <div class="syncal-agenda-item" style="border-left:4px solid ${e.color};margin-bottom:6px;cursor:pointer;" onclick="document.getElementById('syncal-day-modal').remove();_syncalOpenEvent('${_esc(clickId)}', '${e.source}')">
+                  <div class="syncal-agenda-time">${e.time ? _esc(e.time.slice(0,5)) : (isRange?'—':'·')}</div>
+                  <div class="syncal-agenda-icon">${e.icon||'·'}</div>
+                  <div class="syncal-agenda-body">
+                    <div class="syncal-agenda-title">${_esc(e.title)}${spanLabel}</div>
+                    <div class="syncal-agenda-source">${_syncalSourceLabel(e.source)}</div>
+                  </div>
+                </div>`;
+            }).join('')}
         <button class="syncal-btn-primary" style="margin-top:10px;width:100%;justify-content:center;" onclick="document.getElementById('syncal-day-modal').remove();_syncalOpenEventModal('${dateStr}')">＋ Adicionar evento neste dia</button>
       </div>
     </div>`;
@@ -67424,7 +67620,7 @@ function _syncalOpenDay(dateStr) {
 }
 
 // Modal de criação/edição de evento Syncal nativo
-function _syncalOpenEventModal(prefDate, editingId) {
+async function _syncalOpenEventModal(prefDate, editingId) {
   const existing = editingId ? _syncalState.events.find(e => e.id === editingId) : null;
   let modal = document.getElementById('syncal-event-modal');
   if (modal) modal.remove();
@@ -67434,42 +67630,91 @@ function _syncalOpenEventModal(prefDate, editingId) {
   modal.style.zIndex = '10006';
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
   const today = (prefDate || existing?.date || new Date().toISOString().slice(0,10));
+  const defaultEndDate = existing?.endDate || today;
 
   // Lookup de pessoas, boards, okrs pra link opcional
   const pessoas = (typeof _peopleState !== 'undefined' && _peopleState.dashboard?.pessoas_ativas) ? _peopleState.dashboard.pessoas_ativas : [];
   const okrsList = (typeof _okrs !== 'undefined' && Array.isArray(_okrs)) ? _okrs : [];
 
+  // Tenta carregar canais do chat em background (não bloqueia o render do modal)
+  _syncalEnsureChatChannels();
+  const channels = _syncalGetChatChannels();
+
+  const eventType = existing?.type || 'event';
+  const linkedChannelId = existing?.linkedChannelId || '';
+
   modal.innerHTML = `
-    <div class="modal" style="max-width:520px;width:95%;">
-      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
-        <h3 style="margin:0;font-size:17px;">${existing?'✎ Editar evento':'＋ Novo evento Syncal'}</h3>
+    <div class="modal" style="max-width:560px;width:95%;max-height:92vh;display:flex;flex-direction:column;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <h3 style="margin:0;font-size:17px;">${existing?'✎ Editar entrada':'＋ Nova entrada no Syncal'}</h3>
         <button onclick="document.getElementById('syncal-event-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
       </div>
-      <div class="mb">
+      <div class="mb" style="overflow-y:auto;flex:1;">
         <form id="syncal-event-form" class="ppl-modal-form" onsubmit="event.preventDefault();_syncalSubmitEvent('${editingId||''}');">
+
+          <!-- ───── TIPO DE ENTRADA — define se é evento simples, ausência, férias, feriado ───── -->
+          <div class="ppl-modal-row">
+            <label class="ppl-modal-label">Tipo de entrada *</label>
+            <div class="syncal-type-grid">
+              <label class="syncal-type-opt ${eventType==='event'?'active':''}" data-type="event">
+                <input type="radio" name="type" value="event" ${eventType==='event'?'checked':''} onchange="_syncalSetEventType('event')" style="display:none;"/>
+                <div class="syncal-type-emoji">📅</div>
+                <div class="syncal-type-label">Evento</div>
+                <div class="syncal-type-hint">reunião, call, lembrete — pode ter horário e canal</div>
+              </label>
+              <label class="syncal-type-opt ${eventType==='absence'?'active':''}" data-type="absence">
+                <input type="radio" name="type" value="absence" ${eventType==='absence'?'checked':''} onchange="_syncalSetEventType('absence')" style="display:none;"/>
+                <div class="syncal-type-emoji">✈</div>
+                <div class="syncal-type-label">Ausência</div>
+                <div class="syncal-type-hint">viagem, off-day, day off — período inteiro</div>
+              </label>
+              <label class="syncal-type-opt ${eventType==='vacation'?'active':''}" data-type="vacation">
+                <input type="radio" name="type" value="vacation" ${eventType==='vacation'?'checked':''} onchange="_syncalSetEventType('vacation')" style="display:none;"/>
+                <div class="syncal-type-emoji">🌴</div>
+                <div class="syncal-type-label">Férias</div>
+                <div class="syncal-type-hint">férias programadas, recesso</div>
+              </label>
+              <label class="syncal-type-opt ${eventType==='holiday'?'active':''}" data-type="holiday">
+                <input type="radio" name="type" value="holiday" ${eventType==='holiday'?'checked':''} onchange="_syncalSetEventType('holiday')" style="display:none;"/>
+                <div class="syncal-type-emoji">🎌</div>
+                <div class="syncal-type-label">Feriado</div>
+                <div class="syncal-type-hint">feriado nacional, ponto facultativo</div>
+              </label>
+            </div>
+          </div>
+
           <div class="ppl-modal-row">
             <label class="ppl-modal-label">Título *</label>
             <input class="ppl-modal-input" name="title" required value="${_esc(existing?.title||'')}" placeholder="Ex: Reunião de planejamento" autocomplete="off"/>
           </div>
-          <div class="ppl-modal-row cols">
+
+          <!-- ───── Datas — single OU range, depende do tipo ───── -->
+          <div class="ppl-modal-row cols" id="syncal-date-row">
             <div class="ppl-modal-row" style="margin:0;">
-              <label class="ppl-modal-label">Data *</label>
+              <label class="ppl-modal-label" id="syncal-date-start-label">${eventType==='event'?'Data *':'Início *'}</label>
               <input class="ppl-modal-input" name="date" type="date" required value="${_esc(today)}"/>
             </div>
-            <div class="ppl-modal-row" style="margin:0;">
+            <div class="ppl-modal-row" id="syncal-date-end-wrap" style="margin:0;${eventType==='event'?'display:none;':''}">
+              <label class="ppl-modal-label">Fim *</label>
+              <input class="ppl-modal-input" name="endDate" type="date" value="${_esc(defaultEndDate)}"/>
+            </div>
+            <div class="ppl-modal-row" id="syncal-time-wrap" style="margin:0;${eventType==='event'?'':'display:none;'}">
               <label class="ppl-modal-label">Hora</label>
               <input class="ppl-modal-input" name="time" type="time" value="${_esc(existing?.time||'')}"/>
             </div>
           </div>
+
           <div class="ppl-modal-row">
             <label class="ppl-modal-label">Descrição</label>
-            <textarea class="ppl-modal-input" name="description" rows="2" style="resize:vertical;" placeholder="Detalhes, link da call, agenda…">${_esc(existing?.description||'')}</textarea>
+            <textarea class="ppl-modal-input" name="description" rows="2" style="resize:vertical;" placeholder="Detalhes, agenda da reunião, contexto…">${_esc(existing?.description||'')}</textarea>
           </div>
+
+          <!-- ───── Visual (ícone + cor) ───── -->
           <div class="ppl-modal-row cols">
             <div class="ppl-modal-row" style="margin:0;">
               <label class="ppl-modal-label">Ícone</label>
               <select class="ppl-modal-select" name="icon">
-                ${['📌','📅','📞','🎯','🥋','📋','🎓','🍵','⛩','🌙','💚','🔔'].map(i => `<option value="${i}" ${existing?.icon===i?'selected':''}>${i}</option>`).join('')}
+                ${['📌','📅','📞','🎯','🥋','📋','🎓','🍵','⛩','🌙','💚','🔔','✈','🌴','🎌','🏖','💼','🩺','🎉','🚫'].map(i => `<option value="${i}" ${existing?.icon===i?'selected':''}>${i}</option>`).join('')}
               </select>
             </div>
             <div class="ppl-modal-row" style="margin:0;">
@@ -67481,11 +67726,33 @@ function _syncalOpenEventModal(prefDate, editingId) {
                 <option value="#D4537E" ${existing?.color==='#D4537E'?'selected':''}>🔴 Sakura</option>
                 <option value="#6B4825" ${existing?.color==='#6B4825'?'selected':''}>🟤 Madeira</option>
                 <option value="#7A3510" ${existing?.color==='#7A3510'?'selected':''}>🟠 Outono</option>
+                <option value="#8E7AB5" ${existing?.color==='#8E7AB5'?'selected':''}>🟣 Glicínia</option>
+                <option value="#5C6E9C" ${existing?.color==='#5C6E9C'?'selected':''}>🔵 Índigo</option>
               </select>
             </div>
           </div>
+
+          <!-- ───── Tatami · só pra eventos com horário ───── -->
+          <div class="ppl-modal-row" id="syncal-tatami-row" style="${eventType==='event'?'':'display:none;'}">
+            <label class="ppl-modal-label">🎴 Vincular ao Tatami (opcional)</label>
+            <select class="ppl-modal-select" name="linkedChannelId" id="syncal-tatami-select">
+              <option value="">— sem canal vinculado —</option>
+              ${channels.length === 0
+                ? '<option value="" disabled>Nenhum canal disponível ainda (abra o Chat primeiro)</option>'
+                : channels.map(ch => {
+                    const prefix = ch.type === 'workspace' ? '#' : ch.type === 'dm' ? '@' : '·';
+                    return `<option value="${_esc(ch.id)}" ${linkedChannelId===ch.id?'selected':''}>${prefix} ${_esc(ch.name||'(sem nome)')}</option>`;
+                  }).join('')
+              }
+            </select>
+            <div style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:5px;line-height:1.4;">
+              Quando vinculado, o evento ganha botão <strong>"🎴 Entrar no Tatami"</strong> no horário marcado. Pessoas chegam direto no canal, prontas pra subir no tatame.
+            </div>
+          </div>
+
+          <!-- ───── Vínculo a outros módulos ───── -->
           <div class="ppl-modal-row">
-            <label class="ppl-modal-label">Vincular a (opcional)</label>
+            <label class="ppl-modal-label">Outros vínculos (opcional)</label>
             <select class="ppl-modal-select" name="link_type" onchange="_syncalUpdateLinkTarget(this.value)">
               <option value="">— sem vínculo —</option>
               <option value="people"  ${existing?.link?.type==='people'?'selected':''}>🌙 Uma pessoa do People Journey</option>
@@ -67502,11 +67769,12 @@ function _syncalOpenEventModal(prefDate, editingId) {
               }).join('')}
             </select>
           </div>
+
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;">
             <div>${existing?`<button type="button" class="ppl-btn" style="color:#A02828;border-color:rgba(160,40,40,.3);" onclick="_syncalDeleteEvent('${editingId}')">🗑 Excluir</button>`:''}</div>
             <div style="display:flex;gap:8px;">
               <button type="button" class="ppl-btn" onclick="document.getElementById('syncal-event-modal').remove()">Cancelar</button>
-              <button type="submit" class="ppl-btn ppl-btn-primary">${existing?'Salvar':'Criar evento'}</button>
+              <button type="submit" class="ppl-btn ppl-btn-primary">${existing?'Salvar':'Criar entrada'}</button>
             </div>
           </div>
         </form>
@@ -67514,6 +67782,58 @@ function _syncalOpenEventModal(prefDate, editingId) {
     </div>`;
   document.body.appendChild(modal);
   setTimeout(() => { try { modal.querySelector('input[name="title"]').focus(); } catch(_){} }, 50);
+  // Se canais ainda carregam em background, re-popula select quando chegarem
+  if (channels.length === 0) {
+    _syncalEnsureChatChannels().then(() => _syncalRepopulateTatamiSelect(linkedChannelId));
+  }
+}
+
+// Troca o tipo da entrada e mostra/esconde campos conforme apropriado
+function _syncalSetEventType(type) {
+  document.querySelectorAll('.syncal-type-opt').forEach(el => {
+    el.classList.toggle('active', el.dataset.type === type);
+  });
+  const isRange = type !== 'event';
+  const endWrap = document.getElementById('syncal-date-end-wrap');
+  const timeWrap = document.getElementById('syncal-time-wrap');
+  const tatamiRow = document.getElementById('syncal-tatami-row');
+  const startLabel = document.getElementById('syncal-date-start-label');
+  if (endWrap)  endWrap.style.display  = isRange ? '' : 'none';
+  if (timeWrap) timeWrap.style.display = isRange ? 'none' : '';
+  if (tatamiRow) tatamiRow.style.display = isRange ? 'none' : '';
+  if (startLabel) startLabel.textContent = isRange ? 'Início *' : 'Data *';
+  // Auto-fill endDate se vazio
+  const endInput = document.querySelector('#syncal-event-form input[name="endDate"]');
+  const startInput = document.querySelector('#syncal-event-form input[name="date"]');
+  if (isRange && endInput && startInput && !endInput.value) endInput.value = startInput.value;
+  // Auto-sugere ícone+título placeholder pra tipos especiais
+  const iconSel = document.querySelector('#syncal-event-form select[name="icon"]');
+  const colorSel = document.querySelector('#syncal-event-form select[name="color"]');
+  const titleInput = document.querySelector('#syncal-event-form input[name="title"]');
+  if (iconSel && !iconSel.dataset.userTouched) {
+    iconSel.value = { event:'📅', absence:'✈', vacation:'🌴', holiday:'🎌' }[type] || '📌';
+  }
+  if (colorSel && !colorSel.dataset.userTouched) {
+    colorSel.value = { event:'#378ADD', absence:'#8E7AB5', vacation:'#7A3510', holiday:'#D4537E' }[type] || '#3B6D11';
+  }
+  if (titleInput && !titleInput.value) {
+    titleInput.placeholder = { event:'Ex: Reunião de planejamento', absence:'Ex: Day off do João', vacation:'Ex: Férias da Marina', holiday:'Ex: Tiradentes' }[type] || titleInput.placeholder;
+  }
+}
+
+// Repopula o select de canais quando o load assíncrono terminar (antes mostrava
+// "Nenhum canal disponível"). Preserva o valor já selecionado se houver.
+function _syncalRepopulateTatamiSelect(currentValue) {
+  const sel = document.getElementById('syncal-tatami-select');
+  if (!sel) return;
+  const channels = _syncalGetChatChannels();
+  if (!channels.length) return;
+  const optionsHTML = '<option value="">— sem canal vinculado —</option>'
+    + channels.map(ch => {
+        const prefix = ch.type === 'workspace' ? '#' : ch.type === 'dm' ? '@' : '·';
+        return `<option value="${_esc(ch.id)}" ${currentValue===ch.id?'selected':''}>${prefix} ${_esc(ch.name||'(sem nome)')}</option>`;
+      }).join('');
+  sel.innerHTML = optionsHTML;
 }
 
 function _syncalUpdateLinkTarget(type) {
@@ -67539,20 +67859,41 @@ function _syncalSubmitEvent(editingId) {
   const form = document.getElementById('syncal-event-form');
   if (!form) return;
   const fd = new FormData(form);
+  const type = fd.get('type') || 'event';
+  const isRange = type !== 'event';
+  const date = fd.get('date');
+  let endDate = fd.get('endDate') || null;
+  // Sanity check em range: endDate >= date
+  if (isRange) {
+    if (!endDate) endDate = date;
+    if (endDate < date) {
+      if (typeof appAlert === 'function') appAlert('Datas inválidas', 'A data de fim não pode ser antes da data de início.', { icon: '⚠️' });
+      else alert('A data de fim não pode ser antes da data de início.');
+      return;
+    }
+  } else {
+    endDate = null;
+  }
+
   const ev = {
     id: editingId || _syncalNewId(),
-    title: (fd.get('title')||'').toString().trim() || 'Evento sem título',
-    date: fd.get('date'),
-    time: fd.get('time') || null,
+    type,
+    title: (fd.get('title')||'').toString().trim() || (type==='vacation'?'Férias':type==='absence'?'Ausência':type==='holiday'?'Feriado':'Evento sem título'),
+    date,
+    endDate,
+    time: isRange ? null : (fd.get('time') || null),
     description: (fd.get('description')||'').toString().trim() || null,
     icon: fd.get('icon') || '📌',
     color: fd.get('color') || '#3B6D11',
+    linkedChannelId: (!isRange && fd.get('linkedChannelId')) ? fd.get('linkedChannelId') : null,
     createdAt: editingId ? undefined : new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
   const linkType = fd.get('link_type');
   if (linkType) {
     ev.link = { type: linkType, id: fd.get('link_id') };
+  } else {
+    ev.link = null;
   }
   if (editingId) {
     const idx = _syncalState.events.findIndex(e => e.id === editingId);
