@@ -17916,7 +17916,12 @@ function fireWhatsAppEvent(event_type, opts) {
 }
 
 function _settingsCalendarSection() {
-  const total = _allCardsAcrossBoards().filter(c => c.deadline).length;
+  const totalCards = _allCardsAcrossBoards().filter(c => c.deadline).length;
+  // Conta também eventos do Syncal pra dar visibilidade do que vai sincronizar
+  const totalSyncal = (typeof _syncalState !== 'undefined' && Array.isArray(_syncalState?.events))
+    ? _syncalState.events.filter(e => !!e.date).length
+    : 0;
+  const total = totalCards + totalSyncal;
   // OAuth providers conectados (Phase 1 e 2: real-time)
   const oauthRows = (typeof _calendarOAuth !== 'undefined' && Array.isArray(_calendarOAuth)) ? _calendarOAuth : [];
   const byProvider = {};
@@ -17975,13 +17980,19 @@ function _settingsCalendarSection() {
         `;
       }).join('');
 
+  // Resumo do que vai sincronizar (cards do board + eventos Syncal)
+  const breakdown = [];
+  if (totalCards > 0) breakdown.push(`${totalCards} card${totalCards===1?'':'s'}`);
+  if (totalSyncal > 0) breakdown.push(`${totalSyncal} evento${totalSyncal===1?'':'s'} Syncal`);
+  const breakdownLabel = breakdown.length ? breakdown.join(' + ') : 'nada com deadline ainda';
+
   return `
     <div class="settings-card">
       <div class="settings-card-h">
         <span class="settings-card-title">Calendar · Sincronização real-time</span>
-        <span class="settings-status-pill ${total?'on':'off'}">${total} card${total===1?'':'s'} com deadline</span>
+        <span class="settings-status-pill ${total?'on':'off'}">${breakdownLabel}</span>
       </div>
-      <div class="settings-card-sub">Conecte seu calendário via API oficial — eventos sincronizam em <strong>tempo real</strong> (criar/editar/deletar card no Synkan reflete em &lt;1s). Suporta Google Calendar, Outlook e Apple iCloud.</div>
+      <div class="settings-card-sub">Conecte seu calendário via API oficial — <strong>cards de board</strong> (com deadline) e <strong>eventos do Syncal</strong> sincronizam em <strong>tempo real</strong>: criar/editar/apagar no Synkan reflete em &lt;1s no Google/Outlook/iCloud (e vice-versa).</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-top:12px;">
         ${renderProviderCard('google', 'Google Calendar · OAuth', '📅', '#4285F4')}
         ${renderProviderCard('microsoft', 'Outlook · Microsoft Graph', '📧', '#0078D4')}
