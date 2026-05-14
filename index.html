@@ -67435,6 +67435,144 @@ async function _syncalEnsureChatChannels() {
   }
 }
 
+// Texto auxiliar do campo de canal, conforme o tipo de entrada
+function _syncalTatamiHintHTML(type) {
+  if (type === 'event') {
+    return `O evento ganha botão <strong>"🎴 Entrar no Tatami"</strong> + um <strong>link copiável</strong> que joga a pessoa direto na sala. Aviso vai pro canal escolhido.`;
+  }
+  if (type === 'vacation') {
+    return `Mestre Kan posta um aviso de férias no canal escolhido — pra time saber que ${''}<em>fulano sai de ferias no dia X</em>.`;
+  }
+  if (type === 'holiday') {
+    return `Mestre Kan posta aviso de feriado/recesso no canal — todo mundo lembra antes.`;
+  }
+  return `Mestre Kan posta aviso de ausência no canal escolhido — ninguém marca call no dia errado.`;
+}
+
+// ── Helpers de integração com Chat ──────────────────────────────────
+
+// Pega config Supabase (URL + anon key + access token) reusando o padrão
+// dos outros módulos. Retorna null silenciosamente se não disponível.
+function _syncalResolveConfig() {
+  try {
+    if (typeof _peopleApi !== 'undefined' && typeof _peopleApi._resolveConfig === 'function') {
+      return _peopleApi._resolveConfig();
+    }
+  } catch(_){}
+  // Fallback: tenta achar via globals comuns
+  const url   = window.SUPABASE_URL || window.__SUPABASE_URL__;
+  const anon  = window.SUPABASE_ANON_KEY || window.__SUPABASE_ANON__;
+  const token = (typeof supaUser !== 'undefined' && supaUser?.access_token) || null;
+  if (url && anon && token) return { url, anon, token, uid: supaUser?.id };
+  return null;
+}
+
+// Posta uma mensagem direto em chat_messages. Usa raw fetch pra evitar SDK travado.
+// Retorna { ok, error?, messageId? }.
+async function _syncalPostToChannel(channelId, body, extra = {}) {
+  if (!channelId || !body) return { ok: false, error: 'missing_args' };
+  const cfg = _syncalResolveConfig();
+  if (!cfg) return { ok: false, error: 'no_supabase_config' };
+  try {
+    const url = `${cfg.url}/rest/v1/chat_messages`;
+    const insertObj = {
+      channel_id: channelId,
+      user_id: cfg.uid,
+      body,
+      mentions: extra.mentions || [],
+      attachments: extra.attachments || [],
+    };
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': cfg.anon,
+        'Authorization': `Bearer ${cfg.token}`,
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify(insertObj),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(()=>'');
+      return { ok: false, error: `HTTP ${res.status}: ${txt}` };
+    }
+    const data = await res.json().catch(()=>null);
+    const messageId = Array.isArray(data) ? data[0]?.id : data?.id;
+    return { ok: true, messageId };
+  } catch(e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
+// Gera o link deep do Tatami que abre direto a sala. Inclui param que o
+// bootstrap detecta e dispara _chatSelectChannel + _txJoinVoice automaticamente.
+function _syncalBuildTatamiLink(channelId, eventId) {
+  const u = new URL(window.location.href);
+  // Limpa params anteriores pra URL fica clean
+  u.search = '';
+  u.hash = '';
+  u.searchParams.set('syncal_tatami', channelId);
+  if (eventId) u.searchParams.set('syncal_event', eventId);
+  return u.toString();
+}
+
+// Constrói a mensagem de aviso pra postar no canal. Estilo Mestre Kan.
+function _syncalBuildAnnouncementBody(ev, link) {
+  const who = (typeof supaUser !== 'undefined' && (supaUser?.user_metadata?.full_name || supaUser?.email)) || 'Alguém';
+  const fmtDate = (s) => new Date(s + 'T00:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+  const startDate = fmtDate(ev.date);
+  const endDate = ev.endDate ? fmtDate(ev.endDate) : null;
+  const totalDays = ev.endDate ? Math.round((new Date(ev.endDate) - new Date(ev.date))/86400000) + 1 : 1;
+  const time = ev.time ? ev.time.slice(0,5) : null;
+
+  if (ev.type === 'event') {
+    const linkLine = link ? `\n\n🔗 **Link direto pro Tatami:**\n${link}\n_(quem clicar entra na voz instantaneamente)_` : '';
+    return `📅 *Nova reunião agendada* — **${ev.title}**\n\n`
+      + `🗓 ${startDate}${time?` · às **${time}**`:''}\n`
+      + (ev.description ? `📝 ${ev.description}\n` : '')
+      + `🎴 _Adicionada ao Syncal por ${who}_${linkLine}\n\n— Mestre Kan 🥋`;
+  }
+  if (ev.type === 'vacation') {
+    return `🌴 *Férias agendadas* — **${ev.title}**\n\n`
+      + `📆 De **${startDate}** até **${endDate}** _(${totalDays} dias)_\n`
+      + (ev.description ? `📝 ${ev.description}\n` : '')
+      + `_Registrado por ${who} no Syncal — evita marcar call neste período._\n\n— Mestre Kan 🥋`;
+  }
+  if (ev.type === 'holiday') {
+    return `🎌 *Feriado / recesso* — **${ev.title}**\n\n`
+      + `📆 ${startDate}${endDate && endDate !== startDate?` até ${endDate} _(${totalDays} dias)_`:''}\n`
+      + (ev.description ? `📝 ${ev.description}\n` : '')
+      + `_Adicionado por ${who}._\n\n— Mestre Kan 🥋`;
+  }
+  // absence (default)
+  return `✈ *Ausência programada* — **${ev.title}**\n\n`
+    + `📆 De **${startDate}** até **${endDate}** _(${totalDays} dias)_\n`
+    + (ev.description ? `📝 ${ev.description}\n` : '')
+    + `_Registrado por ${who} no Syncal._\n\n— Mestre Kan 🥋`;
+}
+
+// Dispara o aviso (idempotente — marca o ev._announcedToChannelId)
+async function _syncalAnnounceEvent(ev) {
+  if (!ev?.linkedChannelId) return { ok: false, error: 'no_channel' };
+  if (ev._announcedToChannelId === ev.linkedChannelId) {
+    return { ok: false, error: 'already_announced' };
+  }
+  const tatamiLink = (ev.type === 'event') ? _syncalBuildTatamiLink(ev.linkedChannelId, ev.id) : null;
+  const body = _syncalBuildAnnouncementBody(ev, tatamiLink);
+  const res = await _syncalPostToChannel(ev.linkedChannelId, body);
+  if (res.ok) {
+    // Marca anunciado pra não duplicar
+    const idx = _syncalState.events.findIndex(x => x.id === ev.id);
+    if (idx >= 0) {
+      _syncalState.events[idx]._announcedToChannelId = ev.linkedChannelId;
+      _syncalState.events[idx]._announcedAt = new Date().toISOString();
+      _syncalState.events[idx]._tatamiLink = tatamiLink || null;
+      _syncalSaveEvents();
+    }
+  }
+  return res;
+}
+
 function _syncalSetView(v) { _syncalState.view = v; renderSyncal(); }
 function _syncalNavPrev() {
   const c = _syncalState.cursor || new Date();
@@ -67519,11 +67657,22 @@ function _syncalOpenEventDetail(eventId) {
     linkActionHTML = `<button class="ppl-btn" onclick="document.getElementById('syncal-event-detail').remove();if(typeof switchBoard==='function'){switchBoard('${_esc(e.link.id)}');switchTab('kanban');}">📋 Abrir board</button>`;
   }
 
-  const tatamiActionHTML = (e.linkedChannelId && channelInfo)
+  const isEvent = (e.type||'event') === 'event';
+  const tatamiActionHTML = (e.linkedChannelId && channelInfo && isEvent)
     ? `<button class="ppl-btn ppl-btn-primary" style="background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;border-color:#3A2410;" onclick="_syncalEnterTatami('${_esc(e.linkedChannelId)}')">🎴 Entrar no Tatami · #${_esc(channelInfo.name||'canal')}</button>`
-    : (e.linkedChannelId
-        ? `<button class="ppl-btn" disabled style="opacity:.5;cursor:not-allowed;" title="Canal não encontrado (foi deletado?)">🎴 Canal indisponível</button>`
-        : '');
+    : '';
+
+  // Link copiável do Tatami — só pra eventos com canal vinculado
+  const copyLinkHTML = (e.linkedChannelId && channelInfo && isEvent)
+    ? `<button class="ppl-btn" onclick="_syncalCopyTatamiLink('${_esc(e.linkedChannelId)}', '${_esc(e.id)}')" title="Copia URL que abre direto na sala">🔗 Copiar link</button>`
+    : '';
+
+  // Status do aviso + opção de re-postar
+  const announceStatusHTML = e.linkedChannelId ? (
+    e._announcedToChannelId === e.linkedChannelId
+      ? `<button class="ppl-btn" onclick="_syncalReAnnounce('${_esc(e.id)}')" title="Aviso já foi postado · clique pra re-postar (lembrete)" style="font-size:11.5px;">✓ avisado · re-postar</button>`
+      : `<button class="ppl-btn" onclick="_syncalReAnnounce('${_esc(e.id)}')" style="font-size:11.5px;">📣 Postar aviso no canal</button>`
+  ) : '';
 
   const typeBadge = {
     event:    '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#E7EEF7;color:#1A4778;letter-spacing:.04em;">📅 EVENTO</span>',
@@ -67558,6 +67707,8 @@ function _syncalOpenEventDetail(eventId) {
         ` : ''}
         <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;">
           ${tatamiActionHTML}
+          ${copyLinkHTML}
+          ${announceStatusHTML}
           ${linkActionHTML}
           <button class="ppl-btn" onclick="document.getElementById('syncal-event-detail').remove();_syncalOpenEventModal(null, '${_esc(e.id)}');">✎ Editar</button>
         </div>
@@ -67567,16 +67718,122 @@ function _syncalOpenEventDetail(eventId) {
 }
 
 // Entra no canal Tatami (selecionado no evento). Fecha o popover, troca pra aba
-// Chat e seleciona o canal — usuário pode clicar "subir no tatame" lá.
+// Chat, seleciona o canal e dispara auto-join na voz (igual ao deep link).
 function _syncalEnterTatami(channelId) {
   document.getElementById('syncal-event-detail')?.remove();
   if (typeof switchTab === 'function') switchTab('chat');
-  setTimeout(() => {
+  setTimeout(async () => {
     if (typeof _chatSelectChannel === 'function') {
-      _chatSelectChannel(channelId);
+      await _chatSelectChannel(channelId);
     }
+    // Espera o canal terminar de abrir antes de disparar o join
+    setTimeout(() => {
+      if (typeof _txJoinVoice === 'function') {
+        try { _txJoinVoice(); } catch(e) { console.warn('[syncal] tx join falhou:', e?.message); }
+      }
+    }, 600);
   }, 150);
 }
+
+// Copia URL deep-link que abre direto na sala. Usa clipboard API; fallback pra
+// prompt() se clipboard não disponível (browsers antigos ou contextos http).
+async function _syncalCopyTatamiLink(channelId, eventId) {
+  const link = _syncalBuildTatamiLink(channelId, eventId);
+  let copied = false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(link);
+      copied = true;
+    }
+  } catch(_){}
+  if (!copied) {
+    // Fallback antigo
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = link; ta.style.position='fixed'; ta.style.left='-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      copied = true;
+    } catch(_){}
+  }
+  if (copied && typeof appAlert === 'function') {
+    appAlert('Link copiado 🔗', `Quem clicar nesse link entra direto no Tatami (auto-join na voz):<br/><br/><code style="display:block;padding:8px 10px;background:var(--color-background-secondary);border-radius:6px;font-size:11px;word-break:break-all;">${_esc(link)}</code>`, { icon: '🎴', html: true });
+  } else if (!copied) {
+    // Mostra o link pro usuário copiar manualmente
+    if (typeof appAlert === 'function') appAlert('Copia manualmente', `Não consegui copiar automaticamente. Aqui está o link:<br/><br/><code style="display:block;padding:8px 10px;background:var(--color-background-secondary);border-radius:6px;font-size:11px;word-break:break-all;">${_esc(link)}</code>`, { icon: '🔗', html: true });
+    else prompt('Link do Tatami:', link);
+  }
+}
+
+// Re-posta o aviso (botão manual). Limpa o flag de idempotência primeiro.
+async function _syncalReAnnounce(eventId) {
+  const ev = _syncalState.events.find(x => x.id === eventId);
+  if (!ev) return;
+  // Limpa flag pra forçar repost mesmo se já foi anunciado
+  const cleanEv = { ...ev, _announcedToChannelId: null };
+  const res = await _syncalAnnounceEvent(cleanEv);
+  if (res.ok) {
+    if (typeof appAlert === 'function') appAlert('Aviso re-postado ✓', 'Mensagem nova no canal escolhido.', { icon: '📣' });
+    // Reabre o popover atualizado
+    document.getElementById('syncal-event-detail')?.remove();
+    setTimeout(() => _syncalOpenEventDetail(eventId), 100);
+  } else if (typeof appAlert === 'function') {
+    appAlert('Erro ao postar', res.error || 'Falha desconhecida.', { icon: '⚠️' });
+  }
+}
+
+// ── Bootstrap do deep link ──────────────────────────────────────────
+// Detecta ?syncal_tatami=<channelId> na URL no carregamento. Se encontrar:
+//   1) Troca pra aba Chat
+//   2) Seleciona o canal
+//   3) Dispara _txJoinVoice() automaticamente
+// Limpa a URL depois pra não disparar de novo num F5.
+function _syncalHandleDeepLink() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const channelId = params.get('syncal_tatami');
+    if (!channelId) return;
+    // Aguarda app carregar (chat, switchTab, auth user) antes de tentar
+    const attempt = (tries) => {
+      if (tries <= 0) {
+        console.warn('[syncal deep-link] desistiu de aguardar bootstrap');
+        return;
+      }
+      const ready = typeof switchTab === 'function'
+        && typeof _chatSelectChannel === 'function'
+        && typeof supaUser !== 'undefined' && supaUser?.id;
+      if (!ready) {
+        setTimeout(() => attempt(tries-1), 500);
+        return;
+      }
+      // Limpa URL antes de agir (caso o user dê F5)
+      try {
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      } catch(_){}
+      switchTab('chat');
+      setTimeout(async () => {
+        try { await _chatSelectChannel(channelId); } catch(e) { console.warn('[syncal deep-link] select channel:', e?.message); }
+        setTimeout(() => {
+          if (typeof _txJoinVoice === 'function') {
+            try { _txJoinVoice(); } catch(e) { console.warn('[syncal deep-link] join voice:', e?.message); }
+          }
+        }, 800);
+      }, 200);
+    };
+    // Aguarda DOM + auth user existir
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => attempt(30));
+    } else {
+      attempt(30);
+    }
+  } catch(e) { console.warn('[syncal] deep link parse falhou:', e?.message); }
+}
+
+// Dispara o handler — uma vez por carregamento de página
+_syncalHandleDeepLink();
 
 // Abre todos os eventos de um dia em modal
 function _syncalOpenDay(dateStr) {
@@ -67732,9 +67989,12 @@ async function _syncalOpenEventModal(prefDate, editingId) {
             </div>
           </div>
 
-          <!-- ───── Tatami · só pra eventos com horário ───── -->
-          <div class="ppl-modal-row" id="syncal-tatami-row" style="${eventType==='event'?'':'display:none;'}">
-            <label class="ppl-modal-label">🎴 Vincular ao Tatami (opcional)</label>
+          <!-- ───── Canal vinculado · disponível pra TODOS os tipos ─────
+               · Evento  → "Canal do Tatami" (gera deep link, posta aviso)
+               · Outros  → "Avisar canal sobre a [férias/ausência/feriado]"
+          -->
+          <div class="ppl-modal-row" id="syncal-tatami-row">
+            <label class="ppl-modal-label" id="syncal-tatami-label">${eventType==='event'?'🎴 Canal do Tatami (call + aviso)':'💬 Avisar canal sobre '+(eventType==='vacation'?'as férias':eventType==='holiday'?'o feriado':'a ausência')}</label>
             <select class="ppl-modal-select" name="linkedChannelId" id="syncal-tatami-select">
               <option value="">— sem canal vinculado —</option>
               ${channels.length === 0
@@ -67745,9 +68005,17 @@ async function _syncalOpenEventModal(prefDate, editingId) {
                   }).join('')
               }
             </select>
-            <div style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:5px;line-height:1.4;">
-              Quando vinculado, o evento ganha botão <strong>"🎴 Entrar no Tatami"</strong> no horário marcado. Pessoas chegam direto no canal, prontas pra subir no tatame.
+            <div class="syncal-tatami-hint" id="syncal-tatami-hint" style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:5px;line-height:1.4;">
+              ${_syncalTatamiHintHTML(eventType)}
             </div>
+            ${!existing ? `
+              <label style="display:flex;align-items:center;gap:7px;margin-top:8px;font-size:11.5px;color:var(--color-text-secondary);cursor:pointer;">
+                <input type="checkbox" name="announce" checked style="cursor:pointer;"/>
+                <span>Postar aviso automático no canal quando salvar</span>
+              </label>
+            ` : `
+              <div style="margin-top:8px;font-size:11px;color:var(--color-text-tertiary);font-style:italic;">${existing._announcedToChannelId ? '✓ aviso já foi postado neste canal' : 'Editando — aviso não é re-postado'}</div>
+            `}
           </div>
 
           <!-- ───── Vínculo a outros módulos ───── -->
@@ -67796,12 +68064,17 @@ function _syncalSetEventType(type) {
   const isRange = type !== 'event';
   const endWrap = document.getElementById('syncal-date-end-wrap');
   const timeWrap = document.getElementById('syncal-time-wrap');
-  const tatamiRow = document.getElementById('syncal-tatami-row');
   const startLabel = document.getElementById('syncal-date-start-label');
   if (endWrap)  endWrap.style.display  = isRange ? '' : 'none';
   if (timeWrap) timeWrap.style.display = isRange ? 'none' : '';
-  if (tatamiRow) tatamiRow.style.display = isRange ? 'none' : '';
   if (startLabel) startLabel.textContent = isRange ? 'Início *' : 'Data *';
+  // Atualiza label e hint do canal (não esconde mais — campo disponível pra todos)
+  const tatamiLabel = document.getElementById('syncal-tatami-label');
+  const tatamiHint  = document.getElementById('syncal-tatami-hint');
+  if (tatamiLabel) tatamiLabel.innerHTML = (type==='event')
+    ? '🎴 Canal do Tatami (call + aviso)'
+    : '💬 Avisar canal sobre ' + (type==='vacation'?'as férias':type==='holiday'?'o feriado':'a ausência');
+  if (tatamiHint) tatamiHint.innerHTML = _syncalTatamiHintHTML(type);
   // Auto-fill endDate se vazio
   const endInput = document.querySelector('#syncal-event-form input[name="endDate"]');
   const startInput = document.querySelector('#syncal-event-form input[name="date"]');
@@ -67885,7 +68158,8 @@ function _syncalSubmitEvent(editingId) {
     description: (fd.get('description')||'').toString().trim() || null,
     icon: fd.get('icon') || '📌',
     color: fd.get('color') || '#3B6D11',
-    linkedChannelId: (!isRange && fd.get('linkedChannelId')) ? fd.get('linkedChannelId') : null,
+    // Canal vinculado agora aceita pra TODOS os tipos (era só event antes)
+    linkedChannelId: fd.get('linkedChannelId') || null,
     createdAt: editingId ? undefined : new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -67895,13 +68169,38 @@ function _syncalSubmitEvent(editingId) {
   } else {
     ev.link = null;
   }
+  // Preserva campos de tracking de anúncio (idempotência) ao editar
   if (editingId) {
+    const existing = _syncalState.events.find(e => e.id === editingId);
+    if (existing?._announcedToChannelId) {
+      ev._announcedToChannelId = existing._announcedToChannelId;
+      ev._announcedAt = existing._announcedAt;
+      ev._tatamiLink = existing._tatamiLink;
+    }
     const idx = _syncalState.events.findIndex(e => e.id === editingId);
     if (idx >= 0) _syncalState.events[idx] = { ..._syncalState.events[idx], ...ev };
   } else {
     _syncalState.events.push(ev);
   }
   _syncalSaveEvents();
+
+  // Aviso no canal — só dispara na CRIAÇÃO (não em edição) e se o user marcou
+  const shouldAnnounce = !editingId && ev.linkedChannelId && fd.get('announce') === 'on';
+  if (shouldAnnounce) {
+    // Roda em background, não trava o close do modal
+    _syncalAnnounceEvent(ev).then(res => {
+      if (!res.ok) {
+        console.warn('[syncal] aviso falhou:', res.error);
+        if (typeof appAlert === 'function') {
+          appAlert('Aviso não foi postado', `O evento foi salvo, mas o aviso no canal falhou: <code>${_esc(res.error)}</code>. Você pode tentar de novo pelo botão "Re-postar aviso" no evento.`, { icon: '⚠️', html: true });
+        }
+      } else if (typeof appAlert === 'function') {
+        const link = ev._tatamiLink ? `<br/><br/>🔗 Link copiável do Tatami já tá na mensagem do canal.` : '';
+        appAlert('Aviso postado 🎴', `Mestre Kan avisou no canal escolhido sobre <strong>${_esc(ev.title)}</strong>.${link}`, { icon: '✓', html: true });
+      }
+    });
+  }
+
   document.getElementById('syncal-event-modal')?.remove();
   renderSyncal();
 }
