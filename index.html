@@ -53031,7 +53031,8 @@ const _CHAT_COMMANDS = [
     cmd:  '/kudos',
     args: '@pessoa <motivo>',
     desc: 'Elogio público — receiver ganha 10 XP. Cap de 5/mês por giver.',
-    icon: '💮',
+    // Selo hanko 賞 (mesmo ícone usado no card "Tatami · Kudos" e nas mensagens enviadas)
+    icon: '<svg viewBox="0 0 64 64" width="18" height="18"><g transform="rotate(-3 32 32)"><rect x="14" y="14" width="36" height="36" rx="3.5" fill="#BC002D"/><text x="32" y="43" font-family="\'Noto Serif JP\',\'Yu Mincho\',serif" font-weight="700" font-size="22" text-anchor="middle" fill="#fff">賞</text></g></svg>',
   },
   {
     cmd:  '/duelo',
@@ -66257,7 +66258,7 @@ async function _chatSendKudos(rawText) {
   const m = rawText.match(/^\/kudos\s+@?(\S+)\s*(.*)$/i);
   if (!m) {
     if (typeof appAlert === 'function') {
-      appAlert('Como usar /kudos', 'Sintaxe: <code>/kudos @pessoa motivo</code><br/><br/>Exemplo: <code>/kudos @marina pela excelente entrega da apresentação</code>', { icon:'💮', html:true });
+      appAlert('Como usar /kudos', 'Sintaxe: <code>/kudos @pessoa motivo</code><br/><br/>Exemplo: <code>/kudos @marina pela excelente entrega da apresentação</code>', { icon:'賞', html:true });
     }
     return;
   }
@@ -66328,7 +66329,7 @@ async function _chatSendKudos(rawText) {
       if (typeof appAlert === 'function') {
         const remaining = data.remaining_month;
         const remTxt = remaining > 0 ? ` Você ainda pode dar ${remaining} este mês.` : ' Você atingiu o cap mensal.';
-        appAlert('賞 Kudos enviado', `<strong>${_esc(receiverName)}</strong> ganhou 10 XP.${remTxt}`, { icon:'💮', html:true });
+        appAlert('賞 Kudos enviado', `<strong>${_esc(receiverName)}</strong> ganhou 10 XP.${remTxt}`, { icon:'賞', html:true });
       }
     }
   } catch(e) {
