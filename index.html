@@ -36624,7 +36624,7 @@ function _synOpenSellerModal(sellerId, onSaved) {
       ${tab === 'edit' && existing?.type === 'internal' ? `<div style="margin-top:10px;font-size:11px;color:var(--color-text-tertiary);padding:6px 8px;background:var(--color-background-secondary);border-radius:6px;">Tipo: <strong>人 interno</strong> · vinculado a um membro do workspace.</div>` : ''}
       ${tab === 'edit' && existing?.type === 'external' ? `<div style="margin-top:10px;font-size:11px;color:var(--color-text-tertiary);padding:6px 8px;background:var(--color-background-secondary);border-radius:6px;">Tipo: <strong>🤝 externo</strong> · vendedor que não tem conta Synkan.</div>` : ''}
       ${tab !== 'member' ? `<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
-        ${isEdit ? `<button onclick="(async()=>{if(confirm('Desativar este vendedor? (não exclui histórico)')){await _synSaveSeller({id:'${existing.id}',active:false});document.getElementById('syn-seller-modal').style.display='none';if(typeof renderRegistry==='function')renderRegistry();}})()" style="margin-right:auto;background:transparent;border:1px solid #BC002D;color:#BC002D;padding:7px 14px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">Desativar</button>` : ''}
+        ${isEdit ? `<button onclick="(async()=>{const ok=(typeof appConfirm==='function')?await appConfirm('Desativar vendedor?','O histórico de vendas dele é preservado, mas ele não aparece mais em novos cadastros.',{danger:true,okLabel:'Desativar'}):confirm('Desativar este vendedor? (não exclui histórico)');if(ok){await _synSaveSeller({id:'${existing.id}',active:false});document.getElementById('syn-seller-modal').style.display='none';if(typeof renderRegistry==='function')renderRegistry();}})()" style="margin-right:auto;background:transparent;border:1px solid #BC002D;color:#BC002D;padding:7px 14px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">Desativar</button>` : ''}
         <button onclick="document.getElementById('syn-seller-modal').style.display='none';delete document.getElementById('syn-seller-modal').dataset.tab;" style="background:transparent;border:1px solid var(--color-border-secondary);color:var(--color-text-secondary);padding:7px 14px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">Cancelar</button>
         <button id="ssm-save" style="background:#111;color:#fff;border:none;padding:7px 16px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">${isEdit ? 'Salvar' : 'Cadastrar'}</button>
       </div>` : ''}
@@ -36882,9 +36882,12 @@ async function renderPeople() {
   // se for primeira vez). Não bloqueia o usuário esperando rede.
   try { _peopleRenderMain(); }
   catch(e) { console.error('[people] render inicial:', e); }
-  // Em background, busca dados. Quando chegar, re-renderiza com dados frescos.
-  // Sem timeout, sem banner, sem mensagem de "carregando" — só atualiza.
-  _peopleLoadAll().then(() => {
+  // Em background, busca dados das DUAS visões em paralelo (Trilhas + Gestão)
+  // pra que trocar a página seja instantâneo e os dados estejam sempre frescos.
+  Promise.all([
+    _peopleLoadAll().catch(e => console.warn('[people] load all:', e?.message)),
+    _peopleLoadMgmt().catch(e => console.warn('[people] load mgmt:', e?.message)),
+  ]).then(() => {
     // Define o modo inicial só na primeira vez (não sobrescreve depois que
     // o user troca manualmente). Se o user clicou "Minha jornada" antes,
     // mantém a escolha; só seta automático na primeira renderização.
@@ -36894,7 +36897,7 @@ async function renderPeople() {
     }
     try { _peopleRenderMain(); }
     catch(e) { console.error('[people] re-render:', e); }
-  }).catch(e => console.warn('[people] load:', e?.message || e));
+  });
 }
 
 // Troca entre modos (admin ↔ colaborador). Botão de canto.
@@ -37663,6 +37666,17 @@ function _peoplePageSwitcherHTML(active) {
 function _peopleSetPage(page) {
   _peopleState.page = page;
   _peopleRenderMain();
+  // Auto-refresh: ao trocar pra Gestão, busca dashboard fresh em background.
+  // Idem pra Trilhas — reflete qualquer mudança feita na outra página.
+  if (page === 'gestao') {
+    // Limpa dashboard cacheado pra forçar reload completo no próximo render
+    _peopleState.mgmtDashboard = null;
+    _peopleRenderGestao();
+  } else if (page === 'trilhas') {
+    _peopleLoadAll().then(() => {
+      if (currentTab === 'people' && _peopleState.page === 'trilhas') _peopleRenderMain();
+    });
+  }
 }
 
 // Render da página "Gestão" dentro do people-root (chamado por _peopleRenderMain)
@@ -37714,6 +37728,29 @@ async function _peopleLoadMgmt() {
     console.warn('[people-mgmt] load:', e?.message);
     return null;
   }
+}
+
+// Helper centralizado: invalida e recarrega ambos os caches (Trilhas + Gestão)
+// e re-renderiza a página atual. Chamado após qualquer CRUD em pessoa pra
+// garantir sincronia entre as duas visões. Idempotente — múltiplas chamadas
+// rápidas são coalescidas via flag.
+async function _peopleRefreshAll() {
+  if (_peopleState._refreshInFlight) return;
+  _peopleState._refreshInFlight = true;
+  try {
+    // Roda ambos em paralelo — Mgmt usa RPC dedicada, Trilhas usa o
+    // dashboard antigo. Ambos cacheiam em _peopleState.
+    const [_a, _b] = await Promise.all([
+      _peopleLoadAll().catch(_ => null),
+      _peopleLoadMgmt().catch(_ => null),
+    ]);
+  } finally {
+    _peopleState._refreshInFlight = false;
+  }
+  // Re-render só se ainda estiver em People Journey
+  if (currentTab !== 'people') return;
+  if (_peopleState.page === 'gestao') _peopleRenderGestao();
+  else _peopleRenderMain();
 }
 
 function _peopleRenderGestao(el) {
@@ -37836,8 +37873,11 @@ function _peopleMgmtCardHTML(p, settings) {
   const initials = (p.name||'?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
   const belt = p.belt || 'branca';
   const beltLabel = _PPL_BELT_LABELS[belt] || 'Lua Nova';
-  const roleEmoji = _PPL_ROLE_EMOJI[p.role] || '人';
-  const roleLabel = _PPL_ROLE_LABELS[p.role] || 'Papel';
+  // Fallback elegante: se não tem papel definido, mostra texto único sem ícone
+  // vazio (antes mostrava "人 Papel" que não comunicava nada).
+  const hasRole = !!_PPL_ROLE_LABELS[p.role];
+  const roleEmoji = hasRole ? _PPL_ROLE_EMOJI[p.role] : '';
+  const roleLabel = hasRole ? _PPL_ROLE_LABELS[p.role] : 'Papel não definido';
   const now = Date.now();
 
   // Indicadores
@@ -37865,7 +37905,7 @@ function _peopleMgmtCardHTML(p, settings) {
         <div class="ppl-mgmt-avatar belt-${belt}">${photoOrInitials}</div>
         <div class="ppl-mgmt-id">
           <div class="ppl-mgmt-name">${_esc(p.name||'Sem nome')}</div>
-          <div class="ppl-mgmt-role">${roleEmoji} ${_esc(roleLabel)}${p.team_name?` · ${_esc(p.team_name)}`:''}</div>
+          <div class="ppl-mgmt-role">${roleEmoji?roleEmoji+' ':''}${_esc(roleLabel)}${p.team_name?` · ${_esc(p.team_name)}`:''}</div>
         </div>
         ${isSaturated ? `<span class="ppl-mgmt-sat" title="Sinais de saturação · clique pra detalhes">⚠</span>` : ''}
       </div>
@@ -37989,7 +38029,9 @@ function _peopleRenderMgmtDrawer() {
       <div style="flex:1;min-width:0;">
         <div class="ppl-mgmt-drawer-name">${_esc(p.name||'')}</div>
         <div class="ppl-mgmt-drawer-meta">
-          ${_PPL_ROLE_EMOJI[p.role]||'人'} ${_esc(_PPL_ROLE_LABELS[p.role]||'Papel')}
+          ${_PPL_ROLE_LABELS[p.role]
+            ? `${_PPL_ROLE_EMOJI[p.role]||''} ${_esc(_PPL_ROLE_LABELS[p.role])}`
+            : '<em style="opacity:.55;font-style:normal;">Papel não definido</em>'}
           ${p.team_name?` · ${_esc(p.team_name)}`:''}
           ${p.hired_at?` · ⏳ ${_peopleFmtTenure(p.hired_at)} de casa`:''}
         </div>
@@ -38448,7 +38490,7 @@ async function _peopleMgmtSaveNote(personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
   // Recarrega dashboard pra refletir o last_note_at
-  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
+  _peopleRefreshAll();
   if (typeof appAlert==='function') appAlert('Nota salva 📝', isPrivate?'Visível apenas pra você.':'Registrada na timeline.', { icon:'✓' });
 }
 
@@ -38630,19 +38672,22 @@ async function _peopleMgmtSave1on1(personId, oneOnOneId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
+  _peopleRefreshAll();
   if (typeof appAlert==='function') appAlert('1:1 salvo 🍵', status==='scheduled'?'Agendado com sucesso.':'Registro atualizado.', { icon:'✓' });
 }
 
 async function _peopleMgmtDelete1on1(id, personId) {
-  if (!confirm('Excluir este 1:1?')) return;
+  const ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Excluir este 1:1?', 'A pauta, notas e action items serão perdidos. Esta ação não pode ser desfeita.', { danger:true, okLabel:'Excluir' })
+    : confirm('Excluir este 1:1?');
+  if (!ok) return;
   const { error } = await _peopleApi.del(`people_one_on_ones?id=eq.${id}`);
   if (error) { if (typeof appAlert==='function') appAlert('Erro', error.message||'Tente novamente.', { icon:'⚠' }); return; }
   document.getElementById('ppl-mgmt-1on1-modal')?.remove();
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
+  _peopleRefreshAll();
 }
 
 // ── PDI Modal ───────────────────────────────────────────────────────
@@ -38794,19 +38839,22 @@ async function _peopleMgmtSavePdi(personId, pdiId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
+  _peopleRefreshAll();
   if (typeof appAlert==='function') appAlert('PDI salvo 🎯', `${goals.length} meta${goals.length===1?'':'s'} registrada${goals.length===1?'':'s'}.`, { icon:'✓' });
 }
 
 async function _peopleMgmtDeletePdi(id, personId) {
-  if (!confirm('Excluir este PDI? As metas serão perdidas.')) return;
+  const ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Excluir este PDI?', 'As metas, auto-avaliação e avaliação do gestor serão perdidas. Esta ação não pode ser desfeita.', { danger:true, okLabel:'Excluir' })
+    : confirm('Excluir este PDI? As metas serão perdidas.');
+  if (!ok) return;
   const { error } = await _peopleApi.del(`people_pdi?id=eq.${id}`);
   if (error) { if (typeof appAlert==='function') appAlert('Erro', error.message||'Tente novamente.', { icon:'⚠' }); return; }
   document.getElementById('ppl-mgmt-pdi-modal')?.remove();
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
+  _peopleRefreshAll();
 }
 
 // ── Feedback Modal ──────────────────────────────────────────────────
@@ -38881,7 +38929,7 @@ async function _peopleMgmtSaveFeedback(personId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
+  _peopleRefreshAll();
   if (typeof appAlert==='function') appAlert('Feedback registrado ✨', is_anonymous?'Salvo de forma anônima.':'Registro adicionado.', { icon:'✓' });
 }
 
@@ -39303,7 +39351,7 @@ async function _peopleMgmtImportFromSynkan(personId) {
     if (typeof appAlert==='function') appAlert('Erro ao importar', error.message||'Tente novamente.', { icon:'⚠' });
     return;
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
+  _peopleRefreshAll();
   if (typeof appAlert==='function') appAlert('Importado ↓', 'Dados do Synkan trazidos com sucesso.', { icon:'✓' });
 }
 
@@ -39323,7 +39371,7 @@ async function _peopleMgmtUnlinkSynkan(personId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
+  _peopleRefreshAll();
   if (typeof appAlert==='function') appAlert('Desvinculado', 'A pessoa não está mais associada a uma conta Synkan.', { icon:'✓' });
 }
 
@@ -39362,10 +39410,16 @@ function _peopleMgmtOpenAccessHelp() {
   }
 }
 
-// Abre prompt pra vincular conta Synkan por email
+// Abre modal pra vincular conta Synkan por email
 async function _peopleMgmtOpenLinkSynkanInline(personId) {
-  const email = prompt('Email da conta Synkan a vincular:');
-  if (!email) return;
+  const email = await appPrompt('Vincular conta Synkan', {
+    message: 'Qual o email da conta Synkan dessa pessoa? Vamos buscar foto, nome e email do perfil.',
+    placeholder: 'email@exemplo.com',
+    type: 'email',
+    icon: '🔗',
+    okLabel: 'Vincular',
+  });
+  if (!email || !email.trim()) return;
   const { data, error } = await _peopleApi.rpc('people_link_user_by_email', { p_person_id: personId, p_email: email.trim() });
   if (error) {
     if (typeof appAlert==='function') appAlert('Erro ao vincular', error.message||'Tente novamente.', { icon:'⚠' });
@@ -39447,7 +39501,7 @@ async function _peopleMgmtSavePersonInfo(personId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
+  _peopleRefreshAll();
   if (typeof appAlert==='function') appAlert('Pessoa salva 人', 'Informações atualizadas.', { icon:'✓' });
 }
 
@@ -40865,6 +40919,8 @@ async function _peopleSubmitCreate() {
       appAlert('Trilha aberta 🌑', `<strong>${_esc(personName)}</strong> entrou em <em>Lua Nova</em>, com ${Number(data?.steps_count)||0} etapas em <strong>${Number(data?.duration_days)||90} dias</strong> até a <em>Lua Cheia</em> em ${_peopleFmtDate(data?.target_graduation_date)}.${linkChip}<br/><br/><em style="font-size:11.5px;color:var(--color-text-tertiary);">Pasta no Bunko e canal de chat sendo criados em background…</em>`, { icon: '🌑', html: true });
     }
     await renderPeople();
+    // Auto-sync: já cria cache fresco da Gestão pra pessoa aparecer lá imediatamente
+    _peopleRefreshAll();
   } catch(e) {
     console.error('[people] create falhou:', e);
     if (typeof appAlert === 'function') appAlert('Erro ao criar aprendiz', e?.message || String(e), { icon: '⚠️' });
@@ -41759,6 +41815,8 @@ async function _peopleSubmitLinkUser(personId) {
       appAlert('Conta vinculada ✓', `<strong>${_esc(email)}</strong> agora aparece em @-menções, recebe pulses automáticos e vê a trilha no home.`, { icon: '@', html: true });
     }
     if (_peopleState.currentPersonId) await _peopleOpenPersonDrawer(_peopleState.currentPersonId);
+    // Auto-sync: refresca cache da Gestão também (a pessoa pode aparecer lá com avatar/nome do Synkan)
+    _peopleRefreshAll();
   } catch(e) {
     console.warn('[people] link user:', e?.message);
     if (typeof appAlert === 'function') appAlert('Erro ao vincular', e?.message || String(e), { icon: '⚠️' });
@@ -41774,6 +41832,8 @@ async function _peopleUnlinkUser(personId) {
     if (error) throw error;
     document.getElementById('ppl-link-user-modal')?.remove();
     if (_peopleState.currentPersonId) await _peopleOpenPersonDrawer(_peopleState.currentPersonId);
+    // Auto-sync: refresca Gestão pra refletir a desvinculação
+    _peopleRefreshAll();
   } catch(e) {
     console.warn('[people] unlink:', e?.message);
     if (typeof appAlert === 'function') appAlert('Erro ao desvincular', e?.message || String(e), { icon: '⚠️' });
@@ -41853,6 +41913,8 @@ async function _peopleSubmitDesligar(personId, personName) {
     }
     await _peopleLoadAll();
     _peopleSetTab('historico');
+    // Auto-sync: refresca Gestão (pessoa sai da listagem ativa)
+    _peopleLoadMgmt().catch(_=>{});
   } catch(e) {
     console.warn('[people] desligar falhou:', e);
     if (typeof appAlert === 'function') appAlert('Erro ao desligar', e?.message || String(e), { icon: '⚠️' });
@@ -41869,6 +41931,8 @@ async function _peopleReverterDesligamento(personId, personName) {
     if (typeof appAlert === 'function') appAlert('Revertido ↩', `<strong>${_esc(personName)}</strong> voltou pra "Em trilha".`, { icon: '✓', html: true });
     await _peopleLoadAll();
     _peopleRenderMain();
+    // Auto-sync: pessoa reaparece na Gestão
+    _peopleLoadMgmt().catch(_=>{});
   } catch(e) {
     console.warn('[people] reverter falhou:', e);
     if (typeof appAlert === 'function') appAlert('Erro ao reverter', e?.message || String(e), { icon: '⚠️' });
@@ -72705,7 +72769,10 @@ async function _syncalOpenIcsSubscribeModal() {
 }
 
 async function _syncalRevokeIcsToken() {
-  if (!confirm('Revogar URL atual? Quem já assinou perde acesso — depois gera nova.')) return;
+  const ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Revogar URL atual?', 'Quem já assinou no Google/Apple Calendar perde acesso. Depois você gera uma URL nova.', { danger:true, okLabel:'Revogar', icon:'🔄' })
+    : confirm('Revogar URL atual? Quem já assinou perde acesso — depois gera nova.');
+  if (!ok) return;
   await _syncalApi.rpc('syncal_ics_token_revoke');
   document.getElementById('syncal-ics-sub')?.remove();
   setTimeout(() => _syncalOpenIcsSubscribeModal(), 50);
@@ -73338,7 +73405,10 @@ async function _syncalSubmitBookingPage() {
 }
 
 async function _syncalDeleteBookingPage(pageId) {
-  if (!confirm('Excluir essa página de booking? Quem já recebeu o link não consegue mais agendar.')) return;
+  const ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Excluir página de booking?', 'Quem já recebeu o link não consegue mais agendar com você. Esta ação não pode ser desfeita.', { danger:true, okLabel:'Excluir', icon:'🗑' })
+    : confirm('Excluir essa página de booking? Quem já recebeu o link não consegue mais agendar.');
+  if (!ok) return;
   await _syncalApi.del(`syncal_booking_pages?id=eq.${encodeURIComponent(pageId)}`);
   document.getElementById('syncal-booking-modal')?.remove();
   setTimeout(() => _syncalOpenBookingPagesModal(), 100);
@@ -74804,7 +74874,9 @@ function _syncalAddBunkoAttachment() {
     return;
   }
   // Fallback: prompt simples — pede nome do arquivo
-  const name = prompt('Nome do anexo (você anexará manualmente do Bunko depois):');
+  const name = (typeof appPrompt === 'function')
+    ? await appPrompt('Nome do anexo', { message:'Você anexará manualmente do Bunko depois.', placeholder:'ex: Apresentação Q2.pdf', icon:'📎', okLabel:'Adicionar' })
+    : prompt('Nome do anexo (você anexará manualmente do Bunko depois):');
   if (!name) return;
   _syncalPushBunkoAttachment({ id: 'manual_' + Date.now(), name, icon: '📄', type: 'file' });
 }
