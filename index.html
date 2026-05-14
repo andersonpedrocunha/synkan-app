@@ -1005,6 +1005,69 @@ kbd{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;font-size:
 /* ── Header ── */
 .board{padding:1.25rem 1rem;}
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;gap:8px;flex-wrap:wrap;}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Toolbar de Visões do Board (substituiu seção da sidebar)
+   ═══════════════════════════════════════════════════════════════════ */
+.board-views-bar{
+  display:none;
+  align-items:center;
+  gap:3px;
+  margin:-4px 0 14px;
+  padding:4px;
+  background:var(--color-background-secondary,#F5F1E8);
+  border:0.5px solid var(--color-border-tertiary,#E8DFCA);
+  border-radius:9px;
+  width:fit-content;
+  max-width:100%;
+  overflow-x:auto;
+  scrollbar-width:thin;
+}
+.board-views-bar::-webkit-scrollbar{height:4px;}
+.board-views-bar::-webkit-scrollbar-thumb{background:rgba(58,36,16,.18);border-radius:2px;}
+.board-view-tab{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 12px;
+  border:none;
+  background:transparent;
+  color:var(--color-text-secondary,#5C4F3F);
+  font-family:inherit;
+  font-size:12.5px;
+  font-weight:500;
+  border-radius:6px;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:all .12s ease;
+  position:relative;
+}
+.board-view-tab:hover{
+  color:var(--color-text-primary,#1A1611);
+  background:rgba(193,154,58,.10);
+}
+.board-view-tab.active{
+  background:linear-gradient(135deg,#3A2410,#6B4825);
+  color:#F5E8C8;
+  font-weight:600;
+  box-shadow:0 1px 3px rgba(58,36,16,.20),inset 0 1px 0 rgba(255,255,255,.08);
+}
+.board-view-tab.active .board-view-icon{opacity:1;}
+.board-view-icon{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  opacity:.75;
+  flex-shrink:0;
+}
+
+/* Esconde permanentemente a seção antiga da sidebar (foi substituída) */
+#sb-views-section{display:none !important;}
+
+@media (max-width:640px){
+  .board-views-bar{width:100%;}
+  .board-view-tab{font-size:11.5px;padding:5px 10px;}
+}
 .board-title{font-size:18px;font-weight:500;color:var(--color-text-primary);white-space:nowrap;}
 .top-right{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;}
 .tbtn{background:transparent;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:6px 14px;font-size:13px;color:var(--color-text-primary);cursor:pointer;white-space:nowrap;}
@@ -7873,6 +7936,42 @@ body.tx-active .belt-ring::after{
   </aside>
   <main class="main-area">
 <div class="board">
+  <!-- ═══════ Toolbar de Visões do Board (Opção A — tabs no topo) ═══════
+       Move o switcher de Kanban/Table/Checklist/Gantt/Calendar/Dashboard/Tracker
+       da sidebar pra cá. Só visível quando estamos dentro de um board.
+       Sidebar fica clean pros módulos top-level (Home/Boards/People/etc).
+  -->
+  <div class="board-views-bar" id="board-views-bar">
+    <button class="board-view-tab" data-view="kanban" id="view-tab-kanban" onclick="switchTab('kanban')" title="Kanban (1)">
+      <span class="board-view-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="3.4" height="11" rx="0.8"/><rect x="6.3" y="2.5" width="3.4" height="7" rx="0.8"/><rect x="10.6" y="2.5" width="3.4" height="9" rx="0.8"/></svg></span>
+      <span>Kanban</span>
+    </button>
+    <button class="board-view-tab" data-view="table" id="view-tab-table" onclick="switchTab('table')" title="Tabela (2)">
+      <span class="board-view-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1"/><line x1="2" y1="6.4" x2="14" y2="6.4"/><line x1="2" y1="9.5" x2="14" y2="9.5"/><line x1="6.5" y1="3" x2="6.5" y2="13"/></svg></span>
+      <span>Table</span>
+    </button>
+    <button class="board-view-tab" data-view="checklist" id="view-tab-checklist" onclick="switchTab('checklist')" title="Checklist (3)">
+      <span class="board-view-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="4" height="4" rx="0.8"/><path d="M3.5 4.5 L 4.3 5.3 L 5.7 3.7"/><rect x="2.5" y="9.5" width="4" height="4" rx="0.8"/><line x1="8.5" y1="4.5" x2="14" y2="4.5"/><line x1="8.5" y1="11.5" x2="14" y2="11.5"/></svg></span>
+      <span>Checklist</span>
+    </button>
+    <button class="board-view-tab" data-view="gantt" id="view-tab-gantt" onclick="switchTab('gantt')" title="Gantt (4)">
+      <span class="board-view-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="6" height="2.5" rx="0.6"/><rect x="5" y="6.5" width="7" height="2.5" rx="0.6"/><rect x="3" y="10" width="9" height="2.5" rx="0.6"/></svg></span>
+      <span>Gantt</span>
+    </button>
+    <button class="board-view-tab" data-view="calendar" id="view-tab-calendar" onclick="switchTab('calendar')" title="Calendário (5)">
+      <span class="board-view-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3.5" width="12" height="10.5" rx="1.3"/><line x1="2" y1="6.4" x2="14" y2="6.4"/><line x1="5" y1="1.8" x2="5" y2="4.4"/><line x1="11" y1="1.8" x2="11" y2="4.4"/></svg></span>
+      <span>Calendar</span>
+    </button>
+    <button class="board-view-tab" data-view="dashboard" id="view-tab-dashboard" onclick="switchTab('dashboard')" title="Dashboard (6)">
+      <span class="board-view-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 13.5h11.6"/><path d="M4.5 13.5V9"/><path d="M7.5 13.5V5.5"/><path d="M10.5 13.5V8"/><path d="M13.5 13.5V3"/></svg></span>
+      <span>Dashboard</span>
+    </button>
+    <button class="board-view-tab" data-view="tracker" id="view-tab-tracker" onclick="switchTab('tracker')" title="Tracker (7)">
+      <span class="board-view-icon"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5 V 8.5 L 10 10"/><path d="M6 1.5 L 10 1.5"/></svg></span>
+      <span>Tracker</span>
+    </button>
+  </div>
+
   <div class="top">
     <span class="board-title" id="board-title">Board</span>
     <div class="top-right">
@@ -14261,14 +14360,16 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // Atalhos numéricos pra views (1=kanban, 2=checklist, 3=gantt, 4=calendar, 5=dashboard)
+  // Atalhos numéricos pra views — alinhados com a ordem da toolbar do board
+  // 1=Kanban · 2=Table · 3=Checklist · 4=Gantt · 5=Calendar · 6=Dashboard · 7=Tracker
   if (VIEW_TABS.includes(currentTab)) {
     if (e.key === '1') { e.preventDefault(); switchTab('kanban'); }
-    if (e.key === '2') { e.preventDefault(); switchTab('checklist'); }
-    if (e.key === '3') { e.preventDefault(); switchTab('gantt'); }
-    if (e.key === '4') { e.preventDefault(); switchTab('calendar'); }
-    if (e.key === '5') { e.preventDefault(); switchTab('dashboard'); }
-    if (e.key === '6') { e.preventDefault(); switchTab('tracker'); }
+    if (e.key === '2') { e.preventDefault(); switchTab('table'); }
+    if (e.key === '3') { e.preventDefault(); switchTab('checklist'); }
+    if (e.key === '4') { e.preventDefault(); switchTab('gantt'); }
+    if (e.key === '5') { e.preventDefault(); switchTab('calendar'); }
+    if (e.key === '6') { e.preventDefault(); switchTab('dashboard'); }
+    if (e.key === '7') { e.preventDefault(); switchTab('tracker'); }
   }
 });
 
@@ -19890,9 +19991,17 @@ function switchTab(tab) {
   // Barra superior (filtros + engrenagem) só faz sentido dentro de um board
   const topEl = document.querySelector('.top'); if (topEl) topEl.style.display = inBoard ? '' : 'none';
 
-  // Sidebar — seção de visões só aparece quando está dentro de um board
+  // Toolbar de views do board (substitui antiga sidebar #sb-views-section)
+  const viewsBar = document.getElementById('board-views-bar');
+  if (viewsBar) viewsBar.style.display = inBoard ? '' : 'none';
+  // Marca tab ativa na toolbar nova
+  VIEW_TABS.forEach(v => {
+    const el = document.getElementById('view-tab-' + v);
+    if (el) el.classList.toggle('active', tab === v);
+  });
+  // Mantém compat: ainda marca sb-* dos legados (mas a sidebar de views agora some)
   const viewsSec = document.getElementById('sb-views-section');
-  if (viewsSec) viewsSec.style.display = inBoard ? '' : 'none';
+  if (viewsSec) viewsSec.style.display = 'none';  // SEMPRE escondida — toolbar nova assume
   ['home','myboards','gallery','canvas','registry','okrs','people','chat','acervo','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker','zai','bunko','syncal'].forEach(t=>{
     const el = document.getElementById('sb-'+t);
     // 'myboards' (sub-item) corresponde à tab 'boards'
