@@ -9299,7 +9299,7 @@ function _applyGuestUIGating() {
       try {
         appAlert('Bem-vindo como convidado',
           'Você foi convidado pra colaborar em até 3 boards específicos. Você pode comentar, anexar arquivos e mexer nos seus próprios cards. Outros recursos do dono (Zai, OKRs, Synconnect, Lab) não fazem parte do seu acesso.',
-          { icon:'👤' });
+          { icon:'人' });
       } catch(e){}
     }
   } catch(e) { console.warn('_applyGuestUIGating', e); }
@@ -22184,7 +22184,7 @@ function render() {
           const stDone=stList.filter(s=>s.done).length;
           const stPct=stTotal?Math.round(stDone/stTotal*100):0;
           const F = kanbanConfig.cardFields;
-          const respLine = (F.responsavel && c.responsavel) ? `<div class="card-resp">👤 ${c.responsavel}${c.recurrence?'  <span style="color:var(--color-text-tertiary);font-size:10px;">🔁 '+(c.recurrence.frequency==='daily'?'diário':c.recurrence.frequency==='weekly'?'semanal':'mensal')+'</span>':''}</div>` : (c.recurrence ? `<div class="card-resp">🔁 ${c.recurrence.frequency==='daily'?'Diário':c.recurrence.frequency==='weekly'?'Semanal':'Mensal'}</div>` : '');
+          const respLine = (F.responsavel && c.responsavel) ? `<div class="card-resp">人 ${c.responsavel}${c.recurrence?'  <span style="color:var(--color-text-tertiary);font-size:10px;">🔁 '+(c.recurrence.frequency==='daily'?'diário':c.recurrence.frequency==='weekly'?'semanal':'mensal')+'</span>':''}</div>` : (c.recurrence ? `<div class="card-resp">🔁 ${c.recurrence.frequency==='daily'?'Diário':c.recurrence.frequency==='weekly'?'Semanal':'Mensal'}</div>` : '');
           // Atribuído a (membro real do board) — pill com avatar + nome.
           // Resolve nome via cache de membros (qualquer cache, não só do board atual)
           // E como fallback final, usa o próprio supaUser se for ele mesmo. Assim
@@ -27629,7 +27629,7 @@ const CARD_FIELDS_META = [
   {key:'subtasks',     icon:'☑',  label:'Subtarefas (barra de progresso)'},
   {key:'attachments',  icon:'📎', label:'Anexos (contagem)'},
   {key:'threads',      icon:'💬', label:'Notas (contagem)'},
-  {key:'responsavel',  icon:'👤', label:'Responsável (manual)'},
+  {key:'responsavel',  icon:'人', label:'Responsável (manual)'},
   {key:'assignedUser', icon:'👥', label:'Atribuído a (membro do board)'},
   {key:'contact',      icon:'🔗', label:'Cadastro vinculado (lead/cliente/forn.)'},
 ];
@@ -34769,7 +34769,7 @@ function _cnOpenPopover(nodeId, anchor) {
   } else {
     pop.innerHTML = `
       <button class="cn-popover-item" onclick="_cnPickContact('${nodeId}')"><span class="cn-popover-icon">🔗</span>Cadastro (lead/cliente)${n.contactId?' ✓':''}</button>
-      <button class="cn-popover-item" onclick="_cnPickResponsavel('${nodeId}')"><span class="cn-popover-icon">👤</span>Responsável${n.responsavel?': '+_esc(n.responsavel.split(' ')[0]):''}</button>
+      <button class="cn-popover-item" onclick="_cnPickResponsavel('${nodeId}')"><span class="cn-popover-icon">人</span>Responsável${n.responsavel?': '+_esc(n.responsavel.split(' ')[0]):''}</button>
       <button class="cn-popover-item" onclick="_cnPickOKR('${nodeId}')"><span class="cn-popover-icon">🎯</span>Vincular a OKR${n.krId?' ✓':''}</button>
       <div class="cn-popover-divider"></div>
       <button class="cn-popover-item" onclick="_cnPickPriority('${nodeId}')"><span class="cn-popover-icon">⚑</span>Prioridade${n.priority?': '+({alta:'Alta',media:'Média',baixa:'Baixa'})[n.priority]:''}</button>
@@ -34838,7 +34838,7 @@ async function _cnPickContact(nodeId) {
   const choices = list.map(c => ({
     id: c.id,
     label: c.name,
-    icon: c.type==='lead' ? '🌱' : c.type==='fornecedor' ? '🏭' : c.type==='ambos' ? '🔄' : '👤',
+    icon: c.type==='lead' ? '🌱' : c.type==='fornecedor' ? '🏭' : c.type==='ambos' ? '🔄' : '人',
     meta: c.type==='lead'?'lead':c.type==='fornecedor'?'fornecedor':c.type==='ambos'?'ambos':'cliente',
     active: n && n.contactId === c.id,
   }));
@@ -34874,15 +34874,15 @@ async function _cnPickOKR(nodeId) {
 async function _cnPickResponsavel(nodeId) {
   _cnClosePopover();
   const teamList = Array.isArray(team) ? team : [];
-  if (!teamList.length) { await appAlert('Sem equipe cadastrada', 'Vá em algum board → engrenagem ⚙ pra adicionar membros à equipe.', { icon:'👤' }); return; }
+  if (!teamList.length) { await appAlert('Sem equipe cadastrada', 'Vá em algum board → engrenagem ⚙ pra adicionar membros à equipe.', { icon:'人' }); return; }
   const cv = _curCanvas(); const n = cv?.nodes.find(x=>x.id===nodeId);
   const choices = teamList.map(t => ({
     id: t,
     label: t,
-    icon: '👤',
+    icon: '人',
     active: n && n.responsavel === t,
   }));
-  const choice = await appChoice('Atribuir responsável', choices, { icon:'👤' });
+  const choice = await appChoice('Atribuir responsável', choices, { icon:'人' });
   if (choice === null) return;
   if (choice === '__clear__') { _cnUpdateNode(nodeId, { responsavel: null }); return; }
   _cnUpdateNode(nodeId, { responsavel: choice });
@@ -36443,7 +36443,7 @@ function _synBuildSellerOptions(selectedId) {
   const external = _synSellers.filter(s => s.type === 'external');
   if (internal.length) {
     opts.push('<optgroup label="Membros do workspace">');
-    internal.forEach(s => opts.push(`<option value="${_esc(s.id)}" ${s.id === selectedId ? 'selected' : ''}>👤 ${_esc(s.name)}</option>`));
+    internal.forEach(s => opts.push(`<option value="${_esc(s.id)}" ${s.id === selectedId ? 'selected' : ''}>人 ${_esc(s.name)}</option>`));
     opts.push('</optgroup>');
   }
   if (external.length) {
@@ -36473,7 +36473,7 @@ function _synRenderCommissionSplits() {
     return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
       <select onchange="_synEditingSplits[${i}].seller_id=this.value;_synRenderCommissionSplits();" style="flex:1;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;background:var(--color-background-primary);">
         <option value="">— escolha vendedor —</option>
-        ${_synSellers.filter(s => s.id !== primaryId).map(s => `<option value="${_esc(s.id)}" ${s.id === sp.seller_id ? 'selected' : ''}>${s.type==='internal'?'👤':'🤝'} ${_esc(s.name)}</option>`).join('')}
+        ${_synSellers.filter(s => s.id !== primaryId).map(s => `<option value="${_esc(s.id)}" ${s.id === sp.seller_id ? 'selected' : ''}>${s.type==='internal'?'人':'🤝'} ${_esc(s.name)}</option>`).join('')}
       </select>
       <input type="number" min="0" max="100" step="0.5" value="${sp.pct}" onchange="_synEditingSplits[${i}].pct=parseFloat(this.value)||0;_synRenderCommissionSplits();" style="width:72px;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:5px 8px;font-size:12px;font-variant-numeric:tabular-nums;text-align:right;font-family:inherit;"/>
       <span style="font-size:11px;color:var(--color-text-tertiary);">%</span>
@@ -36531,7 +36531,7 @@ function _synAvailableWorkspaceMembers() {
 }
 
 // Modal de cadastro/edição de vendedor — 2 modos:
-//   • novo: tabs "👤 Membro do workspace" vs "🤝 Externo"
+//   • novo: tabs "人 Membro do workspace" vs "🤝 Externo"
 //   • edit: só edita os campos do seller existente
 // Z-index 9900 pra ficar NA FRENTE do modal de deal (9800).
 function _synOpenSellerModal(sellerId, onSaved) {
@@ -36582,7 +36582,7 @@ function _synOpenSellerModal(sellerId, onSaved) {
 
   const tabsHTML = isEdit ? '' : `
     <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:0.5px solid var(--color-border-tertiary);">
-      <button type="button" onclick="document.getElementById('syn-seller-modal').dataset.tab='member';_synOpenSellerModal(null,${onSaved?'window._synSellerModalCb':'null'});" style="flex:1;padding:9px 14px;background:${tab==='member'?'transparent':'transparent'};border:none;border-bottom:2px solid ${tab==='member'?'var(--color-text-primary)':'transparent'};color:${tab==='member'?'var(--color-text-primary)':'var(--color-text-tertiary)'};font-size:13px;font-weight:${tab==='member'?'600':'400'};cursor:pointer;font-family:inherit;">👤 Membro do workspace ${members.length ? `<span style="background:var(--color-background-secondary);padding:1px 7px;border-radius:999px;font-size:11px;margin-left:4px;">${members.length}</span>` : ''}</button>
+      <button type="button" onclick="document.getElementById('syn-seller-modal').dataset.tab='member';_synOpenSellerModal(null,${onSaved?'window._synSellerModalCb':'null'});" style="flex:1;padding:9px 14px;background:${tab==='member'?'transparent':'transparent'};border:none;border-bottom:2px solid ${tab==='member'?'var(--color-text-primary)':'transparent'};color:${tab==='member'?'var(--color-text-primary)':'var(--color-text-tertiary)'};font-size:13px;font-weight:${tab==='member'?'600':'400'};cursor:pointer;font-family:inherit;">人 Membro do workspace ${members.length ? `<span style="background:var(--color-background-secondary);padding:1px 7px;border-radius:999px;font-size:11px;margin-left:4px;">${members.length}</span>` : ''}</button>
       <button type="button" onclick="document.getElementById('syn-seller-modal').dataset.tab='external';_synOpenSellerModal(null,${onSaved?'window._synSellerModalCb':'null'});" style="flex:1;padding:9px 14px;background:transparent;border:none;border-bottom:2px solid ${tab==='external'?'var(--color-text-primary)':'transparent'};color:${tab==='external'?'var(--color-text-primary)':'var(--color-text-tertiary)'};font-size:13px;font-weight:${tab==='external'?'600':'400'};cursor:pointer;font-family:inherit;">🤝 Vendedor externo</button>
     </div>`;
 
@@ -36597,7 +36597,7 @@ function _synOpenSellerModal(sellerId, onSaved) {
       </div>
       ${tabsHTML}
       ${tab === 'member' ? `<div style="display:flex;flex-direction:column;gap:7px;">${memberList}</div>` : externalForm}
-      ${tab === 'edit' && existing?.type === 'internal' ? `<div style="margin-top:10px;font-size:11px;color:var(--color-text-tertiary);padding:6px 8px;background:var(--color-background-secondary);border-radius:6px;">Tipo: <strong>👤 interno</strong> · vinculado a um membro do workspace.</div>` : ''}
+      ${tab === 'edit' && existing?.type === 'internal' ? `<div style="margin-top:10px;font-size:11px;color:var(--color-text-tertiary);padding:6px 8px;background:var(--color-background-secondary);border-radius:6px;">Tipo: <strong>人 interno</strong> · vinculado a um membro do workspace.</div>` : ''}
       ${tab === 'edit' && existing?.type === 'external' ? `<div style="margin-top:10px;font-size:11px;color:var(--color-text-tertiary);padding:6px 8px;background:var(--color-background-secondary);border-radius:6px;">Tipo: <strong>🤝 externo</strong> · vendedor que não tem conta Synkan.</div>` : ''}
       ${tab !== 'member' ? `<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
         ${isEdit ? `<button onclick="(async()=>{if(confirm('Desativar este vendedor? (não exclui histórico)')){await _synSaveSeller({id:'${existing.id}',active:false});document.getElementById('syn-seller-modal').style.display='none';if(typeof renderRegistry==='function')renderRegistry();}})()" style="margin-right:auto;background:transparent;border:1px solid #BC002D;color:#BC002D;padding:7px 14px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;">Desativar</button>` : ''}
@@ -37971,7 +37971,7 @@ function _peopleRenderMgmtDrawer() {
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
           <button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpenPersonInfoModal('${_esc(p.id)}')">✎ Info básica</button>
-          ${p.user_id ? `<button class="ppl-btn ppl-btn-sm" onclick="_peopleOpenPersonProfile('${_esc(p.id)}')">👤 Perfil completo</button>` : ''}
+          ${p.user_id ? `<button class="ppl-btn ppl-btn-sm" onclick="_peopleOpenPersonProfile('${_esc(p.id)}')">人 Perfil completo</button>` : ''}
           ${settings.enableOneOnOnes ? `<button class="ppl-btn ppl-btn-sm ppl-btn-primary" onclick="_peopleMgmtOpen1on1Modal('${_esc(p.id)}', null)">🍵 Agendar 1:1</button>` : ''}
           ${settings.enableNotes ? `<button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpenNoteModal('${_esc(p.id)}')">📝 Nova nota</button>` : ''}
           ${settings.enablePDI && !activePdi ? `<button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpenPdiModal('${_esc(p.id)}', null)">🎯 Iniciar PDI</button>` : ''}
@@ -38970,7 +38970,10 @@ function _peopleMgmtOpenPersonInfoModal(personId) {
   m.innerHTML = `
     <div class="modal" style="max-width:640px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
       <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
-        <h3 style="margin:0;font-size:17px;">👤 ${existing?'Editar':'Nova'} pessoa · Informações básicas</h3>
+        <h3 style="margin:0;font-size:17px;display:inline-flex;align-items:center;gap:9px;">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:linear-gradient(135deg,#3A2410,#6B4825);color:#F5E8C8;border-radius:7px;font-family:'Noto Serif JP',serif;font-size:14px;font-weight:500;">人</span>
+          ${existing?'Editar':'Nova'} pessoa · Informações básicas
+        </h3>
         <button onclick="document.getElementById('ppl-mgmt-info-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
       </div>
       <div class="mb" style="overflow-y:auto;">
@@ -39099,7 +39102,7 @@ async function _peopleMgmtSavePersonInfo(personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
   _peopleLoadMgmt().then(() => { if (currentTab === 'people' && _peopleState.page === 'gestao') _peopleRenderGestao(); });
-  if (typeof appAlert==='function') appAlert('Pessoa salva 👤', 'Informações atualizadas.', { icon:'✓' });
+  if (typeof appAlert==='function') appAlert('Pessoa salva 人', 'Informações atualizadas.', { icon:'✓' });
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -42228,7 +42231,7 @@ function _synRenderSellersAnalytics(rows) {
                           : winPct >= 25 ? '#854F0B'
                           : '#A32D2D';
           const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:var(--color-text-tertiary);">${i+1}</span>`;
-          const typeIco = r.type === 'internal' ? '<span title="Membro do workspace">👤</span>' : '<span title="Vendedor externo">🤝</span>';
+          const typeIco = r.type === 'internal' ? '<span title="Membro do workspace">人</span>' : '<span title="Vendedor externo">🤝</span>';
           return `<tr style="border-bottom:0.5px solid var(--color-border-tertiary);">
             <td style="padding:9px 10px;font-size:14px;">${medal}</td>
             <td style="padding:9px 10px;">
@@ -42546,7 +42549,7 @@ function _synGlobalSearch(q) {
       || (c.email||'').toLowerCase().includes(query)
       || (c.phone||'').replace(/\D/g,'').includes(query.replace(/\D/g,''));
     if (matches) {
-      hits.push({ type:'contato', icon:'👤', title:c.name, sub: [c.contact_person, c.email].filter(Boolean).join(' · '), id:c.id, onClick: () => { _synCloseGlobalSearch(); openContactModal(c.id); } });
+      hits.push({ type:'contato', icon:'人', title:c.name, sub: [c.contact_person, c.email].filter(Boolean).join(' · '), id:c.id, onClick: () => { _synCloseGlobalSearch(); openContactModal(c.id); } });
     }
   });
   // Activities
@@ -44556,7 +44559,7 @@ function _renderCustomer360Body(cards, docs) {
           }
           const value = _cardCurrencyValue(card, g.board);
           return `<div class="c360-card-row" onclick="closeCustomer360();switchBoard('${boardId}',{goTo:'kanban'});setTimeout(()=>editCard(${typeof card.id==='string'?`'${card.id}'`:card.id}),200);">
-            <div class="c360-card-row-name">${_esc(card.name||'')}<small>${card.deadline?'📅 '+new Date(card.deadline+'T00:00:00').toLocaleDateString('pt-BR'):''}${card.responsavel?(card.deadline?' · ':'')+'👤 '+_esc(card.responsavel):''}</small></div>
+            <div class="c360-card-row-name">${_esc(card.name||'')}<small>${card.deadline?'📅 '+new Date(card.deadline+'T00:00:00').toLocaleDateString('pt-BR'):''}${card.responsavel?(card.deadline?' · ':'')+'人 '+_esc(card.responsavel):''}</small></div>
             ${value?`<span class="c360-card-value">${_formatBRL(value)}</span>`:''}
             <span class="c360-col-pill ${pillCls}">${_esc(colTitle(card.col))}</span>
           </div>`;
@@ -52716,7 +52719,7 @@ function _renderExtractedActions(actions, errorMsg) {
             <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;">
               ${a.priority?`<span>prioridade ${_esc(a.priority)}</span>`:''}
               ${a.deadline?`<span>📅 ${_esc(a.deadline)}</span>`:''}
-              ${a.responsavel?`<span>👤 ${_esc(a.responsavel)}</span>`:''}
+              ${a.responsavel?`<span>人 ${_esc(a.responsavel)}</span>`:''}
             </div>
             ${a.rationale?`<div style="font-size:11px;color:var(--color-text-tertiary);margin-top:3px;font-style:italic;">${_esc(a.rationale)}</div>`:''}
           </div>
@@ -56703,7 +56706,7 @@ async function _chatCreateDMFlow() {
       ...uniqueIds.map(uid => ({
         id: uid,
         label: _chatState.userMap[uid]?.name || 'Usuário',
-        icon: _chatState.userMap[uid]?.avatar ? '🧑' : '👤',
+        icon: _chatState.userMap[uid]?.avatar ? '🧑' : '人',
         meta: roleByUser[uid] === 'admin' ? 'Admin' : 'Editor',
       })),
     ];
@@ -62553,7 +62556,7 @@ window._bunkoExtractActionsRun = async function(pageId) {
           <div style="flex:1;font-size:13px;color:#3A2410;line-height:1.4;">
             <strong>${_esc(a.title || a)}</strong>
             ${a.description ? `<div style="font-size:12px;color:#6B5840;margin-top:3px;">${_esc(a.description)}</div>` : ''}
-            ${a.assignee ? `<div style="font-size:11px;color:#8B6634;margin-top:3px;">👤 ${_esc(a.assignee)}</div>` : ''}
+            ${a.assignee ? `<div style="font-size:11px;color:#8B6634;margin-top:3px;">人 ${_esc(a.assignee)}</div>` : ''}
           </div>
         </label>`).join('')}
     </div>`;
@@ -63018,7 +63021,7 @@ function _bunkoRenderSynconnectBadge(pageId, dealId, contactId) {
   }
   if (contactId) {
     const c2 = _synContactById(contactId);
-    if (c2) parts.push(`<span style="background:rgba(127,119,221,.12);color:#3C3489;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:500;">👤 ${_esc(c2.name)}</span>`);
+    if (c2) parts.push(`<span style="background:rgba(127,119,221,.12);color:#3C3489;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:500;">人 ${_esc(c2.name)}</span>`);
   }
   el.innerHTML = parts.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px;">${parts.join('')}</div>` : '';
 }
@@ -63971,7 +63974,7 @@ const _BUNKO_ICON_LIBRARY = [
     {i:'🙇',t:'reverencia bow'},
     {i:'🤝',t:'aperto maos handshake'},
     {i:'👥',t:'pessoas time grupo'},
-    {i:'👤',t:'pessoa silhueta'},
+    {i:'人',t:'pessoa silhueta'},
     {i:'👨‍💼',t:'homem business gravata'},
     {i:'👩‍💼',t:'mulher business'},
   ]},
