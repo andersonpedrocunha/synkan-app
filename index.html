@@ -67153,10 +67153,13 @@ const _syncalApi = {
   async _fetch(method, path, opts = {}) {
     const cfg = this._cfg();
     if (!cfg) throw new Error('Sem config Supabase');
+    // _peopleApi expõe a anon key em `anonKey` (não `anon`). Aceita ambos por segurança.
+    const anonKey = cfg.anonKey || cfg.anon;
+    if (!anonKey) throw new Error('Supabase anon key faltando');
     const url = `${cfg.url}/rest/v1/${path}`;
     const headers = {
-      'apikey': cfg.anon,
-      'Authorization': `Bearer ${cfg.token}`,
+      'apikey': anonKey,
+      'Authorization': `Bearer ${cfg.token || anonKey}`,
       'Content-Type': 'application/json',
       ...(opts.headers || {}),
     };
@@ -67386,63 +67389,102 @@ function _syncalNewId() {
 // ════════════════════════════════════════════════════════════════════
 // Identity matching · pra saber quais cards do board são "meus"
 // ────────────────────────────────────────────────────────────────────
-// O `c.responsavel` é uma string livre selecionada de um dropdown do
-// time do board (pode ser "Anderson Cunha", "anderson teste", email…).
-// Não dá pra confiar só em `user_metadata.full_name` porque o user pode
-// ter se adicionado ao time com um apelido diferente. Junta TUDO que o
-// user pode ter como identidade e compara case-insensitive/trim.
+// Robusto: normaliza diacríticos, considera vários candidatos (nome,
+// email, primeiro token), match bidirecional (substring de ambos lados).
 // ════════════════════════════════════════════════════════════════════
+function _syncalNormName(s) {
+  if (!s || typeof s !== 'string') return '';
+  return s.toString()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // tira acentos
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function _syncalGetMyIdentities() {
   const ids = new Set();
-  const add = (s) => { if (s && typeof s === 'string') ids.add(s.toString().trim().toLowerCase()); };
+  const tokens = new Set();  // tokens individuais (pra match fuzzy)
+  const add = (s) => {
+    const n = _syncalNormName(s);
+    if (!n) return;
+    ids.add(n);
+    n.split(/\s+/).forEach(t => { if (t.length >= 3) tokens.add(t); });
+  };
 
-  // 1) Auth user_metadata.full_name (o "oficial")
+  // 1) Auth identities
   if (typeof supaUser !== 'undefined' && supaUser) {
     add(supaUser.user_metadata?.full_name);
     add(supaUser.user_metadata?.name);
     add(supaUser.user_metadata?.display_name);
     add(supaUser.email);
-    // Parte local do email (antes do @) — bate com "anderson teste" → "anderson"
     if (supaUser.email) add(supaUser.email.split('@')[0]);
-    // ID também — caso algum card tenha sido criado salvando o UUID
     add(supaUser.id);
   }
 
-  // 2) Quem o app considera "me" no Home (combinando team com priorities)
+  // 2) Team do board atual (se user dividiu o nome só com 1 pessoa, é ele)
   try {
     if (typeof team !== 'undefined' && Array.isArray(team)) {
-      // O Home usa "Anderson Cunha" como fallback mas o user real pode estar
-      // adicionado com outro nome. Aqui pegamos TODOS os candidatos.
-      const teamArr = team;
-      if (teamArr.length === 1) add(teamArr[0]);  // 1-pessoa workspace → é ela
-      if (teamArr.includes('Anderson Cunha')) add('Anderson Cunha');
+      if (team.length === 1) add(team[0]);
+      if (team.includes('Anderson Cunha')) add('Anderson Cunha');
     }
   } catch(_){}
 
-  // 3) Variantes de nome (sobrenome, etc) — pega primeiro token também
-  const baseName = (typeof supaUser !== 'undefined' && supaUser?.user_metadata?.full_name) || null;
-  if (baseName) {
-    const tokens = baseName.toLowerCase().split(/\s+/).filter(Boolean);
-    if (tokens.length > 1) {
-      add(tokens[0]);                // só primeiro nome
-      add(tokens[tokens.length-1]);  // só último
-    }
-  }
-
-  return ids;
+  return { full: ids, tokens };
 }
 
-// Compara responsável do card com qualquer identidade conhecida (case+trim)
+// Compara responsável do card com identidades — TRIPLA estratégia:
+//   1. Match exato normalizado
+//   2. Token compartilhado (responsavel ou identidade tem palavra em comum)
+//   3. Substring de ambos lados (caso de apelidos)
 function _syncalIsMine(responsavel, identities) {
   if (!responsavel) return false;
-  const r = String(responsavel).trim().toLowerCase();
+  const r = _syncalNormName(responsavel);
   if (!r) return false;
-  if (identities.has(r)) return true;
-  // Match fuzzy: primeiro token (ex: "anderson teste" contém "anderson")
-  const firstToken = r.split(/\s+/)[0];
-  if (firstToken && identities.has(firstToken)) return true;
+  if (!identities || !identities.full) return false;
+
+  // 1) Match exato
+  if (identities.full.has(r)) return true;
+
+  // 2) Match por token (palavra com >=3 chars compartilhada)
+  const respTokens = r.split(/\s+/).filter(t => t.length >= 3);
+  for (const t of respTokens) {
+    if (identities.tokens.has(t)) return true;
+  }
+
+  // 3) Match por substring de ambos lados
+  for (const id of identities.full) {
+    if (id.length >= 3 && (r.includes(id) || id.includes(r))) return true;
+  }
+
   return false;
 }
+
+// Debug: chamável pelo console (window._syncalDebug()) pra ver matching
+window._syncalDebug = function() {
+  const idents = _syncalGetMyIdentities();
+  console.group('🔍 Syncal Debug');
+  console.log('supaUser:', typeof supaUser !== 'undefined' ? supaUser : 'undefined');
+  console.log('full_name:', supaUser?.user_metadata?.full_name);
+  console.log('email:', supaUser?.email);
+  console.log('Minhas identidades (full):', [...idents.full]);
+  console.log('Minhas identidades (tokens):', [...idents.tokens]);
+  console.log('team:', typeof team !== 'undefined' ? team : 'undefined');
+  let allCards = [];
+  try { allCards = _allCardsAcrossBoards(); } catch(_){}
+  if (allCards.length === 0 && typeof cards !== 'undefined') allCards = cards;
+  console.log('Total cards encontrados:', allCards.length);
+  const withDeadline = allCards.filter(c => c.deadline);
+  console.log('Cards com deadline:', withDeadline.length);
+  console.table(withDeadline.map(c => ({
+    name: c.name,
+    deadline: c.deadline,
+    responsavel: c.responsavel,
+    isMine: _syncalIsMine(c.responsavel, idents),
+    board: c._sourceBoardName,
+  })));
+  console.groupEnd();
+  return { identities: [...idents.full], cards: withDeadline.length };
+};
 
 // ════════════════════════════════════════════════════════════════════
 // Expansão de recorrência (subset RRULE)
@@ -68863,12 +68905,13 @@ async function _syncalPostToChannel(channelId, body, extra = {}) {
       mentions: extra.mentions || [],
       attachments: extra.attachments || [],
     };
+    const anonKey = cfg.anonKey || cfg.anon;
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': cfg.anon,
-        'Authorization': `Bearer ${cfg.token}`,
+        'apikey': anonKey,
+        'Authorization': `Bearer ${cfg.token || anonKey}`,
         'Prefer': 'return=representation',
       },
       body: JSON.stringify(insertObj),
@@ -69257,12 +69300,13 @@ async function _syncalRenderPublicPage(token) {
   let data = null;
   try {
     const cfg = (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) ? {
-      url: window.SUPABASE_URL, anon: window.SUPABASE_ANON_KEY,
+      url: window.SUPABASE_URL, anonKey: window.SUPABASE_ANON_KEY,
     } : (function(){
       // tenta puxar do _peopleApi se já tiver
       try { return _peopleApi._resolveConfig(); } catch(_){ return null; }
     })();
-    if (!cfg) {
+    const anonKey = cfg?.anonKey || cfg?.anon;
+    if (!cfg || !anonKey) {
       _syncalRenderPublicError('Configuração Supabase indisponível.');
       return;
     }
@@ -69270,8 +69314,8 @@ async function _syncalRenderPublicPage(token) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': cfg.anon,
-        'Authorization': `Bearer ${cfg.anon}`,
+        'apikey': anonKey,
+        'Authorization': `Bearer ${anonKey}`,
       },
       body: JSON.stringify({ p_token: token }),
     });
@@ -69370,12 +69414,13 @@ async function _syncalPublicSubmitRsvp(token, statusOverride) {
   }
   try {
     const cfg = (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) ? {
-      url: window.SUPABASE_URL, anon: window.SUPABASE_ANON_KEY,
+      url: window.SUPABASE_URL, anonKey: window.SUPABASE_ANON_KEY,
     } : _peopleApi._resolveConfig();
-    if (!cfg) throw new Error('config missing');
+    const anonKey = cfg?.anonKey || cfg?.anon;
+    if (!cfg || !anonKey) throw new Error('config missing');
     const res = await fetch(`${cfg.url}/rest/v1/rpc/syncal_public_rsvp`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': cfg.anon, 'Authorization': `Bearer ${cfg.anon}` },
+      headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': `Bearer ${anonKey}` },
       body: JSON.stringify({ p_token: token, p_name: name, p_email: email, p_status: status }),
     });
     if (!res.ok) throw new Error(await res.text());
