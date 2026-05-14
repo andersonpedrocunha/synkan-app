@@ -69611,7 +69611,7 @@ function _syncalBuildAnnouncementBody(ev, link) {
       + `_Registrado por ${who} no Syncal — evita marcar call neste período._\n\n— Mestre Kan 🥋`;
   }
   if (ev.type === 'holiday') {
-    return `🎌 *Feriado / recesso* — **${ev.title}**\n\n`
+    return `🎉 *Feriado / recesso* — **${ev.title}**\n\n`
       + `📆 ${startDate}${endDate && endDate !== startDate?` até ${endDate} _(${totalDays} dias)_`:''}\n`
       + (ev.description ? `📝 ${ev.description}\n` : '')
       + `_Adicionado por ${who}._\n\n— Mestre Kan 🥋`;
@@ -69775,7 +69775,7 @@ function _syncalOpenEventDetail(eventId) {
     event:    '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#E7EEF7;color:#1A4778;letter-spacing:.04em;">📅 EVENTO</span>',
     absence:  '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#E2DAF0;color:#3F2A6B;letter-spacing:.04em;">✈ AUSÊNCIA</span>',
     vacation: '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#F5E8E0;color:#7A3510;letter-spacing:.04em;">🌴 FÉRIAS</span>',
-    holiday:  '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FBEAEB;color:#9F0026;letter-spacing:.04em;">🎌 FERIADO</span>',
+    holiday:  '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#FBEAEB;color:#9F0026;letter-spacing:.04em;">🎉 FERIADO</span>',
   }[e.type || 'event'];
 
   modal.innerHTML = `
@@ -72071,7 +72071,7 @@ async function _syncalOpenEventModal(prefDate, editingId) {
               </label>
               <label class="syncal-type-opt ${eventType==='holiday'?'active':''}" data-type="holiday">
                 <input type="radio" name="type" value="holiday" ${eventType==='holiday'?'checked':''} onchange="_syncalSetEventType('holiday')" style="display:none;"/>
-                <div class="syncal-type-emoji">🎌</div>
+                <div class="syncal-type-emoji">🎉</div>
                 <div class="syncal-type-label">Feriado</div>
                 <div class="syncal-type-hint">feriado nacional, ponto facultativo</div>
               </label>
@@ -72148,7 +72148,7 @@ async function _syncalOpenEventModal(prefDate, editingId) {
             <div class="ppl-modal-row" style="margin:0;">
               <label class="ppl-modal-label">Ícone</label>
               <select class="ppl-modal-select" name="icon">
-                ${['📌','📅','📞','🎯','🥋','📋','🎓','🍵','⛩','🌙','💚','🔔','✈','🌴','🎌','🏖','💼','🩺','🎉','🚫'].map(i => `<option value="${i}" ${existing?.icon===i?'selected':''}>${i}</option>`).join('')}
+                ${['📌','📅','📞','🎯','🥋','📋','🎓','🍵','⛩','🌙','💚','🔔','✈','🌴','🎉','🏖','💼','🩺','☀','🚫'].map(i => `<option value="${i}" ${existing?.icon===i?'selected':''}>${i}</option>`).join('')}
               </select>
             </div>
             <div class="ppl-modal-row" style="margin:0;">
@@ -72377,7 +72377,7 @@ function _syncalSetEventType(type) {
   const colorSel = document.querySelector('#syncal-event-form select[name="color"]');
   const titleInput = document.querySelector('#syncal-event-form input[name="title"]');
   if (iconSel && !iconSel.dataset.userTouched) {
-    iconSel.value = { event:'📅', absence:'✈', vacation:'🌴', holiday:'🎌' }[type] || '📌';
+    iconSel.value = { event:'📅', absence:'✈', vacation:'🌴', holiday:'🎉' }[type] || '📌';
   }
   if (colorSel && !colorSel.dataset.userTouched) {
     colorSel.value = { event:'#378ADD', absence:'#8E7AB5', vacation:'#7A3510', holiday:'#D4537E' }[type] || '#3B6D11';
