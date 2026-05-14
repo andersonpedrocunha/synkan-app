@@ -68044,9 +68044,13 @@ function _syncalCollectEvents(fromDate, toDate) {
       allCards = cards;
     }
     const myIdentities = _syncalGetMyIdentities();
-    allCards.forEach(c => {
-      if (!c.deadline) return;
-      if (!_syncalIsMine(c.responsavel, myIdentities)) return;
+    const withDeadline = allCards.filter(c => c.deadline);
+    let matched = 0;
+
+    withDeadline.forEach(c => {
+      const isMine = _syncalIsMine(c.responsavel, myIdentities);
+      if (!isMine) return;
+      matched++;
 
       const isDone = c.col === (typeof TERMINAL_COL !== 'undefined' ? TERMINAL_COL : 'done');
       out.push({
@@ -68059,6 +68063,30 @@ function _syncalCollectEvents(fromDate, toDate) {
         meta: c,
       });
     });
+
+    // FALLBACK ESPERTO: se nada bateu mas tem cards com deadline, talvez o
+    // matching de identidade tá errado. Loga pro user ver no console + mostra
+    // os cards mesmo assim (melhor mostrar de mais do que de menos).
+    if (matched === 0 && withDeadline.length > 0) {
+      console.warn('[syncal] Nenhum card bateu com sua identidade. Mostrando TODOS por segurança. Rode _syncalDebug() pra ver detalhes.');
+      console.table(withDeadline.slice(0, 20).map(c => ({
+        name: c.name, deadline: c.deadline,
+        responsavel: c.responsavel, board: c._sourceBoardName,
+      })));
+      console.log('[syncal] Minhas identidades:', [...myIdentities.full]);
+      withDeadline.forEach(c => {
+        const isDone = c.col === (typeof TERMINAL_COL !== 'undefined' ? TERMINAL_COL : 'done');
+        out.push({
+          id: 'b_' + (c._unifiedId || c.id), source: 'boards',
+          title: c.name || 'Card',
+          date: c.deadline, time: c.deadlineTime || null,
+          color: isDone ? '#9BC97A' : (c.priority==='alta' ? '#D4537E' : c.priority==='media' ? '#BA7517' : '#378ADD'),
+          icon: isDone ? '✓' : '📋',
+          link: { type: 'board-card', id: c.id, boardId: c._sourceBoardId || c.boardId },
+          meta: c,
+        });
+      });
+    }
   }
 
   // 3) People Journey · steps com deadline + milestones
