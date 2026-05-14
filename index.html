@@ -67124,6 +67124,8 @@ let _syncalState = {
   events: [],                  // eventos nativos (cache local + Supabase truth)
   tags: [],                    // tags coloridas custom do workspace
   participants: [],            // RSVPs (event_id, user_id, status, user_name)
+  invitables: [],              // gente do Tatami que pode ser convidada (Opção A)
+  settings: { default_visibility: 'private' },
   loaded: false,               // primeira sync já rodou
   loading: false,
   filters: {
@@ -67188,7 +67190,8 @@ const _syncalApi = {
   },
 };
 
-// Carrega eventos + tags + participants do Supabase (com cache local pra UX)
+// Carrega eventos + tags + participants + invitables do Supabase
+// (com cache local pra UX otimista)
 async function _syncalLoadEvents() {
   // 1) Render instantâneo com cache local
   try {
@@ -67198,6 +67201,8 @@ async function _syncalLoadEvents() {
       _syncalState.events = cached.events || [];
       _syncalState.tags = cached.tags || [];
       _syncalState.participants = cached.participants || [];
+      _syncalState.invitables = cached.invitables || [];
+      _syncalState.settings = cached.settings || { default_visibility: 'private' };
     }
   } catch(_){}
 
@@ -67213,12 +67218,16 @@ async function _syncalLoadEvents() {
       _syncalState.events = (data.events || []).map(_syncalNormalizeRow);
       _syncalState.tags = data.tags || [];
       _syncalState.participants = data.participants || [];
+      _syncalState.invitables = data.invitables || [];
+      _syncalState.settings = data.settings || { default_visibility: 'private' };
       _syncalState.loaded = true;
       try {
         localStorage.setItem(_SYNCAL_CACHE_KEY, JSON.stringify({
           events: _syncalState.events,
           tags: _syncalState.tags,
           participants: _syncalState.participants,
+          invitables: _syncalState.invitables,
+          settings: _syncalState.settings,
         }));
       } catch(_){}
     }
@@ -67486,6 +67495,17 @@ function _syncalExpandRecurrence(event, rangeStart, rangeEnd) {
   }
 
   return out;
+}
+
+// Filtro de busca rápido pra lista de convidáveis (quando >6 pessoas)
+function _syncalFilterInvitables(query) {
+  const q = (query||'').toLowerCase().trim();
+  const grid = document.getElementById('syncal-participants-grid');
+  if (!grid) return;
+  grid.querySelectorAll('.syncal-participant-chip').forEach(el => {
+    const name = el.dataset.name || '';
+    el.style.display = (!q || name.includes(q)) ? '' : 'none';
+  });
 }
 
 // Toggle visual da opção de visibilidade no modal de Ajustes
@@ -69868,8 +69888,9 @@ async function _syncalOpenEventModal(prefDate, editingId) {
   const recInterval = rec?.interval || 1;
   const recUntil = rec?.until || '';
 
-  // Pessoas convidáveis (gente do People Journey com user_id linkado)
-  const inviteCandidates = pessoas.filter(p => p.user_id);
+  // Pessoas convidáveis: gente do Tatami (que divide canal de chat comigo).
+  // Lista vem do RPC syncal_dashboard, em _syncalState.invitables (já com nome+email+avatar).
+  const inviteCandidates = _syncalState.invitables || [];
   // Já convidadas neste evento
   const alreadyInvited = new Set(
     editingId
@@ -70038,18 +70059,23 @@ async function _syncalOpenEventModal(prefDate, editingId) {
 
           <!-- ───── Participantes (convites + RSVP) — só pra type=event ───── -->
           <div class="ppl-modal-row" id="syncal-participants-row" style="${eventType==='event'?'':'display:none;'}">
-            <label class="ppl-modal-label">👥 Convidar pessoas</label>
+            <label class="ppl-modal-label" style="display:flex;align-items:center;justify-content:space-between;">
+              <span>👥 Convidar pessoas <span style="font-weight:400;color:var(--color-text-tertiary);text-transform:none;letter-spacing:0;font-size:11px;">(do Tatami)</span></span>
+              ${inviteCandidates.length > 6 ? `<input type="text" placeholder="🔍 filtrar…" oninput="_syncalFilterInvitables(this.value)" style="font-size:11.5px;padding:4px 8px;border:0.5px solid var(--color-border-tertiary);border-radius:5px;width:120px;font-family:inherit;font-weight:400;text-transform:none;letter-spacing:0;"/>` : ''}
+            </label>
             ${inviteCandidates.length === 0
-              ? `<div style="padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;font-size:11.5px;color:var(--color-text-tertiary);line-height:1.5;font-style:italic;">Ninguém com conta Synkan vinculada ainda. Vai em <strong>People Journey</strong> e adicione pessoas com email — quando vincularem a conta, aparecerão aqui.</div>`
-              : `<div class="syncal-participants-grid">
+              ? `<div style="padding:10px 12px;background:var(--color-background-secondary);border-radius:8px;font-size:11.5px;color:var(--color-text-tertiary);line-height:1.5;font-style:italic;">Ninguém divide canal com você no Tatami ainda. Abra o <strong>Chat</strong>, crie/entre num canal com pessoas, e elas vão aparecer aqui.</div>`
+              : `<div class="syncal-participants-grid" id="syncal-participants-grid">
                   ${inviteCandidates.map(p => {
                     const isInvited = alreadyInvited.has(p.user_id);
-                    const initials = (p.name||'?').split(' ').slice(0,2).map(s=>s[0]).join('').toUpperCase();
+                    const initials = (p.name||p.email||'?').split(' ').slice(0,2).map(s=>s[0]).join('').toUpperCase();
+                    const shared = Number(p.shared_channels)||0;
+                    const tooltip = shared > 1 ? `${shared} canais em comum` : 'compartilha canal';
                     return `
-                      <label class="syncal-participant-chip ${isInvited?'active':''}">
+                      <label class="syncal-participant-chip ${isInvited?'active':''}" data-name="${_esc((p.name||p.email||'').toLowerCase())}" title="${tooltip}">
                         <input type="checkbox" name="participant_ids" value="${_esc(p.user_id)}" ${isInvited?'checked':''} onchange="this.closest('.syncal-participant-chip').classList.toggle('active',this.checked);"/>
                         <span class="syncal-participant-avatar">${p.photo_url ? `<img src="${_esc(p.photo_url)}" alt=""/>` : _esc(initials)}</span>
-                        <span class="syncal-participant-name">${_esc(p.name)}</span>
+                        <span class="syncal-participant-name">${_esc(p.name||p.email)}</span>
                       </label>`;
                   }).join('')}
                 </div>`
