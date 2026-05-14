@@ -4040,6 +4040,17 @@ body.density-compact .col{padding:7px;}
 
 .ppl-btn-sm{padding:5px 10px;font-size:11.5px;border-radius:6px;}
 
+/* Form classes do Info modal e Celebrações */
+.ppl-info-lbl{display:block;font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+.ppl-info-input{width:100%;padding:8px 10px;border:0.5px solid var(--color-border-secondary);border-radius:7px;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-sans);font-size:13px;outline:none;}
+.ppl-info-input:focus{border-color:#6B4825;}
+.ppl-info-hint{font-size:10.5px;color:var(--color-text-tertiary);margin-top:4px;line-height:1.45;}
+.ppl-info-hint code{background:var(--color-background-primary);padding:0 4px;border-radius:3px;font-size:10px;color:var(--color-text-secondary);}
+
+.ppl-mgmt-today-banner{display:flex;align-items:center;gap:14px;padding:14px 16px;background:linear-gradient(135deg,#FFF4D1 0%,#FBE7A4 100%);border:0.5px solid #C19A3A;border-radius:11px;margin-bottom:14px;}
+
+.ppl-mgmt-celeb-row{display:flex;align-items:center;gap:14px;padding:10px 12px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:9px;margin-bottom:5px;}
+
 :root.dark .ppl-mgmt-card.is-saturated{background:linear-gradient(180deg,rgba(188,0,45,.10) 0%,var(--color-background-primary) 60%);}
 :root.dark .ppl-mgmt-timeline-item.type-concern{background:rgba(188,0,45,.10);}
 :root.dark .ppl-mgmt-timeline-item.type-action{background:rgba(193,154,58,.10);}
@@ -8040,6 +8051,8 @@ body.tx-active .belt-ring::after{
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg></span><span>OKRs</span></button>
     <button class="sb-item" id="sb-people" onclick="switchTab('people')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="5.5" cy="5.2" r="2.4"/><path d="M1.5 13.5c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="11" cy="4.5" r="1.8" opacity=".7"/><path d="M9 11c.5-1.4 1.8-2.4 3.3-2.4 1 0 1.9.4 2.5 1.1" opacity=".7"/></svg></span><span>People Journey</span></button>
+    <button class="sb-item" id="sb-mgmt" onclick="switchTab('mgmt')">
+      <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M2.2 7.5a3.2 3.2 0 0 1 6.4 0v.5"/><circle cx="5.4" cy="4.3" r="2.0"/><path d="M9 11.2c0-1.6 1.3-2.8 2.9-2.8s2.9 1.2 2.9 2.8"/><circle cx="11.9" cy="6.4" r="1.5"/><path d="M5.4 13.7v-1.2"/><path d="M11.9 13.7v-1.2"/><circle cx="8" cy="13.7" r="0.55" fill="currentColor"/></svg></span><span>Gestão de Pessoas</span></button>
     <button class="sb-item" id="sb-registry" onclick="switchTab('registry')">
       <span class="sb-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><path d="M5.5 4V2.8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V4"/><rect x="2" y="4" width="12" height="9.2" rx="1.4"/><path d="M2 8h12"/><path d="M7 7.5v1"/><path d="M9 7.5v1"/></svg></span><span>Synconnect</span></button>
     <button class="sb-item" id="sb-bunko" onclick="switchTab('bunko')">
@@ -8231,6 +8244,10 @@ body.tx-active .belt-ring::after{
 
   <div id="view-people" style="display:none;">
     <div id="people-root"></div>
+  </div>
+
+  <div id="view-mgmt" style="display:none;">
+    <div id="mgmt-root"></div>
   </div>
 
   <div id="view-zai" style="display:none;">
@@ -20260,6 +20277,8 @@ function switchTab(tab) {
   document.getElementById('view-okrs').style.display      = tab==='okrs'      ? '' : 'none';
   const peopleEl = document.getElementById('view-people');
   if (peopleEl) peopleEl.style.display = tab==='people' ? '' : 'none';
+  const mgmtEl = document.getElementById('view-mgmt');
+  if (mgmtEl) mgmtEl.style.display = tab==='mgmt' ? '' : 'none';
   document.getElementById('view-zai').style.display       = tab==='zai'       ? '' : 'none';
   document.getElementById('view-chat').style.display      = tab==='chat'      ? '' : 'none';
   const bunkoEl = document.getElementById('view-bunko');
@@ -20294,7 +20313,7 @@ function switchTab(tab) {
   // Mantém compat: ainda marca sb-* dos legados (mas a sidebar de views agora some)
   const viewsSec = document.getElementById('sb-views-section');
   if (viewsSec) viewsSec.style.display = 'none';  // SEMPRE escondida — toolbar nova assume
-  ['home','myboards','gallery','canvas','registry','okrs','people','chat','acervo','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker','zai','bunko','syncal'].forEach(t=>{
+  ['home','myboards','gallery','canvas','registry','okrs','people','mgmt','chat','acervo','settings','kanban','table','checklist','gantt','calendar','dashboard','tracker','zai','bunko','syncal'].forEach(t=>{
     const el = document.getElementById('sb-'+t);
     // 'myboards' (sub-item) corresponde à tab 'boards'
     const matchTab = (t === 'myboards') ? 'boards' : t;
@@ -20314,7 +20333,13 @@ function switchTab(tab) {
   if (tab==='registry') renderRegistry();
   if (tab==='okrs') renderOKRs();
   if (tab==='people' && typeof renderPeople === 'function') renderPeople();
+  if (tab==='mgmt'   && typeof renderMgmt   === 'function') renderMgmt();
   if (tab==='home' && typeof _peopleRenderHomeBanner === 'function') _peopleRenderHomeBanner();
+  // Celebrações diárias — checa quem faz aniversário hoje e posta no Tatami (1x/dia).
+  // Roda no home e no mgmt; idempotente via settings.celebrationLastCheck.
+  if ((tab==='home' || tab==='mgmt') && typeof _peopleMgmtCheckCelebrationsDaily === 'function') {
+    setTimeout(() => _peopleMgmtCheckCelebrationsDaily().catch(_=>{}), 1500);
+  }
   if (tab==='home' && typeof _syncalInjectHomeWidget === 'function') setTimeout(() => _syncalInjectHomeWidget(), 80);
   if (tab==='zai') renderZaiHub();
   if (tab==='chat') renderChat();
@@ -36723,6 +36748,14 @@ const _PEOPLE_MGMT_DEFAULT_SETTINGS = {
   feedbackCycleMonths: 6,     // 3 | 6 | 12 — quando lembrar de pedir feedback 360
   showInactiveAfterDays: 21,  // pessoa sem 1:1 nem nota há X dias → aparece destacada
   syncalIntegration:  true,   // ao agendar 1:1, criar evento no Syncal
+  // ── Celebrações ────────────────────────────────────────────────────
+  enableCelebrations:        true,   // master toggle de celebrações automáticas
+  celebrateBirthday:         true,   // 🎂 aniversário pessoal
+  celebrateWorkAnniversary:  true,   // 🎉 aniversário na empresa
+  celebrationChannelId:      null,   // canal Tatami pra postar (UUID)
+  celebrationBirthdayMsg:    '🎂 Hoje é aniversário de {nome}! Que esse ciclo seja repleto de conquistas. Manda os parabéns aí, time! 🎉',
+  celebrationWorkAnnivMsg:   '🎉 Hoje {nome} completa {anos} ano(s) na nossa jornada! Obrigado por construir esse caminho com a gente. ⛩',
+  celebrationLastCheck:      null,   // ISO date — última vez que rodou (idempotência client-side)
 };
 function _peopleGetMgmtSettings() {
   try {
@@ -37265,7 +37298,6 @@ function _peopleRenderMain() {
 
       <div class="ppl-tabs">
         <button class="ppl-tab ${tab==='aprendizes'?'active':''}" onclick="_peopleSetTab('aprendizes')">🌙 Em trilha <span style="opacity:.55;">${aprendizes.length}</span></button>
-        <button class="ppl-tab ${tab==='gestao'?'active':''}"     onclick="_peopleSetTab('gestao')">🤝 Gestão <span style="opacity:.55;" id="ppl-gestao-count">—</span></button>
         <button class="ppl-tab ${tab==='graduados'?'active':''}"  onclick="_peopleSetTab('graduados')">🎓 Graduados <span style="opacity:.55;">${graduados.length}</span></button>
         <button class="ppl-tab ${tab==='historico'?'active':''}"  onclick="_peopleSetTab('historico')">📜 Histórico <span style="opacity:.55;">${Number(d.total_desligados)||0}</span></button>
         <button class="ppl-tab ${tab==='templates'?'active':''}"  onclick="_peopleSetTab('templates')">📋 Templates <span style="opacity:.55;">${_peopleState.templates.length}</span></button>
@@ -37564,20 +37596,57 @@ function _peopleRenderTabContent() {
     el.innerHTML = `<div class="ppl-grid">${newCard}${templates.map(_peopleTemplateCardHTML).join('')}</div>`;
   } else if (tab === 'pulse') {
     _peopleRenderPulseHistory(el);
-  } else if (tab === 'gestao') {
-    _peopleRenderGestao(el);
   }
 }
 
 // ════════════════════════════════════════════════════════════════════
-// GESTÃO DE PESSOAS · aba "Gestão"
+// GESTÃO DE PESSOAS · página standalone (sidebar item "Gestão")
 // ────────────────────────────────────────────────────────────────────
 // Painel de gestão contínua: cards de TODAS as pessoas do workspace
 // (em trilha + graduadas + Tatami + Synkan), com ferramentas pra
 // 📝 notas, 🍵 1:1s, 🎯 PDI, ✨ feedback 360 e indicadores de saturação.
-// Cada feature é toggle-ável no settings; cadência customizável.
+// Inclui:
+//   · Informações básicas por pessoa (nome completo, aniversário, admissão)
+//   · Celebrações automáticas (aniversário + work anniversary) no Tatami
+//   · Cada feature toggle-ável + cadência customizável
 // Backend: RPCs people_mgmt_*  (ver MIGRATIONS_PEOPLE_MANAGEMENT.sql)
 // ════════════════════════════════════════════════════════════════════
+
+// Render principal da página (chamado por switchTab('mgmt'))
+function renderMgmt() {
+  const root = document.getElementById('mgmt-root');
+  if (!root) return;
+  const settings = _peopleGetMgmtSettings();
+
+  root.innerHTML = `
+    <div class="ppl-wrap">
+      <div class="ppl-head">
+        <div>
+          <div class="ppl-title">
+            Gestão de Pessoas
+            <span class="ppl-title-badge">監</span>
+          </div>
+          <div class="ppl-sub">acompanhamento contínuo · 1:1s, notas, PDI, feedback 360 e celebrações automáticas.</div>
+        </div>
+        <div class="ppl-actions">
+          ${settings.enableCelebrations ? `<button class="ppl-btn" onclick="_peopleMgmtOpenCelebrationsModal()" title="Próximas celebrações">🎂 <span id="ppl-celeb-count">—</span></button>` : ''}
+          <button class="ppl-btn" onclick="_peopleOpenMgmtSettingsModal()" title="Ajustes da Gestão" style="font-size:18px;line-height:1;padding:8px 11px;display:inline-flex;align-items:center;justify-content:center;"><span style="display:inline-block;transform:translateY(-1px);">⚙</span></button>
+          <button class="ppl-btn-primary ppl-btn" onclick="_peopleMgmtOpenPersonInfoModal(null)">＋ Nova pessoa</button>
+        </div>
+      </div>
+
+      <div id="mgmt-celeb-banner"></div>
+      <div id="mgmt-grid-host"></div>
+    </div>
+  `;
+
+  _peopleRenderGestao(document.getElementById('mgmt-grid-host'));
+  // Banner de celebrações de hoje (se habilitado)
+  if (settings.enableCelebrations) {
+    _peopleMgmtLoadCelebrationsCount();
+    _peopleMgmtRenderTodayBanner();
+  }
+}
 
 async function _peopleLoadMgmt() {
   try {
@@ -37595,7 +37664,7 @@ async function _peopleLoadMgmt() {
 }
 
 function _peopleRenderGestao(el) {
-  if (!el) el = document.getElementById('ppl-tab-content');
+  if (!el) el = document.getElementById('mgmt-grid-host');
   if (!el) return;
   const settings = _peopleGetMgmtSettings();
   const dash = _peopleState.mgmtDashboard;
@@ -37608,16 +37677,14 @@ function _peopleRenderGestao(el) {
         <div class="ppl-mgmt-skel-row"></div>
         <div class="ppl-mgmt-skel-row"></div>
       </div>`;
-    _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(el); });
+    _peopleLoadMgmt().then(() => {
+      if (typeof currentTab !== 'undefined' && currentTab === 'mgmt') _peopleRenderGestao(el);
+    });
     return;
   }
 
   const pessoas = Array.isArray(dash.pessoas) ? dash.pessoas : [];
   const teams   = Array.isArray(dash.teams)   ? dash.teams   : [];
-
-  // Atualiza counter no header
-  const counter = document.getElementById('ppl-gestao-count');
-  if (counter) counter.textContent = String(pessoas.length);
 
   // Caso vazio (nenhuma pessoa registrada — nem em trilha nem Tatami)
   if (pessoas.length === 0) {
@@ -37874,6 +37941,7 @@ function _peopleRenderMgmtDrawer() {
           ${p.hired_at?` · ⏳ ${_peopleFmtTenure(p.hired_at)} de casa`:''}
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpenPersonInfoModal('${_esc(p.id)}')">✎ Info básica</button>
           ${p.user_id ? `<button class="ppl-btn ppl-btn-sm" onclick="_peopleOpenPersonProfile('${_esc(p.id)}')">👤 Perfil completo</button>` : ''}
           ${settings.enableOneOnOnes ? `<button class="ppl-btn ppl-btn-sm ppl-btn-primary" onclick="_peopleMgmtOpen1on1Modal('${_esc(p.id)}', null)">🍵 Agendar 1:1</button>` : ''}
           ${settings.enableNotes ? `<button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpenNoteModal('${_esc(p.id)}')">📝 Nova nota</button>` : ''}
@@ -38203,7 +38271,7 @@ async function _peopleMgmtSaveNote(personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
   // Recarrega dashboard pra refletir o last_note_at
-  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
   if (typeof appAlert==='function') appAlert('Nota salva 📝', isPrivate?'Visível apenas pra você.':'Registrada na timeline.', { icon:'✓' });
 }
 
@@ -38385,7 +38453,7 @@ async function _peopleMgmtSave1on1(personId, oneOnOneId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
   if (typeof appAlert==='function') appAlert('1:1 salvo 🍵', status==='scheduled'?'Agendado com sucesso.':'Registro atualizado.', { icon:'✓' });
 }
 
@@ -38397,7 +38465,7 @@ async function _peopleMgmtDelete1on1(id, personId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
 }
 
 // ── PDI Modal ───────────────────────────────────────────────────────
@@ -38549,7 +38617,7 @@ async function _peopleMgmtSavePdi(personId, pdiId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
   if (typeof appAlert==='function') appAlert('PDI salvo 🎯', `${goals.length} meta${goals.length===1?'':'s'} registrada${goals.length===1?'':'s'}.`, { icon:'✓' });
 }
 
@@ -38561,7 +38629,7 @@ async function _peopleMgmtDeletePdi(id, personId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
 }
 
 // ── Feedback Modal ──────────────────────────────────────────────────
@@ -38636,7 +38704,7 @@ async function _peopleMgmtSaveFeedback(personId) {
   if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
     await _peopleOpenMgmtPersonDrawer(personId);
   }
-  _peopleLoadMgmt().then(() => { if (_peopleState.tab === 'gestao') _peopleRenderGestao(); });
+  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
   if (typeof appAlert==='function') appAlert('Feedback registrado ✨', is_anonymous?'Salvo de forma anônima.':'Registro adicionado.', { icon:'✓' });
 }
 
@@ -38733,6 +38801,47 @@ function _peopleOpenMgmtSettingsModal() {
             </div>
           </div>
         </div>
+
+        <div style="font-size:11px;font-weight:700;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin:20px 0 8px;">🎂 Celebrações automáticas</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:var(--color-background-secondary);border-radius:9px;cursor:pointer;">
+            <input type="checkbox" id="ppl-mgmt-celeb-master" ${s.enableCelebrations?'checked':''} style="margin-top:3px;cursor:pointer;flex-shrink:0;width:16px;height:16px;"/>
+            <div style="flex:1;">
+              <div style="font-size:13.5px;font-weight:600;color:var(--color-text-primary);">Ativar celebrações automáticas</div>
+              <div style="font-size:11.5px;color:var(--color-text-secondary);margin-top:2px;line-height:1.5;">Quando ligado, o Synkan posta automaticamente no canal Tatami escolhido nos aniversários (pessoal e de empresa). Idempotente — cada celebração só é postada 1 vez por ano.</div>
+            </div>
+          </label>
+
+          <div id="ppl-celeb-detail-block" style="${s.enableCelebrations?'':'opacity:.4;pointer-events:none;'}padding:12px 14px;background:var(--color-background-secondary);border-radius:9px;display:flex;flex-direction:column;gap:12px;">
+
+            <div>
+              <label style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Canal Tatami</label>
+              <select id="ppl-mgmt-celeb-channel" class="ppl-info-input">
+                <option value="">— Carregando canais —</option>
+              </select>
+              <div class="ppl-info-hint">Onde as mensagens serão postadas. Recomendado: canal geral do time.</div>
+            </div>
+
+            <div style="border-top:0.5px solid var(--color-border-tertiary);padding-top:12px;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--color-text-primary);cursor:pointer;margin-bottom:6px;">
+                <input type="checkbox" id="ppl-mgmt-celeb-birthday" ${s.celebrateBirthday?'checked':''} style="cursor:pointer;width:15px;height:15px;"/>
+                🎂 Aniversário pessoal
+              </label>
+              <textarea id="ppl-mgmt-celeb-bday-msg" placeholder="Mensagem template…" class="ppl-info-input" style="min-height:60px;resize:vertical;font-family:var(--font-sans);">${_esc(s.celebrationBirthdayMsg||'')}</textarea>
+              <div class="ppl-info-hint">Use <code>{nome}</code>, <code>{nomecompleto}</code>, <code>{time}</code> como variáveis.</div>
+            </div>
+
+            <div style="border-top:0.5px solid var(--color-border-tertiary);padding-top:12px;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--color-text-primary);cursor:pointer;margin-bottom:6px;">
+                <input type="checkbox" id="ppl-mgmt-celeb-work" ${s.celebrateWorkAnniversary?'checked':''} style="cursor:pointer;width:15px;height:15px;"/>
+                ⛩ Aniversário na empresa
+              </label>
+              <textarea id="ppl-mgmt-celeb-work-msg" placeholder="Mensagem template…" class="ppl-info-input" style="min-height:60px;resize:vertical;font-family:var(--font-sans);">${_esc(s.celebrationWorkAnnivMsg||'')}</textarea>
+              <div class="ppl-info-hint">Variáveis: <code>{nome}</code>, <code>{nomecompleto}</code>, <code>{anos}</code>, <code>{time}</code>.</div>
+            </div>
+
+          </div>
+        </div>
       </div>
       <div style="padding:14px 22px 18px;border-top:0.5px solid var(--color-border-secondary);display:flex;justify-content:flex-end;gap:8px;">
         <button class="ppl-btn" onclick="document.getElementById('ppl-mgmt-settings-modal').remove()">Cancelar</button>
@@ -38740,6 +38849,51 @@ function _peopleOpenMgmtSettingsModal() {
       </div>
     </div>`;
   document.body.appendChild(m);
+
+  // Master toggle desabilita bloco de detalhes
+  const masterCb = document.getElementById('ppl-mgmt-celeb-master');
+  if (masterCb) masterCb.addEventListener('change', () => {
+    const block = document.getElementById('ppl-celeb-detail-block');
+    if (block) {
+      block.style.opacity = masterCb.checked ? '' : '.4';
+      block.style.pointerEvents = masterCb.checked ? '' : 'none';
+    }
+  });
+
+  // Carrega canais do Tatami pra dropdown
+  _peopleMgmtLoadChannelsForSelect(s.celebrationChannelId);
+}
+
+async function _peopleMgmtLoadChannelsForSelect(currentValue) {
+  const select = document.getElementById('ppl-mgmt-celeb-channel');
+  if (!select) return;
+  try {
+    const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+    if (!c || typeof supaUser === 'undefined' || !supaUser) {
+      select.innerHTML = `<option value="">— Faça login —</option>`;
+      return;
+    }
+    const { data: channels, error } = await c.from('chat_channels')
+      .select('id,name,is_dm,is_private')
+      .eq('workspace_owner', supaUser.id)
+      .order('name');
+    if (error) {
+      select.innerHTML = `<option value="">— Erro ao carregar —</option>`;
+      return;
+    }
+    const list = (channels||[]).filter(ch => !ch.is_dm);
+    if (list.length === 0) {
+      select.innerHTML = `<option value="">— Nenhum canal disponível —</option>`;
+      return;
+    }
+    select.innerHTML = [
+      `<option value="">— Selecione um canal —</option>`,
+      ...list.map(ch => `<option value="${_esc(ch.id)}" ${ch.id===currentValue?'selected':''}>${ch.is_private?'🔒 ':'# '}${_esc(ch.name||'sem-nome')}</option>`)
+    ].join('');
+  } catch(e) {
+    console.warn('[people-mgmt] load channels:', e?.message);
+    select.innerHTML = `<option value="">— Erro —</option>`;
+  }
 }
 
 function _peopleMgmtSaveSettingsFromForm() {
@@ -38755,13 +38909,332 @@ function _peopleMgmtSaveSettingsFromForm() {
   s.pdiCadenceMonths     = Number(document.getElementById('ppl-mgmt-cad-pdi')?.value)      || cur.pdiCadenceMonths;
   s.feedbackCycleMonths  = Number(document.getElementById('ppl-mgmt-cad-fb')?.value)       || cur.feedbackCycleMonths;
   s.showInactiveAfterDays= Number(document.getElementById('ppl-mgmt-cad-inactive')?.value) || cur.showInactiveAfterDays;
+  // ── Celebrações ────────────────────────────────────────────────────
+  s.enableCelebrations       = !!document.getElementById('ppl-mgmt-celeb-master')?.checked;
+  s.celebrateBirthday        = !!document.getElementById('ppl-mgmt-celeb-birthday')?.checked;
+  s.celebrateWorkAnniversary = !!document.getElementById('ppl-mgmt-celeb-work')?.checked;
+  s.celebrationChannelId     = document.getElementById('ppl-mgmt-celeb-channel')?.value || null;
+  s.celebrationBirthdayMsg   = document.getElementById('ppl-mgmt-celeb-bday-msg')?.value || cur.celebrationBirthdayMsg;
+  s.celebrationWorkAnnivMsg  = document.getElementById('ppl-mgmt-celeb-work-msg')?.value || cur.celebrationWorkAnnivMsg;
   _peopleSaveMgmtSettings(s);
   document.getElementById('ppl-mgmt-settings-modal')?.remove();
-  if (_peopleState.tab === 'gestao') _peopleRenderGestao();
+  if (currentTab === 'mgmt') _peopleRenderGestao();
   if (typeof appAlert === 'function') {
     const offCount = ['enableNotes','enableOneOnOnes','enablePDI','enableFeedback'].filter(k=>!s[k]).length;
     appAlert('Gestão atualizada ⚙', offCount===0?'Todas as 4 ferramentas ativas.':`${4-offCount} ferramentas ativas · ${offCount} desligadas.`, { icon:'✓' });
   }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// INFO DA PESSOA · modal com dados básicos (nome completo, aniversário,
+// admissão, contato). Editável a partir do drawer da Gestão.
+// ════════════════════════════════════════════════════════════════════
+function _peopleMgmtOpenPersonInfoModal(personId) {
+  const data = _peopleState.mgmtCurrentPerson;
+  const existing = (personId && data?.person?.id === personId) ? data.person : null;
+  let m = document.getElementById('ppl-mgmt-info-modal'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'ppl-mgmt-info-modal';
+  m.className = 'ov open'; m.style.zIndex = '10013';
+
+  const p = existing || {};
+  m.innerHTML = `
+    <div class="modal" style="max-width:640px;width:95%;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">👤 ${existing?'Editar':'Nova'} pessoa · Informações básicas</h3>
+        <button onclick="document.getElementById('ppl-mgmt-info-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb" style="overflow-y:auto;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div style="grid-column:1/-1;">
+            <label class="ppl-info-lbl">Nome de exibição *</label>
+            <input id="ppl-info-name" type="text" value="${_esc(p.name||'')}" placeholder="ex: Maria Silva" class="ppl-info-input"/>
+            <div class="ppl-info-hint">Como a pessoa aparece em todo o Synkan.</div>
+          </div>
+          <div style="grid-column:1/-1;">
+            <label class="ppl-info-lbl">Nome completo</label>
+            <input id="ppl-info-full" type="text" value="${_esc(p.full_name||'')}" placeholder="ex: Maria Aparecida da Silva Santos" class="ppl-info-input"/>
+            <div class="ppl-info-hint">Pra documentos, contratos e contagem oficial.</div>
+          </div>
+
+          <div>
+            <label class="ppl-info-lbl">🎂 Aniversário</label>
+            <input id="ppl-info-birthday" type="date" value="${p.birthday||''}" class="ppl-info-input"/>
+            <div class="ppl-info-hint">Pra celebração automática no Tatami.</div>
+          </div>
+          <div>
+            <label class="ppl-info-lbl">⛩ Admissão na empresa</label>
+            <input id="ppl-info-hired" type="date" value="${p.hired_at||''}" class="ppl-info-input"/>
+            <div class="ppl-info-hint">Pra calcular tempo de casa e aniversário de empresa.</div>
+          </div>
+
+          <div>
+            <label class="ppl-info-lbl">📞 Telefone</label>
+            <input id="ppl-info-phone" type="tel" value="${_esc(p.phone||'')}" placeholder="+55 11 99999-9999" class="ppl-info-input"/>
+          </div>
+          <div>
+            <label class="ppl-info-lbl">✉ Email pessoal</label>
+            <input id="ppl-info-pemail" type="email" value="${_esc(p.personal_email||'')}" placeholder="pessoal@exemplo.com" class="ppl-info-input"/>
+          </div>
+
+          <div>
+            <label class="ppl-info-lbl">Time</label>
+            <input id="ppl-info-team" type="text" value="${_esc(p.team_name||'')}" placeholder="ex: Engenharia · Produto" class="ppl-info-input"/>
+          </div>
+          <div>
+            <label class="ppl-info-lbl">Senioridade</label>
+            <select id="ppl-info-seniority" class="ppl-info-input">
+              <option value="">— Selecione —</option>
+              <option value="estagio"  ${p.role_seniority==='estagio'?'selected':''}>Estágio / Trainee</option>
+              <option value="junior"   ${p.role_seniority==='junior'?'selected':''}>Júnior</option>
+              <option value="pleno"    ${p.role_seniority==='pleno'?'selected':''}>Pleno</option>
+              <option value="senior"   ${p.role_seniority==='senior'?'selected':''}>Sênior</option>
+              <option value="staff"    ${p.role_seniority==='staff'?'selected':''}>Staff / Especialista</option>
+              <option value="lead"     ${p.role_seniority==='lead'?'selected':''}>Lead</option>
+              <option value="manager"  ${p.role_seniority==='manager'?'selected':''}>Gestor(a)</option>
+              <option value="director" ${p.role_seniority==='director'?'selected':''}>Diretor(a)</option>
+            </select>
+          </div>
+
+          ${existing ? `
+          <div style="grid-column:1/-1;padding:10px 12px;background:rgba(193,154,58,.08);border:0.5px solid rgba(193,154,58,.3);border-radius:8px;font-size:11.5px;color:#7A5500;line-height:1.5;">
+            ${p.birthday ? `🎂 <strong>${_peopleBirthDistance(p.birthday)}</strong>` : ''}
+            ${p.birthday && p.hired_at ? ' · ' : ''}
+            ${p.hired_at ? `⛩ <strong>${_peopleFmtTenure(p.hired_at)}</strong> de empresa (próximo aniversário em ${_peopleBirthDistance(p.hired_at, true)})` : ''}
+            ${!p.birthday && !p.hired_at ? 'Preencha aniversário e admissão pra ativar celebrações automáticas.' : ''}
+          </div>
+          ` : ''}
+        </div>
+      </div>
+      <div style="padding:14px 22px 18px;border-top:0.5px solid var(--color-border-secondary);display:flex;justify-content:flex-end;gap:8px;">
+        <button class="ppl-btn" onclick="document.getElementById('ppl-mgmt-info-modal').remove()">Cancelar</button>
+        <button class="ppl-btn ppl-btn-primary" onclick="_peopleMgmtSavePersonInfo(${existing?`'${_esc(existing.id)}'`:'null'})">Salvar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+  setTimeout(() => document.getElementById('ppl-info-name')?.focus(), 50);
+}
+
+function _peopleBirthDistance(isoDate, fromHired) {
+  if (!isoDate) return '';
+  try {
+    const d = new Date(isoDate);
+    const today = new Date();
+    const thisYear = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+    if (thisYear < today) thisYear.setFullYear(thisYear.getFullYear()+1);
+    const days = Math.floor((thisYear - today)/86400000);
+    if (days === 0) return 'É hoje! 🎉';
+    if (days === 1) return 'Amanhã';
+    if (days < 30)  return `em ${days} dias`;
+    if (days < 365) return `em ${Math.round(days/30)} meses`;
+    return `em ${Math.round(days/30)} meses`;
+  } catch(_) { return ''; }
+}
+
+async function _peopleMgmtSavePersonInfo(personId) {
+  const name      = document.getElementById('ppl-info-name')?.value?.trim();
+  const full_name = document.getElementById('ppl-info-full')?.value?.trim() || null;
+  const birthday  = document.getElementById('ppl-info-birthday')?.value || null;
+  const hired_at  = document.getElementById('ppl-info-hired')?.value || null;
+  const phone     = document.getElementById('ppl-info-phone')?.value?.trim() || null;
+  const personal_email = document.getElementById('ppl-info-pemail')?.value?.trim() || null;
+  const team_name = document.getElementById('ppl-info-team')?.value?.trim() || null;
+  const role_seniority = document.getElementById('ppl-info-seniority')?.value || null;
+
+  if (!name) { if (typeof appAlert==='function') appAlert('Nome obrigatório', 'Coloca pelo menos o nome de exibição.', { icon:'⚠' }); return; }
+
+  const patch = { name, full_name, birthday, hired_at, phone, personal_email, team_name, role_seniority };
+
+  if (personId && personId !== 'null') {
+    const { error } = await _peopleApi.patch(`people?id=eq.${personId}`, patch);
+    if (error) { if (typeof appAlert==='function') appAlert('Erro ao salvar', error.message||'Tente novamente.', { icon:'⚠' }); return; }
+  } else {
+    // Cria pessoa "leve" (sem trilha) — só infos básicas pra entrar no painel
+    const { data, error } = await _peopleApi.rpc('people_create_aprendiz', {
+      p_name: name,
+      p_role: 'custom',
+      p_email: null,
+      p_belt: 'branca',
+      p_journey_days: 30,
+      p_template_id: null,
+    });
+    if (error) { if (typeof appAlert==='function') appAlert('Erro ao criar', error.message||'Tente novamente.', { icon:'⚠' }); return; }
+    const newId = data?.person_id || data?.id;
+    if (newId) {
+      await _peopleApi.patch(`people?id=eq.${newId}`, patch);
+    }
+  }
+
+  document.getElementById('ppl-mgmt-info-modal')?.remove();
+  if (_peopleState.mgmtCurrentPerson?.person?.id === personId) {
+    await _peopleOpenMgmtPersonDrawer(personId);
+  }
+  _peopleLoadMgmt().then(() => { if (currentTab === 'mgmt') _peopleRenderGestao(); });
+  if (typeof appAlert==='function') appAlert('Pessoa salva 👤', 'Informações atualizadas.', { icon:'✓' });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CELEBRAÇÕES · aniversário pessoal + work anniversary
+// ────────────────────────────────────────────────────────────────────
+// Toda vez que o user acessa a app (ou troca de tab), roda 1x por dia
+// uma checagem das celebrações do dia. Posta no canal Tatami definido
+// nos settings + grava em people_celebrations_log pra não duplicar.
+// ════════════════════════════════════════════════════════════════════
+async function _peopleMgmtCheckCelebrationsDaily() {
+  try {
+    const settings = _peopleGetMgmtSettings();
+    if (!settings.enableCelebrations) return;
+    if (!settings.celebrateBirthday && !settings.celebrateWorkAnniversary) return;
+    if (!settings.celebrationChannelId) return; // sem canal definido → não posta
+    // Idempotência client-side: já rodou hoje?
+    const today = new Date().toISOString().slice(0,10);
+    if (settings.celebrationLastCheck === today) return;
+
+    const { data, error } = await _peopleApi.rpc('people_celebrations_due_today');
+    if (error || !Array.isArray(data) || data.length === 0) {
+      // marca como rodado hoje pra não martelar
+      _peopleSaveMgmtSettings({ ...settings, celebrationLastCheck: today });
+      return;
+    }
+
+    // Filtra pelo que está habilitado
+    const filtered = data.filter(c => {
+      if (c.kind === 'birthday'         && !settings.celebrateBirthday)        return false;
+      if (c.kind === 'work_anniversary' && !settings.celebrateWorkAnniversary) return false;
+      return true;
+    });
+
+    let postedCount = 0;
+    for (const c of filtered) {
+      const template = c.kind === 'birthday' ? settings.celebrationBirthdayMsg : settings.celebrationWorkAnnivMsg;
+      const message = (template || '')
+        .replaceAll('{nome}', c.name || '')
+        .replaceAll('{nomecompleto}', c.full_name || c.name || '')
+        .replaceAll('{anos}', String(c.age_or_years || ''))
+        .replaceAll('{time}', c.team_name || '');
+      const messageId = await _peopleMgmtPostToTatami(settings.celebrationChannelId, message);
+      if (messageId) {
+        await _peopleApi.rpc('people_celebration_log_post', {
+          p_person_id: c.id, p_kind: c.kind,
+          p_channel_id: settings.celebrationChannelId, p_message_id: messageId
+        });
+        postedCount++;
+      }
+    }
+
+    _peopleSaveMgmtSettings({ ..._peopleGetMgmtSettings(), celebrationLastCheck: today });
+
+    if (postedCount > 0 && typeof appAlert === 'function') {
+      appAlert('Celebrações postadas 🎉',
+        `${postedCount} celebração${postedCount===1?'':'ões'} enviada${postedCount===1?'':'s'} no canal Tatami.`,
+        { icon: '🎂' });
+    }
+  } catch(e) {
+    console.warn('[people-mgmt] celebrations check:', e?.message);
+  }
+}
+
+async function _peopleMgmtPostToTatami(channelId, content) {
+  if (!channelId || !content) return null;
+  try {
+    const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
+    if (!c || typeof supaUser === 'undefined' || !supaUser) return null;
+    const insertObj = {
+      channel_id: channelId,
+      author_id: supaUser.id,
+      content,
+      parent_id: null,
+      workspace_owner: supaUser.id,
+    };
+    const { data, error } = await c.from('chat_messages').insert(insertObj).select().single();
+    if (error) {
+      console.warn('[people-mgmt] post tatami:', error.message);
+      return null;
+    }
+    return data?.id || null;
+  } catch(e) {
+    console.warn('[people-mgmt] post tatami ex:', e?.message);
+    return null;
+  }
+}
+
+async function _peopleMgmtLoadCelebrationsCount() {
+  try {
+    const { data } = await _peopleApi.rpc('people_celebrations_upcoming', { p_days: 30 });
+    const count = Array.isArray(data) ? data.length : 0;
+    const el = document.getElementById('ppl-celeb-count');
+    if (el) el.textContent = String(count);
+  } catch(_){}
+}
+
+async function _peopleMgmtRenderTodayBanner() {
+  try {
+    const banner = document.getElementById('mgmt-celeb-banner');
+    if (!banner) return;
+    const { data } = await _peopleApi.rpc('people_celebrations_upcoming', { p_days: 1 });
+    const today = new Date().toISOString().slice(0,10);
+    const todayCelebs = Array.isArray(data) ? data.filter(c => c.celebrate_on === today) : [];
+    if (todayCelebs.length === 0) { banner.innerHTML = ''; return; }
+    banner.innerHTML = `
+      <div class="ppl-mgmt-today-banner">
+        <div style="font-size:24px;">🎉</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;color:#7A5500;">Hoje tem celebração!</div>
+          <div style="font-size:11.5px;color:#3A2410;margin-top:2px;">
+            ${todayCelebs.map(c => `${c.kind==='birthday'?'🎂':'⛩'} ${_esc(c.name||'')}${c.kind==='work_anniversary'?` · ${c.years} ano(s) de casa`:''}`).join(' · ')}
+          </div>
+        </div>
+        <button class="ppl-btn ppl-btn-sm" onclick="_peopleMgmtOpenCelebrationsModal()">Ver todas</button>
+      </div>
+    `;
+  } catch(e) {
+    console.warn('[people-mgmt] today banner:', e?.message);
+  }
+}
+
+async function _peopleMgmtOpenCelebrationsModal() {
+  let m = document.getElementById('ppl-mgmt-celebs-modal'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'ppl-mgmt-celebs-modal';
+  m.className = 'ov open'; m.style.zIndex = '10013';
+  m.innerHTML = `
+    <div class="modal" style="max-width:640px;width:95%;max-height:80vh;display:flex;flex-direction:column;">
+      <div class="mh" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="margin:0;font-size:17px;">🎂 Próximas celebrações · 30 dias</h3>
+        <button onclick="document.getElementById('ppl-mgmt-celebs-modal').remove()" style="background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--color-text-tertiary);">×</button>
+      </div>
+      <div class="mb" style="overflow-y:auto;" id="ppl-mgmt-celebs-body">
+        <div style="padding:32px;text-align:center;color:var(--color-text-tertiary);">Carregando…</div>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+
+  const { data } = await _peopleApi.rpc('people_celebrations_upcoming', { p_days: 30 });
+  const list = Array.isArray(data) ? data : [];
+  const body = document.getElementById('ppl-mgmt-celebs-body');
+  if (!body) return;
+  if (list.length === 0) {
+    body.innerHTML = `<div class="ppl-empty" style="padding:40px 20px;"><div class="ppl-empty-icon">🎂</div><div class="ppl-empty-title">Nada nos próximos 30 dias</div><div class="ppl-empty-sub">Preenche aniversário e admissão das pessoas pra ver celebrações aqui.</div></div>`;
+    return;
+  }
+  // Agrupa por data
+  const byDate = {};
+  list.forEach(c => {
+    if (!byDate[c.celebrate_on]) byDate[c.celebrate_on] = [];
+    byDate[c.celebrate_on].push(c);
+  });
+  body.innerHTML = Object.keys(byDate).sort().map(date => `
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:700;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">${_peopleFmtDate(date)}</div>
+      ${byDate[date].map(c => `
+        <div class="ppl-mgmt-celeb-row">
+          <div style="font-size:22px;">${c.kind==='birthday'?'🎂':'⛩'}</div>
+          <div style="flex:1;">
+            <div style="font-size:13.5px;font-weight:600;color:var(--color-text-primary);">${_esc(c.name||'')}</div>
+            <div style="font-size:11.5px;color:var(--color-text-tertiary);">${c.kind==='birthday'?'Aniversário':`${c.years} ano(s) de empresa`}${c.team_name?` · ${_esc(c.team_name)}`:''}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
 }
 
 // ════════════════════════════════════════════════════════════════════
