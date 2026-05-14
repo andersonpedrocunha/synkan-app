@@ -38897,20 +38897,21 @@ async function _peopleMgmtLoadChannelsForSelect(currentValue) {
   const select = document.getElementById('ppl-mgmt-celeb-channel');
   if (!select) return;
   try {
-    const c = (typeof _ensureSupaClient === 'function') ? _ensureSupaClient() : null;
-    if (!c || typeof supaUser === 'undefined' || !supaUser) {
+    // Usa _peopleApi (raw fetch) — SDK trava queries nesse contexto, padrão
+    // já adotado em todo o People Journey.
+    if (typeof supaUser === 'undefined' || !supaUser) {
       select.innerHTML = `<option value="">— Faça login —</option>`;
       return;
     }
-    const { data: channels, error } = await c.from('chat_channels')
-      .select('id,name,is_dm,is_private')
-      .eq('workspace_owner', supaUser.id)
-      .order('name');
+    const { data, error } = await _peopleApi.get(
+      `chat_channels?workspace_owner=eq.${supaUser.id}&select=id,name,is_private&order=name.asc`
+    );
     if (error) {
-      select.innerHTML = `<option value="">— Erro ao carregar —</option>`;
+      console.warn('[people-mgmt] load channels error:', error.message || error);
+      select.innerHTML = `<option value="">— Erro ao carregar (${error.message||'?'}) —</option>`;
       return;
     }
-    const list = (channels||[]).filter(ch => !ch.is_dm);
+    const list = Array.isArray(data) ? data : [];
     if (list.length === 0) {
       select.innerHTML = `<option value="">— Nenhum canal disponível —</option>`;
       return;
@@ -38920,7 +38921,7 @@ async function _peopleMgmtLoadChannelsForSelect(currentValue) {
       ...list.map(ch => `<option value="${_esc(ch.id)}" ${ch.id===currentValue?'selected':''}>${ch.is_private?'🔒 ':'# '}${_esc(ch.name||'sem-nome')}</option>`)
     ].join('');
   } catch(e) {
-    console.warn('[people-mgmt] load channels:', e?.message);
+    console.warn('[people-mgmt] load channels ex:', e?.message);
     select.innerHTML = `<option value="">— Erro —</option>`;
   }
 }
