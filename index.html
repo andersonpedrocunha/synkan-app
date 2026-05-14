@@ -67402,8 +67402,9 @@ function _syncalNormName(s) {
 }
 
 function _syncalGetMyIdentities() {
-  const ids = new Set();
-  const tokens = new Set();  // tokens individuais (pra match fuzzy)
+  const ids = new Set();      // todas variantes de identidade (nome, email, etc) normalizadas
+  const tokens = new Set();   // tokens individuais (pra match fuzzy)
+  const uids = new Set();     // UUIDs (raw, sem normalizar) — pra match exato com assignedUserId
   const add = (s) => {
     const n = _syncalNormName(s);
     if (!n) return;
@@ -67418,7 +67419,10 @@ function _syncalGetMyIdentities() {
     add(supaUser.user_metadata?.display_name);
     add(supaUser.email);
     if (supaUser.email) add(supaUser.email.split('@')[0]);
-    add(supaUser.id);
+    if (supaUser.id) {
+      add(supaUser.id);
+      uids.add(supaUser.id);  // UUID direto, não normaliza
+    }
   }
 
   // 2) Team do board atual (se user dividiu o nome só com 1 pessoa, é ele)
@@ -67429,31 +67433,53 @@ function _syncalGetMyIdentities() {
     }
   } catch(_){}
 
-  return { full: ids, tokens };
+  return { full: ids, tokens, uids };
 }
 
-// Compara responsável do card com identidades — TRIPLA estratégia:
-//   1. Match exato normalizado
-//   2. Token compartilhado (responsavel ou identidade tem palavra em comum)
-//   3. Substring de ambos lados (caso de apelidos)
-function _syncalIsMine(responsavel, identities) {
-  if (!responsavel) return false;
-  const r = _syncalNormName(responsavel);
-  if (!r) return false;
+// Verifica se um card é "meu" — checa todos os caminhos possíveis:
+//   1. assignedUserId === meu UUID (caminho moderno, mais confiável)
+//   2. responsavel match por nome (caminho legado)
+//   3. createdBy === meu UUID (eu criei → considero meu)
+//
+// IMPORTANTE: o app atual usa c.assignedUserId (UUID) pra atribuição,
+// não c.responsavel (string). Cards novos têm responsavel=null mas
+// assignedUserId preenchido. Por isso checamos AMBOS.
+function _syncalIsMine(cardOrResp, identities) {
   if (!identities || !identities.full) return false;
 
-  // 1) Match exato
-  if (identities.full.has(r)) return true;
+  // Aceita tanto card inteiro (forma nova) quanto só responsavel (compat)
+  const card = (typeof cardOrResp === 'object' && cardOrResp) ? cardOrResp : null;
+  const responsavel = card ? card.responsavel : cardOrResp;
+  const assignedUserId = card?.assignedUserId || null;
+  const createdBy = card?.createdBy || null;
 
-  // 2) Match por token (palavra com >=3 chars compartilhada)
-  const respTokens = r.split(/\s+/).filter(t => t.length >= 3);
-  for (const t of respTokens) {
-    if (identities.tokens.has(t)) return true;
+  // 1) Caminho moderno: assignedUserId é meu UUID
+  if (assignedUserId && identities.full.has(_syncalNormName(assignedUserId))) {
+    return true;
+  }
+  // Também aceita match direto (sem normalizar UUID)
+  if (assignedUserId && identities.uids && identities.uids.has(assignedUserId)) {
+    return true;
   }
 
-  // 3) Match por substring de ambos lados
-  for (const id of identities.full) {
-    if (id.length >= 3 && (r.includes(id) || id.includes(r))) return true;
+  // 2) Caminho legado: match por nome em responsavel
+  if (responsavel) {
+    const r = _syncalNormName(responsavel);
+    if (r) {
+      if (identities.full.has(r)) return true;
+      const respTokens = r.split(/\s+/).filter(t => t.length >= 3);
+      for (const t of respTokens) {
+        if (identities.tokens.has(t)) return true;
+      }
+      for (const id of identities.full) {
+        if (id.length >= 3 && (r.includes(id) || id.includes(r))) return true;
+      }
+    }
+  }
+
+  // 3) Eu criei o card → considero meu (fallback útil pra cards sem assignee)
+  if (createdBy && identities.uids && identities.uids.has(createdBy)) {
+    return true;
   }
 
   return false;
@@ -67463,10 +67489,11 @@ function _syncalIsMine(responsavel, identities) {
 window._syncalDebug = function() {
   const idents = _syncalGetMyIdentities();
   console.group('🔍 Syncal Debug');
-  console.log('supaUser:', typeof supaUser !== 'undefined' ? supaUser : 'undefined');
+  console.log('supaUser id:', supaUser?.id);
   console.log('full_name:', supaUser?.user_metadata?.full_name);
   console.log('email:', supaUser?.email);
   console.log('Minhas identidades (full):', [...idents.full]);
+  console.log('Minhas identidades (UIDs):', [...idents.uids]);
   console.log('Minhas identidades (tokens):', [...idents.tokens]);
   console.log('team:', typeof team !== 'undefined' ? team : 'undefined');
   let allCards = [];
@@ -67479,7 +67506,9 @@ window._syncalDebug = function() {
     name: c.name,
     deadline: c.deadline,
     responsavel: c.responsavel,
-    isMine: _syncalIsMine(c.responsavel, idents),
+    assignedUserId: c.assignedUserId,
+    createdBy: c.createdBy,
+    isMine: _syncalIsMine(c, idents),
     board: c._sourceBoardName,
   })));
   console.groupEnd();
@@ -68048,7 +68077,8 @@ function _syncalCollectEvents(fromDate, toDate) {
     let matched = 0;
 
     withDeadline.forEach(c => {
-      const isMine = _syncalIsMine(c.responsavel, myIdentities);
+      // Passa o card inteiro pra _syncalIsMine checar assignedUserId + responsavel + createdBy
+      const isMine = _syncalIsMine(c, myIdentities);
       if (!isMine) return;
       matched++;
 
