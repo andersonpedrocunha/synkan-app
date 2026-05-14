@@ -67989,18 +67989,26 @@ function _syncalCollectEvents(fromDate, toDate) {
     });
   }
 
-  // 2) Board cards com deadline — só os ATRIBUÍDOS ao user logado.
-  //    (Calendário do team poluído por todos os cards do workspace ficava ruim;
-  //    o Syncal foca em "MEUS compromissos", não em "tudo que tem prazo".)
-  if (f.boards && typeof cards !== 'undefined' && Array.isArray(cards)) {
+  // 2) Board cards com deadline — pega de TODOS os boards (não só o aberto)
+  //    e filtra pelos ATRIBUÍDOS ao user. _allCardsAcrossBoards garante que
+  //    funciona mesmo quando o user nunca abriu o board específico nesta sessão.
+  if (f.boards) {
+    let allCards = [];
+    if (typeof _allCardsAcrossBoards === 'function') {
+      try { allCards = _allCardsAcrossBoards(); } catch(_){}
+    }
+    // Fallback: usa `cards` se _allCardsAcrossBoards não tiver dados
+    if (allCards.length === 0 && typeof cards !== 'undefined' && Array.isArray(cards)) {
+      allCards = cards;
+    }
     const myIdentities = _syncalGetMyIdentities();
-    cards.forEach(c => {
+    allCards.forEach(c => {
       if (!c.deadline) return;
       if (!_syncalIsMine(c.responsavel, myIdentities)) return;
 
       const isDone = c.col === (typeof TERMINAL_COL !== 'undefined' ? TERMINAL_COL : 'done');
       out.push({
-        id: 'b_' + c.id, source: 'boards',
+        id: 'b_' + (c._unifiedId || c.id), source: 'boards',
         title: c.name || 'Card',
         date: c.deadline, time: c.deadlineTime || null,
         color: isDone ? '#9BC97A' : (c.priority==='alta' ? '#D4537E' : c.priority==='media' ? '#BA7517' : '#378ADD'),
