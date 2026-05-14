@@ -15213,7 +15213,11 @@ async function _uasLoadOnBoot() {
   // Carrega todas as keys interessantes de uma vez (1 round-trip)
   if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
   try {
-    const keys = ['doc_templates', 'checklist_templates', 'company_info'];
+    const keys = [
+      'doc_templates', 'checklist_templates', 'company_info',
+      // novas keys (audit, notif, automações):
+      'audit_log', 'notifications', 'followup_cfg', 'synk_rules', 'synk_log',
+    ];
     const { data, error } = await supaClient.rpc('user_app_state_load_many', { p_keys: keys });
     if (error) throw error;
     const cloud = data || {};
@@ -15222,7 +15226,6 @@ async function _uasLoadOnBoot() {
       _docTemplates = cloud.doc_templates;
       try { localStorage.setItem(DOC_TPL_KEY, JSON.stringify(_docTemplates)); } catch(_){}
     } else if (Array.isArray(_docTemplates) && _docTemplates.length) {
-      // Cloud vazio mas local tem — sobe pra cloud
       _uasScheduleSync('doc_templates', () => _docTemplates);
     }
     // 2) checklist_templates
@@ -15239,10 +15242,47 @@ async function _uasLoadOnBoot() {
       const local = getCompanyInfo();
       if (local && Object.keys(local).length) _uasScheduleSync('company_info', getCompanyInfo);
     }
+    // 4) audit_log
+    if (cloud.audit_log && Array.isArray(cloud.audit_log)) {
+      auditLog = cloud.audit_log;
+      try { localStorage.setItem(AUDIT_KEY, JSON.stringify(auditLog)); } catch(_){}
+    } else if (Array.isArray(auditLog) && auditLog.length) {
+      _uasScheduleSync('audit_log', () => auditLog.slice(0, AUDIT_MAX));
+    }
+    // 5) notifications
+    if (cloud.notifications && Array.isArray(cloud.notifications)) {
+      notifications = cloud.notifications;
+      try { localStorage.setItem(NOTIF_KEY, JSON.stringify(notifications)); } catch(_){}
+    } else if (Array.isArray(notifications) && notifications.length) {
+      _uasScheduleSync('notifications', () => notifications.slice(0, 200));
+    }
+    // 6) followup_cfg
+    if (cloud.followup_cfg && typeof cloud.followup_cfg === 'object') {
+      try { localStorage.setItem(FOLLOWUP_KEY, JSON.stringify(cloud.followup_cfg)); } catch(_){}
+    } else if (typeof _getFollowupCfg === 'function') {
+      const local = _getFollowupCfg();
+      if (local) _uasScheduleSync('followup_cfg', () => local);
+    }
+    // 7) synk_rules (Zai)
+    if (cloud.synk_rules && Array.isArray(cloud.synk_rules)) {
+      try { localStorage.setItem(SYNK_RULES_KEY, JSON.stringify(cloud.synk_rules)); } catch(_){}
+    } else if (typeof getSynkRules === 'function') {
+      const local = getSynkRules();
+      if (Array.isArray(local) && local.length) _uasScheduleSync('synk_rules', () => local);
+    }
+    // 8) synk_log (Zai)
+    if (cloud.synk_log && Array.isArray(cloud.synk_log)) {
+      try { localStorage.setItem(SYNK_LOG_KEY, JSON.stringify(cloud.synk_log)); } catch(_){}
+    } else if (typeof getSynkLog === 'function') {
+      const local = getSynkLog();
+      if (Array.isArray(local) && local.length) _uasScheduleSync('synk_log', () => local);
+    }
+
     _uasCloudLoaded._ready = true;
     console.info('[uas] sincronizou:', Object.keys(cloud).join(', ') || 'tudo vazio');
     // Re-render se em tela relevante
     try { if (typeof renderSettings === 'function' && typeof currentTab !== 'undefined' && currentTab === 'settings') renderSettings(); } catch(_){}
+    try { if (typeof renderNotifications === 'function') renderNotifications(); } catch(_){}
   } catch(e) { console.warn('[uas] load boot falhou:', e?.message || e); }
 }
 async function _uasFinalSync() {
@@ -19158,6 +19198,9 @@ function _getFollowupCfg() {
 }
 function _setFollowupCfg(cfg) {
   try { localStorage.setItem(FOLLOWUP_KEY, JSON.stringify(cfg||{})); } catch(e){}
+  if (typeof _uasScheduleSync === 'function') {
+    _uasScheduleSync('followup_cfg', () => cfg || {});
+  }
 }
 function setFollowupThreshold(kind, days) {
   const n = parseInt(days,10); if (!Number.isFinite(n) || n < 1) return;
@@ -27419,7 +27462,13 @@ const AUDIT_KEY = 'kanban_v8_audit';
 const AUDIT_MAX = 1000;
 let auditLog = [];
 try { auditLog = JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]'); } catch(e) { auditLog = []; }
-function _saveAudit() { try { localStorage.setItem(AUDIT_KEY, JSON.stringify(auditLog.slice(0,AUDIT_MAX))); } catch(e) {} }
+function _saveAudit() {
+  try { localStorage.setItem(AUDIT_KEY, JSON.stringify(auditLog.slice(0,AUDIT_MAX))); } catch(e) {}
+  // Sync cloud via user_app_state (debounced — _uasScheduleSync junta saves rápidos)
+  if (typeof _uasScheduleSync === 'function') {
+    _uasScheduleSync('audit_log', () => auditLog.slice(0, AUDIT_MAX));
+  }
+}
 
 function _whoAmI() {
   return (supaUser?.user_metadata?.full_name || supaUser?.email)
@@ -27724,7 +27773,13 @@ function maybeAutoBackup() {
 const NOTIF_KEY = 'kanban_v8_notifications';
 let notifications = [];
 try { notifications = JSON.parse(localStorage.getItem(NOTIF_KEY) || '[]'); } catch(e) { notifications = []; }
-function _saveNotifs() { try { localStorage.setItem(NOTIF_KEY, JSON.stringify(notifications.slice(0,200))); } catch(e) {} }
+function _saveNotifs() {
+  try { localStorage.setItem(NOTIF_KEY, JSON.stringify(notifications.slice(0,200))); } catch(e) {}
+  // Sync cloud via user_app_state
+  if (typeof _uasScheduleSync === 'function') {
+    _uasScheduleSync('notifications', () => notifications.slice(0, 200));
+  }
+}
 
 function addNotification(n) {
   notifications.unshift({
@@ -31023,11 +31078,85 @@ function _loadCanvases() {
   try { _canvases = JSON.parse(localStorage.getItem(CANVAS_KEY) || '{}') || {}; }
   catch(e) { _canvases = {}; }
 }
+const _CANVAS_MIGRATION_KEY = 'synkan_canvases_migrated_to_cloud_v1';
+let _canvasesCloudSyncTimer = null;
 function _saveCanvases() {
+  // 1) Local cache imediato (UX otimista + offline)
   try { localStorage.setItem(CANVAS_KEY, JSON.stringify(_canvases)); } catch(e){}
   _canvasPushHistory();
+  // 2) Debounced sync pra cloud (canvas pode ter muitos saves rápidos via blur)
+  if (_canvasesCloudSyncTimer) clearTimeout(_canvasesCloudSyncTimer);
+  _canvasesCloudSyncTimer = setTimeout(() => _canvasesSyncToCloud(), 1500);
 }
 _loadCanvases();
+
+// Sync individual de canvas modificado (mais eficiente que bulk)
+async function _canvasesSyncToCloud() {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  try {
+    // Pega o último canvas tocado, ou faz bulk de todos se for primeira sync
+    if (localStorage.getItem(_CANVAS_MIGRATION_KEY) !== 'done') {
+      await supaClient.rpc('canvases_bulk_upsert', { p_canvases: _canvases });
+      localStorage.setItem(_CANVAS_MIGRATION_KEY, 'done');
+    } else {
+      // Bulk upsert sempre — server lida com idempotência
+      await supaClient.rpc('canvases_bulk_upsert', { p_canvases: _canvases });
+    }
+  } catch(e) {
+    console.warn('[canvases] sync cloud falhou:', e?.message || e);
+  }
+}
+
+async function _canvasesLoadFromCloud() {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  try {
+    const { data, error } = await supaClient.rpc('canvases_load_all');
+    if (error) throw error;
+    if (data && typeof data === 'object') {
+      const cloudKeys = Object.keys(data);
+      const localKeys = Object.keys(_canvases);
+      // Se cloud vazio mas local tem dados, migra (1ª vez)
+      if (cloudKeys.length === 0 && localKeys.length > 0
+          && localStorage.getItem(_CANVAS_MIGRATION_KEY) !== 'done') {
+        console.info('[canvases] migrando ' + localKeys.length + ' canvases do localStorage pra cloud');
+        await supaClient.rpc('canvases_bulk_upsert', { p_canvases: _canvases });
+        localStorage.setItem(_CANVAS_MIGRATION_KEY, 'done');
+      } else {
+        _canvases = data;
+        try { localStorage.setItem(CANVAS_KEY, JSON.stringify(_canvases)); } catch(_){}
+        localStorage.setItem(_CANVAS_MIGRATION_KEY, 'done');
+      }
+      // Re-render se tá no Lab
+      if (typeof currentTab !== 'undefined' && currentTab === 'canvas' && typeof renderCanvasView === 'function') {
+        renderCanvasView();
+      }
+    }
+  } catch(e) {
+    console.warn('[canvases] load cloud falhou:', e?.message || e);
+  }
+}
+
+async function _canvasesDeleteFromCloud(canvasId) {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  try { await supaClient.rpc('canvases_delete', { p_id: canvasId }); }
+  catch(e) { console.warn('[canvases] delete cloud falhou:', e?.message); }
+}
+
+// Boot: carrega quando user logado
+(function _canvasesBootSync() {
+  const tryBoot = () => {
+    if (typeof supaUser === 'undefined' || !supaUser || !supaClient) {
+      setTimeout(tryBoot, 1000);
+      return;
+    }
+    _canvasesLoadFromCloud();
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(tryBoot, 600));
+  } else {
+    setTimeout(tryBoot, 600);
+  }
+})();
 
 // ── Undo/Redo: stack de snapshots por canvas ──────────────────
 const _canvasHistory = {};   // { canvasId: { stack: [snapshot,...], idx: number } }
@@ -31179,6 +31308,7 @@ function deleteCanvas(id) {
   const name = _canvases[id].name;
   delete _canvases[id];
   _saveCanvases();
+  if (typeof _canvasesDeleteFromCloud === 'function') _canvasesDeleteFromCloud(id);
   audit('canvas.deleted', { id, name });
 }
 function renameCanvas(id, newName) {
@@ -35052,7 +35182,74 @@ try { _contacts = JSON.parse(localStorage.getItem(CONTACTS_KEY) || '[]') || []; 
 try { _documents = JSON.parse(localStorage.getItem(DOCS_KEY) || '[]') || []; } catch(e){ _documents = []; }
 
 function _saveContacts() { try { localStorage.setItem(CONTACTS_KEY, JSON.stringify(_contacts)); } catch(e){} }
-function _saveDocuments() { try { localStorage.setItem(DOCS_KEY, JSON.stringify(_documents)); } catch(e){} }
+
+const _DOCS_MIGRATION_KEY = 'synkan_registry_docs_migrated_to_cloud_v1';
+let _documentsCloudSyncTimer = null;
+function _saveDocuments() {
+  // Cache local imediato
+  try { localStorage.setItem(DOCS_KEY, JSON.stringify(_documents)); } catch(e){}
+  // Sync cloud com debounce
+  if (_documentsCloudSyncTimer) clearTimeout(_documentsCloudSyncTimer);
+  _documentsCloudSyncTimer = setTimeout(() => _documentsSyncToCloud(), 1200);
+}
+
+async function _documentsSyncToCloud() {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  try {
+    await supaClient.rpc('registry_documents_bulk_upsert', { p_docs: _documents });
+  } catch(e) {
+    console.warn('[regdocs] sync cloud falhou:', e?.message || e);
+  }
+}
+
+async function _documentsLoadFromCloud() {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  try {
+    const { data, error } = await supaClient.rpc('registry_documents_load_all');
+    if (error) throw error;
+    if (Array.isArray(data)) {
+      // Migra na primeira vez se cloud vazio
+      if (data.length === 0 && _documents.length > 0
+          && localStorage.getItem(_DOCS_MIGRATION_KEY) !== 'done') {
+        console.info('[regdocs] migrando ' + _documents.length + ' documentos pra cloud');
+        await supaClient.rpc('registry_documents_bulk_upsert', { p_docs: _documents });
+        localStorage.setItem(_DOCS_MIGRATION_KEY, 'done');
+      } else {
+        _documents = data;
+        try { localStorage.setItem(DOCS_KEY, JSON.stringify(_documents)); } catch(_){}
+        localStorage.setItem(_DOCS_MIGRATION_KEY, 'done');
+      }
+      // Re-render se tá no registry/synconnect
+      if (typeof currentTab !== 'undefined' && currentTab === 'registry' && typeof renderRegistry === 'function') {
+        renderRegistry();
+      }
+    }
+  } catch(e) {
+    console.warn('[regdocs] load cloud falhou:', e?.message || e);
+  }
+}
+
+async function _documentsDeleteFromCloud(docId) {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  try { await supaClient.rpc('registry_documents_delete', { p_id: docId }); }
+  catch(e) { console.warn('[regdocs] delete cloud falhou:', e?.message); }
+}
+
+(function _documentsBootSync() {
+  const tryBoot = () => {
+    if (typeof supaUser === 'undefined' || !supaUser || !supaClient) {
+      setTimeout(tryBoot, 1000);
+      return;
+    }
+    _documentsLoadFromCloud();
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(tryBoot, 700));
+  } else {
+    setTimeout(tryBoot, 700);
+  }
+})();
+
 function _genRegId(prefix) { return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
 
 // ════════════════════════════════════════════════════════════════════
@@ -43053,10 +43250,79 @@ const OKRS_KEY = 'kanban_v8_okrs';
 let _okrs = [];
 let _okrsFilter = 'current'; // 'current' | 'all' | 'Q1 2026' etc
 let _okrEditing = null;       // {okr, isNew}
+const _OKRS_MIGRATION_KEY = 'synkan_okrs_migrated_to_cloud_v1';
 
+// Carga otimista: cache local primeiro pra render instantâneo
 try { _okrs = JSON.parse(localStorage.getItem(OKRS_KEY)||'[]') || []; } catch(e){ _okrs = []; }
+
+// Sync cloud — dispara em background no boot, depois sob demanda
+let _okrsSaveTimer = null;
 function _saveOKRs() {
+  // 1) Salva local imediato (cache pra render rápido + offline)
   try { localStorage.setItem(OKRS_KEY, JSON.stringify(_okrs||[])); } catch(e){}
+  // 2) Debounced push pro Supabase (junta saves rápidos em 1 round-trip)
+  if (_okrsSaveTimer) clearTimeout(_okrsSaveTimer);
+  _okrsSaveTimer = setTimeout(() => _okrsSyncToCloud(), 1200);
+}
+
+async function _okrsSyncToCloud() {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  try {
+    // Bulk upsert manda todos os OKRs atuais (server faz upsert por ID)
+    await supaClient.rpc('okrs_bulk_upsert', { p_okrs: _okrs });
+  } catch(e) {
+    console.warn('[okrs] sync cloud falhou:', e?.message || e);
+  }
+}
+
+async function _okrsLoadFromCloud() {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  try {
+    const { data, error } = await supaClient.rpc('okrs_load_all');
+    if (error) throw error;
+    if (Array.isArray(data)) {
+      // Cloud é source of truth. Se vier vazio mas local tem, migra pra cloud
+      if (data.length === 0 && _okrs.length > 0
+          && localStorage.getItem(_OKRS_MIGRATION_KEY) !== 'done') {
+        console.info('[okrs] migrando ' + _okrs.length + ' OKRs do localStorage pra cloud');
+        await supaClient.rpc('okrs_bulk_upsert', { p_okrs: _okrs });
+        localStorage.setItem(_OKRS_MIGRATION_KEY, 'done');
+      } else {
+        _okrs = data;
+        try { localStorage.setItem(OKRS_KEY, JSON.stringify(_okrs)); } catch(_){}
+        localStorage.setItem(_OKRS_MIGRATION_KEY, 'done');
+      }
+      // Re-render se tá olhando OKRs
+      if (typeof currentTab !== 'undefined' && currentTab === 'okrs' && typeof renderOKRs === 'function') {
+        renderOKRs();
+      }
+    }
+  } catch(e) {
+    console.warn('[okrs] load cloud falhou:', e?.message || e);
+  }
+}
+
+// Boot: carrega do cloud em background quando user logado
+(function _okrsBootSync() {
+  const tryBoot = () => {
+    if (typeof supaUser === 'undefined' || !supaUser || !supaClient) {
+      setTimeout(tryBoot, 1000);
+      return;
+    }
+    _okrsLoadFromCloud();
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(tryBoot, 500));
+  } else {
+    setTimeout(tryBoot, 500);
+  }
+})();
+
+// Delete específico (chamado pelo deleteOKR antigo)
+async function _okrsDeleteFromCloud(okrId) {
+  if (typeof supaUser === 'undefined' || !supaUser || !supaClient) return;
+  try { await supaClient.rpc('okrs_delete', { p_id: okrId }); }
+  catch(e) { console.warn('[okrs] delete cloud falhou:', e?.message); }
 }
 function _genOkrId(p='okr_') { return p + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
 function _currentPeriodLabel() {
@@ -43274,6 +43540,8 @@ async function deleteOKR(okrId) {
   if (!ok) return;
   _okrs = _okrs.filter(x => x.id !== okrId);
   _saveOKRs();
+  // Delete explícito na cloud (bulk_upsert não remove)
+  if (typeof _okrsDeleteFromCloud === 'function') _okrsDeleteFromCloud(okrId);
   _okrEditing = null;
   if (currentTab === 'okrs') renderOKRs();
 }
@@ -47925,6 +48193,7 @@ async function deleteDocument(id) {
   if (!ok) return;
   _documents = _documents.filter(x=>x.id!==id);
   _saveDocuments();
+  if (typeof _documentsDeleteFromCloud === 'function') _documentsDeleteFromCloud(id);
   audit('document.deleted', { id, number: d.number });
   renderRegistry();
 }
@@ -48140,6 +48409,9 @@ function getSynkRules() {
 }
 function saveSynkRules(rules) {
   try { localStorage.setItem(SYNK_RULES_KEY, JSON.stringify(rules || [])); } catch(e){}
+  if (typeof _uasScheduleSync === 'function') {
+    _uasScheduleSync('synk_rules', () => rules || []);
+  }
 }
 function getSynkLog() {
   try { return JSON.parse(localStorage.getItem(SYNK_LOG_KEY) || '[]') || []; }
@@ -48149,7 +48421,11 @@ function _addSynkLog(entry) {
   const log = getSynkLog();
   log.unshift({ ...entry, at: new Date().toISOString() });
   // mantém últimos 100
-  try { localStorage.setItem(SYNK_LOG_KEY, JSON.stringify(log.slice(0,100))); } catch(e){}
+  const trimmed = log.slice(0, 100);
+  try { localStorage.setItem(SYNK_LOG_KEY, JSON.stringify(trimmed)); } catch(e){}
+  if (typeof _uasScheduleSync === 'function') {
+    _uasScheduleSync('synk_log', () => trimmed);
+  }
 }
 
 function _genSynkId() { return 'synk_' + Math.random().toString(36).slice(2, 9); }
@@ -48747,6 +49023,7 @@ async function deleteOpCostCanvas(id) {
   if (!ok) return;
   delete _canvases[id];
   _saveCanvases();
+  if (typeof _canvasesDeleteFromCloud === 'function') _canvasesDeleteFromCloud(id);
   if (typeof renderZaiHub === 'function') renderZaiHub();
 }
 
@@ -48978,6 +49255,7 @@ async function deleteGoal1pctCanvas(id) {
   if (!ok) return;
   delete _canvases[id];
   _saveCanvases();
+  if (typeof _canvasesDeleteFromCloud === 'function') _canvasesDeleteFromCloud(id);
   if (typeof renderZaiHub === 'function') renderZaiHub();
 }
 
