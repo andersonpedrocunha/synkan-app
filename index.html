@@ -1010,7 +1010,7 @@ kbd{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;font-size:
    Toolbar de Visões do Board (substituiu seção da sidebar)
    ═══════════════════════════════════════════════════════════════════ */
 .board-views-bar{
-  display:none;
+  display:inline-flex;
   align-items:center;
   gap:3px;
   margin:-4px 0 14px;
@@ -1023,6 +1023,7 @@ kbd{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;font-size:
   overflow-x:auto;
   scrollbar-width:thin;
 }
+.board-views-bar.is-hidden{display:none;}
 .board-views-bar::-webkit-scrollbar{height:4px;}
 .board-views-bar::-webkit-scrollbar-thumb{background:rgba(58,36,16,.18);border-radius:2px;}
 .board-view-tab{
@@ -20020,8 +20021,12 @@ function switchTab(tab) {
   const topEl = document.querySelector('.top'); if (topEl) topEl.style.display = inBoard ? '' : 'none';
 
   // Toolbar de views do board (substitui antiga sidebar #sb-views-section)
+  // Toggle via classe — CSS gerencia o display:inline-flex no estado visível
   const viewsBar = document.getElementById('board-views-bar');
-  if (viewsBar) viewsBar.style.display = inBoard ? '' : 'none';
+  if (viewsBar) {
+    viewsBar.style.display = '';  // limpa qualquer inline style residual
+    viewsBar.classList.toggle('is-hidden', !inBoard);
+  }
   // Marca tab ativa na toolbar nova
   VIEW_TABS.forEach(v => {
     const el = document.getElementById('view-tab-' + v);
