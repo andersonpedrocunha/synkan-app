@@ -53176,8 +53176,15 @@ _gamif = {
     contactsCreated: 0,
     cardsTodayMax: 0,        // recorde de cards num único dia
   },
-  // Stats do dia atual (resetam à meia-noite)
-  today: { date: null, cardsDone: 0, leadsConverted: 0, aiCalls: 0, docsGenerated: 0, contactsCreated: 0, xpFromAi: 0, xpFromContacts: 0, xpFromDocs: 0 },
+  // Stats do dia atual (resetam à meia-noite via _gamifTickDay).
+  // xpFromX são contadores anti-farm — names batem com _gamifCfg.dailyCaps.
+  today: {
+    date: null,
+    cardsDone: 0, leadsConverted: 0, aiCalls: 0, docsGenerated: 0, contactsCreated: 0,
+    goalContributions: 0, canvasesCreated: 0, pomodorosCompleted: 0,
+    xpFromCardDone: 0, xpFromAiCall: 0, xpFromContactCreated: 0, xpFromDocGenerated: 0,
+    xpFromGoalContribution: 0, xpFromCanvasCreated: 0, xpFromPomodoroComplete: 0,
+  },
   // Conquistas desbloqueadas (ids)
   achievements: [],
   // Missões: { dailyDate, dailyDone:[ids], weeklyMonday, weeklyDone:[ids] }
@@ -54014,7 +54021,18 @@ function _gamifTickDay() {
     if ((_gamif.today.cardsDone||0) > (_gamif.stats.cardsTodayMax||0)) {
       _gamif.stats.cardsTodayMax = _gamif.today.cardsDone;
     }
-    _gamif.today = { date: today, cardsDone: 0, leadsConverted: 0, aiCalls: 0, docsGenerated: 0, contactsCreated: 0, xpFromAi: 0, xpFromContacts: 0, xpFromDocs: 0 };
+    // Reset completo: contadores de ações + xpFromX (usados nos caps diários).
+    // Os nomes xpFromX seguem o pattern 'xpFrom'+capitalize(category), batendo
+    // com as categories declaradas em _gamifCfg.dailyCaps (linha do awardXP).
+    _gamif.today = {
+      date: today,
+      // contadores de ações
+      cardsDone: 0, leadsConverted: 0, aiCalls: 0, docsGenerated: 0, contactsCreated: 0,
+      goalContributions: 0, canvasesCreated: 0, pomodorosCompleted: 0,
+      // xpFromX — anti-farm cap por categoria
+      xpFromCardDone: 0, xpFromAiCall: 0, xpFromContactCreated: 0, xpFromDocGenerated: 0,
+      xpFromGoalContribution: 0, xpFromCanvasCreated: 0, xpFromPomodoroComplete: 0,
+    };
   }
   // Refresh missões diárias
   if (_gamif.missions.dailyDate !== today) {
