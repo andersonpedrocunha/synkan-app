@@ -10236,8 +10236,13 @@ async function _kanPlayPrerecorded(text) {
   return false;
 }
 
-async function speakKanQuote(text) {
-  if (!getKanTtsEnabled() || !text) return;
+async function speakKanQuote(text, opts) {
+  // opts.force = true → toca mesmo se o user tiver desligado a voz nas configs.
+  // Usado pelo tour de onboarding pra narrar steps quando o user pediu narração,
+  // sem precisar mexer no localStorage (hack antigo causava bug do TTS ficar
+  // ligado por engano se algo travasse no meio).
+  if (!text) return;
+  if (!(opts && opts.force) && !getKanTtsEnabled()) return;
   // 1) Tenta MP3 pré-gravado (qualidade perfeita)
   try {
     const ok = await _kanPlayPrerecorded(text);
@@ -17197,6 +17202,13 @@ let _obState = { idx: 0, els: null };
 function startOnboardingTour(){
   try { audit && audit('onboarding.start', {}); } catch(e){}
   if (_obState.els) closeOnboarding();
+  // RESET DE PREFERÊNCIAS OPT-IN: garante que conta nova começa com defaults
+  // off, mesmo se o navegador tinha localStorage stale de outra sessão/user.
+  // Aplica só pra flags que devem ser opt-in por design.
+  try {
+    localStorage.setItem('synkan_kan_tts_enabled', '0');
+    localStorage.setItem('synkan_card_tts_enabled', '0');
+  } catch(_) {}
   const backdrop = document.createElement('div');
   backdrop.className = 'ob-backdrop';
   const spotlight = document.createElement('div');
@@ -17242,24 +17254,15 @@ function _obSetNarrate(narrate) {
 }
 
 // Toca a narration de um step, se o usuário escolheu narrar. Bypassa o
-// setting global de TTS — durante o tour, narração é por turno (escolha do
-// próprio tour, não afeta a config persistente).
+// setting global de TTS via parâmetro {force:true} — não polui localStorage.
+// (Hack antigo mexia em localStorage e podia ficar travado em '1' se algo
+//  falhasse antes do restore. Causava TTS vir ligado por engano em contas
+//  novas no mesmo navegador.)
 function _obPlayNarration(step) {
   if (!_obState || _obState.narrate !== true) return;
   if (!step || !step.narration) return;
-  // Função speakKanQuote checa getKanTtsEnabled(). Pra burlar isso durante
-  // o tour, salvamos o estado e ligamos temporariamente.
-  const original = (typeof getKanTtsEnabled === 'function') ? getKanTtsEnabled() : false;
-  if (!original) {
-    try { localStorage.setItem('synkan_kan_tts_enabled', '1'); } catch(_) {}
-    // Restaura após o player iniciar (speakKanQuote já vai ter lido o flag)
-    setTimeout(() => {
-      if (!original) {
-        try { localStorage.setItem('synkan_kan_tts_enabled', '0'); } catch(_) {}
-      }
-    }, 200);
-  }
-  try { speakKanQuote(step.narration); } catch(e) { console.warn('[ob-narrate]', e?.message); }
+  try { speakKanQuote(step.narration, { force: true }); }
+  catch(e) { console.warn('[ob-narrate]', e?.message); }
 }
 
 function renderOnboardingStep(){
