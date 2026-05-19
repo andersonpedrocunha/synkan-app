@@ -26610,13 +26610,18 @@ async function supaRemoveMember(boardId, userId) {
   }
 }
 
-// ─── DEDUPE BOARDS — limpa "Board principal" duplicados ────────────
-// Race condition no signup pode criar 2-3 boards iguais. Função reusável:
+// ─── DEDUPE BOARDS — limpa SOMENTE "Board principal" duplicados ───
+// Race condition no signup pode criar 2-3 "Board principal" em paralelo
+// (cada onAuthStateChange dispara _onSignedIn, todas veem remote vazio
+// simultaneamente e criam o seu próprio). Aqui detectamos e limpamos.
+//
+// IMPORTANTE: só atua em "Board principal" (case-insensitive). Outros nomes
+// como "Board TALLER" o user nomeou intencionalmente — se ele criou 2 com
+// mesmo nome de propósito (ou via auto-rename "(2)"), respeitamos.
+//
+// Função reusável:
 //   • Chamada automaticamente no _onSignedIn (silent: true)
 //   • Pode ser invocada via botão em Settings → Conta (silent: false → toast)
-// Lógica: agrupa boards do mesmo owner por nome normalizado; pra qualquer
-// grupo com >1 board, mantém o mais antigo (createdAt) e apaga o resto.
-// Cobre não só "Board principal" — qualquer nome duplicado do mesmo user.
 async function _dedupePrincipalBoards(opts = {}) {
   const silent = opts.silent !== false;
   if (typeof supaUser === 'undefined' || !supaUser) return { removed: 0 };
@@ -26625,27 +26630,25 @@ async function _dedupePrincipalBoards(opts = {}) {
             (typeof supaClient !== 'undefined' ? supaClient : null);
   let totalRemoved = 0;
   try {
-    // Agrupa boards do mesmo owner por nome normalizado
-    const groups = new Map();
+    // Junta boards do mesmo owner que se chamam exatamente "Board principal"
+    // (case-insensitive, com ou sem espaços extras nas pontas).
+    const principals = [];
     for (const [bid, b] of Object.entries(allBoards)) {
       if (!b || !b.name) continue;
       if (b.owner_id && b.owner_id !== supaUser.id) continue;
-      const key = b.name.toLowerCase().trim();
-      if (!key) continue;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push({ bid, board: b });
+      const name = b.name.toLowerCase().trim();
+      if (name === 'board principal') principals.push({ bid, board: b });
     }
-    for (const [name, entries] of groups) {
-      if (entries.length <= 1) continue;
-      console.warn(`[dedupe] '${name}' tem ${entries.length} boards duplicados — limpando.`);
+    if (principals.length > 1) {
+      console.warn(`[dedupe] ${principals.length} 'Board principal' duplicados detectados — limpando.`);
       // Mais antigo primeiro (mantém ele), apaga o resto
-      entries.sort((a, b) => {
+      principals.sort((a, b) => {
         const ta = new Date(a.board.createdAt || 0).getTime();
         const tb = new Date(b.board.createdAt || 0).getTime();
         return ta - tb;
       });
-      const toKeep = entries[0];
-      const toDelete = entries.slice(1);
+      const toKeep = principals[0];
+      const toDelete = principals.slice(1);
       for (const dup of toDelete) {
         try {
           if (c && typeof supaDeleteBoard === 'function') {
@@ -26656,12 +26659,11 @@ async function _dedupePrincipalBoards(opts = {}) {
           }
           delete allBoards[dup.bid];
           totalRemoved++;
-          console.log(`[dedupe] ✓ apagou ${dup.bid.slice(0,8)} (${name})`);
+          console.log(`[dedupe] ✓ apagou ${dup.bid.slice(0,8)} (Board principal duplicado)`);
         } catch(e) {
           console.warn(`[dedupe] falha ao apagar ${dup.bid}:`, e?.message);
         }
       }
-      // Se currentBoardId era uma das duplicatas, redireciona pro mantido
       if (!allBoards[currentBoardId]) {
         currentBoardId = toKeep.bid;
         _bindCurrentBoard();
@@ -26671,12 +26673,12 @@ async function _dedupePrincipalBoards(opts = {}) {
       if (typeof saveData === 'function') saveData();
       if (typeof renderBoardsList === 'function') renderBoardsList();
       if (typeof renderHome === 'function') try { renderHome(); } catch(_){}
-      console.info(`[dedupe] ✓ limpeza concluída — ${totalRemoved} board(s) removido(s)`);
+      console.info(`[dedupe] ✓ limpeza concluída — ${totalRemoved} 'Board principal' duplicado(s) removido(s)`);
       if (!silent && typeof showToastMsg === 'function') {
-        showToastMsg(`${totalRemoved} board(s) duplicado(s) removido(s)`);
+        showToastMsg(`${totalRemoved} 'Board principal' duplicado(s) removido(s)`);
       }
     } else if (!silent && typeof showToastMsg === 'function') {
-      showToastMsg('Nenhum board duplicado encontrado');
+      showToastMsg('Nenhum Board principal duplicado encontrado');
     }
   } catch(e) {
     console.warn('[dedupe] exceção:', e?.message);
