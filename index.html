@@ -33211,6 +33211,8 @@ async function _callAI(instruction) {
     _aiLastOutput = data.text || '';
     bumpAIQuota();
     refreshAIQuotaPill();
+    // Gamificação: incrementa aiCalls + dá XP + checa missão diária "Use o Mestre Kan 1 vez"
+    if (typeof _gamifAwardAICall === 'function') _gamifAwardAICall();
     out.textContent = _aiLastOutput || '(resposta vazia)';
     if (actionsEl && _aiLastOutput) {
       actionsEl.style.display = 'flex';
