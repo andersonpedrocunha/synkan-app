@@ -8234,7 +8234,7 @@ body.tx-active .belt-ring::after{
       <span>Ajuda</span>
     </button>
     <div class="sb-account" id="sb-account" style="display:none;"></div>
-    <div class="sb-foot" id="sb-foot">v8 · local</div>
+    <div class="sb-foot" id="sb-foot">v9 · local</div>
   </aside>
   <main class="main-area">
 <div class="board">
@@ -28338,7 +28338,7 @@ function openHelpSupport() {
       <div class="help-body" id="help-body"></div>
 
       <div class="help-foot">
-        <span class="help-foot-text">Synkan v8 · Kanban + CRM + IA + OKRs</span>
+        <span class="help-foot-text">Synkan v9 · Kanban + CRM + IA + OKRs</span>
         <a href="mailto:contato@synkan.com.br" class="help-foot-link">contato@synkan.com.br</a>
       </div>
     </div>
@@ -60538,7 +60538,7 @@ function _createCardFromParsedVoice(parsed, targetBoardId) {
 }
 
 if (getStorageMode() === 'supabase') {
-  document.getElementById('sb-foot').textContent = 'v8 · cloud';
+  document.getElementById('sb-foot').textContent = 'v9 · cloud';
   // Aguarda SDK carregar (script async pode ainda não estar disponível)
   const tryBoot = (attempt=0) => {
     if (window.supabase && window.supabase.createClient) {
