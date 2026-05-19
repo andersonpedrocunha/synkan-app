@@ -9505,8 +9505,8 @@ function _saveCachedTtsUsage(usage) {
 function _planMaxTtsChars() {
   try {
     const planCode = (typeof getCurrentPlanCode === 'function') ? getCurrentPlanCode() : '';
-    if (planCode === 'faixa_preta')   return 5000;
-    if (planCode === 'faixa_roxa')    return 3000;
+    if (planCode === 'faixa_preta')   return 3000;
+    if (planCode === 'faixa_roxa')    return 1500;
     if (planCode === 'trial')         return 500;
     if (planCode === 'faixa_branca')  return 500;
     return 0;
@@ -10065,13 +10065,26 @@ async function speakCardText(text, opts) {
         return;
       }
       if (j.error === 'monthly_limit_reached') {
-        if (typeof appAlert === 'function') appAlert('Cota do mês esgotada',
-          `Você usou todos os <strong>${(j.chars_limit||5000).toLocaleString('pt-BR')} caracteres</strong> incluídos na sua faixa este mês. Cota reseta dia 1º.<br/><br/>` +
-          `<strong>Precisa de mais espaço agora?</strong> Vendemos cota sob demanda — fale com a gente:<br/>` +
-          `<a href="mailto:contato@synkan.com.br?subject=Mais%20espa%C3%A7o%20de%20leitura%20em%20voz%20alta&body=Oi%2C%20gostaria%20de%20comprar%20mais%20caracteres%20pra%20leitura%20em%20voz%20alta.%0A%0AUso%20atual%3A%20${j.chars_used_mo||0}%20%2F%20${j.chars_limit||5000}%20chars%20este%20m%C3%AAs.%0AQuantidade%20desejada%3A%20" style="color:#BC002D;text-decoration:underline;font-weight:600;">contato@synkan.com.br</a>`,
-          { icon:'⏳', html:true });
-        // Garante restore do botão (não há play → onEnd nunca rolaria)
-        try { opts.onEnd && opts.onEnd(); } catch(_){}
+        // Cota esgotada → cai pra voz nativa do navegador automaticamente.
+        // Avisa user 1x via toast leve (sem modal travando UX). A leitura
+        // continua, só com voz menos premium. Cota reseta dia 1º.
+        if (!window._kanQuotaToastShown) {
+          window._kanQuotaToastShown = true;
+          if (typeof showToastMsg === 'function') {
+            showToastMsg('Cota mensal esgotada — usando voz do navegador até dia 1º');
+          }
+          // Mostra modal só na 1ª vez do dia, pra explicar o que aconteceu
+          if (typeof appAlert === 'function') {
+            const limitNum = (j.chars_limit || _planMaxTtsChars && _planMaxTtsChars() || 3000);
+            appAlert('Cota do mês esgotada',
+              `Você usou todos os <strong>${limitNum.toLocaleString('pt-BR')} caracteres</strong> da sua faixa este mês.<br/><br/>` +
+              `<strong>A leitura continua funcionando</strong> — só com a voz do navegador (menos polida que a do George/Lily). Reseta dia 1º.<br/><br/>` +
+              `Precisa de cota extra antes do reset? Fale com a gente: <a href="mailto:contato@synkan.com.br" style="color:#BC002D;text-decoration:underline;font-weight:600;">contato@synkan.com.br</a>`,
+              { icon:'⏳', html:true });
+          }
+        }
+        // Fallback automático pra browser TTS — leitura não para
+        _speakCardFallback(text, opts);
         return;
       }
       if (typeof appAlert === 'function') appAlert('Erro ao gerar voz', _humanizeError(j.error) || `HTTP ${r.status}`, { icon:'⚠' });
@@ -10091,6 +10104,13 @@ async function speakCardText(text, opts) {
       };
       if (typeof _saveCachedTtsUsage === 'function') _saveCachedTtsUsage(_cardTtsUsage);
       if (typeof _cardTtsUsageLoadState !== 'undefined') _cardTtsUsageLoadState = 'loaded';
+      // Se user estiver na tela de Settings, re-renderiza pra mostrar
+      // o contador atualizado em tempo real (sem precisar trocar de aba).
+      try {
+        if (typeof currentTab !== 'undefined' && currentTab === 'settings' && typeof renderSettings === 'function') {
+          renderSettings();
+        }
+      } catch(_) {}
     }
     const audio = new Audio(j.url);
     audio.preload = 'auto';
@@ -10678,8 +10698,8 @@ const _PAYWALL_COPY = {
     icon: '🔊',
     title: 'Leitura em voz alta é Faixa Roxa+',
     plans: [
-      { name: 'Faixa Roxa',  price: 'R$ 39,90/mês', desc: 'Voz George (ElevenLabs Neural) lendo cards do Kanban, OKRs, briefing do dia no Home, comentários longos, Customer 360 e notas do Syncal · 3.000 chars/mês inclusos (~15 textos únicos)' },
-      { name: 'Faixa Preta', price: 'R$ 89,90/mês', desc: 'Mesma feature · 5.000 chars/mês inclusos (~25 textos únicos) · expansível sob demanda (fale com vendas)' },
+      { name: 'Faixa Roxa',  price: 'R$ 39,90/mês', desc: 'Voz George (ElevenLabs Neural) lendo cards do Kanban, OKRs, briefing do dia no Home, comentários longos, Customer 360 e notas do Syncal · 1.500 chars/mês inclusos (~7 textos únicos) · quando esgota, cai pra voz nativa do navegador' },
+      { name: 'Faixa Preta', price: 'R$ 89,90/mês', desc: 'Mesma feature · 3.000 chars/mês inclusos (~15 textos únicos) · quando esgota, cai pra voz nativa do navegador' },
     ],
     bullet: 'Ouvir um card ou briefing do dia em vez de ler. Útil dirigindo, malhando, ou pra revisar conteúdo sem fixar na tela. Voz neural realista (não TTS robótico). Cache global: mesmo texto lido por qualquer user não consome de novo.',
   },
@@ -18317,7 +18337,7 @@ function _settingsPreferenciasSection() {
       <div class="settings-row">
         <div>
           <div class="settings-row-label">Habilitar leitura em voz alta</div>
-          <div class="settings-row-hint">Cada texto lido consome chars do limite mensal. Mesmo texto lido de novo não consome (vai do cache global, compartilhado por todos os users).</div>
+          <div class="settings-row-hint">Cada texto lido consome chars do limite mensal. Mesmo texto lido de novo não consome (vai do cache global, compartilhado por todos os users). <strong>Quando a cota acabar, a leitura continua</strong> usando a voz nativa do navegador — menos premium, mas funcional até o dia 1º.</div>
         </div>
         <label class="cfg-switch" style="position:relative;display:inline-block;width:42px;height:24px;${!getCardTtsPlanAllows()?'opacity:.45;pointer-events:none;':''}">
           <input type="checkbox" id="cfg-card-tts" ${getCardTtsEnabled() ? 'checked' : ''} ${!getCardTtsPlanAllows()?'disabled':''} onchange="setCardTtsEnabled(this.checked);if(this.checked)loadCardTtsUsage().then(()=>renderSettings&&renderSettings())" style="opacity:0;width:0;height:0;"/>
@@ -18353,7 +18373,7 @@ function _settingsPreferenciasSection() {
         // Limite máximo pelo plano — fonte da verdade da UI (banco pode ter
         // row legada com limit maior; backend ja capa também, mas defesa em
         // profundidade na UI nunca exibe número errado).
-        const planMax = (typeof _planMaxTtsChars === 'function') ? _planMaxTtsChars() : 5000;
+        const planMax = (typeof _planMaxTtsChars === 'function') ? _planMaxTtsChars() : 3000;
         // Estado de carregamento:
         //   loaded = backend respondeu com sucesso
         //   loading/idle = ainda buscando (1º render, refresh) → mostra cache local
@@ -18389,13 +18409,18 @@ function _settingsPreferenciasSection() {
             </div>
             <div class="settings-row-hint" style="margin-top:8px;line-height:1.55;">
               <strong>${limit.toLocaleString('pt-BR')} caracteres/mês inclusos na sua faixa</strong> (~${cardsEst} textos únicos lidos · 200 chars cada em média).<br/>
-              Cache global: mesmo texto lido por qualquer user <strong>não consome de novo</strong>. Cota reseta dia 1º.
+              Cache global: mesmo texto lido por qualquer user <strong>não consome de novo</strong>. Cota reseta dia 1º.<br/>
+              <span style="color:#3B6D11;">↳ <strong>Quando a cota acabar</strong>, a leitura continua com a voz nativa do navegador (sem consumir nada).</span>
               ${statusHint}
             </div>
-            ${isAtLimit || pct >= 80 ? `
+            ${isAtLimit ? `
+              <div style="margin-top:10px;padding:10px 12px;background:rgba(59,109,17,.08);border-left:3px solid #3B6D11;border-radius:0 6px 6px 0;font-size:11.5px;color:#2A4F0A;line-height:1.55;">
+                <strong>📢 Cota esgotada este mês.</strong> A leitura segue funcionando com a voz do navegador até o dia 1º. Pra mais cota antes do reset, fale com a gente:
+                <a href="mailto:contato@synkan.com.br?subject=Mais%20espa%C3%A7o%20de%20leitura%20em%20voz%20alta" style="color:#2A4F0A;text-decoration:underline;font-weight:600;">contato@synkan.com.br</a>
+              </div>
+            ` : pct >= 80 ? `
               <div style="margin-top:10px;padding:10px 12px;background:rgba(193,154,58,.10);border-left:3px solid #C19A3A;border-radius:0 6px 6px 0;font-size:11.5px;color:#7A5500;line-height:1.55;">
-                <strong>Precisa de mais espaço?</strong> Vendemos cota sob demanda — fale com a gente:
-                <a href="mailto:contato@synkan.com.br?subject=Mais%20espa%C3%A7o%20de%20leitura%20em%20voz%20alta" style="color:#7A5500;text-decoration:underline;font-weight:600;">contato@synkan.com.br</a>
+                <strong>Faltam ${(limit - used).toLocaleString('pt-BR')} caracteres.</strong> Quando esgotar, a leitura continua com a voz do navegador (gratuita). Pra cota extra: <a href="mailto:contato@synkan.com.br" style="color:#7A5500;text-decoration:underline;font-weight:600;">contato@synkan.com.br</a>
               </div>
             ` : ''}
           </div>
@@ -28321,7 +28346,7 @@ function _renderHelpFAQ() {
     {q: 'Como funciona a leitura de cards em voz alta?',
      a: 'Em Configurações → Preferências, ative "Ler cards com voz". Aparece um botão 🔊 nos cards, no thread do chat, em OKRs, Customer 360 e nas notas do Syncal. Você escolhe entre 2 vozes: George (masculina, ElevenLabs) ou Lily (feminina, ElevenLabs). Disponível em todos os planos exceto Faixa Azul.'},
     {q: 'Qual a cota mensal de leitura por voz?',
-     a: '• Faixa Branca (grátis) e Trial: 500 caracteres/mês (degustação). • Faixa Azul: não inclui. • Faixa Roxa: 3.000 caracteres/mês. • Faixa Preta: 5.000 caracteres/mês. ~500 chars dão pra ler 2-3 cards (preview); 3k chars ≈ 15-20 cards completos. Cota reseta dia 1°. Quando esgota, aparece modal explicando — e você pode comprar mais sob demanda em contato@synkan.com.br.'},
+     a: '• Faixa Branca (grátis) e Trial: 500 caracteres/mês (degustação). • Faixa Azul: não inclui. • Faixa Roxa: 1.500 caracteres/mês. • Faixa Preta: 3.000 caracteres/mês. ~500 chars dão pra ler 2-3 cards (preview); 1.5k chars ≈ 7-10 cards completos; 3k chars ≈ 15-20 cards completos. Cota reseta dia 1°. Quando esgota, a leitura continua com a voz nativa do navegador (menos premium, mas funcional). Você também pode comprar pacotes extras sob demanda em contato@synkan.com.br.'},
     {q: 'A voz do Mestre Kan no tour é a mesma do botão 🔊?',
      a: 'Não. O Mestre Kan tem voz própria (Vishchun · sotaque oriental, mais épica), usada pra falas pré-gravadas dele no tour, frases inspiracionais, mensagens de erro. Os 75 áudios são pré-gerados — não consomem sua cota mensal. Já o botão 🔊 dos cards usa George ou Lily e consome cota.'},
     {q: 'Posso usar offline?',
@@ -28607,9 +28632,9 @@ function _renderHelpRecursosTopic(id) {
         <p><strong>Branca (grátis)</strong> — 500 caracteres/mês (degustação · ~2-3 cards).<br/>
         <strong>Trial 7 dias</strong> — 500 caracteres/mês (degustação).<br/>
         <strong>Azul</strong> — não inclui.<br/>
-        <strong>Roxa</strong> — 3.000 caracteres/mês.<br/>
-        <strong>Preta</strong> — 5.000 caracteres/mês.</p>
-        <p>500 chars = preview pra entender a feature. 3k chars ≈ 15-20 leituras médias de card. Cota reseta dia 1°. Quando esgota, aparece modal explicando — pra mais espaço, escreva pra <a href="mailto:contato@synkan.com.br">contato@synkan.com.br</a> (vendemos cota sob demanda).</p>
+        <strong>Roxa</strong> — 1.500 caracteres/mês.<br/>
+        <strong>Preta</strong> — 3.000 caracteres/mês.</p>
+        <p>500 chars = preview pra entender a feature. 1.5k chars ≈ 7-10 leituras médias de card. 3k chars ≈ 15-20 leituras médias. Cota reseta dia 1°. <strong>Quando esgota, a leitura continua automaticamente com a voz nativa do navegador</strong> (menos premium que o ElevenLabs, mas o card continua sendo lido). Pra mais cota premium, escreva pra <a href="mailto:contato@synkan.com.br">contato@synkan.com.br</a> (vendemos pacotes sob demanda).</p>
 
         <h4 class="help-topic-h">Cache inteligente</h4>
         <p>Mesma frase + mesma voz só gera 1 MP3 (compartilhado entre todos os users). Reler cards repetidos não consome cota.</p>
@@ -28621,7 +28646,7 @@ function _renderHelpRecursosTopic(id) {
       sub: 'O que foi adicionado nas últimas versões.',
       body: `
         <h4 class="help-topic-h">v9 · maio 2026</h4>
-        <p><strong>Leitura de cards por voz (George e Lily).</strong> Botão 🔊 nos cards, threads, OKRs, Customer 360 e Syncal. Vozes neurais via ElevenLabs com pt-BR fluído. Escolha entre voz masculina (George) ou feminina (Lily) em <em>Configurações → Preferências</em>. Cotas: Trial e Roxa = 3.000 chars/mês, Preta = 5.000 chars/mês. Cache global por voz+texto.</p>
+        <p><strong>Leitura de cards por voz (George e Lily).</strong> Botão 🔊 nos cards, threads, OKRs, Customer 360 e Syncal. Vozes neurais via ElevenLabs com pt-BR fluído. Escolha entre voz masculina (George) ou feminina (Lily) em <em>Configurações → Preferências</em>. Cotas: Trial/Branca = 500 chars/mês, Roxa = 1.500 chars/mês, Preta = 3.000 chars/mês. Quando a cota acaba, a leitura continua com a voz nativa do navegador. Cache global por voz+texto.</p>
         <p><strong>Mestre Kan ganha voz pré-gravada.</strong> 75 áudios do sensei (voz Vishchun, sotaque oriental) cobrem tour inicial, quotes e mensagens de erro. Não consome cota mensal.</p>
         <p><strong>Aba Preferências em Configurações.</strong> Centraliza todos os toggles de ativação/desativação: aparência, voz do Mestre Kan, leitura por voz, dados de exemplo, comando por voz e Pomodoro Dojo. Antes ficavam espalhados.</p>
         <p><strong>Segurança · billing endpoints exigem JWT.</strong> Antes endpoints como <em>create-checkout</em>, <em>portal</em>, <em>update-seats</em>, <em>reconcile</em> aceitavam user_id no body sem validar. Agora exigem Authorization: Bearer + user_id do body precisa bater com o JWT. Previne checkout em nome de outra pessoa e abuso do portal de pagamento.</p>
