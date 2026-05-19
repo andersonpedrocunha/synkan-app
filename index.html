@@ -26705,14 +26705,38 @@ async function _onSignedIn(session) {
 
   if (Object.keys(remote).length === 0 && Object.keys(localSnapshot).length === 0) {
     // primeiro acesso: cria board principal a partir dos defaults
-    const id = _genBoardId();
-    const seed = _seedBoardData('Board principal');
-    seed.owner_id = supaUser.id;
-    allBoards = { [id]: seed };
-    currentBoardId = id;
-    _bindCurrentBoard();
-    await supaCreateBoard(id, seed);
-    await supaUpsertCurrentBoard();
+    // LOCK: previne race condition se _onSignedIn dispara várias vezes (SIGNED_IN
+    // + TOKEN_REFRESHED) no signup — todas veriam remote vazio e criariam um
+    // novo board, gerando duplicatas. O lock garante criação só 1x por sessão.
+    if (window.__creatingFirstBoard) {
+      console.warn('[_onSignedIn] criação do primeiro board já em curso — pulando');
+      // Espera a outra chamada terminar antes de seguir
+      let waited = 0;
+      while (window.__creatingFirstBoard && waited < 10000) {
+        await new Promise(r => setTimeout(r, 200));
+        waited += 200;
+      }
+    } else {
+      window.__creatingFirstBoard = true;
+      try {
+        // Re-checa o remoto depois de aguardar (outra chamada pode ter criado)
+        const { data: recheck } = await c.from('boards').select('id').eq('owner_id', supaUser.id).limit(1);
+        if (recheck && recheck.length > 0) {
+          console.warn('[_onSignedIn] board ja criado por chamada paralela — pulando criação');
+        } else {
+          const id = _genBoardId();
+          const seed = _seedBoardData('Board principal');
+          seed.owner_id = supaUser.id;
+          allBoards = { [id]: seed };
+          currentBoardId = id;
+          _bindCurrentBoard();
+          await supaCreateBoard(id, seed);
+          await supaUpsertCurrentBoard();
+        }
+      } finally {
+        window.__creatingFirstBoard = false;
+      }
+    }
   } else {
     // MERGE: começa do remoto, depois UPLOADA boards local-only que faltam
     allBoards = remote;
@@ -26764,6 +26788,57 @@ async function _onSignedIn(session) {
       }
     }
   } catch(e) { console.warn('[boot] self-heal falhou (não crítico):', e?.message || e); }
+
+  // ━━ SELF-HEAL #2: DEDUPE de boards "Board principal" duplicados ━━
+  //    Race condition no signup pode criar 2-3 "Board principal" em paralelo
+  //    (cada onAuthStateChange dispara _onSignedIn, todas veem remote vazio
+  //    simultaneamente e criam o seu próprio). Aqui detectamos e limpamos.
+  try {
+    const boards = Object.values(allBoards || {}).filter(b => b && b.name);
+    const principals = boards.filter(b =>
+      b.name && b.name.toLowerCase().trim() === 'board principal' &&
+      (!b.owner_id || b.owner_id === supaUser.id)
+    );
+    if (principals.length > 1) {
+      console.warn(`[dedupe] ${principals.length} 'Board principal' duplicados detectados — limpando.`);
+      // Ordena: mais antigo primeiro (mantém ele), apaga o resto
+      principals.sort((a, b) => {
+        const ta = new Date(a.createdAt || 0).getTime();
+        const tb = new Date(b.createdAt || 0).getTime();
+        return ta - tb;
+      });
+      const toKeep = principals[0];
+      const toDelete = principals.slice(1);
+      for (const dup of toDelete) {
+        // Acha o ID no allBoards
+        const dupId = Object.keys(allBoards).find(id => allBoards[id] === dup);
+        if (!dupId) continue;
+        try {
+          // Apaga do Supabase primeiro (cards e board)
+          if (typeof supaDeleteBoard === 'function') {
+            await supaDeleteBoard(dupId);
+          } else {
+            // Fallback direto
+            await c.from('cards').delete().eq('board_id', dupId);
+            await c.from('boards').delete().eq('id', dupId);
+          }
+          // Apaga do allBoards local
+          delete allBoards[dupId];
+          console.log(`[dedupe] ✓ apagou duplicata ${dupId.slice(0,8)}`);
+        } catch(e) {
+          console.warn(`[dedupe] falha ao apagar ${dupId}:`, e?.message);
+        }
+      }
+      // Se currentBoardId apontava pra uma das duplicatas apagadas, redireciona
+      if (!allBoards[currentBoardId]) {
+        const keepId = Object.keys(allBoards).find(id => allBoards[id] === toKeep);
+        currentBoardId = keepId || Object.keys(allBoards)[0];
+        _bindCurrentBoard();
+      }
+      if (typeof saveData === 'function') saveData();
+      console.info(`[dedupe] ✓ limpeza concluída — ${toDelete.length} duplicata(s) removida(s)`);
+    }
+  } catch(e) { console.warn('[boot] dedupe falhou (não crítico):', e?.message || e); }
 
   // Processa fila de retry (writes que falharam em sessões anteriores)
   try { if (typeof _processRetryQueue === 'function') _processRetryQueue(); } catch(e) { console.warn('retry queue', e); }
