@@ -9531,13 +9531,27 @@ async function loadCardTtsUsage() {
       return null;
     }
     if (!data) { _cardTtsUsageLoadState = 'error'; return null; }
-    // Capa o limit pelo máximo do plano — evita exibir 30k pra Preta etc
+    // Normaliza limit:
+    //   • Se o banco diz MAIS que o plano permite (row legada com 30k da era
+    //     ElevenLabs Starter): cápita pra baixo no plano.
+    //   • Se o banco diz MENOS que o plano permite (subscription row faltando,
+    //     row criada antes do user fazer upgrade, etc): eleva pro limite do
+    //     plano que o frontend conhece. UX consistente — user nunca vê limite
+    //     inferior ao que sua faixa promete.
     const planMax = _planMaxTtsChars();
     const rawLimit = Number(data.chars_limit) || 0;
-    const cappedLimit = (planMax > 0 && rawLimit > planMax) ? planMax : rawLimit;
+    let effectiveLimit;
+    if (planMax > 0) {
+      effectiveLimit = Math.min(Math.max(rawLimit, planMax), planMax);
+      // Equivalente a: clamp(rawLimit, planMax, planMax) → sempre planMax
+      // quando planMax conhecido. Mantém variável pra clareza.
+      effectiveLimit = planMax;
+    } else {
+      effectiveLimit = rawLimit;
+    }
     const normalized = {
       chars_used:  Math.max(0, Number(data.chars_used) || 0),
-      chars_limit: cappedLimit > 0 ? cappedLimit : planMax,
+      chars_limit: effectiveLimit,
       year_month:  data.year_month || null,
     };
     _cardTtsUsage = normalized;
@@ -10092,12 +10106,14 @@ async function speakCardText(text, opts) {
       try { opts.onEnd && opts.onEnd(); } catch(_){}
       return;
     }
-    // Normaliza + capa o limit pelo plano (defesa contra rows legadas no banco
-    // com chars_limit=30000 vindo da era do plano ElevenLabs Starter antigo)
+    // Normaliza limit pelo plano. Cobre 2 casos defeituosos:
+    //   • Row legada com 30k (era ElevenLabs Starter antigo) → cápita pra baixo
+    //   • Row com 500 mas user já é Preta (subscription row faltando) → eleva
+    // Resultado: chars_limit exibido = SEMPRE planMax quando conhecido.
     {
       const planMax = (typeof _planMaxTtsChars === 'function') ? _planMaxTtsChars() : 0;
       const rawLimit = Number(j.chars_limit) || 0;
-      const cappedLimit = (planMax > 0 && rawLimit > planMax) ? planMax : (rawLimit || planMax);
+      const cappedLimit = (planMax > 0) ? planMax : (rawLimit || 0);
       _cardTtsUsage = {
         chars_used:  Math.max(0, Number(j.chars_used_mo) || 0),
         chars_limit: cappedLimit,
@@ -18082,6 +18098,7 @@ function _settingsContaSection() {
         <button class="btn-c" onclick="pickProfileAvatar()">📷 ${avatarURL?'Trocar foto':'Adicionar foto'}</button>
         ${avatarURL ? `<button class="btn-c" onclick="clearProfileAvatar()">Remover foto</button>` : ''}
         ${inSupa ? `<button class="btn-c" onclick="changePasswordFlow()">🔑 Trocar senha</button>` : ''}
+        ${inSupa ? `<button class="btn-c" onclick="_dedupePrincipalBoards({silent:false}).then(()=>{ if(typeof renderBoardsList==='function') renderBoardsList(); })" title="Detecta e remove boards com nome duplicado (mesmo owner). Mantém o mais antigo.">🧹 Limpar boards duplicados</button>` : ''}
         ${inSupa ? `<button class="btn-c" onclick="signOut()">Sair</button>` : ''}
       </div>
     </div>
@@ -26593,6 +26610,84 @@ async function supaRemoveMember(boardId, userId) {
   }
 }
 
+// ─── DEDUPE BOARDS — limpa "Board principal" duplicados ────────────
+// Race condition no signup pode criar 2-3 boards iguais. Função reusável:
+//   • Chamada automaticamente no _onSignedIn (silent: true)
+//   • Pode ser invocada via botão em Settings → Conta (silent: false → toast)
+// Lógica: agrupa boards do mesmo owner por nome normalizado; pra qualquer
+// grupo com >1 board, mantém o mais antigo (createdAt) e apaga o resto.
+// Cobre não só "Board principal" — qualquer nome duplicado do mesmo user.
+async function _dedupePrincipalBoards(opts = {}) {
+  const silent = opts.silent !== false;
+  if (typeof supaUser === 'undefined' || !supaUser) return { removed: 0 };
+  if (typeof allBoards !== 'object' || !allBoards) return { removed: 0 };
+  const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() :
+            (typeof supaClient !== 'undefined' ? supaClient : null);
+  let totalRemoved = 0;
+  try {
+    // Agrupa boards do mesmo owner por nome normalizado
+    const groups = new Map();
+    for (const [bid, b] of Object.entries(allBoards)) {
+      if (!b || !b.name) continue;
+      if (b.owner_id && b.owner_id !== supaUser.id) continue;
+      const key = b.name.toLowerCase().trim();
+      if (!key) continue;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ bid, board: b });
+    }
+    for (const [name, entries] of groups) {
+      if (entries.length <= 1) continue;
+      console.warn(`[dedupe] '${name}' tem ${entries.length} boards duplicados — limpando.`);
+      // Mais antigo primeiro (mantém ele), apaga o resto
+      entries.sort((a, b) => {
+        const ta = new Date(a.board.createdAt || 0).getTime();
+        const tb = new Date(b.board.createdAt || 0).getTime();
+        return ta - tb;
+      });
+      const toKeep = entries[0];
+      const toDelete = entries.slice(1);
+      for (const dup of toDelete) {
+        try {
+          if (c && typeof supaDeleteBoard === 'function') {
+            await supaDeleteBoard(dup.bid);
+          } else if (c) {
+            await c.from('cards').delete().eq('board_id', dup.bid);
+            await c.from('boards').delete().eq('id', dup.bid);
+          }
+          delete allBoards[dup.bid];
+          totalRemoved++;
+          console.log(`[dedupe] ✓ apagou ${dup.bid.slice(0,8)} (${name})`);
+        } catch(e) {
+          console.warn(`[dedupe] falha ao apagar ${dup.bid}:`, e?.message);
+        }
+      }
+      // Se currentBoardId era uma das duplicatas, redireciona pro mantido
+      if (!allBoards[currentBoardId]) {
+        currentBoardId = toKeep.bid;
+        _bindCurrentBoard();
+      }
+    }
+    if (totalRemoved > 0) {
+      if (typeof saveData === 'function') saveData();
+      if (typeof renderBoardsList === 'function') renderBoardsList();
+      if (typeof renderHome === 'function') try { renderHome(); } catch(_){}
+      console.info(`[dedupe] ✓ limpeza concluída — ${totalRemoved} board(s) removido(s)`);
+      if (!silent && typeof showToastMsg === 'function') {
+        showToastMsg(`${totalRemoved} board(s) duplicado(s) removido(s)`);
+      }
+    } else if (!silent && typeof showToastMsg === 'function') {
+      showToastMsg('Nenhum board duplicado encontrado');
+    }
+  } catch(e) {
+    console.warn('[dedupe] exceção:', e?.message);
+    if (!silent && typeof appAlert === 'function') {
+      appAlert('Erro', 'Falha ao limpar duplicatas: ' + (e?.message || e));
+    }
+  }
+  return { removed: totalRemoved };
+}
+try { if (typeof window !== 'undefined') window._dedupePrincipalBoards = _dedupePrincipalBoards; } catch(_){}
+
 // — Boot routing —
 // Re-rodar isso a cada TOKEN_REFRESH/SIGNED_IN é o que estava
 // jogando o usuário pra Home no meio do uso. Agora detecta se é o
@@ -26818,51 +26913,9 @@ async function _onSignedIn(session) {
   //    Race condition no signup pode criar 2-3 "Board principal" em paralelo
   //    (cada onAuthStateChange dispara _onSignedIn, todas veem remote vazio
   //    simultaneamente e criam o seu próprio). Aqui detectamos e limpamos.
+  //    Função extraída pra também poder ser chamada via botão em Settings.
   try {
-    const boards = Object.values(allBoards || {}).filter(b => b && b.name);
-    const principals = boards.filter(b =>
-      b.name && b.name.toLowerCase().trim() === 'board principal' &&
-      (!b.owner_id || b.owner_id === supaUser.id)
-    );
-    if (principals.length > 1) {
-      console.warn(`[dedupe] ${principals.length} 'Board principal' duplicados detectados — limpando.`);
-      // Ordena: mais antigo primeiro (mantém ele), apaga o resto
-      principals.sort((a, b) => {
-        const ta = new Date(a.createdAt || 0).getTime();
-        const tb = new Date(b.createdAt || 0).getTime();
-        return ta - tb;
-      });
-      const toKeep = principals[0];
-      const toDelete = principals.slice(1);
-      for (const dup of toDelete) {
-        // Acha o ID no allBoards
-        const dupId = Object.keys(allBoards).find(id => allBoards[id] === dup);
-        if (!dupId) continue;
-        try {
-          // Apaga do Supabase primeiro (cards e board)
-          if (typeof supaDeleteBoard === 'function') {
-            await supaDeleteBoard(dupId);
-          } else {
-            // Fallback direto
-            await c.from('cards').delete().eq('board_id', dupId);
-            await c.from('boards').delete().eq('id', dupId);
-          }
-          // Apaga do allBoards local
-          delete allBoards[dupId];
-          console.log(`[dedupe] ✓ apagou duplicata ${dupId.slice(0,8)}`);
-        } catch(e) {
-          console.warn(`[dedupe] falha ao apagar ${dupId}:`, e?.message);
-        }
-      }
-      // Se currentBoardId apontava pra uma das duplicatas apagadas, redireciona
-      if (!allBoards[currentBoardId]) {
-        const keepId = Object.keys(allBoards).find(id => allBoards[id] === toKeep);
-        currentBoardId = keepId || Object.keys(allBoards)[0];
-        _bindCurrentBoard();
-      }
-      if (typeof saveData === 'function') saveData();
-      console.info(`[dedupe] ✓ limpeza concluída — ${toDelete.length} duplicata(s) removida(s)`);
-    }
+    await _dedupePrincipalBoards({ silent: true });
   } catch(e) { console.warn('[boot] dedupe falhou (não crítico):', e?.message || e); }
 
   // Processa fila de retry (writes que falharam em sessões anteriores)
