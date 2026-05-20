@@ -25189,6 +25189,19 @@ function closeModal() { document.getElementById('ov').classList.remove('open'); 
 
 function saveCard() {
   const name=document.getElementById('inp-name').value.trim();if(!name){document.getElementById('inp-name').focus();return;}
+  // FLUSH: se user digitou uma subtarefa no input mas não apertou Enter / não
+  // clicou no "+", auto-commita antes de salvar. Sem isso a subtarefa se perde
+  // — UX confusa porque ela aparece digitada e some ao salvar.
+  try {
+    const stInputs = document.querySelectorAll('[id^="st-inp-"]');
+    stInputs.forEach(inp => {
+      const t = (inp.value || '').trim();
+      if (t && Array.isArray(cSubtasks)) {
+        cSubtasks.push({ id: stUid(), text: t, done: false });
+        inp.value = '';
+      }
+    });
+  } catch(_){}
   const priority=document.getElementById('inp-pri').value;
   const col=document.getElementById('inp-col').value;
   const deadline=document.getElementById('inp-deadline').value||null;
@@ -25267,7 +25280,7 @@ function saveCard() {
   } else {
     const now=new Date().toISOString();
     const _myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
-    const newCard={id:nCard++,name,priority,col,tagIds,deadline,responsavel,assignedUserId,contactId,recurrence,threads:[],attachments:[],subtasks:[],customFieldValues:{...cCustomValues},createdAt:now,doneAt:col===TERMINAL_COL?now:null,createdFrom:'kanban',createdBy:_myId};
+    const newCard={id:nCard++,name,priority,col,tagIds,deadline,responsavel,assignedUserId,contactId,recurrence,threads:[],attachments:[...cAttachments],subtasks:[...cSubtasks],customFieldValues:{...cCustomValues},createdAt:now,doneAt:col===TERMINAL_COL?now:null,createdFrom:'kanban',createdBy:_myId};
     audit('card.created', { cardId: newCard.id, name, col });
     fireWebhook('card.created', { cardId: newCard.id, name, col, priority, deadline, responsavel });
     if (typeof _calSyncCardEvent === 'function') _calSyncCardEvent(newCard, 'upsert');
