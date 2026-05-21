@@ -8532,11 +8532,13 @@ body.tx-active .belt-ring::after{
 <!-- Customer 360: histórico completo do cadastro (cards, documentos, timeline) -->
 <div class="c360-modal" id="c360-modal"><div class="c360-card" id="c360-card"></div></div>
 
-<!-- Templates de checklist (playbooks): aparece sobre o modal do card -->
-<div class="reg-modal" id="tpl-modal" style="z-index:320;"><div class="reg-modal-card" id="tpl-modal-card" style="width:640px;"></div></div>
+<!-- Templates de checklist (playbooks): aparece sobre o modal do card.
+     z-index 9700 = acima do card modal (.ov = 9500) e do reg-modal padrão (9600). -->
+<div class="reg-modal" id="tpl-modal" style="z-index:9700;"><div class="reg-modal-card" id="tpl-modal-card" style="width:640px;"></div></div>
 
-<!-- Templates de documento (proposta, contrato, recibo): gerador com merge tags -->
-<div class="reg-modal" id="doc-modal" style="z-index:320;"><div class="reg-modal-card" id="doc-modal-card" style="width:760px;"></div></div>
+<!-- Templates de documento (proposta, contrato, recibo): gerador com merge tags.
+     Mesmo z-index pra ficar acima de qualquer modal de card aberto por trás. -->
+<div class="reg-modal" id="doc-modal" style="z-index:9700;"><div class="reg-modal-card" id="doc-modal-card" style="width:760px;"></div></div>
 
 <!-- Gamificação: pilha de toasts de XP + modal de subida de faixa -->
 <div class="gamif-toasts" id="gamif-toasts"></div>
