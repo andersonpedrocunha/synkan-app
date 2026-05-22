@@ -1,0 +1,7 @@
+build: synconnect-shared-workspace-csv-importer
+commit: fd774dd
+date: 2026-05-22T17:17:06-03:00
+features:
+  - shared_workspace_v1
+  - csv_importer_v1
+trigger_rebuild: 2026-05-22T18:00:00
