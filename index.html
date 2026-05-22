@@ -38465,7 +38465,7 @@ function _synRenderMembersModal() {
   const activeWs = _synWorkspaces.find(w => w.workspace_owner_id === _synActiveWorkspaceId);
   ov.innerHTML = `<div class="syn-modal" onclick="event.stopPropagation()" style="max-width:640px;">
     <div class="syn-modal-h">
-      <h3>👥 Membros do workspace</h3>
+      <h3>🪪 Membros do workspace</h3>
       <button class="syn-modal-x" onclick="document.getElementById('syn-members-modal').classList.remove('is-open')">×</button>
     </div>
     <div class="syn-modal-body">
@@ -47951,7 +47951,7 @@ function renderRegistry() {
        </div>` : '';
   const membersBtnHTML = showMembersBtn
     ? `<button onclick="_synOpenMembersModal()" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:7px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit;color:var(--color-text-primary);display:inline-flex;align-items:center;gap:6px;">
-        👥 Membros${activeWs?.member_count ? `<span style="opacity:.6;">${activeWs.member_count}</span>` : ''}
+        🪪 Membros${activeWs?.member_count ? `<span style="opacity:.6;">${activeWs.member_count}</span>` : ''}
        </button>` : '';
   const roleBadge = _synActiveRole !== 'owner'
     ? `<span style="font-size:10.5px;background:${_synActiveRole==='viewer'?'#7A5500':'#3C3489'};color:#fff;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;font-family:var(--font-sans);">${_synActiveRole === 'viewer' ? '👁 viewer' : (_synActiveRole === 'editor' ? '✎ editor' : '⚙ admin')}</span>`
