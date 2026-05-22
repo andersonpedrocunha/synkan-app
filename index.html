@@ -26959,6 +26959,25 @@ async function _onSignedIn(session) {
   // Carrega roles do user atual nos boards (convidado/editor/etc) e aplica
   // gating de UI (esconde Zai/OKRs/Synconnect/Lab pra users puramente convidados)
   _refreshMyRoles().catch(e => console.warn('[roles refresh]', e));
+  // Shared workspace: se chegou pelo link de convite (?syn_invite=TOKEN),
+  // ou se tem token pendente do signup, aceita o convite agora.
+  try {
+    if (typeof _synProcessInviteUrl === 'function') {
+      _synProcessInviteUrl().catch(e => console.warn('[syn] invite url:', e?.message));
+    }
+    // Token guardado durante signup (user clicou no link sem estar logado)
+    const pendingToken = localStorage.getItem('synkan_pending_invite_token');
+    if (pendingToken && typeof _synGetClient === 'function') {
+      localStorage.removeItem('synkan_pending_invite_token');
+      _synGetClient().then(c => c?.rpc('synconnect_accept_invite', { p_token: pendingToken }))
+        .then(({ data, error }) => {
+          if (error) { console.warn('[syn] pending invite accept:', error.message); return; }
+          if (data && typeof appAlert === 'function') {
+            appAlert('Convite Synconnect aceito 🎉', `Você agora é <strong>${data.role}</strong> em um workspace compartilhado. Veja em Synconnect.`, { html: true });
+          }
+        }).catch(e => console.warn('[syn] pending invite ex:', e?.message));
+    }
+  } catch(_){}
   // Só vai pra Home na primeira sign-in (não em token refresh ou re-auth periódico)
   if (!window._didInitialSignIn) {
     switchTab('home');
@@ -38335,17 +38354,888 @@ function _genRegId(prefix) { return prefix + '_' + Date.now().toString(36) + Mat
 // de estágios e timeline de atividades. localStorage continua como cache
 // pra carregamento instantâneo enquanto a cloud responde.
 // Requer: rodar MIGRATIONS_SYNCONNECT_CRM.sql no Supabase SQL Editor.
+//
+// SHARED WORKSPACE (v1):
+// User pode ser owner do seu workspace + member em N outros workspaces.
+// `_synActiveWorkspaceId` define qual workspace está visível agora.
+// Todas as queries filtram por workspace_owner = active id.
+// Inserts setam workspace_owner = active id.
+// Requer: rodar MIGRATIONS_SYNCONNECT_SHARED_WORKSPACE.sql também.
 // ════════════════════════════════════════════════════════════════════
 let _synDeals      = [];
 let _synStages     = [];
-let _synActivities = [];   // todas do user; filtra por contact_id/deal_id na UI
+let _synActivities = [];   // do workspace ativo; filtra por contact_id/deal_id na UI
 let _synSellers    = [];   // vendedores/representantes (interno + externo)
 let _synCloudReady = false;
 let _synCloudLoadPromise = null;
 
+// ─── Active Workspace (shared workspace v1) ───────────────────────
+// Lista de workspaces que sou owner ou member aceito. Carregada via RPC
+// `synconnect_my_workspaces()` no boot.
+let _synWorkspaces    = [];     // [{ workspace_owner_id, owner_email, owner_name, my_role, is_owner, member_count }]
+let _synActiveWorkspaceId = null;   // uuid do workspace que estou vendo agora
+let _synActiveRole    = 'owner';    // meu role no workspace ativo (owner/admin/editor/viewer)
+const _SYN_ACTIVE_WS_KEY = 'synkan_synconnect_active_workspace';
+
+function _synGetActiveWorkspaceId() {
+  // Fallback se boot ainda não rodou: usa auth.uid() (meu próprio workspace)
+  if (_synActiveWorkspaceId) return _synActiveWorkspaceId;
+  if (typeof supaUser !== 'undefined' && supaUser?.id) return supaUser.id;
+  return null;
+}
+
+function _synSetActiveWorkspace(workspaceOwnerId) {
+  if (!workspaceOwnerId) return;
+  _synActiveWorkspaceId = workspaceOwnerId;
+  const w = _synWorkspaces.find(x => x.workspace_owner_id === workspaceOwnerId);
+  _synActiveRole = w?.my_role || 'owner';
+  try { localStorage.setItem(_SYN_ACTIVE_WS_KEY, workspaceOwnerId); } catch(_){}
+}
+
+// Permission helpers — espelham synconnect_can_* do SQL
+function _synCanEdit()  { return ['owner','admin','editor'].includes(_synActiveRole); }
+function _synCanAdmin() { return ['owner','admin'].includes(_synActiveRole); }
+function _synIsOwner()  { return _synActiveRole === 'owner'; }
+
 async function _synGetClient() {
   return (typeof _chatGetClient === 'function') ? await _chatGetClient()
        : (typeof _ensureSupaClient === 'function' ? _ensureSupaClient() : null);
+}
+
+// Carrega lista de workspaces que o user pode acessar.
+// Chama RPC synconnect_my_workspaces() — sempre retorna pelo menos 1 (o do próprio user).
+// ─── Workspace switcher menu (UI) ─────────────────────────────────
+function _synToggleWorkspaceMenu(e) {
+  e?.stopPropagation();
+  const m = document.getElementById('syn-ws-menu');
+  if (!m) return;
+  m.style.display = m.style.display === 'block' ? 'none' : 'block';
+  if (m.style.display === 'block') {
+    const close = (ev) => {
+      if (!m.contains(ev.target) && ev.target.id !== 'syn-ws-btn' && !ev.target.closest('#syn-ws-btn')) {
+        m.style.display = 'none';
+        document.removeEventListener('click', close);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', close), 50);
+  }
+}
+
+// ─── Members management modal ─────────────────────────────────────
+let _synMembersList = [];   // cache da lista de members do workspace ativo
+
+async function _synLoadMembers() {
+  try {
+    const c = await _synGetClient(); if (!c) return [];
+    const wsId = _synGetActiveWorkspaceId();
+    if (!wsId) return [];
+    const { data, error } = await c.from('synconnect_workspace_members')
+      .select('*')
+      .eq('workspace_owner_id', wsId)
+      .neq('status', 'revoked')
+      .order('invited_at', { ascending: true });
+    if (error) {
+      console.warn('[syn] load members:', error.message);
+      return [];
+    }
+    _synMembersList = data || [];
+    return _synMembersList;
+  } catch(e) { console.warn('[syn] members ex:', e?.message); return []; }
+}
+
+async function _synOpenMembersModal() {
+  if (!_synIsOwner() && !_synCanAdmin()) {
+    if (typeof appAlert === 'function') appAlert('Sem permissão', 'Apenas o dono do workspace ou administradores podem gerenciar membros.');
+    return;
+  }
+  await _synLoadMembers();
+  let ov = document.getElementById('syn-members-modal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'syn-members-modal';
+    ov.className = 'syn-modal-ov';
+    document.body.appendChild(ov);
+  }
+  _synRenderMembersModal();
+  ov.classList.add('is-open');
+}
+
+function _synRenderMembersModal() {
+  const ov = document.getElementById('syn-members-modal'); if (!ov) return;
+  const activeWs = _synWorkspaces.find(w => w.workspace_owner_id === _synActiveWorkspaceId);
+  ov.innerHTML = `<div class="syn-modal" onclick="event.stopPropagation()" style="max-width:640px;">
+    <div class="syn-modal-h">
+      <h3>👥 Membros do workspace</h3>
+      <button class="syn-modal-x" onclick="document.getElementById('syn-members-modal').classList.remove('is-open')">×</button>
+    </div>
+    <div class="syn-modal-body">
+      <div style="font-size:12.5px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.55;">
+        Convide colegas pra colaborar nesse Synconnect. Cada um pode ter um nível de acesso diferente:<br/>
+        <strong style="color:#3B6D11;">👁 viewer</strong> — só vê contatos, deals e atividades. Não edita nada.<br/>
+        <strong style="color:#3C3489;">✎ editor</strong> — vê e edita conteúdo (contatos, deals, atividades).<br/>
+        <strong style="color:#7A5500;">⚙ admin</strong> — tudo do editor + convida outros membros + mexe em configurações.
+      </div>
+
+      <!-- Formulário de convite -->
+      <div style="background:var(--color-background-secondary);border-radius:9px;padding:14px;margin-bottom:18px;">
+        <div style="font-size:12.5px;font-weight:600;margin-bottom:10px;color:var(--color-text-primary);">Convidar novo membro</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input id="syn-invite-email" type="email" placeholder="email@empresa.com" style="flex:1;min-width:220px;border:0.5px solid var(--color-border-secondary);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-primary);color:var(--color-text-primary);"/>
+          <select id="syn-invite-role" style="border:0.5px solid var(--color-border-secondary);border-radius:7px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--color-background-primary);color:var(--color-text-primary);">
+            <option value="viewer">👁 Viewer (só lê)</option>
+            <option value="editor" selected>✎ Editor (edita conteúdo)</option>
+            <option value="admin">⚙ Admin (gerencia tudo)</option>
+          </select>
+          <button onclick="_synSendInvite()" style="background:#3B6D11;color:#fff;border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Convidar</button>
+        </div>
+        <div id="syn-invite-feedback" style="margin-top:10px;font-size:12px;display:none;"></div>
+      </div>
+
+      <!-- Lista de membros atuais -->
+      <div style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);margin-bottom:8px;">Membros (${_synMembersList.length})</div>
+      ${_synMembersList.length === 0 ? `
+        <div style="text-align:center;padding:24px;color:var(--color-text-tertiary);font-size:13px;">
+          Nenhum membro convidado ainda. Use o formulário acima pra começar.
+        </div>
+      ` : `
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${_synMembersList.map(m => `
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border:0.5px solid var(--color-border-tertiary);border-radius:9px;">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3B6D11,#5A9420);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0;">
+                ${(m.email||'?').charAt(0).toUpperCase()}
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:500;">${_esc(m.email)}</div>
+                <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px;">
+                  ${m.status === 'pending' ? '⏳ Convite pendente · enviado ' + (m.invited_at ? new Date(m.invited_at).toLocaleDateString('pt-BR') : '') : '✓ Ativo desde ' + (m.accepted_at ? new Date(m.accepted_at).toLocaleDateString('pt-BR') : '?')}
+                </div>
+              </div>
+              <select onchange="_synChangeMemberRole('${_esc(m.id)}', this.value)" ${m.status==='pending'?'disabled':''} style="border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;background:var(--color-background-primary);color:var(--color-text-primary);">
+                <option value="viewer" ${m.role==='viewer'?'selected':''}>👁 Viewer</option>
+                <option value="editor" ${m.role==='editor'?'selected':''}>✎ Editor</option>
+                <option value="admin"  ${m.role==='admin'?'selected':''}>⚙ Admin</option>
+              </select>
+              ${m.status === 'pending' && m.invite_token ? `
+                <button onclick="_synCopyInviteLink('${_esc(m.invite_token)}')" title="Copiar link do convite" style="background:transparent;border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:5px 8px;cursor:pointer;font-family:inherit;color:var(--color-text-secondary);">🔗</button>
+              ` : ''}
+              <button onclick="_synRemoveMember('${_esc(m.id)}', '${_esc(m.email)}')" title="Remover membro" style="background:transparent;border:0.5px solid #d4a3a3;border-radius:6px;padding:5px 8px;cursor:pointer;font-family:inherit;color:#BC002D;">×</button>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    </div>
+    <div class="syn-modal-f">
+      <button class="syn-btn-secondary" onclick="document.getElementById('syn-members-modal').classList.remove('is-open')">Fechar</button>
+    </div>
+  </div>`;
+}
+
+async function _synSendInvite() {
+  const email = (document.getElementById('syn-invite-email')?.value || '').trim().toLowerCase();
+  const role  = document.getElementById('syn-invite-role')?.value || 'viewer';
+  const fb = document.getElementById('syn-invite-feedback');
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    if (fb) { fb.style.display = 'block'; fb.style.color = '#BC002D'; fb.textContent = 'Email inválido.'; }
+    return;
+  }
+  try {
+    const c = await _synGetClient();
+    const { data, error } = await c.rpc('synconnect_invite_member', { p_email: email, p_role: role });
+    if (error) {
+      if (fb) { fb.style.display = 'block'; fb.style.color = '#BC002D'; fb.textContent = 'Erro: ' + _humanizeInviteError(error.message); }
+      return;
+    }
+    // Sucesso: limpa input, mostra link de aceite copiável
+    const link = `${location.origin}${location.pathname}?syn_invite=${data.invite_token}`;
+    try { await navigator.clipboard.writeText(link); } catch(_){}
+    if (fb) {
+      fb.style.display = 'block';
+      fb.style.color = '#3B6D11';
+      fb.innerHTML = `✓ Convite criado pra <strong>${_esc(email)}</strong>. Link copiado:<br/><code style="font-size:11px;word-break:break-all;display:inline-block;margin-top:4px;background:var(--color-background-primary);padding:4px 7px;border-radius:4px;border:0.5px solid var(--color-border-tertiary);">${_esc(link)}</code><br/><span style="font-size:11px;color:var(--color-text-tertiary);">Envie este link pro convidado.</span>`;
+    }
+    document.getElementById('syn-invite-email').value = '';
+    await _synLoadMembers();
+    _synRenderMembersModal();
+  } catch(e) {
+    if (fb) { fb.style.display = 'block'; fb.style.color = '#BC002D'; fb.textContent = 'Erro: ' + (e?.message || e); }
+  }
+}
+
+function _humanizeInviteError(msg) {
+  const m = (msg || '').toLowerCase();
+  if (m.includes('invalid_email')) return 'Email com formato inválido.';
+  if (m.includes('invalid_role')) return 'Permissão inválida.';
+  if (m.includes('cannot_invite_self')) return 'Você não pode convidar a si mesmo.';
+  if (m.includes('not_authenticated')) return 'Faça login novamente.';
+  return msg;
+}
+
+async function _synCopyInviteLink(token) {
+  const link = `${location.origin}${location.pathname}?syn_invite=${token}`;
+  try {
+    await navigator.clipboard.writeText(link);
+    if (typeof showToastMsg === 'function') showToastMsg('Link de convite copiado');
+  } catch(_) {
+    if (typeof appAlert === 'function') appAlert('Link do convite', link);
+  }
+}
+
+async function _synChangeMemberRole(memberId, newRole) {
+  try {
+    const c = await _synGetClient();
+    const { error } = await c.rpc('synconnect_change_role', { p_member_id: memberId, p_new_role: newRole });
+    if (error) {
+      if (typeof showToastMsg === 'function') showToastMsg('Erro: ' + error.message);
+      return;
+    }
+    await _synLoadMembers();
+    _synRenderMembersModal();
+    if (typeof showToastMsg === 'function') showToastMsg('Permissão atualizada');
+  } catch(e) { console.warn('[syn] change role:', e?.message); }
+}
+
+async function _synRemoveMember(memberId, email) {
+  const ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Remover membro?', `${email} não vai mais ter acesso a este workspace. Histórico de ações dele fica preservado.`, { danger: true, okLabel: 'Remover' })
+    : confirm(`Remover ${email}?`);
+  if (!ok) return;
+  try {
+    const c = await _synGetClient();
+    const { error } = await c.rpc('synconnect_remove_member', { p_member_id: memberId });
+    if (error) {
+      if (typeof showToastMsg === 'function') showToastMsg('Erro: ' + error.message);
+      return;
+    }
+    await _synLoadMembers();
+    _synRenderMembersModal();
+    if (typeof showToastMsg === 'function') showToastMsg('Membro removido');
+  } catch(e) { console.warn('[syn] remove member:', e?.message); }
+}
+
+// ─── Processa link de convite (?syn_invite=TOKEN) no boot ──────────
+async function _synProcessInviteUrl() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('syn_invite');
+    if (!token) return;
+    const c = await _synGetClient(); if (!c) return;
+    const { data: { user } } = await c.auth.getUser();
+    if (!user) {
+      // User não logado — guarda token pra processar depois do login
+      try { localStorage.setItem('synkan_pending_invite_token', token); } catch(_){}
+      return;
+    }
+    const { data, error } = await c.rpc('synconnect_accept_invite', { p_token: token });
+    // Remove query param
+    try {
+      const url = new URL(location.href);
+      url.searchParams.delete('syn_invite');
+      history.replaceState({}, '', url.toString());
+    } catch(_){}
+    if (error) {
+      const msg = (error.message || '').toLowerCase();
+      let human = error.message;
+      if (msg.includes('already_accepted')) human = 'Você já aceitou este convite anteriormente.';
+      else if (msg.includes('invite_revoked')) human = 'Este convite foi revogado pelo dono do workspace.';
+      else if (msg.includes('invite_not_found')) human = 'Convite não encontrado ou expirado.';
+      else if (msg.includes('email_mismatch')) human = 'Este convite foi enviado pra um email diferente. Faça login com o email correto.';
+      if (typeof appAlert === 'function') appAlert('Convite Synconnect', human);
+      return;
+    }
+    if (typeof appAlert === 'function') {
+      appAlert('Convite aceito 🎉', `Você agora tem acesso ao Synconnect com permissão de <strong>${data.role}</strong>. Use o seletor de workspace no topo do Synconnect pra trocar entre os seus.`, { html: true });
+    }
+    // Força reload dos workspaces e troca pro novo
+    await _synLoadWorkspaces();
+    if (data.workspace_owner_id) {
+      _synSetActiveWorkspace(data.workspace_owner_id);
+      _synCloudReady = false;
+      _synCloudLoadPromise = null;
+    }
+  } catch(e) { console.warn('[syn] process invite:', e?.message); }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SYNCONNECT · IMPORTADOR CSV
+// ────────────────────────────────────────────────────────────────────
+// Suporta:
+//   • UTF-8, UTF-16 LE/BE, Latin-1 (auto-detect via BOM + fallback)
+//   • Delimitadores: vírgula (,), ponto-e-vírgula (;), TAB (\t) (auto)
+//   • Presets pra RD Station, HubSpot, Pipedrive
+//   • Mapeamento manual coluna por coluna
+//   • Dedup por email
+//   • Batches de 50 contatos por vez (evita timeout)
+//   • Relatório final: criados, atualizados, pulados, erros
+// ════════════════════════════════════════════════════════════════════
+
+let _synImportState = null;  // { rows, headers, mapping, preset, fileName }
+
+// Campos do Synconnect pra onde os dados podem ser mapeados
+const _SYN_IMPORT_FIELDS = [
+  { id: 'email',     label: 'Email',        required: true,  desc: 'Identificador único do contato' },
+  { id: 'name',      label: 'Nome',         required: true },
+  { id: 'phone',     label: 'Telefone',     desc: 'Aceita formato livre' },
+  { id: 'role',      label: 'Cargo' },
+  { id: 'company',   label: 'Empresa',      desc: 'Vai pra notes + cria tag' },
+  { id: 'tax_id',    label: 'CPF/CNPJ' },
+  { id: 'address',   label: 'Endereço',     desc: 'País/Estado/Cidade — pode mapear 3 colunas separadas' },
+  { id: 'tags',      label: 'Tags',         desc: 'Separadas por vírgula ou ponto-vírgula' },
+  { id: 'score',     label: 'Score (lead scoring)', desc: 'hot/warm/cold — auto-mapeia "Cliente"=hot, "Qualificado"=hot, "Lead"=warm' },
+  { id: 'source',    label: 'Origem', desc: 'De onde o lead veio' },
+  { id: 'notes',     label: 'Observações' },
+  { id: 'contact_person', label: 'Pessoa de contato (decisor)' },
+  { id: 'deal_stage', label: '🎯 Estágio do funil', desc: 'Se preenchido, cria um DEAL no pipeline além do contato' },
+  { id: 'deal_value', label: '💰 Valor do deal', desc: 'Em reais (R$). Cria deal junto se houver estágio.' },
+  { id: '__skip__',  label: '— Ignorar esta coluna —' },
+];
+
+// Presets pré-configurados pra ferramentas conhecidas
+const _SYN_IMPORT_PRESETS = {
+  rd_station: {
+    name: 'RD Station Marketing/CRM',
+    detect: (headers) => headers.some(h => /Estágio no funil|Lead Scoring|Origem da última conversão/i.test(h)),
+    map: {
+      'Email': 'email',
+      'Nome': 'name',
+      'Celular': 'phone',
+      'Telefone': 'phone',         // fallback se celular vazio
+      'Cargo': 'role',
+      'Empresa': 'company',
+      'Tags': 'tags',
+      'Estágio no funil': 'score',
+      'Origem da última conversão': 'source',
+      'Etapa do funil de vendas no CRM (última atualização)': 'deal_stage',
+      'Valor total da Oportunidade no CRM (última atualização)': 'deal_value',
+      'Observações': 'notes',
+    },
+  },
+  hubspot: {
+    name: 'HubSpot CRM',
+    detect: (headers) => headers.some(h => /First Name|Company name|Lifecycle Stage/i.test(h)),
+    map: {
+      'Email': 'email',
+      'First Name': 'name',         // Combina com Last Name no pós-processamento
+      'Phone Number': 'phone',
+      'Company name': 'company',
+      'Job Title': 'role',
+      'Lifecycle Stage': 'score',
+      'Lead Status': 'deal_stage',
+    },
+  },
+  pipedrive: {
+    name: 'Pipedrive',
+    detect: (headers) => headers.some(h => /Organization|Person - Name|Lead - Title/i.test(h)),
+    map: {
+      'Person - Email': 'email',
+      'Person - Name': 'name',
+      'Person - Phone': 'phone',
+      'Organization': 'company',
+      'Person - Title': 'role',
+      'Lead - Status': 'deal_stage',
+      'Lead - Value': 'deal_value',
+    },
+  },
+};
+
+function _synOpenImportPicker() {
+  if (!_synCanEdit()) {
+    if (typeof appAlert === 'function') appAlert('Sem permissão', 'Apenas editores ou administradores podem importar contatos neste workspace.');
+    return;
+  }
+  let ov = document.getElementById('syn-import-modal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'syn-import-modal';
+    ov.className = 'syn-modal-ov';
+    document.body.appendChild(ov);
+  }
+  _synImportState = null;
+  _synRenderImportModal();
+  ov.classList.add('is-open');
+}
+
+function _synRenderImportModal() {
+  const ov = document.getElementById('syn-import-modal'); if (!ov) return;
+  const step = !_synImportState ? 1 : (_synImportState.executing ? 3 : 2);
+  ov.innerHTML = `<div class="syn-modal" onclick="event.stopPropagation()" style="max-width:880px;max-height:88vh;display:flex;flex-direction:column;">
+    <div class="syn-modal-h">
+      <h3>📤 Importar contatos de CSV</h3>
+      <button class="syn-modal-x" onclick="document.getElementById('syn-import-modal').classList.remove('is-open');_synImportState=null;">×</button>
+    </div>
+    <div class="syn-modal-body" style="overflow-y:auto;">
+      <!-- Steps -->
+      <div style="display:flex;gap:6px;margin-bottom:20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">
+        <span style="${step>=1?'color:#3B6D11;font-weight:600':'color:var(--color-text-tertiary)'}">1. Upload</span>
+        <span style="color:var(--color-text-tertiary)">→</span>
+        <span style="${step>=2?'color:#3B6D11;font-weight:600':'color:var(--color-text-tertiary)'}">2. Mapeamento</span>
+        <span style="color:var(--color-text-tertiary)">→</span>
+        <span style="${step>=3?'color:#3B6D11;font-weight:600':'color:var(--color-text-tertiary)'}">3. Importação</span>
+      </div>
+      ${step === 1 ? _synRenderImportStep1() : (step === 2 ? _synRenderImportStep2() : _synRenderImportStep3())}
+    </div>
+  </div>`;
+}
+
+function _synRenderImportStep1() {
+  return `
+    <div style="text-align:center;padding:20px;border:2px dashed var(--color-border-tertiary);border-radius:11px;background:var(--color-background-secondary);" ondragover="event.preventDefault();this.style.borderColor='#3B6D11';" ondragleave="this.style.borderColor='var(--color-border-tertiary)';" ondrop="event.preventDefault();this.style.borderColor='var(--color-border-tertiary)';_synHandleImportFile(event.dataTransfer.files[0]);">
+      <div style="font-size:38px;margin-bottom:8px;">📁</div>
+      <div style="font-size:14px;margin-bottom:10px;">Arraste o arquivo CSV aqui ou clique pra escolher</div>
+      <input id="syn-import-file" type="file" accept=".csv,.tsv,.txt" onchange="_synHandleImportFile(this.files[0])" style="display:none;"/>
+      <button onclick="document.getElementById('syn-import-file').click()" style="background:#3B6D11;color:#fff;border:none;border-radius:7px;padding:10px 18px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Escolher arquivo</button>
+      <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:14px;line-height:1.55;">
+        Aceita CSV, TSV ou TXT.<br/>
+        Suporta UTF-8, UTF-16, Latin-1 — detecta automaticamente.<br/>
+        Delimitadores: vírgula, ponto-e-vírgula ou TAB — detecta automaticamente.<br/>
+        <strong>Limite: 10.000 linhas por importação</strong> (chunks de 50 por vez).
+      </div>
+    </div>
+    <div style="margin-top:18px;font-size:12.5px;color:var(--color-text-secondary);line-height:1.6;">
+      <strong>Presets disponíveis:</strong> RD Station, HubSpot, Pipedrive — auto-mapeamento das colunas mais comuns. Se sua origem for diferente, você mapeia manualmente.
+    </div>`;
+}
+
+function _synRenderImportStep2() {
+  const st = _synImportState;
+  const presetName = st.preset ? _SYN_IMPORT_PRESETS[st.preset]?.name : null;
+  // Conta quantos mapeamentos foram feitos
+  const mapped = Object.entries(st.mapping).filter(([k, v]) => v && v !== '__skip__').length;
+  const totalCols = st.headers.length;
+  const requiredFields = ['email','name'];
+  const mappedFields = new Set(Object.values(st.mapping).filter(v => v && v !== '__skip__'));
+  const missingRequired = requiredFields.filter(f => !mappedFields.has(f));
+  return `
+    <div style="font-size:12.5px;color:var(--color-text-secondary);margin-bottom:14px;">
+      Arquivo: <strong>${_esc(st.fileName)}</strong> · <strong>${st.rows.length}</strong> linhas · <strong>${totalCols}</strong> colunas detectadas
+      ${presetName ? ` · <span style="color:#3B6D11;">✓ preset ${_esc(presetName)} aplicado</span>` : ''}
+    </div>
+    ${missingRequired.length > 0 ? `
+      <div style="background:rgba(193,154,58,.12);border-left:3px solid #C19A3A;padding:10px 14px;border-radius:0 7px 7px 0;margin-bottom:14px;font-size:12.5px;color:#7A5500;">
+        <strong>⚠ Mapeamentos obrigatórios faltando:</strong> ${missingRequired.map(f => `<code>${f}</code>`).join(', ')}.
+        Cada linha precisa de email + nome pra criar contato.
+      </div>
+    ` : ''}
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);margin:14px 0 8px;">
+      Mapeamento das colunas (${mapped} / ${totalCols})
+    </div>
+    <div style="max-height:380px;overflow-y:auto;border:0.5px solid var(--color-border-tertiary);border-radius:9px;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead style="background:var(--color-background-secondary);position:sticky;top:0;">
+          <tr>
+            <th style="padding:8px 10px;text-align:left;font-weight:600;border-bottom:0.5px solid var(--color-border-tertiary);width:35%;">Coluna do CSV</th>
+            <th style="padding:8px 10px;text-align:left;font-weight:600;border-bottom:0.5px solid var(--color-border-tertiary);width:35%;">→ Campo Synconnect</th>
+            <th style="padding:8px 10px;text-align:left;font-weight:600;border-bottom:0.5px solid var(--color-border-tertiary);">Amostra (linha 1)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${st.headers.map((header, idx) => {
+            const sample = (st.rows[0]?.[header] || '').toString().slice(0, 60);
+            const currentMap = st.mapping[header] || '__skip__';
+            return `<tr style="border-bottom:0.5px solid var(--color-border-tertiary);">
+              <td style="padding:6px 10px;font-weight:500;">${_esc(header)}</td>
+              <td style="padding:6px 10px;">
+                <select onchange="_synSetMapping('${_esc(header)}', this.value)" style="width:100%;border:0.5px solid var(--color-border-secondary);border-radius:5px;padding:4px 6px;font-size:12px;font-family:inherit;background:var(--color-background-primary);color:var(--color-text-primary);">
+                  ${_SYN_IMPORT_FIELDS.map(f => `<option value="${f.id}" ${currentMap===f.id?'selected':''}>${f.label}${f.required?' *':''}</option>`).join('')}
+                </select>
+              </td>
+              <td style="padding:6px 10px;color:var(--color-text-tertiary);font-size:11px;font-family:Menlo,monospace;">${_esc(sample) || '<em>vazio</em>'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end;align-items:center;">
+      <button onclick="_synImportState=null;_synRenderImportModal();" style="background:transparent;border:0.5px solid var(--color-border-tertiary);border-radius:7px;padding:8px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--color-text-secondary);">← Voltar</button>
+      <button onclick="_synExecuteImport()" ${missingRequired.length > 0 ? 'disabled style="background:#ccc;color:#888;cursor:not-allowed;"' : 'style="background:#3B6D11;color:#fff;cursor:pointer;"'} style="border:none;border-radius:7px;padding:8px 16px;font-size:13px;font-weight:500;font-family:inherit;">
+        Importar ${st.rows.length} linha${st.rows.length===1?'':'s'} →
+      </button>
+    </div>`;
+}
+
+function _synRenderImportStep3() {
+  const st = _synImportState;
+  const total = st.rows.length;
+  const done = st.processed || 0;
+  const pct = Math.round((done / total) * 100);
+  return `
+    <div style="text-align:center;padding:20px;">
+      <div style="font-size:14px;color:var(--color-text-primary);margin-bottom:14px;">
+        ${st.finished ? '✓ Importação concluída' : 'Importando contatos...'}
+      </div>
+      <div style="height:10px;background:var(--color-background-secondary);border-radius:999px;overflow:hidden;margin:14px 0;">
+        <div style="height:100%;width:${pct}%;background:${st.finished?'#3B6D11':'#5A9420'};transition:width .3s;"></div>
+      </div>
+      <div style="font-size:12.5px;color:var(--color-text-secondary);margin-bottom:14px;">${done} de ${total} · ${pct}%</div>
+      ${st.finished ? `
+        <div style="text-align:left;margin-top:24px;background:var(--color-background-secondary);border-radius:9px;padding:14px;font-size:13px;line-height:1.7;">
+          <strong style="display:block;margin-bottom:8px;">Resultado:</strong>
+          <div>✅ <strong>${st.stats.created}</strong> contatos criados</div>
+          <div>♻️ <strong>${st.stats.updated}</strong> atualizados (email já existia)</div>
+          <div>🎯 <strong>${st.stats.dealsCreated}</strong> deals criados a partir de etapas do funil</div>
+          ${st.stats.errors > 0 ? `<div style="color:#BC002D;">⚠️ <strong>${st.stats.errors}</strong> erros (ver console)</div>` : ''}
+        </div>
+        <button onclick="document.getElementById('syn-import-modal').classList.remove('is-open');_synImportState=null;if(typeof renderRegistry==='function')renderRegistry();" style="margin-top:18px;background:#3B6D11;color:#fff;border:none;border-radius:7px;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Fechar e ver contatos</button>
+      ` : ''}
+    </div>`;
+}
+
+// ─── File handling ────────────────────────────────────────────────
+async function _synHandleImportFile(file) {
+  if (!file) return;
+  if (file.size > 50 * 1024 * 1024) {
+    if (typeof appAlert === 'function') appAlert('Arquivo muito grande', 'Limite de 50MB. Divida em partes menores.');
+    return;
+  }
+  try {
+    const text = await _synReadFileSmart(file);
+    const { headers, rows, delimiter } = _synParseCSV(text);
+    if (!headers.length) {
+      if (typeof appAlert === 'function') appAlert('CSV vazio', 'Não foi possível detectar colunas no arquivo.');
+      return;
+    }
+    if (rows.length > 10000) {
+      if (typeof appAlert === 'function') appAlert('Muitas linhas', `Detectadas ${rows.length} linhas. O limite é 10.000 por importação. Divida o arquivo em partes.`);
+      return;
+    }
+    // Detecta preset
+    let presetKey = null;
+    for (const [k, p] of Object.entries(_SYN_IMPORT_PRESETS)) {
+      if (p.detect(headers)) { presetKey = k; break; }
+    }
+    // Aplica mapeamento inicial: preset OU heurística
+    const mapping = {};
+    headers.forEach(h => {
+      if (presetKey && _SYN_IMPORT_PRESETS[presetKey].map[h]) {
+        mapping[h] = _SYN_IMPORT_PRESETS[presetKey].map[h];
+      } else {
+        mapping[h] = _synGuessFieldByName(h);
+      }
+    });
+    _synImportState = {
+      fileName: file.name,
+      headers, rows, mapping,
+      preset: presetKey,
+      delimiter,
+    };
+    _synRenderImportModal();
+  } catch(e) {
+    console.error('[import] parse error:', e);
+    if (typeof appAlert === 'function') appAlert('Erro ao ler arquivo', e?.message || String(e));
+  }
+}
+
+// Lê o arquivo detectando encoding via BOM. Fallback: UTF-8.
+async function _synReadFileSmart(file) {
+  const buf = await file.arrayBuffer();
+  const view = new Uint8Array(buf);
+  // BOM detection
+  if (view.length >= 2 && view[0] === 0xFF && view[1] === 0xFE) {
+    return new TextDecoder('utf-16le').decode(buf);
+  }
+  if (view.length >= 2 && view[0] === 0xFE && view[1] === 0xFF) {
+    return new TextDecoder('utf-16be').decode(buf);
+  }
+  if (view.length >= 3 && view[0] === 0xEF && view[1] === 0xBB && view[2] === 0xBF) {
+    return new TextDecoder('utf-8').decode(buf.slice(3));
+  }
+  // Sem BOM: tenta UTF-8 estrito (lança em bytes inválidos)
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buf);
+  } catch(_) {
+    // Fallback: Latin-1
+    return new TextDecoder('iso-8859-1').decode(buf);
+  }
+}
+
+// Parser CSV robusto — detecta delimitador (TAB > ; > ,), respeita aspas
+function _synParseCSV(text) {
+  if (!text) return { headers: [], rows: [], delimiter: ',' };
+  // Detecta delimitador na primeira linha (escolhe o que aparece mais)
+  const firstLine = text.split(/\r?\n/, 1)[0] || '';
+  const counts = {
+    '\t': (firstLine.match(/\t/g) || []).length,
+    ';':  (firstLine.match(/;/g) || []).length,
+    ',':  (firstLine.match(/,/g) || []).length,
+  };
+  let delimiter = ',';
+  if (counts['\t'] >= counts[';'] && counts['\t'] >= counts[',']) delimiter = '\t';
+  else if (counts[';'] >= counts[',']) delimiter = ';';
+  // Parse linha por linha respeitando aspas duplas
+  const rows = [];
+  let cur = []; let field = ''; let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"' && text[i+1] === '"') { field += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { field += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === delimiter) { cur.push(field); field = ''; }
+      else if (ch === '\n') { cur.push(field); rows.push(cur); cur = []; field = ''; }
+      else if (ch === '\r') { /* skip */ }
+      else { field += ch; }
+    }
+  }
+  if (field.length > 0 || cur.length > 0) { cur.push(field); rows.push(cur); }
+  // Remove linhas vazias do fim
+  while (rows.length > 0 && rows[rows.length - 1].every(v => !v || !v.trim())) rows.pop();
+  if (rows.length === 0) return { headers: [], rows: [], delimiter };
+  // Primeira linha = headers
+  const headers = rows.shift().map(h => h.trim());
+  // Resto vira objeto { header: value }
+  const objRows = rows.map(r => {
+    const o = {};
+    headers.forEach((h, idx) => { o[h] = (r[idx] || '').trim(); });
+    return o;
+  });
+  return { headers, rows: objRows, delimiter };
+}
+
+// Heurística pra mapear coluna sem preset (pelo nome do header)
+function _synGuessFieldByName(name) {
+  const n = name.toLowerCase().trim();
+  if (/email|e-mail/.test(n)) return 'email';
+  if (/^nome$|^name$|primeiro nome|first name/.test(n)) return 'name';
+  if (/celular|cellphone|mobile/.test(n)) return 'phone';
+  if (/telefone|phone/.test(n)) return 'phone';
+  if (/cargo|job title|title|posição|posicao/.test(n)) return 'role';
+  if (/empresa|company|organization|organização/.test(n)) return 'company';
+  if (/cpf|cnpj|tax/.test(n)) return 'tax_id';
+  if (/endereço|endereco|address|cidade|estado/.test(n)) return 'address';
+  if (/^tags?$/.test(n)) return 'tags';
+  if (/estágio|estagio|stage|lifecycle/.test(n)) return 'score';
+  if (/origem|source/.test(n)) return 'source';
+  if (/observa|notes|note|biografia/.test(n)) return 'notes';
+  return '__skip__';
+}
+
+function _synSetMapping(header, fieldId) {
+  if (!_synImportState) return;
+  _synImportState.mapping[header] = fieldId;
+  _synRenderImportModal();
+}
+
+// ─── Execução do import ───────────────────────────────────────────
+async function _synExecuteImport() {
+  if (!_synImportState) return;
+  const st = _synImportState;
+  st.executing = true;
+  st.processed = 0;
+  st.stats = { created: 0, updated: 0, dealsCreated: 0, errors: 0 };
+  _synRenderImportModal();
+  const c = await _synGetClient();
+  if (!c) { st.finished = true; _synRenderImportModal(); return; }
+  const { data: { user } } = await c.auth.getUser();
+  const wsId = _synGetActiveWorkspaceId() || user.id;
+  // Carrega contatos existentes pra dedup por email
+  const { data: existing } = await c.from('synconnect_contacts')
+    .select('id,email')
+    .eq('workspace_owner', wsId)
+    .not('email', 'is', null);
+  const emailToId = new Map();
+  (existing || []).forEach(r => { if (r.email) emailToId.set(r.email.toLowerCase(), r.id); });
+  // Carrega estágios disponíveis pra deal stage match
+  const { data: stagesData } = await c.from('synconnect_pipeline_stages')
+    .select('id,name')
+    .eq('workspace_owner', wsId);
+  const stages = stagesData || [];
+  // Processa em batches
+  const BATCH = 50;
+  for (let i = 0; i < st.rows.length; i += BATCH) {
+    const batch = st.rows.slice(i, i + BATCH);
+    const inserts = [];
+    const updates = [];
+    const dealCreates = [];  // [{ contactEmail, stage_name, value }]
+    for (const row of batch) {
+      const c2 = _synMapRowToContact(row, st.mapping, wsId, user.id);
+      if (!c2 || !c2.email || !c2.name) { st.stats.errors++; continue; }
+      const existingId = emailToId.get(c2.email.toLowerCase());
+      if (existingId) {
+        updates.push({ id: existingId, payload: c2 });
+      } else {
+        inserts.push(c2);
+      }
+      // Detecta deal info
+      const dealStage = _synGetMappedValue(row, st.mapping, 'deal_stage');
+      const dealValue = _synGetMappedValue(row, st.mapping, 'deal_value');
+      if (dealStage) {
+        dealCreates.push({ email: c2.email.toLowerCase(), stage_name: dealStage, value: dealValue });
+      }
+    }
+    // Insert batch
+    if (inserts.length > 0) {
+      try {
+        const { data, error } = await c.from('synconnect_contacts').insert(inserts).select('id,email');
+        if (error) { console.warn('[import] insert batch:', error.message); st.stats.errors += inserts.length; }
+        else {
+          st.stats.created += data.length;
+          data.forEach(r => { if (r.email) emailToId.set(r.email.toLowerCase(), r.id); });
+        }
+      } catch(e) { console.warn('[import] insert ex:', e?.message); st.stats.errors += inserts.length; }
+    }
+    // Update batch (sequencial, supabase não tem bulk update por id)
+    for (const u of updates) {
+      try {
+        const { error } = await c.from('synconnect_contacts').update(u.payload).eq('id', u.id);
+        if (error) { console.warn('[import] update:', error.message); st.stats.errors++; }
+        else st.stats.updated++;
+      } catch(e) { console.warn('[import] update ex:', e?.message); st.stats.errors++; }
+    }
+    // Cria deals (sequencial pra não estourar)
+    for (const d of dealCreates) {
+      const contactId = emailToId.get(d.email);
+      if (!contactId) continue;
+      // Match stage por nome (case-insensitive)
+      const stage = stages.find(s => (s.name || '').toLowerCase() === (d.stage_name || '').toLowerCase());
+      if (!stage) continue;
+      try {
+        const value_cents = Math.round((parseFloat((d.value || '0').toString().replace(',', '.')) || 0) * 100);
+        const { error } = await c.from('synconnect_deals').insert({
+          user_id: user.id,
+          workspace_owner: wsId,
+          contact_id: contactId,
+          stage_id: stage.id,
+          title: `Importado: ${d.email}`,
+          value_cents,
+          currency: 'BRL',
+          status: 'open',
+        });
+        if (error) { console.warn('[import] deal:', error.message); st.stats.errors++; }
+        else st.stats.dealsCreated++;
+      } catch(e) { console.warn('[import] deal ex:', e?.message); st.stats.errors++; }
+    }
+    st.processed = Math.min(i + batch.length, st.rows.length);
+    _synRenderImportModal();
+    // Pequeno yield pro UI atualizar
+    await new Promise(r => setTimeout(r, 30));
+  }
+  st.finished = true;
+  _synRenderImportModal();
+  // Reload synconnect data
+  _synCloudReady = false;
+  _synCloudLoadPromise = null;
+  await _synInitCloud({ force: true });
+}
+
+// Pega valor de uma linha CSV mapeado pra um campo específico
+function _synGetMappedValue(row, mapping, fieldId) {
+  for (const [header, field] of Object.entries(mapping)) {
+    if (field === fieldId) {
+      const v = (row[header] || '').toString().trim();
+      if (v && v !== '""') return v;
+    }
+  }
+  return null;
+}
+
+// Mapeia uma linha do CSV pro payload de synconnect_contacts
+function _synMapRowToContact(row, mapping, wsId, userId) {
+  const get = (fid) => _synGetMappedValue(row, mapping, fid);
+  const email = (get('email') || '').toLowerCase();
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return null;
+  const name = get('name') || email.split('@')[0];
+  const phone = get('phone');
+  const role = get('role');
+  const company = get('company');
+  const taxId = get('tax_id');
+  const address = get('address');
+  const tagsRaw = get('tags');
+  const scoreRaw = get('score');
+  const source = get('source');
+  const notesRaw = get('notes');
+  const contactPerson = get('contact_person');
+  // Score: mapeia "Lead" → warm, "Qualificado"/"Cliente" → hot
+  let score = 'warm';
+  let type = 'lead';
+  if (scoreRaw) {
+    const s = scoreRaw.toLowerCase();
+    if (/qualific|cliente|customer|client|hot/.test(s)) score = 'hot';
+    else if (/cold|frio/.test(s)) score = 'cold';
+    if (/cliente|customer|client/.test(s)) type = 'cliente';
+  }
+  // Tags: empresa vira tag + parse de tags livres
+  const tags = [];
+  if (company) tags.push(`empresa:${company}`);
+  if (tagsRaw) {
+    tagsRaw.split(/[,;]/).map(t => t.trim()).filter(t => t && t !== '""').forEach(t => tags.push(t));
+  }
+  // Notes: empresa + observações + biografia + linkedin etc juntos
+  const notesParts = [];
+  if (company) notesParts.push(`Empresa: ${company}`);
+  if (notesRaw) notesParts.push(notesRaw);
+  return {
+    user_id: userId,
+    workspace_owner: wsId,
+    name: name.slice(0, 200),
+    type,
+    email: email.slice(0, 200),
+    phone: phone ? phone.slice(0, 60) : null,
+    role: role ? role.slice(0, 100) : null,
+    tax_id: taxId ? taxId.slice(0, 30) : null,
+    address: address ? address.slice(0, 300) : null,
+    notes: notesParts.length > 0 ? notesParts.join('\n').slice(0, 2000) : null,
+    contact_person: contactPerson ? contactPerson.slice(0, 100) : null,
+    score,
+    source: source ? source.slice(0, 100) : 'csv_import',
+    tags: tags.slice(0, 20),
+  };
+}
+
+async function _synSwitchWorkspace(workspaceOwnerId) {
+  if (!workspaceOwnerId || workspaceOwnerId === _synActiveWorkspaceId) {
+    const m = document.getElementById('syn-ws-menu'); if (m) m.style.display = 'none';
+    return;
+  }
+  _synSetActiveWorkspace(workspaceOwnerId);
+  // Reseta cloud → vai recarregar do workspace novo
+  _synCloudReady = false;
+  _synCloudLoadPromise = null;
+  _synDeals = []; _synStages = []; _synActivities = []; _synSellers = [];
+  _contacts = [];
+  if (typeof renderRegistry === 'function') renderRegistry();
+  // Recarrega dados do workspace novo
+  await _synInitCloud({ force: true });
+  if (typeof renderRegistry === 'function') renderRegistry();
+}
+
+async function _synLoadWorkspaces() {
+  try {
+    const c = await _synGetClient(); if (!c) return [];
+    const { data, error } = await c.rpc('synconnect_my_workspaces');
+    if (error) {
+      // RPC não existe ainda → migration shared_workspace não rodou. Fallback pra single-user.
+      if (/function .* does not exist/i.test(error.message || '')) {
+        console.warn('[syn] shared workspace RPC ausente — modo single-user');
+        const uid = (typeof supaUser !== 'undefined' && supaUser?.id) || null;
+        if (uid) {
+          _synWorkspaces = [{
+            workspace_owner_id: uid,
+            owner_email: supaUser.email || '',
+            owner_name: '',
+            my_role: 'owner',
+            is_owner: true,
+            member_count: 0,
+          }];
+          _synSetActiveWorkspace(uid);
+        }
+        return _synWorkspaces;
+      }
+      console.warn('[syn] my_workspaces:', error.message);
+      return [];
+    }
+    _synWorkspaces = data || [];
+    // Resolve workspace ativo: localStorage > primeiro disponível
+    let activeId = null;
+    try { activeId = localStorage.getItem(_SYN_ACTIVE_WS_KEY); } catch(_){}
+    const found = activeId && _synWorkspaces.find(x => x.workspace_owner_id === activeId);
+    if (found) _synSetActiveWorkspace(activeId);
+    else if (_synWorkspaces.length > 0) _synSetActiveWorkspace(_synWorkspaces[0].workspace_owner_id);
+    return _synWorkspaces;
+  } catch(e) {
+    console.warn('[syn] load workspaces ex:', e?.message);
+    return [];
+  }
 }
 
 function _synFromCloudContact(row) {
@@ -38378,16 +39268,22 @@ async function _synInitCloud(opts) {
       const c = await _synGetClient(); if (!c) return false;
       const { data: { user } } = await c.auth.getUser();
       if (!user) return false;
+      // 0) Resolve workspaces disponíveis (shared workspace v1)
+      //    Antes de carregar contatos/deals/etc, define qual workspace estamos olhando.
+      await _synLoadWorkspaces();
       // 1) Garante estágios default existentes (idempotente — só insere se 0)
       try { await c.rpc('synconnect_seed_default_stages'); } catch(e){ console.warn('[syn] seed stages:', e?.message); }
       // 2) Carrega tudo em paralelo (com retry automático em JWT expired)
+      //    SEMPRE filtra por workspace_owner = workspace ATIVO (não mistura
+      //    dados de N workspaces na mesma tela).
+      const _wsId = _synGetActiveWorkspaceId() || user.id;
       const loadAll = () => Promise.all([
-        c.from('synconnect_pipeline_stages').select('*').order('position'),
-        c.from('synconnect_contacts').select('*').order('updated_at', { ascending: false }),
-        c.from('synconnect_deals').select('*').order('updated_at', { ascending: false }),
-        c.from('synconnect_activities').select('*').order('occurred_at', { ascending: false }).limit(500),
+        c.from('synconnect_pipeline_stages').select('*').eq('workspace_owner', _wsId).order('position'),
+        c.from('synconnect_contacts').select('*').eq('workspace_owner', _wsId).order('updated_at', { ascending: false }),
+        c.from('synconnect_deals').select('*').eq('workspace_owner', _wsId).order('updated_at', { ascending: false }),
+        c.from('synconnect_activities').select('*').eq('workspace_owner', _wsId).order('occurred_at', { ascending: false }).limit(500),
         // Vendedores — pode falhar 42P01 se migration ainda não foi rodada (fail-soft)
-        c.from('synconnect_sellers').select('*').eq('active', true).order('name'),
+        c.from('synconnect_sellers').select('*').eq('workspace_owner', _wsId).eq('active', true).order('name'),
       ]);
       let stagesR, contactsR, dealsR, actsR, sellersR;
       try {
@@ -38456,8 +39352,14 @@ async function _synSaveContactCloud(contact, isMigration) {
   try {
     const c = await _synGetClient(); if (!c) return null;
     const { data: { user } } = await c.auth.getUser(); if (!user) return null;
+    // Permissão: viewer não pode criar/editar contatos
+    if (!_synCanEdit()) {
+      if (typeof showToastMsg === 'function') showToastMsg('Você só tem permissão de visualização neste workspace');
+      return null;
+    }
     const payload = {
       user_id:   user.id,
+      workspace_owner: _synGetActiveWorkspaceId() || user.id,
       legacy_id: isMigration ? contact.id : (contact.legacy_id || null),
       name:      contact.name,
       type:      contact.type || 'lead',
@@ -38509,8 +39411,13 @@ async function _synSaveDeal(deal) {
   try {
     const c = await _synGetClient(); if (!c) return null;
     const { data: { user } } = await c.auth.getUser(); if (!user) return null;
+    if (!_synCanEdit()) {
+      if (typeof showToastMsg === 'function') showToastMsg('Você só tem permissão de visualização neste workspace');
+      return null;
+    }
     const payload = {
       user_id:           user.id,
+      workspace_owner:   _synGetActiveWorkspaceId() || user.id,
       contact_id:        deal.contact_id || null,
       stage_id:          deal.stage_id || null,
       title:             deal.title,
@@ -38586,6 +39493,7 @@ async function _synLogActivity(activity) {
     const { data: { user } } = await c.auth.getUser(); if (!user) return null;
     const payload = {
       user_id:     user.id,
+      workspace_owner: _synGetActiveWorkspaceId() || user.id,
       contact_id:  activity.contact_id || null,
       deal_id:     activity.deal_id || null,
       kind:        activity.kind,
@@ -38941,6 +39849,7 @@ async function _synSaveSeller(seller) {
   const { data: { user } } = await c.auth.getUser(); if (!user) return null;
   const payload = {
     user_id:                user.id,
+    workspace_owner:        _synGetActiveWorkspaceId() || user.id,
     name:                   (seller.name || '').trim(),
     email:                  (seller.email || '').trim() || null,
     phone:                  (seller.phone || '').trim() || null,
@@ -47013,13 +47922,53 @@ function renderRegistry() {
   const pipelineLabel = openDeals.length > 0
     ? `🎯 Pipeline <span style="opacity:.6;font-weight:400;">${openDeals.length} · ${_synFmtMoney(totalPipelineCents)}</span>`
     : `🎯 Pipeline`;
+  // ─── Workspace switcher + Members button ───
+  // Só renderiza se há mais de 1 workspace OU se sou owner do workspace ativo
+  const wsCount = _synWorkspaces.length;
+  const activeWs = _synWorkspaces.find(w => w.workspace_owner_id === _synActiveWorkspaceId);
+  const showSwitcher = wsCount > 1;
+  const showMembersBtn = _synCanAdmin() && _synIsOwner();
+  const switcherHTML = showSwitcher
+    ? `<div style="position:relative;display:inline-block;margin-left:8px;">
+         <button onclick="_synToggleWorkspaceMenu(event)" id="syn-ws-btn" style="display:inline-flex;align-items:center;gap:6px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--color-text-primary);cursor:pointer;font-family:inherit;">
+           <span style="opacity:.7;">📁</span>
+           <span style="font-weight:500;">${_esc(activeWs?.owner_email || 'workspace').split('@')[0]}</span>
+           <span style="opacity:.5;font-size:10px;">▾</span>
+         </button>
+         <div id="syn-ws-menu" style="display:none;position:absolute;left:0;top:100%;margin-top:6px;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:9px;box-shadow:0 12px 36px rgba(0,0,0,.14);padding:6px;min-width:280px;z-index:60;">
+           <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);padding:6px 10px 4px;">Trocar workspace</div>
+           ${_synWorkspaces.map(w => `
+             <button onclick="_synSwitchWorkspace('${_esc(w.workspace_owner_id)}')" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 10px;background:${w.workspace_owner_id===_synActiveWorkspaceId?'rgba(59,109,17,.08)':'transparent'};border:none;border-radius:6px;cursor:pointer;font-family:inherit;color:var(--color-text-primary);">
+               <span style="font-size:18px;">${w.is_owner?'👤':'🤝'}</span>
+               <span style="flex:1;min-width:0;">
+                 <span style="display:block;font-size:12.5px;font-weight:${w.workspace_owner_id===_synActiveWorkspaceId?'600':'500'};">${_esc(w.owner_email || 'sem email')}</span>
+                 <span style="display:block;font-size:10.5px;color:var(--color-text-tertiary);">${w.is_owner?'Seu workspace':`Member · ${w.my_role}`}${w.member_count?` · ${w.member_count} member${w.member_count>1?'s':''}`:''}</span>
+               </span>
+               ${w.workspace_owner_id===_synActiveWorkspaceId?'<span style="color:#3B6D11;font-weight:600;">✓</span>':''}
+             </button>
+           `).join('')}
+         </div>
+       </div>` : '';
+  const membersBtnHTML = showMembersBtn
+    ? `<button onclick="_synOpenMembersModal()" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:7px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit;color:var(--color-text-primary);display:inline-flex;align-items:center;gap:6px;">
+        👥 Membros${activeWs?.member_count ? `<span style="opacity:.6;">${activeWs.member_count}</span>` : ''}
+       </button>` : '';
+  const roleBadge = _synActiveRole !== 'owner'
+    ? `<span style="font-size:10.5px;background:${_synActiveRole==='viewer'?'#7A5500':'#3C3489'};color:#fff;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;font-family:var(--font-sans);">${_synActiveRole === 'viewer' ? '👁 viewer' : (_synActiveRole === 'editor' ? '✎ editor' : '⚙ admin')}</span>`
+    : '';
   root.innerHTML = `
     <div class="reg-wrap">
-      <div class="reg-head">
+      <div class="reg-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
         <div>
-          <div class="reg-title">Synconnect <span style="font-size:11px;font-weight:500;background:#3B6D11;color:#fff;padding:2px 8px;border-radius:999px;vertical-align:middle;margin-left:6px;font-family:var(--font-sans);">CRM</span></div>
+          <div class="reg-title">
+            Synconnect
+            <span style="font-size:11px;font-weight:500;background:#3B6D11;color:#fff;padding:2px 8px;border-radius:999px;vertical-align:middle;margin-left:6px;font-family:var(--font-sans);">CRM</span>
+            ${roleBadge}
+            ${switcherHTML}
+          </div>
           <div class="reg-sub">Pipeline de vendas, contatos, contratos e captação num só lugar — vinculados ao seu Kanban sem reescrever.</div>
         </div>
+        <div style="display:flex;gap:8px;align-items:center;">${membersBtnHTML}</div>
       </div>
       <div class="reg-tabs" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
         ${tabBtn('pipeline',  pipelineLabel, '')}
@@ -47034,6 +47983,7 @@ function renderRegistry() {
             <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="setRegistryTab('documents');_synCloseMoreMenu()">📄 Documentos <span style="opacity:.5;font-weight:400;">${_documents.length}</span></button>
             <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="setRegistryTab('automation');_synCloseMoreMenu()">⚡ Automação</button>
             <div style="height:1px;background:var(--color-border-tertiary);margin:4px 8px;"></div>
+            <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="_synOpenImportPicker();_synCloseMoreMenu()">📤 Importar CSV…</button>
             <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="_synOpenExportPicker();_synCloseMoreMenu()">📥 Exportar dados…</button>
             <div style="height:1px;background:var(--color-border-tertiary);margin:4px 8px;"></div>
             <button class="reg-tab" style="display:block;width:100%;text-align:left;border-bottom:none;padding:8px 12px;" onclick="setRegistryTab('help');_synCloseMoreMenu()">❓ Como usar</button>
@@ -48319,7 +49269,7 @@ async function _synSaveWorkflow(workflowId) {
   else if (action_kind === 'tag_deal') action_config = { tag: document.getElementById('syn-wf-cfg-tag').value };
   const c = await _synGetClient(); if (!c) return;
   const { data: { user } } = await c.auth.getUser();
-  const payload = { user_id: user.id, name, trigger_kind, trigger_filter, action_kind, action_config, is_active: true };
+  const payload = { user_id: user.id, workspace_owner: _synGetActiveWorkspaceId() || user.id, name, trigger_kind, trigger_filter, action_kind, action_config, is_active: true };
   if (workflowId) await c.from('synconnect_workflows').update(payload).eq('id', workflowId);
   else            await c.from('synconnect_workflows').insert(payload);
   document.getElementById('syn-wf-modal').classList.remove('is-open');
@@ -48425,7 +49375,7 @@ async function _synSaveWebhook(webhookId) {
   if (events.length === 0) { alert('Selecione pelo menos um evento.'); return; }
   const c = await _synGetClient(); if (!c) return;
   const { data: { user } } = await c.auth.getUser();
-  const payload = { user_id: user.id, name, url, events, is_active: true };
+  const payload = { user_id: user.id, workspace_owner: _synGetActiveWorkspaceId() || user.id, name, url, events, is_active: true };
   if (webhookId) await c.from('synconnect_webhooks').update(payload).eq('id', webhookId);
   else            await c.from('synconnect_webhooks').insert(payload);
   document.getElementById('syn-wh-modal').classList.remove('is-open');
