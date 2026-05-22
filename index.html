@@ -39085,13 +39085,62 @@ async function _synExecuteImport() {
         else st.stats.updated++;
       } catch(e) { console.warn('[import] update ex:', e?.message); st.stats.errors++; }
     }
-    // Cria deals (sequencial pra não estourar)
+    // Cria deals — match flexível de estágio:
+    //   1. Match exato case-insensitive (ex: "Avaliação" → "avaliação")
+    //   2. Match fuzzy normalizado (sem acentos, sem espaços extras)
+    //   3. Aliases conhecidos (RD Station "Entrada" → "Prospecção", etc)
+    //   4. Se nada bater, CRIA o stage novo (até max 12 stages no pipeline)
+    const normalize = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+    const STAGE_ALIASES = {
+      // RD Station → Synconnect default
+      'entrada': 'prospeccao',
+      'sem contato': 'prospeccao',
+      'filtro 1': 'qualificacao',
+      'filtro 2': 'qualificacao',
+      'obtendo agendamento': 'qualificacao',
+      'avaliacao': 'qualificacao',
+      'avaliação': 'qualificacao',
+      'lista de espera': 'qualificacao',
+      'passagem para jordano': 'proposta',
+      'pre-vendas': 'qualificacao',
+      'pré-vendas': 'qualificacao',
+      'prospeccao ativa': 'prospeccao',
+      'prospecção ativa': 'prospeccao',
+      'vendas': 'negociacao',
+      'fechado': 'ganho',
+      'descartados': 'perdido',
+    };
     for (const d of dealCreates) {
       const contactId = emailToId.get(d.email);
       if (!contactId) continue;
-      // Match stage por nome (case-insensitive)
-      const stage = stages.find(s => (s.name || '').toLowerCase() === (d.stage_name || '').toLowerCase());
-      if (!stage) continue;
+      const normTarget = normalize(d.stage_name);
+      // 1. Match exato case-insensitive ou normalizado
+      let stage = stages.find(s => normalize(s.name) === normTarget);
+      // 2. Match via alias
+      if (!stage) {
+        const aliasKey = STAGE_ALIASES[normTarget];
+        if (aliasKey) stage = stages.find(s => normalize(s.name) === aliasKey);
+      }
+      // 3. Fallback: cria stage novo (se ainda tem espaço — max 12)
+      if (!stage && stages.length < 12) {
+        try {
+          const { data: newStage, error: stErr } = await c.from('synconnect_pipeline_stages').insert({
+            user_id: user.id,
+            workspace_owner: wsId,
+            name: d.stage_name.slice(0, 50),
+            position: stages.length,
+            color: '#999999',
+            stage_type: 'open',
+          }).select().single();
+          if (!stErr && newStage) {
+            stages.push(newStage);
+            stage = newStage;
+          }
+        } catch(_){}
+      }
+      // 4. Último fallback: usa o primeiro stage 'open' disponível (geralmente "Prospecção")
+      if (!stage) stage = stages.find(s => s.stage_type === 'open') || stages[0];
+      if (!stage) continue;  // sem nenhum stage? pula
       try {
         const value_cents = Math.round((parseFloat((d.value || '0').toString().replace(',', '.')) || 0) * 100);
         const { error } = await c.from('synconnect_deals').insert({
@@ -39280,10 +39329,29 @@ async function _synInitCloud(opts) {
       //    SEMPRE filtra por workspace_owner = workspace ATIVO (não mistura
       //    dados de N workspaces na mesma tela).
       const _wsId = _synGetActiveWorkspaceId() || user.id;
+      // Helper pra paginar quando há > 1000 rows (Supabase default cap).
+      // Carrega em chunks de 1000 até esgotar.
+      const fetchAllPaged = async (table, opts = {}) => {
+        const PAGE = 1000;
+        let from = 0;
+        const all = [];
+        while (true) {
+          let q = c.from(table).select('*').eq('workspace_owner', _wsId).range(from, from + PAGE - 1);
+          if (opts.order) q = q.order(opts.order, { ascending: opts.ascending ?? false });
+          if (opts.activeOnly) q = q.eq('active', true);
+          const { data, error } = await q;
+          if (error) return { data: all, error };
+          all.push(...(data || []));
+          if (!data || data.length < PAGE) break;
+          from += PAGE;
+          if (all.length > 50000) break;  // safety limit
+        }
+        return { data: all, error: null };
+      };
       const loadAll = () => Promise.all([
         c.from('synconnect_pipeline_stages').select('*').eq('workspace_owner', _wsId).order('position'),
-        c.from('synconnect_contacts').select('*').eq('workspace_owner', _wsId).order('updated_at', { ascending: false }),
-        c.from('synconnect_deals').select('*').eq('workspace_owner', _wsId).order('updated_at', { ascending: false }),
+        fetchAllPaged('synconnect_contacts', { order: 'updated_at', ascending: false }),
+        fetchAllPaged('synconnect_deals',    { order: 'updated_at', ascending: false }),
         c.from('synconnect_activities').select('*').eq('workspace_owner', _wsId).order('occurred_at', { ascending: false }).limit(500),
         // Vendedores — pode falhar 42P01 se migration ainda não foi rodada (fail-soft)
         c.from('synconnect_sellers').select('*').eq('workspace_owner', _wsId).eq('active', true).order('name'),
