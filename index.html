@@ -39029,7 +39029,26 @@ async function _synExecuteImport() {
   _synRenderImportModal();
   const c = await _synGetClient();
   if (!c) { st.finished = true; _synRenderImportModal(); return; }
-  const { data: { user } } = await c.auth.getUser();
+  // Tenta refresh do JWT antes de começar (importação leva minutos —
+  // se a sessão expirou ou tá perto, refresh agora previne crash no meio).
+  try {
+    if (c.auth?.refreshSession) await c.auth.refreshSession();
+  } catch(e) { console.warn('[import] refresh session falhou:', e?.message); }
+  const userRes = await c.auth.getUser();
+  const user = userRes?.data?.user;
+  if (!user || !user.id) {
+    // Sessão expirou e refresh falhou — pede pro user logar de novo
+    st.finished = true;
+    _synRenderImportModal();
+    if (typeof appAlert === 'function') {
+      appAlert('Sessão expirada',
+        'Sua sessão expirou. Faça logout e login novamente, e tente importar de novo.',
+        { icon: '⚠️' });
+    } else {
+      alert('Sessão expirada. Faça login novamente.');
+    }
+    return;
+  }
   const wsId = _synGetActiveWorkspaceId() || user.id;
   // Carrega contatos existentes pra dedup por email
   const { data: existing } = await c.from('synconnect_contacts')
