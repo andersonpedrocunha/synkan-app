@@ -39130,16 +39130,18 @@ async function _synExecuteImport() {
             name: d.stage_name.slice(0, 50),
             position: stages.length,
             color: '#999999',
-            stage_type: 'open',
+            kind: 'custom',  // valores: prospecting | qualification | proposal | negotiation | won | lost | custom
           }).select().single();
           if (!stErr && newStage) {
             stages.push(newStage);
             stage = newStage;
+          } else if (stErr) {
+            console.warn('[import] create stage falhou:', stErr.message);
           }
-        } catch(_){}
+        } catch(e){ console.warn('[import] create stage ex:', e?.message); }
       }
-      // 4. Último fallback: usa o primeiro stage 'open' disponível (geralmente "Prospecção")
-      if (!stage) stage = stages.find(s => s.stage_type === 'open') || stages[0];
+      // 4. Último fallback: usa o primeiro stage de prospecção (ou o primeiro disponível)
+      if (!stage) stage = stages.find(s => s.kind === 'prospecting') || stages[0];
       if (!stage) continue;  // sem nenhum stage? pula
       try {
         const value_cents = Math.round((parseFloat((d.value || '0').toString().replace(',', '.')) || 0) * 100);
