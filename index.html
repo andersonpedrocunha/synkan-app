@@ -39897,6 +39897,67 @@ function _synStartFollowupBannerWatcher() {
 }
 
 // ── #8 Aging visual no pipeline ─────────────────────────────────────
+// Modal explicando os 4 estados de aging que aparecem em cada card do pipeline.
+// Acionado pelo botão (?) ao lado do texto "Arraste cards entre os estágios".
+function _synShowAgingHelp() {
+  if (typeof appAlert !== 'function') return;
+  appAlert(
+    'Indicadores de idade do deal',
+    `
+    <div style="text-align:left;font-size:13px;line-height:1.65;color:var(--color-text-primary);">
+      <p style="margin:0 0 14px;">Cada card mostra <strong>há quantos dias</strong> nada acontece no deal. É um alerta visual contra leads esquecidos.</p>
+
+      <div style="display:flex;flex-direction:column;gap:9px;margin:14px 0;">
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(59,109,17,.08);border-left:3px solid #3B6D11;border-radius:0 7px 7px 0;">
+          <span style="font-size:20px;">🟢</span>
+          <div>
+            <strong style="display:block;color:#3B6D11;">fresh</strong>
+            <span style="font-size:11.5px;color:var(--color-text-secondary);">0 a 2 dias sem atividade · lead quente</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(136,135,128,.08);border-left:3px solid #888780;border-radius:0 7px 7px 0;">
+          <span style="font-size:20px;">⚪</span>
+          <div>
+            <strong style="display:block;color:#666;">3 a 6 dias</strong>
+            <span style="font-size:11.5px;color:var(--color-text-secondary);">Tá esfriando · hora de retomar contato</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(193,154,58,.12);border-left:3px solid #C19A3A;border-radius:0 7px 7px 0;">
+          <span style="font-size:20px;">🟡</span>
+          <div>
+            <strong style="display:block;color:#854F0B;">7 a 13 dias</strong>
+            <span style="font-size:11.5px;color:var(--color-text-secondary);">Atenção · lead esquecido prestes a esfriar de vez</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(163,45,45,.10);border-left:3px solid #A32D2D;border-radius:0 7px 7px 0;">
+          <span style="font-size:20px;">🔴</span>
+          <div>
+            <strong style="display:block;color:#A32D2D;">14+ dias parado</strong>
+            <span style="font-size:11.5px;color:var(--color-text-secondary);">Crítico · ou age agora ou move pra Perdido</span>
+          </div>
+        </div>
+      </div>
+
+      <h4 style="font-size:13px;margin:18px 0 6px;color:var(--color-text-primary);">Como o contador volta pra 🟢?</h4>
+      <p style="margin:0 0 10px;color:var(--color-text-secondary);">Basta <strong>registrar atividade no deal</strong> ou <strong>editá-lo</strong>:</p>
+      <ul style="margin:0 0 14px 18px;padding:0;color:var(--color-text-secondary);">
+        <li>Adicionar uma atividade (ligação, email, nota, anexo)</li>
+        <li>Mudar de estágio</li>
+        <li>Atualizar valor, probabilidade ou follow-up</li>
+        <li>Editar qualquer campo do deal</li>
+      </ul>
+
+      <h4 style="font-size:13px;margin:18px 0 6px;color:var(--color-text-primary);">Por que isso importa?</h4>
+      <p style="margin:0;color:var(--color-text-secondary);">Em CRM, o maior problema raramente é falta de leads — é <strong>lead esquecido no pipeline</strong>. Este indicador força você a olhar o que tá congelando.</p>
+    </div>
+    `,
+    { icon:'⏱', html: true }
+  );
+}
+
 function _synAgingLabel(deal) {
   // Idade desde última activity do deal, ou desde updated_at
   const lastAct = (_synActivities||[]).find(a => a.deal_id === deal.id);
@@ -49716,7 +49777,10 @@ function renderPipelineTab() {
     ${kpis}
     ${_synGoalProgressHTML()}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-      <div style="font-size:13px;color:var(--color-text-secondary);">Arraste cards entre os estágios. Mover pra <strong>Ganho</strong>/<strong>Perdido</strong> fecha o deal.</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span>Arraste cards entre os estágios. Mover pra <strong>Ganho</strong>/<strong>Perdido</strong> fecha o deal.</span>
+        <button onclick="_synShowAgingHelp()" title="Entenda os indicadores 🟢 ⚪ 🟡 🔴" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:50%;width:22px;height:22px;cursor:pointer;font-family:inherit;color:var(--color-text-secondary);font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;line-height:1;padding:0;">?</button>
+      </div>
       <div style="display:flex;gap:6px;">
         <button class="syn-btn-secondary" onclick="_synOpenStageEditor()" title="Renomear, reordenar ou criar estágios">⚙ Estágios</button>
         <button class="syn-new-deal-btn" onclick="_synOpenDealModal()">+ Nova oportunidade</button>
