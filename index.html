@@ -25420,8 +25420,27 @@ function _ensureSupaClient() {
     console.error('Supabase SDK não carregou.');
     return null;
   }
+  // storageKey EXPLÍCITO baseado no project ref (extraído da URL).
+  // Sem isso, o supabase-js gera um storageKey baseado no formato da
+  // anon key (legacy JWT vs publishable `sb_publishable_...`). Quando a
+  // key muda de formato, o token persistido fica "órfão" — o cliente
+  // novo procura em outra chave de localStorage e não acha a sessão.
+  // Resultado: user perde login a cada refresh apesar do token estar salvo.
+  // Forçar storageKey fixo (`sb-<projectRef>-auth-token`) garante que
+  // qualquer cliente novo encontra a sessão persistida.
+  let storageKey;
+  try {
+    const projectRef = cfg.url.match(/\/\/([^.]+)\.supabase/)?.[1];
+    if (projectRef) storageKey = `sb-${projectRef}-auth-token`;
+  } catch(_){}
   supaClient = window.supabase.createClient(cfg.url, cfg.anonKey, {
-    auth: { persistSession: true, autoRefreshToken: true },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage,
+      ...(storageKey ? { storageKey } : {}),
+    },
     realtime: { params: { eventsPerSecond: 5 } },
   });
   return supaClient;
@@ -27298,6 +27317,9 @@ async function bootSupabaseMode() {
   try {
     const { data } = await c.auth.getSession();
     initialSession = data?.session || null;
+    console.log('[auth boot] getSession:', initialSession
+      ? '✅ session de ' + (initialSession.user?.email || '?')
+      : '❌ null (sem session no localStorage ou storageKey mismatch)');
     // Se tem sessão mas o access_token tá perto de expirar (<5min), refresh proativo
     if (initialSession?.expires_at) {
       const expiresInMs = initialSession.expires_at * 1000 - Date.now();
@@ -27311,16 +27333,20 @@ async function bootSupabaseMode() {
   } catch(e) { console.warn('[auth] getSession inicial falhou:', e?.message || e); }
 
   if (initialSession) {
+    console.log('[auth boot] chamando _onSignedIn...');
     await _onSignedIn(initialSession);
+    console.log('[auth boot] ✅ _onSignedIn concluído');
   } else {
     // Última tentativa: força refresh (caso refresh_token exista mas access_token tenha expirado)
     try {
       const { data: refreshed } = await c.auth.refreshSession();
       if (refreshed?.session) {
+        console.log('[auth boot] refresh recuperou session, chamando _onSignedIn...');
         await _onSignedIn(refreshed.session);
         return true;
       }
-    } catch(_){}
+      console.log('[auth boot] refresh retornou null — mostrando tela de login');
+    } catch(e){ console.warn('[auth boot] refresh exception:', e?.message); }
     showAuthOverlay(true);
   }
   return true;
