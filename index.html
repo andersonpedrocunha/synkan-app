@@ -39444,7 +39444,11 @@ async function _synInitCloud(opts) {
         for (const lc of localOnly) {
           await _synSaveContactCloud(lc, true);
         }
-        const re = await c.from('synconnect_contacts').select('*').order('updated_at', { ascending: false });
+        // Re-fetch usando fetchAllPaged pra garantir que TODOS os contatos venham
+        // (não só os primeiros 1000 do cap default do PostgREST).
+        // Sem isso, após migrar do localStorage o cache local ficava com 1000
+        // contatos mesmo tendo 2029 no servidor.
+        const re = await fetchAllPaged('synconnect_contacts', { order: 'updated_at', ascending: false });
         if (re.data) cloudContacts.splice(0, cloudContacts.length, ...re.data.map(_synFromCloudContact));
       }
       _contacts = cloudContacts;
