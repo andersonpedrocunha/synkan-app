@@ -39377,22 +39377,30 @@ async function _synInitCloud(opts) {
       //    dados de N workspaces na mesma tela).
       const _wsId = _synGetActiveWorkspaceId() || user.id;
       // Helper pra paginar quando há > 1000 rows (Supabase default cap).
-      // Carrega em chunks de 1000 até esgotar.
+      // Carrega em chunks de 1000 até esgotar. Inclui logs pra diagnóstico
+      // em caso de loop quebrar em row count inesperado.
       const fetchAllPaged = async (table, opts = {}) => {
         const PAGE = 1000;
         let from = 0;
         const all = [];
+        let pageIdx = 0;
         while (true) {
           let q = c.from(table).select('*').eq('workspace_owner', _wsId).range(from, from + PAGE - 1);
           if (opts.order) q = q.order(opts.order, { ascending: opts.ascending ?? false });
           if (opts.activeOnly) q = q.eq('active', true);
           const { data, error } = await q;
+          console.log(`[paged ${table}] page=${pageIdx} from=${from} got=${data?.length ?? 0}${error ? ' err='+error.message : ''}`);
           if (error) return { data: all, error };
           all.push(...(data || []));
+          // Quebra o loop SOMENTE quando a página vier com MENOS do que PAGE rows
+          // (significa que esgotou). data.length === 0 também quebra (fim das rows).
           if (!data || data.length < PAGE) break;
           from += PAGE;
-          if (all.length > 50000) break;  // safety limit
+          pageIdx++;
+          if (all.length > 50000) { console.warn('[paged] safety limit 50k atingido'); break; }
+          if (pageIdx > 100) { console.warn('[paged] safety: >100 páginas, abortando'); break; }
         }
+        console.log(`[paged ${table}] TOTAL=${all.length} (em ${pageIdx + 1} páginas)`);
         return { data: all, error: null };
       };
       const loadAll = () => Promise.all([
