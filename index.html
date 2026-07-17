@@ -65999,11 +65999,21 @@ async function _lkFetchToken(channelId, identity, name, roomName) {
     // room_name aqui, a sala do token não bate com a do Egress → gravação 404.
     const reqBody = { channel_id: channelId, identity, name };
     if (roomName) reqBody.room_name = roomName;
+    // Pega a anon key da config Supabase — algumas versões novas do gateway
+    // (sb_publishable_*) exigem o header apikey explícito no browser mesmo
+    // quando há Authorization: Bearer <jwt>. Sem isso, o gateway pode rejeitar
+    // com 400 e sem CORS headers, o que aparece como "Failed to fetch" no client.
+    let anonKey = null;
+    try {
+      const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
+      anonKey = cfg?.anonKey || null;
+    } catch(_){}
     const r = await fetch(ep, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(jwt ? { 'Authorization': 'Bearer ' + jwt } : {}),
+        ...(anonKey ? { 'apikey': anonKey } : {}),
+        ...(jwt ? { 'Authorization': 'Bearer ' + jwt } : (anonKey ? { 'Authorization': 'Bearer ' + anonKey } : {})),
       },
       body: JSON.stringify(reqBody),
       signal: ctrl.signal,
