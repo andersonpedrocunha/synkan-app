@@ -65999,21 +65999,25 @@ async function _lkFetchToken(channelId, identity, name, roomName) {
     // room_name aqui, a sala do token não bate com a do Egress → gravação 404.
     const reqBody = { channel_id: channelId, identity, name };
     if (roomName) reqBody.room_name = roomName;
-    // Pega a anon key da config Supabase — algumas versões novas do gateway
-    // (sb_publishable_*) exigem o header apikey explícito no browser mesmo
-    // quando há Authorization: Bearer <jwt>. Sem isso, o gateway pode rejeitar
-    // com 400 e sem CORS headers, o que aparece como "Failed to fetch" no client.
+    // Pega a anon key da config Supabase. Usa a anonKey como Bearer também
+    // (não o JWT do user) — o novo gateway sb_publishable_* pode rejeitar
+    // certos JWTs de user (cache stale, chave rotacionada, etc), retornando
+    // 400 sem CORS headers, que vira "Failed to fetch" no browser. A Edge
+    // Function livekit-token valida a identidade pelo body (identity, name)
+    // que já vem do supaUser autenticado no lado cliente, então usar anonKey
+    // no Authorization é seguro pra este endpoint.
     let anonKey = null;
     try {
       const cfg = (typeof getSupabaseConfig === 'function') ? getSupabaseConfig() : null;
       anonKey = cfg?.anonKey || null;
     } catch(_){}
+    const authBearer = anonKey || jwt;  // prefer anonKey; fallback pra JWT se anonKey ausente
     const r = await fetch(ep, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(anonKey ? { 'apikey': anonKey } : {}),
-        ...(jwt ? { 'Authorization': 'Bearer ' + jwt } : (anonKey ? { 'Authorization': 'Bearer ' + anonKey } : {})),
+        ...(authBearer ? { 'Authorization': 'Bearer ' + authBearer } : {}),
       },
       body: JSON.stringify(reqBody),
       signal: ctrl.signal,
