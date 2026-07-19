@@ -1133,7 +1133,8 @@ kbd{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;font-size:
 /* Cursor agarrável nos cards */
 .card{cursor:grab;}
 .card:active,.card.dragging{cursor:grabbing;}
-.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;margin-bottom:7px;padding:9px 11px;cursor:grab;animation:card-in .25s ease-out both;transition:transform .15s,box-shadow .15s,opacity .2s;}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;margin-bottom:7px;padding:9px 11px;cursor:grab;transition:transform .15s,box-shadow .15s,opacity .2s;}
+.card.card-new{animation:card-in .25s ease-out both;}
 @keyframes card-in{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 .card:active{cursor:grabbing;}
 .card:hover{border-color:var(--color-border-secondary);}
@@ -24528,8 +24529,9 @@ function render() {
             if (rules.some(r => _cardViolatesRule(c, r))) zaiPbCls = ' zai-pb-violate';
             else if (rules.some(r => _cardBoostsRule(c, r))) zaiPbCls = ' zai-pb-boost';
           }
+          const _newCardCls = (window._newCardIds && window._newCardIds.has(c.id)) ? ' card-new' : '';
           return `<div class="card-wrap">
-            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}${lockedCls}${zaiPbCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
+            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}${lockedCls}${zaiPbCls}${_newCardCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
               ${sourceLine}
               ${F.tags && tags.length?`<div class="card-tags">${tags.map(t=>`<span class="ctag" style="background:${t.color.bg};color:${t.color.text};">${t.text}</span>`).join('')}</div>`:''}
               <div class="card-desc">${c.name}</div>
@@ -25284,6 +25286,9 @@ function saveCard() {
     const now=new Date().toISOString();
     const _myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
     const newCard={id:nCard++,name,priority,col,tagIds,deadline,responsavel,assignedUserId,contactId,recurrence,threads:[],attachments:[...cAttachments],subtasks:[...cSubtasks],customFieldValues:{...cCustomValues},createdAt:now,doneAt:col===TERMINAL_COL?now:null,createdFrom:'kanban',createdBy:_myId};
+    if (!window._newCardIds) window._newCardIds = new Set();
+    window._newCardIds.add(newCard.id);
+    setTimeout(() => { try { window._newCardIds.delete(newCard.id); } catch(_){} }, 400);
     audit('card.created', { cardId: newCard.id, name, col });
     fireWebhook('card.created', { cardId: newCard.id, name, col, priority, deadline, responsavel });
     if (typeof _calSyncCardEvent === 'function') _calSyncCardEvent(newCard, 'upsert');
