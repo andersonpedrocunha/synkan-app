@@ -1143,6 +1143,21 @@ kbd{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;font-size:
 .card.is-done .card-desc{text-decoration:line-through;color:var(--color-text-tertiary);}
 .card-done-btn{display:none;position:absolute;top:7px;right:7px;background:none;border:1px solid var(--color-border-secondary);border-radius:999px;font-size:11px;font-weight:500;color:var(--color-text-secondary);padding:2px 8px;cursor:pointer;line-height:1.4;}
 .card-done-btn:hover{background:#EAF3DE;color:#3B6D11;border-color:#9DC96A;}
+.card-menu-btn{display:none;position:absolute;top:7px;right:52px;background:var(--color-background-primary);border:1px solid var(--color-border-secondary);border-radius:999px;font-size:13px;line-height:1;font-weight:600;color:var(--color-text-secondary);padding:2px 7px 3px;cursor:pointer;letter-spacing:1px;}
+.card-menu-btn:hover{background:var(--color-background-secondary);color:var(--color-text-primary);border-color:var(--color-border-secondary);}
+.card-wrap:hover .card-menu-btn{display:inline-flex;align-items:center;}
+.card.is-blocked-manual .card-menu-btn{display:inline-flex;align-items:center;}
+.blk-menu-pop{position:fixed;z-index:9800;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.18);padding:4px;min-width:150px;font-family:var(--font-sans);font-size:13px;}
+.blk-menu-item{display:block;width:100%;text-align:left;padding:8px 11px;background:none;border:none;cursor:pointer;font-size:13px;border-radius:6px;font-family:inherit;line-height:1.3;}
+.blk-menu-item:hover{background:var(--color-background-secondary);}
+.blk-menu-item.danger{color:#A32D2D;}
+.blk-menu-item.success{color:#3B6D11;}
+/* Estilo visual do card bloqueado manualmente (combina 3 sinais: borda + opacidade + faixa listrada) */
+.card.is-blocked-manual{border-left:3px solid #BC002D;opacity:.72;position:relative;padding-top:12px;}
+.card.is-blocked-manual:hover{opacity:1;}
+.card.is-blocked-manual::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:repeating-linear-gradient(-45deg,#BC002D 0 6px,rgba(245,232,200,.75) 6px 12px);border-radius:7px 7px 0 0;pointer-events:none;}
+.card-blocked-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#BC002D;background:rgba(188,0,45,.08);border-radius:4px;padding:2px 8px;margin-top:6px;border:0.5px solid rgba(188,0,45,.30);line-height:1.4;letter-spacing:.01em;max-width:100%;}
+.card-blocked-badge .blk-reason{font-weight:400;opacity:.8;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .card-wrap{position:relative;}
 .card-wrap:hover .card-done-btn{display:block;}
 .card-tags{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px;}
@@ -11476,7 +11491,6 @@ const DEFAULT_COLS = [
   {id:'backlog',title:'Backlog'},
   {id:'todo',title:'A fazer'},
   {id:'doing',title:'Em andamento'},
-  {id:'blocked',title:'Bloqueado'},
   {id:'done',title:'Concluído'}
 ];
 const DEFAULT_CARD_FIELDS = {
@@ -24530,11 +24544,20 @@ function render() {
             else if (rules.some(r => _cardBoostsRule(c, r))) zaiPbCls = ' zai-pb-boost';
           }
           const _newCardCls = (window._newCardIds && window._newCardIds.has(c.id)) ? ' card-new' : '';
+          const _manualBlockedCls = (c.blocked === true && !isDone) ? ' is-blocked-manual' : '';
+          const _blockedBadge = (c.blocked === true && c.blockedAt && !isDone) ? (() => {
+            const dur = (typeof _formatBlockDuration === 'function') ? _formatBlockDuration(Date.now() - new Date(c.blockedAt).getTime()) : '';
+            const reasonRaw = (c.blockedReason || '').trim();
+            const reasonShort = reasonRaw ? (reasonRaw.length > 40 ? reasonRaw.slice(0, 40) + '…' : reasonRaw) : '';
+            const tip = _esc(`Bloqueado há ${dur}${reasonRaw ? ' · ' + reasonRaw : ''}`);
+            return `<div class="card-blocked-badge" title="${tip}">🔒 bloqueado há ${_esc(dur)}${reasonShort ? '<span class="blk-reason"> · ' + _esc(reasonShort) + '</span>' : ''}</div>`;
+          })() : '';
           return `<div class="card-wrap">
-            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}${lockedCls}${zaiPbCls}${_newCardCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
+            <div class="card${isDone?' is-done':''}${sourceCls}${agingCls}${blockedCls}${energyCls}${lockedCls}${zaiPbCls}${_newCardCls}${_manualBlockedCls}" ${sourceStyle} draggable="true" data-id="${c.id}"${agingTitle} onclick="editCard(${cidArg})">
               ${sourceLine}
               ${F.tags && tags.length?`<div class="card-tags">${tags.map(t=>`<span class="ctag" style="background:${t.color.bg};color:${t.color.text};">${t.text}</span>`).join('')}</div>`:''}
               <div class="card-desc">${c.name}</div>
+              ${_blockedBadge}
               ${respLine}
               ${assignedLine}
               ${contactLine}
@@ -24571,6 +24594,7 @@ function render() {
               ${(allBoards[currentBoardId]?.isKaizen && c.col === 'kaizen_acao' && !isDone) ? `<button class="kaizen-promote-btn" onclick="event.stopPropagation();promoteKaizenAction(${cidArg})" title="Transformar esta ação em card real em outro board"><span class="kaizen-promote-icon">→</span> Promover pra board</button>` : ''}
             </div>
             ${!isDone?`<button class="card-done-btn" onclick="event.stopPropagation();toggleDone(${cidArg})">✓ done</button>`:''}
+            <button class="card-menu-btn" onclick="event.stopPropagation();_openCardMenu(event,${cidArg})" title="Ações do card">⋯</button>
           </div>`;
         }).join('')}
       </div>
@@ -25285,7 +25309,7 @@ function saveCard() {
   } else {
     const now=new Date().toISOString();
     const _myId = (typeof supaUser !== 'undefined' && supaUser && supaUser.id) || null;
-    const newCard={id:nCard++,name,priority,col,tagIds,deadline,responsavel,assignedUserId,contactId,recurrence,threads:[],attachments:[...cAttachments],subtasks:[...cSubtasks],customFieldValues:{...cCustomValues},createdAt:now,doneAt:col===TERMINAL_COL?now:null,createdFrom:'kanban',createdBy:_myId};
+    const newCard={id:nCard++,name,priority,col,tagIds,deadline,responsavel,assignedUserId,contactId,recurrence,threads:[],attachments:[...cAttachments],subtasks:[...cSubtasks],customFieldValues:{...cCustomValues},createdAt:now,doneAt:col===TERMINAL_COL?now:null,createdFrom:'kanban',createdBy:_myId,blocked:false,blockedAt:null,blockedReason:null,blockHistory:[]};
     if (!window._newCardIds) window._newCardIds = new Set();
     window._newCardIds.add(newCard.id);
     setTimeout(() => { try { window._newCardIds.delete(newCard.id); } catch(_){} }, 400);
@@ -25388,12 +25412,255 @@ function copyCard() {
   if(editId===null) return;
   const src = cards.find(c=>c.id===editId); if(!src) return;
   const now=new Date().toISOString();
-  const copy = {...src, id:nCard++, name: src.name+' (cópia)', tagIds:[...src.tagIds], threads:[], attachments:[...(src.attachments||[])], subtasks:(src.subtasks||[]).map(s=>({...s,done:false})), customFieldValues:{...(src.customFieldValues||{})}, createdAt:now, doneAt:null, col:'backlog'};
+  const copy = {...src, id:nCard++, name: src.name+' (cópia)', tagIds:[...src.tagIds], threads:[], attachments:[...(src.attachments||[])], subtasks:(src.subtasks||[]).map(s=>({...s,done:false})), customFieldValues:{...(src.customFieldValues||{})}, createdAt:now, doneAt:null, col:'backlog', blocked:false, blockedAt:null, blockedReason:null, blockHistory:[]};
   autoThread(copy, `Duplicado de "${src.name}"`);
   cards.push(copy);
   closeModal();renderFilterBar();render();saveData();
   if(currentTab==='checklist') renderChecklist();
   if(currentTab==='gantt') renderGantt();
+}
+
+// ── Bloqueio manual do card (independente de dependências entre cards) ──
+// blockCard/unblockCard aceitam whenIso opcional pra permitir setar data-hora
+// manual no ato (ex: usuário lembrou que o bloqueio começou ontem).
+// blockHistory acumula duração total pra métricas de fluxo.
+function blockCard(cardId, whenIso, reason) {
+  const card = cards.find(c => c.id === cardId);
+  if (!card || card.blocked) return false;
+  const when = whenIso || new Date().toISOString();
+  card.blocked = true;
+  card.blockedAt = when;
+  card.blockedReason = (reason || '').trim() || null;
+  if (!Array.isArray(card.blockHistory)) card.blockHistory = [];
+  try { audit('card.blocked', { cardId, when, reason: card.blockedReason }); } catch(_){}
+  try { autoThread(card, card.blockedReason ? `Bloqueado: ${card.blockedReason}` : 'Card bloqueado'); } catch(_){}
+  try { saveData(); } catch(_){}
+  try { render(); } catch(_){}
+  if (currentTab === 'gantt' && typeof renderGantt === 'function') renderGantt();
+  return true;
+}
+
+function unblockCard(cardId, whenIso) {
+  const card = cards.find(c => c.id === cardId);
+  if (!card || !card.blocked) return false;
+  const when = whenIso || new Date().toISOString();
+  const blockedAt = card.blockedAt;
+  const durationMs = blockedAt ? (new Date(when).getTime() - new Date(blockedAt).getTime()) : 0;
+  if (!Array.isArray(card.blockHistory)) card.blockHistory = [];
+  card.blockHistory.push({
+    blockedAt: blockedAt,
+    unblockedAt: when,
+    reason: card.blockedReason || null,
+    durationMs: Math.max(0, durationMs),
+  });
+  card.blocked = false;
+  card.blockedAt = null;
+  card.blockedReason = null;
+  try { audit('card.unblocked', { cardId, when, durationMs }); } catch(_){}
+  try { autoThread(card, `Desbloqueado (ficou bloqueado por ${_formatBlockDuration(durationMs)})`); } catch(_){}
+  try { saveData(); } catch(_){}
+  try { render(); } catch(_){}
+  if (currentTab === 'gantt' && typeof renderGantt === 'function') renderGantt();
+  return true;
+}
+
+function _formatBlockDuration(ms) {
+  if (!ms || ms < 0) return '0s';
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} min`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h`;
+  const days = Math.floor(hr / 24);
+  return `${days} dia${days > 1 ? 's' : ''}`;
+}
+
+// Duração atual do bloqueio ativo (null se não estiver bloqueado)
+function getBlockedDuration(card) {
+  if (!card || !card.blocked || !card.blockedAt) return null;
+  return Date.now() - new Date(card.blockedAt).getTime();
+}
+
+// Duração total acumulada nesse card (bloqueios passados + ativo atual)
+function getTotalBlockedMs(card) {
+  if (!card) return 0;
+  let total = 0;
+  if (Array.isArray(card.blockHistory)) {
+    for (const h of card.blockHistory) total += (h.durationMs || 0);
+  }
+  const active = getBlockedDuration(card);
+  if (active != null) total += active;
+  return total;
+}
+
+// ── Modal de bloqueio/desbloqueio ──
+// Renderização dinâmica no <body>. Sempre pergunta "agora" vs "manual"
+// pra usuário setar data-hora real do bloqueio/desbloqueio (importante
+// quando percebe depois que estava bloqueado desde ontem, etc).
+function openBlockModal(cardId) {
+  const card = cards.find(c => c.id === cardId);
+  if (!card) return;
+  const mode = card.blocked ? 'unblock' : 'block';
+  _renderBlockModal(cardId, mode);
+}
+
+function _renderBlockModal(cardId, mode) {
+  const card = cards.find(c => c.id === cardId);
+  if (!card) return;
+  const existing = document.getElementById('blk-ov');
+  if (existing) existing.remove();
+
+  const isBlock = mode === 'block';
+  const title = isBlock ? 'Bloquear card' : 'Desbloquear card';
+  const btnLabel = isBlock ? '🔒 Bloquear' : '🔓 Desbloquear';
+  const btnBg = isBlock ? '#BC002D' : '#3B6D11';
+
+  const blockedNow = !isBlock && card.blocked && card.blockedAt;
+  const activeSince = blockedNow ? new Date(card.blockedAt).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : null;
+  const activeDuration = blockedNow ? _formatBlockDuration(getBlockedDuration(card)) : null;
+  const activeReason = blockedNow ? card.blockedReason : null;
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dtDefault = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  const html = `
+    <div class="ov open" id="blk-ov" onclick="if(event.target===this)closeBlockModal()" style="z-index:9700;">
+      <div class="modal" style="width:460px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;">
+          <span style="font-weight:600;font-size:15px;">${isBlock ? '🔒' : '🔓'} ${title}</span>
+          <button type="button" onclick="closeBlockModal()" style="background:none;border:none;font-size:20px;color:var(--color-text-tertiary);cursor:pointer;line-height:1;">×</button>
+        </div>
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.5;padding:8px 10px;background:var(--color-background-secondary);border-radius:6px;">
+          <strong style="color:var(--color-text-primary);">${_esc(card.name)}</strong>
+        </div>
+        ${blockedNow ? `
+        <div style="background:rgba(188,0,45,.06);border:1px solid rgba(188,0,45,.20);padding:10px 12px;border-radius:8px;margin-bottom:14px;font-size:12.5px;line-height:1.6;">
+          <div style="margin-bottom:2px;"><span style="color:var(--color-text-tertiary);">Bloqueado desde:</span> ${_esc(activeSince)}</div>
+          <div style="margin-bottom:2px;"><span style="color:var(--color-text-tertiary);">Duração até agora:</span> <strong>${_esc(activeDuration)}</strong></div>
+          ${activeReason ? `<div><span style="color:var(--color-text-tertiary);">Motivo:</span> ${_esc(activeReason)}</div>` : ''}
+        </div>
+        ` : ''}
+        <div class="field">
+          <label style="font-size:12px;font-weight:600;color:var(--color-text-secondary);letter-spacing:.03em;text-transform:uppercase;">Quando ${isBlock ? 'começou o bloqueio' : 'desbloqueou'}?</label>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;">
+              <input type="radio" name="blk-when" value="now" checked onchange="_blkToggleDatetime()"/>
+              Usar data e hora atual
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;">
+              <input type="radio" name="blk-when" value="manual" onchange="_blkToggleDatetime()"/>
+              Definir manualmente
+            </label>
+          </div>
+          <input type="datetime-local" id="blk-datetime" value="${dtDefault}" style="display:none;margin-top:10px;padding:8px 10px;border:1px solid var(--color-border-tertiary);border-radius:6px;font-family:inherit;font-size:13px;width:100%;box-sizing:border-box;background:var(--color-background-primary);color:var(--color-text-primary);"/>
+        </div>
+        ${isBlock ? `
+        <div class="field">
+          <label style="font-size:12px;font-weight:600;color:var(--color-text-secondary);letter-spacing:.03em;text-transform:uppercase;">Motivo (opcional)</label>
+          <textarea id="blk-reason" rows="2" placeholder="Ex: Aguardando aprovação do cliente, faltando informação, depende de outro time..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--color-border-tertiary);border-radius:6px;font-family:inherit;font-size:13px;margin-top:8px;resize:vertical;background:var(--color-background-primary);color:var(--color-text-primary);"></textarea>
+          <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:5px;line-height:1.4;">Ajuda a lembrar depois por que estava bloqueado (aparece no card).</div>
+        </div>
+        ` : ''}
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;">
+          <button class="btn-c" onclick="closeBlockModal()">Cancelar</button>
+          <button class="btn-s" onclick="_blkConfirm(${cardId}, '${mode}')" style="background:${btnBg};color:#fff;">
+            ${btnLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML = html.trim();
+  document.body.appendChild(wrap.firstElementChild);
+  // Foco no motivo (bloquear) ou datetime (desbloquear) por conveniência
+  setTimeout(() => {
+    if (isBlock) document.getElementById('blk-reason')?.focus();
+  }, 30);
+}
+
+function _blkToggleDatetime() {
+  const dt = document.getElementById('blk-datetime');
+  const isManual = document.querySelector('input[name="blk-when"]:checked')?.value === 'manual';
+  if (dt) dt.style.display = isManual ? 'block' : 'none';
+}
+
+function _blkConfirm(cardId, mode) {
+  const useManual = document.querySelector('input[name="blk-when"]:checked')?.value === 'manual';
+  let whenIso = null;
+  if (useManual) {
+    const dtVal = document.getElementById('blk-datetime')?.value;
+    if (dtVal) whenIso = new Date(dtVal).toISOString();
+  }
+  if (mode === 'block') {
+    const reason = document.getElementById('blk-reason')?.value || '';
+    blockCard(cardId, whenIso, reason);
+  } else {
+    unblockCard(cardId, whenIso);
+  }
+  closeBlockModal();
+}
+
+function closeBlockModal() {
+  const el = document.getElementById('blk-ov');
+  if (el) el.remove();
+}
+
+// Menu ⋯ contextual ancorado ao card. Reusa modal de bloqueio pra
+// consistência UX. Fecha ao clicar fora ou apertar Esc.
+function _openCardMenu(evt, cardId) {
+  const card = cards.find(c => c.id === cardId);
+  if (!card) return;
+  const existing = document.getElementById('_blkCardMenuPop');
+  if (existing) { existing.remove(); return; }
+
+  const btn = evt.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  const isBlocked = card.blocked === true;
+
+  const menu = document.createElement('div');
+  menu.id = '_blkCardMenuPop';
+  menu.className = 'blk-menu-pop';
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = Math.max(8, rect.right - 150) + 'px';
+
+  menu.innerHTML = `
+    <button class="blk-menu-item ${isBlocked ? 'success' : 'danger'}" onclick="_closeCardMenu();openBlockModal(${cardId})">
+      ${isBlocked ? '🔓 Desbloquear' : '🔒 Bloquear'}
+    </button>
+    <button class="blk-menu-item" onclick="_closeCardMenu();editCard(${cardId})">
+      ✎ Editar
+    </button>
+  `;
+
+  document.body.appendChild(menu);
+
+  // Fecha ao clicar fora
+  const closeOnOutside = (e) => {
+    if (!menu.contains(e.target) && e.target !== btn) {
+      _closeCardMenu();
+      document.removeEventListener('click', closeOnOutside, true);
+      document.removeEventListener('keydown', closeOnEsc, true);
+    }
+  };
+  const closeOnEsc = (e) => {
+    if (e.key === 'Escape') {
+      _closeCardMenu();
+      document.removeEventListener('click', closeOnOutside, true);
+      document.removeEventListener('keydown', closeOnEsc, true);
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener('click', closeOnOutside, true);
+    document.addEventListener('keydown', closeOnEsc, true);
+  }, 10);
+}
+
+function _closeCardMenu() {
+  document.getElementById('_blkCardMenuPop')?.remove();
 }
 
 document.getElementById('ov').addEventListener('click',e=>{if(e.target===document.getElementById('ov'))closeModal();});
@@ -33058,7 +33325,7 @@ const DASH_AI_PRESETS = [
   { id:'week_summary',   icon:'❑', label:'Resume últimos 7 dias',
     instr:'Resuma os últimos 7 dias deste board: quantos cards foram concluídos, o que avançou, o que ficou parado, e tópicos importantes. Use bullets curtos. Máximo 8 linhas.' },
   { id:'whats_blocked',  icon:'⚠', label:'O que está travado?',
-    instr:'Identifique os cards que parecem travados (parados há muitos dias, atrasados, ou na coluna Bloqueado) e por que cada um pode estar travado. Sugira ação concreta para cada. Máximo 6 itens.' },
+    instr:'Identifique os cards que parecem travados (parados há muitos dias, atrasados, ou marcados como bloqueados) e por que cada um pode estar travado. Sugira ação concreta para cada. Máximo 6 itens.' },
   { id:'weekly_update',  icon:'✉', label:'Update semanal pro cliente',
     instr:'Redija um update semanal curto, em português, em tom profissional, descrevendo: o que foi entregue esta semana, o que está em andamento e os próximos passos. Não invente, use só o contexto.' },
   { id:'priorities',     icon:'➜', label:'Próximas prioridades',
@@ -33976,7 +34243,7 @@ function renderGantt(){
     const tags=c.tagIds.map(id=>globalTags.find(g=>g.id===id)).filter(Boolean);
     const colTitle=COLS.find(x=>x.id===c.col)?.title || c.col;
     const isDone=c.col==='done';
-    const isBlocked=c.col==='blocked';
+    const isBlocked=c.blocked===true;
     const safeName=esc(c.name);
 
     let barHTML;
