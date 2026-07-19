@@ -25510,6 +25510,7 @@ function blockCard(cardId, whenIso, reason) {
   try { audit('card.blocked', { cardId, when, reason: card.blockedReason }); } catch(_){}
   try { autoThread(card, card.blockedReason ? `Bloqueado: ${card.blockedReason}` : 'Card bloqueado'); } catch(_){}
   try { saveData(); } catch(_){}
+  _persistBlockedFieldsDirect(card);
   try { render(); } catch(_){}
   if (currentTab === 'gantt' && typeof renderGantt === 'function') renderGantt();
   return true;
@@ -25534,9 +25535,53 @@ function unblockCard(cardId, whenIso) {
   try { audit('card.unblocked', { cardId, when, durationMs }); } catch(_){}
   try { autoThread(card, `Desbloqueado (ficou bloqueado por ${_formatBlockDuration(durationMs)})`); } catch(_){}
   try { saveData(); } catch(_){}
+  _persistBlockedFieldsDirect(card);
   try { render(); } catch(_){}
   if (currentTab === 'gantt' && typeof renderGantt === 'function') renderGantt();
   return true;
+}
+
+// Persistência DIRETA no Supabase (bypassa debounce + o upsert bulk que pode
+// falhar silenciosamente). Mesmo padrão do save direto de assigned_user_id
+// que já existe no saveCard(). Sem isso, o estado bloqueado pode se perder
+// no reload se o upsert bulk falhar.
+function _persistBlockedFieldsDirect(card) {
+  try {
+    if (!card) return;
+    if (typeof getStorageMode !== 'function' || getStorageMode() !== 'supabase') return;
+    if (typeof supaUser === 'undefined' || !supaUser) return;
+    (async () => {
+      try {
+        const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+        if (!c) return;
+        // Reconstroi custom_field_values com os __ campos (o _cardToRow faz o
+        // mesmo, mas aqui garantimos gravação direta, sem depender do bulk).
+        const cfv = { ...(card.customFieldValues || {}) };
+        if (card.blocked === true) {
+          cfv.__blocked = true;
+          cfv.__blockedAt = card.blockedAt || null;
+          cfv.__blockedReason = card.blockedReason || null;
+        } else {
+          delete cfv.__blocked;
+          delete cfv.__blockedAt;
+          delete cfv.__blockedReason;
+        }
+        if (Array.isArray(card.blockHistory) && card.blockHistory.length > 0) {
+          cfv.__blockHistory = card.blockHistory;
+        } else {
+          delete cfv.__blockHistory;
+        }
+        let q = c.from('cards').update({ custom_field_values: cfv });
+        if (card._supaId) q = q.eq('id', card._supaId);
+        else q = q.eq('board_id', currentBoardId).eq('local_id', card.id);
+        const { error } = await q;
+        if (error) console.error('[block] persist direto falhou:', error);
+        else console.log('[block] persist direto OK card=' + card.id + ' blocked=' + (card.blocked===true));
+      } catch(e) {
+        console.warn('[block] persist direto exception:', e?.message);
+      }
+    })();
+  } catch(_){}
 }
 
 function _formatBlockDuration(ms) {
