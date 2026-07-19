@@ -14108,7 +14108,16 @@ function renderDashboard() {
   const openList = cards.filter(c=>c.col!==TERMINAL_COL);
   const overdue  = openList.filter(c=>c.deadline && c.deadline < todayStr);
   const dueSoon  = openList.filter(c=>c.deadline && c.deadline >= todayStr && c.deadline <= in7Str).length;
-  const blocked  = cards.filter(c=>c.col==='blocked').length;
+  const blockedList = openList.filter(c=>c.blocked===true);
+  const blocked  = blockedList.length;
+  // Tempo médio bloqueado (dos que estão bloqueados AGORA)
+  const blockedActiveMs = blockedList
+    .map(c => c.blockedAt ? (Date.now() - new Date(c.blockedAt).getTime()) : 0)
+    .filter(ms => ms > 0);
+  const avgBlockedMs = blockedActiveMs.length ? blockedActiveMs.reduce((s,m)=>s+m,0)/blockedActiveMs.length : 0;
+  const maxBlockedMs = blockedActiveMs.length ? Math.max(...blockedActiveMs) : 0;
+  // Tempo total acumulado bloqueado (histórico + ativo) — sinal de gargalo
+  const totalBlockedMs = cards.reduce((sum, c) => sum + (typeof getTotalBlockedMs === 'function' ? getTotalBlockedMs(c) : 0), 0);
 
   // — Cycle time (apenas cards com createdAt e doneAt)
   const tracked  = doneList.filter(c=>c.createdAt&&c.doneAt).map(c=> new Date(c.doneAt)-new Date(c.createdAt));
@@ -14331,6 +14340,11 @@ function renderDashboard() {
         <div class="kpi-head"><span class="kpi-label">Atrasados</span></div>
         <div class="kpi-row"><span class="kpi-value" style="color:${overdue.length?'#A32D2D':'inherit'};">${overdue.length}</span>${dueSoon?`<span class="kpi-sub">+ ${dueSoon} próx. 7d</span>`:''}</div>
         <div class="kpi-sub ${overdue.length?'warn':'ok'}">${overdue.length?'requer atenção':'tudo em dia ✓'}</div>
+      </div>
+      <div class="kpi-card kpi-accent" style="--accent:#BC002D;">
+        <div class="kpi-head"><span class="kpi-label">🔒 Bloqueados</span></div>
+        <div class="kpi-row"><span class="kpi-value" style="color:${blocked?'#BC002D':'inherit'};">${blocked}</span>${blocked?`<span class="kpi-sub">tempo médio ${_formatBlockDuration(avgBlockedMs)}</span>`:''}</div>
+        <div class="kpi-sub ${blocked?'warn':'ok'}">${blocked?(maxBlockedMs>7*86400000?'⚠ 1+ há mais de 7 dias':'aguardando destravamento'):'nenhum card travado ✓'}</div>
       </div>
       <div class="kpi-card kpi-accent" style="--accent:#3B6D11;">
         <div class="kpi-head"><span class="kpi-label">Throughput / semana</span>${deltaPill(deltaThis)}</div>
@@ -21803,7 +21817,7 @@ function renderHome() {
   const openList   = allCards.filter(c=>c.col!==TERMINAL_COL);
   const overdue    = openList.filter(c=>c.deadline && c.deadline < todayStr);
   const dueToday   = openList.filter(c=>c.deadline === todayStr);
-  const blockedL   = allCards.filter(c=>c.col==='blocked');
+  const blockedL   = allCards.filter(c=>c.blocked===true && c.col!==TERMINAL_COL);
   const myActive   = me ? openList.filter(c=>c.responsavel===me) : [];
 
   // Para hoje (atrasados + due hoje + bloqueados, sem duplicar)
@@ -25555,6 +25569,22 @@ function getTotalBlockedMs(card) {
   return total;
 }
 
+// Auto-refresh dos badges "bloqueado há X" — sem isso, o tempo congela até
+// o próximo render. A cada 60s: se tem card bloqueado no kanban visível,
+// re-render. Silencioso, só re-renderiza quando útil.
+if (typeof window._blockedRefreshTimer === 'undefined') {
+  window._blockedRefreshTimer = setInterval(() => {
+    try {
+      if (currentTab !== 'kanban' && currentTab !== 'dashboard') return;
+      if (!Array.isArray(cards)) return;
+      const hasBlocked = cards.some(c => c.blocked === true && c.col !== TERMINAL_COL);
+      if (!hasBlocked) return;
+      if (currentTab === 'kanban' && typeof render === 'function') render();
+      else if (currentTab === 'dashboard' && typeof renderDashboard === 'function') renderDashboard();
+    } catch(_){}
+  }, 60000);
+}
+
 // ── Modal de bloqueio/desbloqueio ──
 // Renderização dinâmica no <body>. Sempre pergunta "agora" vs "manual"
 // pra usuário setar data-hora real do bloqueio/desbloqueio (importante
@@ -26388,6 +26418,24 @@ function _boardToRow(b) {
   };
 }
 function _cardToRow(c, boardId) {
+  // Bloqueio manual (blocked/blockedAt/blockedReason/blockHistory) vai como
+  // meta dentro do JSONB custom_field_values já existente — evita migração de
+  // schema no Supabase. Prefixo __ pra separar de campos custom do usuário.
+  const cfv = { ...(c.customFieldValues || {}) };
+  if (c.blocked === true) {
+    cfv.__blocked = true;
+    cfv.__blockedAt = c.blockedAt || null;
+    cfv.__blockedReason = c.blockedReason || null;
+  } else {
+    delete cfv.__blocked;
+    delete cfv.__blockedAt;
+    delete cfv.__blockedReason;
+  }
+  if (Array.isArray(c.blockHistory) && c.blockHistory.length > 0) {
+    cfv.__blockHistory = c.blockHistory;
+  } else {
+    delete cfv.__blockHistory;
+  }
   return {
     board_id: boardId,
     local_id: c.id,
@@ -26397,7 +26445,7 @@ function _cardToRow(c, boardId) {
     tag_ids: c.tagIds || [],
     responsavel: c.responsavel || null,
     deadline: c.deadline || null,
-    custom_field_values: c.customFieldValues || {},
+    custom_field_values: cfv,
     threads: c.threads || [],
     attachments: c.attachments || [],
     subtasks: c.subtasks || [],
@@ -26435,6 +26483,18 @@ function _rowToBoard(r, cardsArr) {
   };
 }
 function _rowToCard(r) {
+  // Extrai o meta de bloqueio guardado dentro do custom_field_values (com __
+  // prefixo). Ver _cardToRow — foi feito assim pra não exigir schema change.
+  const cfvRaw = r.custom_field_values || {};
+  const blocked = cfvRaw.__blocked === true;
+  const blockedAt = cfvRaw.__blockedAt || null;
+  const blockedReason = cfvRaw.__blockedReason || null;
+  const blockHistory = Array.isArray(cfvRaw.__blockHistory) ? cfvRaw.__blockHistory : [];
+  const customFieldValues = { ...cfvRaw };
+  delete customFieldValues.__blocked;
+  delete customFieldValues.__blockedAt;
+  delete customFieldValues.__blockedReason;
+  delete customFieldValues.__blockHistory;
   return {
     id: r.local_id || r.id,
     _supaId: r.id,
@@ -26444,7 +26504,7 @@ function _rowToCard(r) {
     tagIds: r.tag_ids || [],
     responsavel: r.responsavel,
     deadline: r.deadline,
-    customFieldValues: r.custom_field_values || {},
+    customFieldValues,
     threads: r.threads || [],
     attachments: r.attachments || [],
     subtasks: r.subtasks || [],
@@ -26453,6 +26513,10 @@ function _rowToCard(r) {
     doneAt: r.done_at,
     moneyType: r.money_type || undefined,
     assignedUserId: r.assigned_user_id || null,
+    blocked,
+    blockedAt,
+    blockedReason,
+    blockHistory,
   };
 }
 
