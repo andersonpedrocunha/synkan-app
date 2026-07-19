@@ -25434,7 +25434,14 @@ function saveCard() {
   // Save direto e imediato do assigned_user_id (bypassa debounce + upsert
   // de full board que pode falhar silenciosamente). Garante que a atribuição
   // persiste no refresh, mesmo se o upsert maior falhar.
+  // ATENÇÃO: esse update dispara realtime; o handler global recebe e ativa
+  // _suppressNextSave=true, engolindo a debounce do upsert bulk (perdemos
+  // priority/deadline/tagIds/customFieldValues/etc). Duas defesas:
+  //  (a) `_ignoreOwnRealtimeUntil` silencia o echo por 4s
+  //  (b) inclui priority/deadline no update direto pra minimizar janela
+  //      onde o banco fica com dados antigos.
   if (_editIdSnapshot !== null && getStorageMode() === 'supabase' && supaUser) {
+    if (typeof window !== 'undefined') window._ignoreOwnRealtimeUntil = Date.now() + 4000;
     (async () => {
       try {
         const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
@@ -25447,6 +25454,9 @@ function saveCard() {
           responsavel: card.responsavel || null,
           name: card.name,
           col: card.col,
+          priority: card.priority || 'media',
+          deadline: card.deadline || null,
+          tag_ids: card.tagIds || [],
         });
         if (supaId) {
           updateQuery = updateQuery.eq('id', supaId);
@@ -30049,31 +30059,38 @@ function sortKanbanCards(arr) {
   const PORDER = {alta:0,media:1,baixa:2};
   const mode = kanbanConfig.sort || 'priority';
   const copy = [...arr];
+  // Comparator interno do modo escolhido — aplicado dentro de cada bucket
+  // (não-bloqueado, bloqueado) pra manter cards bloqueados sempre no fundo.
+  let cmp;
   if (mode === 'manual') {
-    // ordem do array global "cards" (estável)
     const idx = new Map(cards.map((c,i)=>[c.id,i]));
-    return copy.sort((a,b)=> (idx.get(a.id)??0) - (idx.get(b.id)??0));
-  }
-  if (mode === 'priority') {
-    return copy.sort((a,b)=> PORDER[a.priority]-PORDER[b.priority]);
-  }
-  if (mode === 'deadline') {
-    return copy.sort((a,b)=>{
+    cmp = (a,b)=> (idx.get(a.id)??0) - (idx.get(b.id)??0);
+  } else if (mode === 'priority') {
+    cmp = (a,b)=> PORDER[a.priority]-PORDER[b.priority];
+  } else if (mode === 'deadline') {
+    cmp = (a,b)=>{
       const da = a.deadline || '9999-12-31';
       const db = b.deadline || '9999-12-31';
       if (da!==db) return da.localeCompare(db);
       return PORDER[a.priority]-PORDER[b.priority];
-    });
-  }
-  if (mode === 'created') {
-    return copy.sort((a,b)=>{
+    };
+  } else if (mode === 'created') {
+    cmp = (a,b)=>{
       const ca = a.createdAt || '';
       const cb = b.createdAt || '';
       if (ca===cb) return b.id - a.id;
-      return cb.localeCompare(ca); // mais recente primeiro
-    });
+      return cb.localeCompare(ca);
+    };
+  } else {
+    cmp = () => 0;
   }
-  return copy;
+  // Bucketiza: cards bloqueados vão pro final da coluna independente do mode.
+  // Dentro de cada bucket, aplica o comparator escolhido.
+  const active = [], blocked = [];
+  for (const c of copy) (c.blocked === true ? blocked : active).push(c);
+  active.sort(cmp);
+  blocked.sort(cmp);
+  return active.concat(blocked);
 }
 
 // Calcula quais cards "done" estão arquivados (mais antigos que cutoff).
