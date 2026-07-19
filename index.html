@@ -22662,6 +22662,12 @@ function switchTab(tab) {
   if (tab==='calendar') renderCalendar();
   if (tab==='dashboard') renderDashboard();
   if (tab==='tracker') renderTracker();
+  // Ao entrar/voltar pro kanban, re-renderiza se houver card bloqueado —
+  // garante que o badge "bloqueado há X" mostre tempo atualizado, sem
+  // depender do setInterval de 60s.
+  if (tab === 'kanban' && Array.isArray(cards) && cards.some(c => c.blocked === true && c.col !== TERMINAL_COL)) {
+    try { render(); } catch(_){}
+  }
 }
 
 // ── Checklist ──
