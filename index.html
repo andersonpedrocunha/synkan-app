@@ -1143,7 +1143,7 @@ kbd{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;font-size:
 .card.is-done .card-desc{text-decoration:line-through;color:var(--color-text-tertiary);}
 .card-done-btn{display:none;position:absolute;top:7px;right:7px;background:none;border:1px solid var(--color-border-secondary);border-radius:999px;font-size:11px;font-weight:500;color:var(--color-text-secondary);padding:2px 8px;cursor:pointer;line-height:1.4;}
 .card-done-btn:hover{background:#EAF3DE;color:#3B6D11;border-color:#9DC96A;}
-.card-menu-btn{display:none;position:absolute;top:7px;right:52px;background:var(--color-background-primary);border:1px solid var(--color-border-secondary);border-radius:999px;font-size:13px;line-height:1;font-weight:600;color:var(--color-text-secondary);padding:2px 7px 3px;cursor:pointer;letter-spacing:1px;}
+.card-menu-btn{display:none;position:absolute;top:7px;right:70px;background:var(--color-background-primary);border:1px solid var(--color-border-secondary);border-radius:999px;font-size:13px;line-height:1;font-weight:600;color:var(--color-text-secondary);padding:2px 7px 3px;cursor:pointer;letter-spacing:1px;}
 .card-menu-btn:hover{background:var(--color-background-secondary);color:var(--color-text-primary);border-color:var(--color-border-secondary);}
 .card-wrap:hover .card-menu-btn{display:inline-flex;align-items:center;}
 .card.is-blocked-manual .card-menu-btn{display:inline-flex;align-items:center;}
@@ -11803,6 +11803,33 @@ function _bindCurrentBoard() {
   kanbanConfig = Object.assign({}, DEFAULT_CONFIG, b.kanbanConfig || {});
   kanbanConfig.cardFields = Object.assign({}, DEFAULT_CARD_FIELDS, kanbanConfig.cardFields || {});
   if (!COLS.find(c=>c.id===TERMINAL_COL)) COLS.push({id:TERMINAL_COL, title:'Concluído'});
+  // Migração retroativa: coluna "Bloqueado" (id 'blocked') deixou de existir
+  // por default. Cards que estavam lá viram estado bloqueado num card em 'doing'
+  // (ou primeira não-terminal). Roda 1x por board via flag.
+  if (!b._blockedColMigrated) {
+    const idxBlocked = COLS.findIndex(c => c.id === 'blocked');
+    if (idxBlocked !== -1) {
+      const targetCol = COLS.find(c => c.id === 'doing') ||
+                        COLS.find(c => c.id !== 'blocked' && c.id !== TERMINAL_COL) ||
+                        COLS[0];
+      const targetId = targetCol ? targetCol.id : (COLS[0]?.id || 'backlog');
+      const now = new Date().toISOString();
+      cards.forEach(c => {
+        if (c.col === 'blocked') {
+          c.col = targetId;
+          if (c.blocked !== true) {
+            c.blocked = true;
+            c.blockedAt = c.blockedAt || now;
+            c.blockedReason = c.blockedReason || 'Migrado da coluna Bloqueado';
+            if (!Array.isArray(c.blockHistory)) c.blockHistory = [];
+          }
+        }
+      });
+      COLS.splice(idxBlocked, 1);
+    }
+    b._blockedColMigrated = true;
+    try { if (typeof saveData === 'function') saveData(); } catch(_){}
+  }
   // Re-bind para o objeto do board (para que mutações via push se reflitam)
   b.globalTags = globalTags;
   b.cards = cards;
@@ -11833,6 +11860,40 @@ function _migrateCards(arr){
 }
 _bindCurrentBoard();
 _migrateCards(cards);
+
+// Migração retroativa da coluna "Bloqueado" em TODOS os boards do usuário.
+// _bindCurrentBoard já migra o board atual — este loop pega os outros.
+try {
+  if (typeof allBoards === 'object' && allBoards) {
+    Object.keys(allBoards).forEach(bid => {
+      const b = allBoards[bid];
+      if (!b || b._blockedColMigrated) return;
+      if (!Array.isArray(b.COLS)) return;
+      const idxBlocked = b.COLS.findIndex(c => c && c.id === 'blocked');
+      if (idxBlocked === -1) { b._blockedColMigrated = true; return; }
+      const targetCol = b.COLS.find(c => c.id === 'doing') ||
+                        b.COLS.find(c => c.id !== 'blocked' && c.id !== TERMINAL_COL) ||
+                        b.COLS[0];
+      const targetId = targetCol ? targetCol.id : 'backlog';
+      const now = new Date().toISOString();
+      (b.cards || []).forEach(c => {
+        if (c.col === 'blocked') {
+          c.col = targetId;
+          if (c.blocked !== true) {
+            c.blocked = true;
+            c.blockedAt = c.blockedAt || now;
+            c.blockedReason = c.blockedReason || 'Migrado da coluna Bloqueado';
+            if (!Array.isArray(c.blockHistory)) c.blockHistory = [];
+          }
+        }
+      });
+      b.COLS.splice(idxBlocked, 1);
+      b._blockedColMigrated = true;
+    });
+    if (typeof saveData === 'function') try { saveData(); } catch(_){}
+  }
+} catch(e) { console.warn('[migrate blocked col] erro:', e?.message); }
+
 let editId = null, dragId = null, selColor = COLORS[0], cTagIds = [], cAttachments = [], cSubtasks = [], cCustomValues = {};
 let currentTab = 'kanban';
 let activeFilter = null;    // null = todos, string = tagId
