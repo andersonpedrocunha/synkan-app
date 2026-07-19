@@ -25547,6 +25547,12 @@ function unblockCard(cardId, whenIso) {
   return true;
 }
 
+// Sinaliza que o próximo evento realtime foi disparado por AÇÃO NOSSA (write
+// direto abaixo). Sem isso, o handler realtime reagia ao próprio update do
+// _persistBlockedFieldsDirect, ativava _suppressNextSave=true, e a próxima
+// mudança do user (ex: mudar prioridade) era ENGOLIDA silenciosamente.
+if (typeof window._ignoreOwnRealtimeUntil === 'undefined') window._ignoreOwnRealtimeUntil = 0;
+
 // Persistência DIRETA no Supabase (bypassa debounce + o upsert bulk que pode
 // falhar silenciosamente). Mesmo padrão do save direto de assigned_user_id
 // que já existe no saveCard(). Sem isso, o estado bloqueado pode se perder
@@ -25577,6 +25583,10 @@ function _persistBlockedFieldsDirect(card) {
         } else {
           delete cfv.__blockHistory;
         }
+        // Janela de 4s pra ignorar o realtime que ESTE update vai disparar.
+        // Sem isso, o handler global sobrescreve cards com estado ainda-em-voo
+        // e ativa _suppressNextSave que engole a PRÓXIMA ação do user.
+        window._ignoreOwnRealtimeUntil = Date.now() + 4000;
         let q = c.from('cards').update({ custom_field_values: cfv });
         if (card._supaId) q = q.eq('id', card._supaId);
         else q = q.eq('board_id', currentBoardId).eq('local_id', card.id);
@@ -26761,6 +26771,14 @@ function supaSubscribeRealtime() {
   if (supaRealtimeCh) { c.removeChannel(supaRealtimeCh); supaRealtimeCh = null; }
   supaRealtimeCh = c.channel('board:'+currentBoardId)
     .on('postgres_changes', { event:'*', schema:'public', table:'cards', filter:`board_id=eq.${currentBoardId}` }, async (_payload) => {
+      // Se o evento veio de write NOSSO recente (persist direto de bloqueio),
+      // ignora — sobrescrever agora com estado em-voo do banco pode:
+      // (a) reverter mudanças locais posteriores (ex: user acabou de mudar
+      //     prioridade e ainda não caiu na debounce do upsert bulk)
+      // (b) ativar _suppressNextSave, engolindo a próxima ação do user
+      if (typeof window._ignoreOwnRealtimeUntil === 'number' && Date.now() < window._ignoreOwnRealtimeUntil) {
+        return;
+      }
       // Estratégia simples: refetch dos cards do board atual e re-render
       const { data, error } = await c.from('cards').select('*').eq('board_id', currentBoardId);
       if (error || !data) return;
