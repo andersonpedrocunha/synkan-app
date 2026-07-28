@@ -82379,7 +82379,20 @@ async function _syncalSubmitPoll() {
     p_linked_channel_id: linkedChannelId,
   });
   if (res.error) {
-    if (typeof appAlert === 'function') appAlert('Erro', res.error.message, { icon: '⚠️' });
+    const msg = (res.error.message || '').toLowerCase();
+    // Erro conhecido: gen_random_bytes do pgcrypto não disponível
+    if (msg.includes('gen_random_bytes') || msg.includes('pgcrypto')) {
+      if (typeof appAlert === 'function') appAlert(
+        'Migration pendente',
+        `Pra criar polls no Syncal, rode esta migration no Supabase:<br/><br/>` +
+        `<code style="background:#FFF6E0;padding:4px 8px;border-radius:4px;font-family:Menlo,monospace;font-size:11.5px;">MIGRATION_SYNCAL_POLL_FIX_TOKEN.sql</code><br/><br/>` +
+        `Está na raiz do projeto. Cola no <em>SQL Editor</em> do Supabase e clica Run. Depois tenta de novo aqui.<br/><br/>` +
+        `<small style="color:#8B6634;">Detalhe técnico: ${_esc(res.error.message)}</small>`,
+        { icon: '🛠️', html: true }
+      );
+    } else {
+      if (typeof appAlert === 'function') appAlert('Erro ao criar poll', res.error.message, { icon: '⚠️' });
+    }
     return;
   }
   const token = res.data?.token;
