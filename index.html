@@ -82221,6 +82221,40 @@ async function _syncalOpenPollsModal() {
                     ${!p.closed ? `<button class="ppl-btn" style="font-size:11px;padding:4px 10px;" onclick="_syncalCopyText('${_esc(url)}', 'Link copiado')">🔗</button>` : ''}
                     ${!p.closed && voteCount > 0 ? `<button class="ppl-btn ppl-btn-primary" style="font-size:11px;padding:4px 10px;" onclick="_syncalClosePoll('${_esc(p.id)}')">✓ Fechar</button>` : ''}
                   </div>
+                  ${voteCount > 0 ? (() => {
+                    // Placar por horário — mostra ✓ / ? / × por opção + quem votou
+                    const opts = Array.isArray(p.options) ? p.options : [];
+                    const votes = Array.isArray(p.votes) ? p.votes : [];
+                    const rows = opts.map(o => {
+                      const forOpt = votes.filter(v => v.option_id === o.id);
+                      const yes = forOpt.filter(v => v.status === 'yes');
+                      const maybe = forOpt.filter(v => v.status === 'maybe');
+                      const no = forOpt.filter(v => v.status === 'no');
+                      const dtLabel = o.date && o.start_time
+                        ? new Date(o.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short' }) + ' · ' + o.start_time
+                        : (o.date || o.start_time || '?');
+                      const isWinner = yes.length > 0 && yes.length === Math.max(...opts.map(oo => votes.filter(v => v.option_id === oo.id && v.status === 'yes').length));
+                      return `
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;border-radius:6px;background:${isWinner?'rgba(59,109,17,.08)':'transparent'};border:0.5px solid ${isWinner?'#9DC96A':'transparent'};">
+                          <span style="font-size:11.5px;color:var(--color-text-secondary);">${_esc(dtLabel)}${isWinner?' 🏆':''}</span>
+                          <span style="font-size:11px;font-weight:600;letter-spacing:.02em;">
+                            <span style="color:#3B6D11;">${yes.length}✓</span>
+                            <span style="color:var(--color-text-tertiary);margin-left:6px;">${maybe.length}?</span>
+                            <span style="color:#A32D2D;margin-left:6px;">${no.length}✗</span>
+                          </span>
+                        </div>`;
+                    }).join('');
+                    // Lista de votantes distintos
+                    const voters = [...new Set(votes.map(v => v.voter_name).filter(Boolean))];
+                    const voterList = voters.length
+                      ? `<div style="font-size:10.5px;color:var(--color-text-tertiary);margin-top:6px;padding:0 8px;">👥 ${voters.map(_esc).join(' · ')}</div>`
+                      : '';
+                    return `
+                      <div style="margin-top:8px;padding-top:8px;border-top:0.5px dashed var(--color-border-tertiary);display:flex;flex-direction:column;gap:2px;">
+                        ${rows}
+                        ${voterList}
+                      </div>`;
+                  })() : ''}
                 </div>`;
             }).join('')}
           </div>
@@ -82438,20 +82472,48 @@ async function _syncalClosePoll(pollId) {
     const res = await _syncalApi.get(`syncal_polls?id=eq.${encodeURIComponent(pollId)}&limit=1`);
     if (res.error || !Array.isArray(res.data) || !res.data[0]) return;
     const poll = res.data[0];
+    const allVotes = Array.isArray(poll.votes) ? poll.votes : [];
+    // Tally por horário: yes vale 2, maybe vale 1, no vale 0
+    // (assim "Vou" ganha sempre de "Talvez", mas "Talvez" desempata acima de "Não vou")
     const tally = {};
-    (poll.votes||[]).forEach(v => {
-      if (v.status === 'yes') tally[v.option_id] = (tally[v.option_id]||0) + 1;
+    allVotes.forEach(v => {
+      if (v.status === 'yes')   tally[v.option_id] = (tally[v.option_id]||0) + 2;
+      if (v.status === 'maybe') tally[v.option_id] = (tally[v.option_id]||0) + 1;
     });
     const sorted = Object.entries(tally).sort((a,b)=>b[1]-a[1]);
     if (!sorted.length) {
-      if (typeof appAlert === 'function') appAlert('Sem votos', 'Ninguém votou ainda.', { icon: 'ⓘ' });
+      // Diferencia "não tem voto NENHUM" de "só voto negativo (não vou)"
+      if (allVotes.length === 0) {
+        if (typeof appAlert === 'function') appAlert('Sem votos', 'Ninguém votou ainda.', { icon: 'ⓘ' });
+      } else {
+        const uniqueVoters = [...new Set(allVotes.map(v => v.voter_name).filter(Boolean))];
+        const voterCount = uniqueVoters.length || allVotes.length;
+        if (typeof appAlert === 'function') appAlert(
+          'Ninguém pode em nenhum horário',
+          `${voterCount} pessoa(s) responderam, mas todas marcaram "✗ Não vou" em todos os horários.<br/><br/>Sugestão: proponha novos horários e envie novo poll — ou pergunte diretamente às pessoas o que sugerem.`,
+          { icon: '📅', html: true }
+        );
+      }
       return;
     }
     const winnerId = sorted[0][0];
-    const winnerVotes = sorted[0][1];
+    const winnerScore = sorted[0][1];
+    // Conta yes/maybe separadamente pra mostrar no confirm
+    const winnerYes   = allVotes.filter(v => v.option_id === winnerId && v.status === 'yes').length;
+    const winnerMaybe = allVotes.filter(v => v.option_id === winnerId && v.status === 'maybe').length;
+    const winnerVotes = winnerYes;  // pra retrocompatibilidade (usado depois)
     const winnerOpt = (poll.options||[]).find(o => o.id === winnerId);
+    const winnerOptForConfirm = (poll.options||[]).find(o => o.id === winnerId);
+    const winnerLabel = winnerOptForConfirm && winnerOptForConfirm.date && winnerOptForConfirm.start_time
+      ? new Date(winnerOptForConfirm.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long' }) + ' · ' + winnerOptForConfirm.start_time.slice(0,5)
+      : 'opção mais votada';
+    const summary = `${winnerYes} ✓ Vou${winnerMaybe > 0 ? ` + ${winnerMaybe} ? Talvez` : ''}`;
     const confirmed = typeof appConfirm === 'function'
-      ? await appConfirm('Fechar poll', `Vai criar evento na opção mais votada (${winnerVotes} votos). Continuar?`, { okLabel: 'Fechar e criar', icon: '🗳' })
+      ? await appConfirm(
+          'Fechar poll',
+          `Vai criar evento em <strong>${_esc(winnerLabel)}</strong> (${summary}). Continuar?`,
+          { okLabel: 'Fechar e criar', icon: '🗳', html: true }
+        )
       : confirm('Fechar poll e criar evento?');
     if (!confirmed) return;
     const close = await _syncalApi.rpc('syncal_poll_close', { p_poll_id: pollId, p_chosen_option_id: winnerId });
