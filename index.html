@@ -23729,6 +23729,7 @@ function tblSetCol(id, newCol) {
     }
   } catch(e) {}
   saveData();
+  _persistCardCoreDirect(card);
   if (typeof _bindCurrentBoard === 'function') _bindCurrentBoard();
   render();
 }
@@ -23738,6 +23739,7 @@ function tblSetResp(id, newResp) {
   card.responsavel = newResp || '';
   if (typeof autoThread === 'function') autoThread(card, newResp ? `Responsável definido: ${newResp}` : 'Responsável removido');
   saveData();
+  _persistCardCoreDirect(card);
   render();
 }
 function tblSetPri(id, newPri) {
@@ -23746,6 +23748,7 @@ function tblSetPri(id, newPri) {
   card.priority = newPri;
   if (typeof autoThread === 'function') autoThread(card, `Prioridade: ${pLbl(newPri)}`);
   saveData();
+  _persistCardCoreDirect(card);
   render();
 }
 function tblSetDeadline(id, newDl) {
@@ -23754,6 +23757,7 @@ function tblSetDeadline(id, newDl) {
   card.deadline = newDl || '';
   if (typeof autoThread === 'function') autoThread(card, newDl ? `Deadline: ${newDl}` : 'Deadline removida');
   saveData();
+  _persistCardCoreDirect(card);
   render();
 }
 function delCardConfirm(id) {
@@ -25786,11 +25790,13 @@ function closeBlockModal() {
   if (el) el.remove();
 }
 
-// Persistência DIRETA de mudança de coluna (toggleDone, drag-and-drop).
-// Sem isso, o upsert bulk debounced pode ser abortado pelo _suppressNextSave
-// se um evento realtime chegar no meio — e o card volta pra coluna antiga
-// ao próximo refresh. Bug reportado: "movo pra done e volta pra aberto".
-function _persistCardMoveDirect(card) {
+// Persistência DIRETA dos campos core do card no Supabase.
+// Bypassa o debounce do upsert bulk (que pode ser abortado pelo
+// _suppressNextSave se um evento realtime chega no meio).
+// Chamar SEMPRE depois de mutação in-memory + saveData() em:
+// toggleDone, drag-and-drop (_finalizeCardMove), tblSetCol/Resp/Pri/Deadline,
+// e qualquer nova mutação que envolva col/priority/deadline/responsavel.
+function _persistCardCoreDirect(card) {
   try {
     if (!card) return;
     if (typeof getStorageMode !== 'function' || getStorageMode() !== 'supabase') return;
@@ -25803,18 +25809,25 @@ function _persistCardMoveDirect(card) {
         let q = c.from('cards').update({
           col: card.col,
           done_at: card.doneAt || null,
+          priority: card.priority || 'media',
+          responsavel: card.responsavel || null,
+          deadline: card.deadline || null,
+          tag_ids: card.tagIds || [],
         });
         if (card._supaId) q = q.eq('id', card._supaId);
         else q = q.eq('board_id', currentBoardId).eq('local_id', card.id);
         const { error } = await q;
-        if (error) console.error('[move] persist direto falhou:', error);
-        else console.log('[move] persist direto OK card=' + card.id + ' col=' + card.col);
+        if (error) console.error('[card] persist core falhou:', error);
+        else console.log('[card] persist core OK id=' + card.id + ' col=' + card.col + ' pri=' + card.priority);
       } catch(e) {
-        console.warn('[move] persist direto exception:', e?.message);
+        console.warn('[card] persist core exception:', e?.message);
       }
     })();
   } catch(_){}
 }
+
+// Alias antigo mantido pra compat (chamadas existentes em toggleDone/_finalizeCardMove)
+const _persistCardMoveDirect = _persistCardCoreDirect;
 
 // Menu ⋯ contextual ancorado ao card. Reusa modal de bloqueio pra
 // consistência UX. Fecha ao clicar fora ou apertar Esc.
