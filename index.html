@@ -9803,10 +9803,10 @@ async function _speakHomeBriefing(btn) {
     const today = new Date(); today.setHours(0,0,0,0);
     const todayStr = _todayLocalISO();
     const all = (typeof _allCardsAcrossBoards === 'function') ? _allCardsAcrossBoards() : [];
-    const open = all.filter(c => c.col !== TERMINAL_COL);
+    const open = all.filter(c => !_isCardConcluded(c));
     const overdue = open.filter(c => c.deadline && c.deadline < todayStr);
     const dueToday = open.filter(c => c.deadline === todayStr);
-    const blocked = all.filter(c => c.col === 'blocked');
+    const blocked = all.filter(c => c.blocked === true && !_isCardConcluded(c));
     const high = open.filter(c => c.priority === 'alta');
     const completedToday = all.filter(c => c.col === TERMINAL_COL && c.doneAt && c.doneAt.slice(0,10) === todayStr);
 
@@ -12698,15 +12698,23 @@ function renderModalEffort(cardId) {
 
 // Helper: card está concluído? Considera 'done' (todos boards) + 'pago_hoje'
 // e 'historico' (boards Granatum). Evita mostrar atraso em cards já pagos.
+// Aceita _sourceBoardId no card (setado por _allCardsAcrossBoards) pra
+// KPIs agregados da Home / Dashboard consolidado — sem isso, cards Granatum
+// concluídos em outros boards contavam como "atrasados" indevidamente.
 function _isCardConcluded(card) {
   if (!card) return false;
   if (card.col === TERMINAL_COL) return true;
   if (card.col === 'pago_hoje' || card.col === 'historico') {
-    // Confere se é board Granatum (tem essas colunas reservadas)
-    const b = (typeof allBoards !== 'undefined' && allBoards) ? allBoards[currentBoardId] : null;
+    // Ordem de fallback pra achar o board dono do card:
+    // 1) _sourceBoardId (Home unificada)
+    // 2) currentBoardId (view de um board só)
+    const bid = card._sourceBoardId || currentBoardId;
+    const b = (typeof allBoards !== 'undefined' && allBoards) ? allBoards[bid] : null;
     if (b?.granatum_linked) return true;
-    // Fallback: se a coluna existe no COLS atual, é Granatum
-    if (Array.isArray(COLS) && COLS.some(c => c.id === 'historico')) return true;
+    // Fallback: qualquer coluna 'historico' no board (COLS local ou do board)
+    const cols = (b && Array.isArray(b.COLS)) ? b.COLS
+               : (Array.isArray(COLS) ? COLS : []);
+    if (cols.some(c => c && c.id === 'historico')) return true;
   }
   return false;
 }
@@ -13193,11 +13201,11 @@ function _buildDailyBriefData() {
     ? supaUser.user_metadata.full_name
     : (Array.isArray(team) && team.length ? team[0] : null);
 
-  const open = all.filter(c => c.col !== TERMINAL_COL);
+  const open = all.filter(c => !_isCardConcluded(c));
   const myOpen = me ? open.filter(c => c.responsavel === me) : open;
 
   // Cards bloqueados aguardando este user
-  const blocked = myOpen.filter(c => c.col === 'blocked');
+  const blocked = myOpen.filter(c => c.blocked === true);
 
   // Aging cards (stale + critical) — usa a função do gating
   const staleOrWorse = open.filter(c => {
@@ -14109,8 +14117,8 @@ function renderDashboard() {
   const in14Str = in14.toISOString().slice(0,10);
 
   const total    = cards.length;
-  const doneList = cards.filter(c=>c.col===TERMINAL_COL);
-  const openList = cards.filter(c=>c.col!==TERMINAL_COL);
+  const doneList = cards.filter(c=>_isCardConcluded(c));
+  const openList = cards.filter(c=>!_isCardConcluded(c));
   const overdue  = openList.filter(c=>c.deadline && c.deadline < todayStr);
   const dueSoon  = openList.filter(c=>c.deadline && c.deadline >= todayStr && c.deadline <= in7Str).length;
   const blockedList = openList.filter(c=>c.blocked===true);
@@ -21819,10 +21827,10 @@ function renderHome() {
   // Estado GLOBAL: todos os boards
   const allCards = _allCardsAcrossBoards();
   const totalBoards = Object.keys(allBoards).filter(id=>id!==UNIFIED_BOARD_ID).length;
-  const openList   = allCards.filter(c=>c.col!==TERMINAL_COL);
+  const openList   = allCards.filter(c=>!_isCardConcluded(c));
   const overdue    = openList.filter(c=>c.deadline && c.deadline < todayStr);
   const dueToday   = openList.filter(c=>c.deadline === todayStr);
-  const blockedL   = allCards.filter(c=>c.blocked===true && c.col!==TERMINAL_COL);
+  const blockedL   = allCards.filter(c=>c.blocked===true && !_isCardConcluded(c));
   const myActive   = me ? openList.filter(c=>c.responsavel===me) : [];
 
   // Para hoje (atrasados + due hoje + bloqueados, sem duplicar)
@@ -23854,6 +23862,7 @@ function toggleDone(id) {
     _confetti(x, y);
   }
   render(); saveData();
+  _persistCardMoveDirect(card);
   if (currentTab==='checklist') renderChecklist();
   if (currentTab==='gantt') renderGantt();
 }
@@ -24200,7 +24209,7 @@ function _renderEnergyToolbar() {
   // Conta cards visíveis vs above-budget
   let inBudget = 0, overBudget = 0;
   if (isActive) {
-    cards.filter(c => c.col !== TERMINAL_COL).forEach(c => {
+    cards.filter(c => !_isCardConcluded(c)).forEach(c => {
       const ef = getCardEffort(c);
       if (ef <= energy) inBudget++; else overBudget++;
     });
@@ -24852,6 +24861,7 @@ function _finalizeCardMove(card, newCol) {
     card.doneAt = null;
   }
   render(); saveData();
+  _persistCardMoveDirect(card);
 }
 
 function bindDrag() {
@@ -25774,6 +25784,36 @@ function _blkConfirm(cardId, mode) {
 function closeBlockModal() {
   const el = document.getElementById('blk-ov');
   if (el) el.remove();
+}
+
+// Persistência DIRETA de mudança de coluna (toggleDone, drag-and-drop).
+// Sem isso, o upsert bulk debounced pode ser abortado pelo _suppressNextSave
+// se um evento realtime chegar no meio — e o card volta pra coluna antiga
+// ao próximo refresh. Bug reportado: "movo pra done e volta pra aberto".
+function _persistCardMoveDirect(card) {
+  try {
+    if (!card) return;
+    if (typeof getStorageMode !== 'function' || getStorageMode() !== 'supabase') return;
+    if (typeof supaUser === 'undefined' || !supaUser) return;
+    window._ignoreOwnRealtimeUntil = Date.now() + 4000;
+    (async () => {
+      try {
+        const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+        if (!c) return;
+        let q = c.from('cards').update({
+          col: card.col,
+          done_at: card.doneAt || null,
+        });
+        if (card._supaId) q = q.eq('id', card._supaId);
+        else q = q.eq('board_id', currentBoardId).eq('local_id', card.id);
+        const { error } = await q;
+        if (error) console.error('[move] persist direto falhou:', error);
+        else console.log('[move] persist direto OK card=' + card.id + ' col=' + card.col);
+      } catch(e) {
+        console.warn('[move] persist direto exception:', e?.message);
+      }
+    })();
+  } catch(_){}
 }
 
 // Menu ⋯ contextual ancorado ao card. Reusa modal de bloqueio pra
