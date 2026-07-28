@@ -82385,7 +82385,7 @@ async function _syncalSubmitPoll() {
       if (typeof appAlert === 'function') appAlert(
         'Migration pendente',
         `Pra criar polls no Syncal, rode esta migration no Supabase:<br/><br/>` +
-        `<code style="background:#FFF6E0;padding:4px 8px;border-radius:4px;font-family:Menlo,monospace;font-size:11.5px;">MIGRATION_SYNCAL_POLL_FIX_TOKEN.sql</code><br/><br/>` +
+        `<code style="background:#FFF6E0;padding:4px 8px;border-radius:4px;font-family:Menlo,monospace;font-size:11.5px;">MIGRATION_SYNCAL_TOKENS_FIX.sql</code><br/><br/>` +
         `Está na raiz do projeto. Cola no <em>SQL Editor</em> do Supabase e clica Run. Depois tenta de novo aqui.<br/><br/>` +
         `<small style="color:#8B6634;">Detalhe técnico: ${_esc(res.error.message)}</small>`,
         { icon: '🛠️', html: true }
