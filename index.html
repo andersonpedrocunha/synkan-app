@@ -25435,6 +25435,9 @@ function saveCard() {
     if(deadline) autoThread(newCard,`Deadline definido: ${new Date(deadline+'T00:00:00').toLocaleDateString('pt-BR')}`);
     if(responsavel) autoThread(newCard,`Responsável: ${responsavel}`);
     cards.push(newCard);
+    // Persist DIRETO no Supabase pra garantir que o card não se perde no
+    // refresh se o upsert bulk debounced for engolido pelo _suppressNextSave.
+    _persistNewCardDirect(newCard);
     // Mestre Kan reage a milestones de cards criados (proativo, não burro)
     try { _kanCardMilestone(); } catch(_){}
     // Granatum: se board é linked, push criação pra Granatum (cria lançamento)
@@ -25526,6 +25529,7 @@ function copyCard() {
   autoThread(copy, `Duplicado de "${src.name}"`);
   cards.push(copy);
   closeModal();renderFilterBar();render();saveData();
+  _persistNewCardDirect(copy);
   if(currentTab==='checklist') renderChecklist();
   if(currentTab==='gantt') renderGantt();
 }
@@ -25828,6 +25832,45 @@ function _persistCardCoreDirect(card) {
 
 // Alias antigo mantido pra compat (chamadas existentes em toggleDone/_finalizeCardMove)
 const _persistCardMoveDirect = _persistCardCoreDirect;
+
+// INSERT direto de card recém-criado. Bug reportado por Anderson:
+// "criei card, refresh, sumiu". Causa raiz: saveCard() chama saveData()
+// que agenda upsert bulk debounced em 400ms. Nesses 400ms, se um evento
+// realtime chega (eco de qualquer write anterior), o handler global
+// refetcha, sobrescreve cards[] com estado antigo do banco (SEM o card
+// novo) E ativa _suppressNextSave=true — engolindo a debounce que iria
+// persistir o card. Resultado: card só existe em localStorage; ao
+// refresh, o refetch do Supabase não retorna e o card some.
+//
+// Fix: chama upsert direto do card imediatamente após cards.push().
+// Usa _cardToRow pra montar row completa + upsert com onConflict pra ser
+// idempotente. Seta _ignoreOwnRealtimeUntil pra evitar eco.
+function _persistNewCardDirect(card) {
+  try {
+    if (!card) return;
+    if (typeof getStorageMode !== 'function' || getStorageMode() !== 'supabase') return;
+    if (typeof supaUser === 'undefined' || !supaUser) return;
+    if (typeof _cardToRow !== 'function') return;
+    window._ignoreOwnRealtimeUntil = Date.now() + 4000;
+    (async () => {
+      try {
+        const c = (typeof _chatGetClient === 'function') ? await _chatGetClient() : _ensureSupaClient();
+        if (!c) return;
+        const row = _cardToRow(card, currentBoardId);
+        const { data, error } = await c.from('cards').upsert(row, { onConflict: 'board_id,local_id' }).select('id').single();
+        if (error) {
+          console.error('[card] insert direto falhou:', error);
+        } else {
+          // Grava _supaId no card local pra evitar duplicação em writes futuros
+          if (data?.id) card._supaId = data.id;
+          console.log('[card] insert direto OK id=' + card.id + ' supaId=' + (data?.id || '?'));
+        }
+      } catch(e) {
+        console.warn('[card] insert direto exception:', e?.message);
+      }
+    })();
+  } catch(_){}
+}
 
 // Menu ⋯ contextual ancorado ao card. Reusa modal de bloqueio pra
 // consistência UX. Fecha ao clicar fora ou apertar Esc.
