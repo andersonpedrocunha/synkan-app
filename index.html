@@ -41314,7 +41314,12 @@ async function _peopleRenderHomeBanner() {
     try { await _peopleLoadAll(); } catch(_) {}
   }
   const me = _peopleState.myAprendiz;
-  if (!me || me.status === 'graduado') return; // só mostra pra aprendiz ativo
+  // Só mostra banner se aprendiz está EM TRILHA ATIVA.
+  // Filtrar por whitelist ('ativo') em vez de blacklist ('graduado') pra
+  // pegar TAMBÉM 'desligado', 'nao-efetivada', 'pausado', 'arquivado', etc.
+  // Bug reportado: user excluiu trilha via "Não efetivar" (status virou
+  // 'nao-efetivada') e banner continuava renderizando.
+  if (!me || me.status !== 'ativo') return;
   // Acha home element
   const home = document.getElementById('home');
   if (!home) return;
