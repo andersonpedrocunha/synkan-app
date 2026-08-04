@@ -26004,6 +26004,18 @@ function showAuthOverlay(show) {
   o.classList.toggle('open', !!show);
   // Quando abre o overlay, atualiza o banner de plano (se user veio da landing)
   if (show) {
+    // Quem chega pela landing clicando "Começar grátis" / "Iniciar trial" vem
+    // com ?signup=1 — abre direto na aba de CADASTRO em vez de login.
+    // Sem isso, o visitante clica "Começar grátis" e cai numa tela pedindo
+    // e-mail e senha de uma conta que ele ainda não tem. Vazamento grande
+    // de funil (Meta Ads: 1.675 visitas → 0 cadastros).
+    try {
+      const _p = new URLSearchParams(location.search);
+      const _wantsSignup = _p.get('signup') === '1'
+        || _p.get('mode') === 'signup'
+        || !!_p.get('plan');   // veio clicando num plano da tabela de preços
+      if (_wantsSignup && typeof setAuthMode === 'function') setAuthMode('signup');
+    } catch(_){}
     _updateAuthPlanBanner();
     // Detecta erros que vieram do Supabase no hash (link expirado etc)
     _maybeShowAuthLinkError();
