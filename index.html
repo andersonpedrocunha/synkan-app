@@ -18117,28 +18117,37 @@ function pickProfileAvatar() {
     if (!/^image\//.test(file.type)) { alert('Selecione um arquivo de imagem.'); return; }
     if (file.size > 4*1024*1024) { alert('Imagem muito grande (máximo 4MB). Tente uma menor ou comprimida.'); return; }
     try {
-      const dataURL = await _resizeImageToDataURL(file, 256, 0.85);
-      // 1) Salva local + atualiza supaUser em memória IMEDIATAMENTE
-      const local = getLocalProfile(); local.avatar = dataURL; setLocalProfile(local);
-      if (supaUser) {
-        supaUser.user_metadata = { ...(supaUser.user_metadata||{}), avatar_url: dataURL };
+      const isCloud = (getStorageMode()==='supabase' && supaClient && supaUser);
+
+      // Modo cloud: sobe como ARQUIVO e guarda só a URL.
+      // Modo local: base64 no localStorage (não existe Storage disponível).
+      let avatarRef;
+      if (isCloud) {
+        avatarRef = await _uploadAvatarToStorage(file);
+      } else {
+        avatarRef = await _resizeImageToDataURL(file, 256, 0.85);
       }
-      audit('profile.avatar', { size: dataURL.length });
-      // 2) Re-renderiza UI ANTES da chamada Supabase — usuário vê o avatar na hora
+
+      // 1) Salva local + atualiza supaUser em memória IMEDIATAMENTE
+      const local = getLocalProfile(); local.avatar = avatarRef; setLocalProfile(local);
+      if (supaUser) {
+        supaUser.user_metadata = { ...(supaUser.user_metadata||{}), avatar_url: avatarRef };
+      }
+      audit('profile.avatar', { size: avatarRef.length, cloud: isCloud });
+      // 2) Re-renderiza UI
       if (typeof refreshAccountUI === 'function') refreshAccountUI();
       if (currentTab === 'settings') renderSettings();
-      // 3) Sync pro Supabase em background — atualiza nas DUAS tabelas:
+      // 3) Sync pro Supabase — agora só a URL, que cabe folgado no JWT:
       //    • auth.user_metadata.avatar_url (read pela sidebar)
       //    • public.profiles.avatar_url (read pelo Tatami, chat e DMs)
-      //    Sem isso, o Tatami fica com avatar "Convidado" enquanto Settings mostra a foto.
-      if (getStorageMode()==='supabase' && supaClient && supaUser) {
+      if (isCloud) {
         Promise.race([
-          supaClient.auth.updateUser({ data: { avatar_url: dataURL } }),
+          supaClient.auth.updateUser({ data: { avatar_url: avatarRef } }),
           new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (5s) updateUser avatar')), 5000)),
         ]).catch(err => console.warn('[avatar] auth metadata sync falhou:', err?.message || err));
         // ── Sync pra public.profiles também (essencial pro Tatami/chat) ──
         Promise.race([
-          supaClient.from('profiles').update({ avatar_url: dataURL }).eq('id', supaUser.id),
+          supaClient.from('profiles').update({ avatar_url: avatarRef }).eq('id', supaUser.id),
           new Promise((_, rej) => setTimeout(() => rej(new Error('timeout (5s) profiles update')), 5000)),
         ]).then(() => {
           // Invalida cache do Tatami Profile pra refletir avatar novo na próxima abertura
@@ -18150,6 +18159,67 @@ function pickProfileAvatar() {
     }
   };
   input.click();
+}
+
+// ─── Avatar: arquivo no Storage, nunca base64 ─────────────────────
+// CONTEXTO (ago/2026): o avatar era salvo como data URL base64 dentro de
+// auth.user_metadata. Como o user_metadata vai INTEIRO dentro do JWT, o
+// access_token chegou a 19.806 chars — e o nginx do Storage recusa header
+// acima de ~8KB. Resultado: todo upload de anexo dava HTTP 400.
+//
+// Solução: o avatar vira arquivo no bucket "avatars". Banco e JWT guardam
+// só a URL pública (~100 chars).
+
+// Redimensiona e devolve Blob (não data URL).
+function _resizeImageToBlob(file, maxSize, quality) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const ratio = Math.min(maxSize/img.width, maxSize/img.height, 1);
+        const w = Math.max(1, Math.round(img.width * ratio));
+        const h = Math.max(1, Math.round(img.height * ratio));
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, w, h);
+        c.toBlob(
+          b => b ? resolve(b) : reject(new Error('Falha ao gerar imagem')),
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error('Imagem inválida'));
+      img.src = e.target.result;
+    };
+    fr.onerror = () => reject(new Error('Falha ao ler arquivo'));
+    fr.readAsDataURL(file);
+  });
+}
+
+// Sobe o avatar pro bucket "avatars" e devolve a URL pública.
+// Path: {user_id}/avatar.jpg — sobrescreve, então não acumula lixo.
+async function _uploadAvatarToStorage(file) {
+  if (!supaClient || !supaUser) throw new Error('sem sessão Supabase');
+  const blob = await _resizeImageToBlob(file, 256, 0.85);
+  const path = `${supaUser.id}/avatar.jpg`;
+  const { error } = await supaClient.storage
+    .from('avatars')
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+  if (error) {
+    console.error('[avatar] upload falhou:', {
+      message: error.message, statusCode: error.statusCode, error: error.error,
+    });
+    if (String(error.statusCode) === '404' || /not found/i.test(error.message||'')) {
+      throw new Error('Bucket "avatars" não existe. Rode MIGRATION_STORAGE_AVATARS.sql no Supabase.');
+    }
+    throw error;
+  }
+  const { data } = supaClient.storage.from('avatars').getPublicUrl(path);
+  // Cache-buster: o path é fixo, então sem isso o navegador serve a foto antiga.
+  return `${data.publicUrl}?v=${Date.now()}`;
 }
 
 function _resizeImageToDataURL(file, maxSize, quality) {
@@ -27357,6 +27427,42 @@ try { if (typeof window !== 'undefined') window._dedupePrincipalBoards = _dedupe
 // jogando o usuário pra Home no meio do uso. Agora detecta se é o
 // mesmo user já logado e, se for, só atualiza UI sem reset de tab.
 let _lastSignedInUserId = null;
+// Auto-cura: remove avatar base64 do user_metadata.
+//
+// Contas criadas antes de ago/2026 têm o avatar como data URL dentro do
+// user_metadata — que viaja INTEIRO no JWT. Isso inflava o access_token
+// pra ~20KB e fazia o nginx do Storage recusar toda requisição com 400.
+//
+// Roda no login: detecta o base64, limpa e força refresh da sessão pra
+// emitir um JWT enxuto. O usuário reenvia a foto uma vez (agora vai pro
+// bucket "avatars" como arquivo) e o problema não volta.
+async function _healBloatedAvatarMetadata() {
+  try {
+    if (!supaClient || !supaUser) return;
+    const av = supaUser.user_metadata?.avatar_url;
+    if (typeof av !== 'string' || !av.startsWith('data:')) return;
+
+    console.warn(`[avatar-heal] base64 no user_metadata (${av.length} chars) — limpando`);
+    await supaClient.auth.updateUser({ data: { avatar_url: null } });
+    const { data } = await supaClient.auth.refreshSession();
+    if (supaUser?.user_metadata) delete supaUser.user_metadata.avatar_url;
+    console.log('[avatar-heal] ✓ token agora:', data?.session?.access_token?.length ?? '?', 'chars');
+
+    // O base64 segue no localStorage, então a foto continua aparecendo pra
+    // este usuário. Some ao trocar de máquina — daí ele reenvia.
+    if (typeof appAlert === 'function') {
+      appAlert(
+        'Foto de perfil precisa ser reenviada',
+        'Corrigimos como as fotos são armazenadas — agora elas não pesam mais na sua sessão.<br/><br/>' +
+        'Reenvie a sua em <strong>Configurações → Perfil</strong> quando puder.',
+        { icon: '🖼', html: true }
+      );
+    }
+  } catch(e) {
+    console.warn('[avatar-heal] falhou:', e?.message || e);
+  }
+}
+
 async function _onSignedIn(session) {
   // ─── DETECÇÃO DE "ABA DO LINK DE EMAIL" ───
   // Se essa aba foi aberta clicando no link de confirmação de email
@@ -27414,6 +27520,9 @@ async function _onSignedIn(session) {
   showAuthOverlay(false);
   // Cache JWT recém-recebido (evita corrida pelo lock no próximo REST call)
   try { _capInvalidateJWTCache && _capInvalidateJWTCache(); } catch(e){}
+  // Auto-cura de avatar base64 no user_metadata (inflava o JWT e quebrava
+  // o Storage). Roda em background — não bloqueia o boot.
+  setTimeout(() => { _healBloatedAvatarMetadata(); }, 1200);
   // PRE-WARM do cliente isolado em background (usado pelo dashboard de Membros).
   // Cria 1x logo após login pra que clicar em Settings → Membros seja instantâneo
   // (sem esperar 1.5s do setSession na hora). Não bloqueia o boot.
@@ -77247,7 +77356,8 @@ function _tpOpenEditProfile(currentProfile) {
   ov.querySelector('#tp-edit-cancel').addEventListener('click', () => ov.remove());
 
   // Avatar pick — usa o resize existente + sincroniza nos 3 lugares
-  let _pendingAvatarDataURL = null; // null = sem mudança · '' = remover · 'data:...' = nova
+  let _pendingAvatarDataURL = null; // null = sem mudança · '' = remover · 'data:...' = nova (preview)
+  let _pendingAvatarFile = null;    // File original — sobe pro Storage no save
   ov.querySelector('#tp-edit-avatar-pick').addEventListener('click', () => {
     const input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*';
@@ -77262,8 +77372,11 @@ function _tpOpenEditProfile(currentProfile) {
         return;
       }
       try {
+        // dataURL só pro PREVIEW imediato. O arquivo real vai pro Storage
+        // no save — base64 nunca chega no banco nem no JWT.
         const dataURL = await _resizeImageToDataURL(file, 256, 0.85);
         _pendingAvatarDataURL = dataURL;
+        _pendingAvatarFile = file;
         const preview = ov.querySelector('#tp-edit-avatar-preview');
         if (preview) preview.innerHTML = `<img src="${dataURL}" alt=""/>`;
         // Mostra botão "remover" se ainda não tem
@@ -77315,7 +77428,20 @@ function _tpOpenEditProfile(currentProfile) {
       // Avatar — sincroniza em 3 lugares: profiles.avatar_url, auth.user_metadata,
       // local cache. Só se houve mudança (null = unchanged, '' = remove, dataURL = nova)
       if (_pendingAvatarDataURL !== null) {
-        const newAvatar = _pendingAvatarDataURL || null;
+        // Se escolheu foto nova, sobe pro Storage e usa a URL. Se removeu
+        // (_pendingAvatarDataURL === ''), newAvatar fica null.
+        let newAvatar = null;
+        if (_pendingAvatarFile) {
+          try {
+            newAvatar = await _uploadAvatarToStorage(_pendingAvatarFile);
+          } catch(e) {
+            console.error('[avatar] upload pro Storage falhou:', e);
+            if (typeof appAlert === 'function') {
+              appAlert('Não consegui salvar a foto', e?.message || String(e), { icon:'⚠️' });
+            }
+            return;
+          }
+        }
         try {
           // 1) Tabela profiles
           await c.from('profiles').update({ avatar_url: newAvatar }).eq('id', supaUser.id);
