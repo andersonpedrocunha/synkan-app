@@ -9452,10 +9452,17 @@ function _planAllows(feature, currentCount) {
 }
 
 // Mensagens de paywall por feature — copy específico pra cada gate
-// ─── Leitura de cards com voz George (ElevenLabs) · opt-in ────────
+// ─── Leitura de cards com voz · opt-in ────────────────────────────
 // Default OFF. Quando ligado, botão 🔊 aparece no editor de card.
-// Edge function `mestre-kan-card-tts` chama ElevenLabs (voz George),
-// cacheia o MP3 no Storage e conta chars/mês consumidos.
+//
+// PROVEDOR DE VOZ — assinatura ElevenLabs cancelada em ago/2026.
+//   'browser'    → síntese nativa do navegador (Web Speech API).
+//                  Grátis, sem API, sem cota. Voz pt-BR do sistema.
+//   'elevenlabs' → edge function `mestre-kan-card-tts` com voz George.
+//                  Requer plano ElevenLabs ativo + cota mensal.
+// Pra voltar pro ElevenLabs: reativa o plano e troca a constante.
+const _TTS_PROVIDER = 'browser';
+
 const _CARD_TTS_KEY = 'synkan_card_tts_enabled';
 const _CARD_TTS_VOICE_KEY = 'synkan_card_tts_voice';   // 'george' | 'lily'
 let _cardTtsUsage = null;  // { chars_used, chars_limit, year_month } — atualizado on demand
@@ -10039,6 +10046,12 @@ async function speakCardText(text, opts) {
   if (!getCardTtsEnabled()) {
     console.log('[card-tts] toggle off');
     if (typeof appAlert === 'function') appAlert('Voz desligada', 'Ative em Configurações → Ler cards com voz.', { icon:'🔇' });
+    return;
+  }
+  // Provedor 'browser' → síntese nativa, sem chamar edge function nem cota.
+  if (typeof _TTS_PROVIDER !== 'undefined' && _TTS_PROVIDER === 'browser') {
+    console.log('[card-tts] provider=browser → voz nativa');
+    _speakCardFallback(text, opts);
     return;
   }
   if (typeof supaClient === 'undefined' || !supaClient) {
@@ -13417,8 +13430,32 @@ async function handleAttachFiles(cardId, files) {
       try {
         const { error } = await supaClient.storage.from('attachments').upload(path, file, { contentType: file.type, upsert: false });
         if (error) {
+          // Log completo no console — o objeto de erro do Storage tem campos
+          // que não aparecem em error.message (statusCode, error, name).
+          console.error('[attach] upload falhou:', {
+            message: error.message,
+            statusCode: error.statusCode,
+            error: error.error,
+            name: error.name,
+            path, contentType: file.type, size: file.size,
+          });
+          const _msg = (error.message||'').toLowerCase();
+          const _code = String(error.statusCode || '');
+          // 400 sem "not found" = quase sempre RLS policy ausente no bucket,
+          // ou restrição de MIME type / tamanho configurada no próprio bucket.
+          if (_code === '400' || _msg.includes('row-level security') || _msg.includes('policy')) {
+            const detalhe = error.message ? `\n\nDetalhe do Supabase:\n${error.message}` : '';
+            alert(
+              'Upload bloqueado pelo Storage (HTTP 400).\n\n' +
+              'Causa mais provável: o bucket "attachments" existe mas não tem policy de escrita, ' +
+              'ou tem restrição de tipo/tamanho de arquivo.\n\n' +
+              'Rode MIGRATION_STORAGE_ATTACHMENTS.sql no SQL Editor do Supabase — ' +
+              'está na raiz do projeto.' + detalhe
+            );
+            return;
+          }
           // Bucket não existe? Avisa o user
-          if ((error.message||'').toLowerCase().includes('not found') || error.statusCode === '404') {
+          if (_msg.includes('not found') || _code === '404') {
             alert('O bucket "attachments" não existe no Storage do Supabase.\n\nCrie ele no painel:\nStorage → New bucket → name: "attachments" → Public: NO\n\nDepois rode no SQL Editor:\ncreate policy "owner_rw" on storage.objects for all\n  using (bucket_id = \'attachments\' AND auth.uid()::text = (storage.foldername(name))[1])\n  with check (bucket_id = \'attachments\' AND auth.uid()::text = (storage.foldername(name))[1]);');
             return;
           }
